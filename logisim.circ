@@ -59,18 +59,34 @@
     <a name="clabel" val=""/>
     <a name="clabelup" val="east"/>
     <a name="clabelfont" val="SansSerif plain 12"/>
-    <wire from="(830,610)" to="(850,610)"/>
-    <wire from="(210,90)" to="(370,90)"/>
-    <wire from="(710,90)" to="(870,90)"/>
+    <wire from="(680,490)" to="(680,500)"/>
+    <wire from="(490,130)" to="(870,130)"/>
+    <wire from="(490,120)" to="(680,120)"/>
     <wire from="(850,540)" to="(850,610)"/>
-    <wire from="(740,570)" to="(740,730)"/>
+    <wire from="(310,670)" to="(310,690)"/>
+    <wire from="(680,490)" to="(720,490)"/>
+    <wire from="(680,500)" to="(720,500)"/>
+    <wire from="(210,90)" to="(210,560)"/>
+    <wire from="(310,690)" to="(740,690)"/>
+    <wire from="(210,90)" to="(440,90)"/>
+    <wire from="(420,120)" to="(420,660)"/>
+    <wire from="(450,90)" to="(870,90)"/>
+    <wire from="(420,120)" to="(460,120)"/>
+    <wire from="(830,610)" to="(850,610)"/>
+    <wire from="(310,670)" to="(330,670)"/>
+    <wire from="(440,140)" to="(460,140)"/>
     <wire from="(190,90)" to="(210,90)"/>
+    <wire from="(450,90)" to="(450,130)"/>
     <wire from="(210,560)" to="(230,560)"/>
     <wire from="(260,560)" to="(720,560)"/>
-    <wire from="(210,90)" to="(210,560)"/>
-    <wire from="(120,730)" to="(740,730)"/>
+    <wire from="(450,130)" to="(460,130)"/>
+    <wire from="(740,570)" to="(740,690)"/>
+    <wire from="(440,90)" to="(440,140)"/>
+    <wire from="(680,120)" to="(680,490)"/>
+    <wire from="(110,690)" to="(310,690)"/>
     <wire from="(860,530)" to="(870,530)"/>
     <wire from="(760,530)" to="(840,530)"/>
+    <wire from="(350,660)" to="(420,660)"/>
     <comp loc="(260,560)" name="Inverter">
       <a name="label" val="Inverter"/>
     </comp>
@@ -83,10 +99,6 @@
       <a name="label" val="BUS"/>
       <a name="labelloc" val="east"/>
     </comp>
-    <comp lib="0" loc="(120,730)" name="Pin">
-      <a name="width" val="3"/>
-      <a name="label" val="Control Unit"/>
-    </comp>
     <comp lib="2" loc="(760,530)" name="Multiplexer">
       <a name="select" val="3"/>
       <a name="width" val="8"/>
@@ -98,6 +110,22 @@
       <a name="width" val="8"/>
       <a name="label" val="Accumulator"/>
       <a name="labelloc" val="east"/>
+    </comp>
+    <comp loc="(490,120)" name="Adder"/>
+    <comp lib="0" loc="(870,130)" name="Pin">
+      <a name="facing" val="west"/>
+      <a name="output" val="true"/>
+      <a name="label" val="Carry"/>
+      <a name="labelloc" val="east"/>
+    </comp>
+    <comp lib="0" loc="(330,670)" name="Splitter">
+      <a name="incoming" val="3"/>
+      <a name="appear" val="center"/>
+      <a name="bit2" val="1"/>
+    </comp>
+    <comp lib="0" loc="(110,690)" name="Pin">
+      <a name="width" val="3"/>
+      <a name="label" val="Control Unit"/>
     </comp>
     <comp lib="1" loc="(860,530)" name="Controlled Buffer">
       <a name="width" val="8"/>
