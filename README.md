@@ -1,5 +1,13 @@
 # A computer build from scratch
 
+## Logisim
+
+### Linux
+
+Install logisim using `sudo apt install logisim`.
+
+Run it using `nohup logisim logisim.circ`
+
 ## Roadmap
 
 1. [ ] build the computer in [logisim]
