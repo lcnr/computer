@@ -59,11 +59,11 @@
     <a name="clabel" val=""/>
     <a name="clabelup" val="east"/>
     <a name="clabelfont" val="SansSerif plain 12"/>
-    <wire from="(490,130)" to="(870,130)"/>
     <wire from="(780,530)" to="(840,530)"/>
     <wire from="(850,540)" to="(850,610)"/>
     <wire from="(680,490)" to="(740,490)"/>
     <wire from="(490,470)" to="(610,470)"/>
+    <wire from="(740,150)" to="(800,150)"/>
     <wire from="(310,670)" to="(310,690)"/>
     <wire from="(310,690)" to="(740,690)"/>
     <wire from="(420,120)" to="(420,660)"/>
@@ -73,6 +73,7 @@
     <wire from="(440,410)" to="(460,410)"/>
     <wire from="(440,470)" to="(460,470)"/>
     <wire from="(440,130)" to="(460,130)"/>
+    <wire from="(400,40)" to="(740,40)"/>
     <wire from="(650,520)" to="(740,520)"/>
     <wire from="(740,590)" to="(740,690)"/>
     <wire from="(450,190)" to="(460,190)"/>
@@ -91,19 +92,26 @@
     <wire from="(350,660)" to="(420,660)"/>
     <wire from="(680,490)" to="(680,500)"/>
     <wire from="(620,550)" to="(740,550)"/>
+    <wire from="(350,650)" to="(410,650)"/>
     <wire from="(490,120)" to="(680,120)"/>
     <wire from="(190,90)" to="(440,90)"/>
     <wire from="(620,410)" to="(620,550)"/>
+    <wire from="(410,50)" to="(730,50)"/>
+    <wire from="(490,130)" to="(810,130)"/>
     <wire from="(670,190)" to="(670,510)"/>
     <wire from="(490,190)" to="(670,190)"/>
+    <wire from="(350,640)" to="(400,640)"/>
     <wire from="(680,500)" to="(740,500)"/>
     <wire from="(650,240)" to="(650,520)"/>
     <wire from="(610,470)" to="(610,560)"/>
     <wire from="(640,530)" to="(740,530)"/>
     <wire from="(450,90)" to="(870,90)"/>
     <wire from="(420,120)" to="(460,120)"/>
+    <wire from="(410,50)" to="(410,650)"/>
+    <wire from="(400,40)" to="(400,640)"/>
     <wire from="(760,570)" to="(760,590)"/>
     <wire from="(830,610)" to="(850,610)"/>
+    <wire from="(740,40)" to="(740,150)"/>
     <wire from="(450,310)" to="(450,420)"/>
     <wire from="(310,670)" to="(330,670)"/>
     <wire from="(440,180)" to="(460,180)"/>
@@ -117,6 +125,8 @@
     <wire from="(450,140)" to="(460,140)"/>
     <wire from="(450,420)" to="(460,420)"/>
     <wire from="(450,480)" to="(460,480)"/>
+    <wire from="(730,170)" to="(800,170)"/>
+    <wire from="(730,50)" to="(730,170)"/>
     <wire from="(440,130)" to="(440,180)"/>
     <wire from="(450,140)" to="(450,190)"/>
     <wire from="(610,560)" to="(740,560)"/>
@@ -124,6 +134,7 @@
     <wire from="(440,410)" to="(440,470)"/>
     <wire from="(860,530)" to="(870,530)"/>
     <wire from="(450,420)" to="(450,480)"/>
+    <wire from="(860,150)" to="(870,150)"/>
     <wire from="(630,360)" to="(630,540)"/>
     <comp lib="0" loc="(870,90)" name="Pin">
       <a name="facing" val="west"/>
@@ -133,9 +144,10 @@
       <a name="labelloc" val="east"/>
     </comp>
     <comp lib="0" loc="(330,670)" name="Splitter">
+      <a name="fanout" val="3"/>
       <a name="incoming" val="3"/>
-      <a name="appear" val="center"/>
-      <a name="bit2" val="1"/>
+      <a name="bit0" val="2"/>
+      <a name="bit2" val="0"/>
     </comp>
     <comp lib="0" loc="(110,690)" name="Pin">
       <a name="width" val="3"/>
@@ -149,14 +161,14 @@
       <a name="label" val="Accumulator"/>
       <a name="labelloc" val="east"/>
     </comp>
-    <comp loc="(470,400)" name="shl">
-      <a name="label" val="shl"/>
-    </comp>
-    <comp lib="0" loc="(870,130)" name="Pin">
+    <comp lib="0" loc="(870,150)" name="Pin">
       <a name="facing" val="west"/>
       <a name="output" val="true"/>
       <a name="label" val="Carry"/>
       <a name="labelloc" val="east"/>
+    </comp>
+    <comp loc="(470,400)" name="shl">
+      <a name="label" val="shl"/>
     </comp>
     <comp loc="(470,460)" name="shr">
       <a name="label" val="shr"/>
@@ -186,6 +198,11 @@
       <a name="width" val="8"/>
       <a name="tristate" val="false"/>
       <a name="label" val="Accumulator"/>
+    </comp>
+    <comp lib="1" loc="(860,150)" name="AND Gate">
+      <a name="inputs" val="3"/>
+      <a name="negate1" val="true"/>
+      <a name="negate2" val="true"/>
     </comp>
     <comp loc="(490,120)" name="Adder">
       <a name="label" val="Adder"/>
