@@ -56,137 +56,118 @@
     <a name="clabel" val=""/>
     <a name="clabelup" val="east"/>
     <a name="clabelfont" val="SansSerif plain 12"/>
-    <wire from="(660,420)" to="(660,430)"/>
-    <wire from="(450,200)" to="(450,270)"/>
-    <wire from="(660,220)" to="(710,220)"/>
-    <wire from="(780,180)" to="(830,180)"/>
-    <wire from="(130,290)" to="(180,290)"/>
-    <wire from="(780,170)" to="(840,170)"/>
-    <wire from="(780,190)" to="(820,190)"/>
-    <wire from="(640,440)" to="(640,470)"/>
-    <wire from="(540,260)" to="(540,280)"/>
-    <wire from="(750,270)" to="(750,310)"/>
-    <wire from="(540,490)" to="(560,490)"/>
-    <wire from="(420,200)" to="(450,200)"/>
-    <wire from="(780,210)" to="(800,210)"/>
-    <wire from="(420,210)" to="(630,210)"/>
-    <wire from="(780,200)" to="(810,200)"/>
-    <wire from="(660,270)" to="(750,270)"/>
-    <wire from="(540,370)" to="(540,490)"/>
-    <wire from="(600,550)" to="(670,550)"/>
-    <wire from="(620,460)" to="(620,510)"/>
-    <wire from="(620,510)" to="(670,510)"/>
-    <wire from="(860,150)" to="(860,160)"/>
-    <wire from="(450,270)" to="(630,270)"/>
-    <wire from="(610,530)" to="(670,530)"/>
-    <wire from="(600,480)" to="(600,550)"/>
-    <wire from="(630,490)" to="(670,490)"/>
-    <wire from="(840,170)" to="(840,200)"/>
-    <wire from="(280,210)" to="(280,490)"/>
-    <wire from="(650,450)" to="(670,450)"/>
-    <wire from="(640,470)" to="(670,470)"/>
-    <wire from="(540,280)" to="(630,280)"/>
-    <wire from="(380,190)" to="(390,190)"/>
-    <wire from="(800,280)" to="(870,280)"/>
-    <wire from="(550,220)" to="(630,220)"/>
-    <wire from="(660,430)" to="(670,430)"/>
-    <wire from="(820,190)" to="(820,240)"/>
-    <wire from="(620,230)" to="(630,230)"/>
-    <wire from="(820,240)" to="(870,240)"/>
-    <wire from="(750,310)" to="(870,310)"/>
-    <wire from="(810,260)" to="(870,260)"/>
-    <wire from="(800,210)" to="(800,280)"/>
-    <wire from="(830,220)" to="(870,220)"/>
-    <wire from="(420,190)" to="(530,190)"/>
-    <wire from="(280,210)" to="(390,210)"/>
-    <wire from="(650,430)" to="(650,450)"/>
-    <wire from="(850,180)" to="(870,180)"/>
-    <wire from="(530,190)" to="(530,230)"/>
-    <wire from="(630,450)" to="(630,490)"/>
-    <wire from="(840,200)" to="(870,200)"/>
-    <wire from="(580,410)" to="(670,410)"/>
-    <wire from="(580,430)" to="(650,430)"/>
-    <wire from="(380,170)" to="(710,170)"/>
-    <wire from="(610,470)" to="(610,530)"/>
-    <wire from="(280,490)" to="(540,490)"/>
-    <wire from="(710,170)" to="(710,220)"/>
-    <wire from="(150,370)" to="(540,370)"/>
-    <wire from="(580,420)" to="(660,420)"/>
-    <wire from="(860,160)" to="(870,160)"/>
-    <wire from="(550,220)" to="(550,230)"/>
-    <wire from="(550,80)" to="(550,220)"/>
-    <wire from="(710,220)" to="(760,220)"/>
-    <wire from="(580,450)" to="(630,450)"/>
-    <wire from="(580,440)" to="(640,440)"/>
-    <wire from="(580,460)" to="(620,460)"/>
-    <wire from="(60,20)" to="(620,20)"/>
-    <wire from="(380,170)" to="(380,190)"/>
-    <wire from="(60,80)" to="(550,80)"/>
-    <wire from="(850,160)" to="(850,180)"/>
-    <wire from="(180,200)" to="(180,290)"/>
-    <wire from="(620,20)" to="(620,230)"/>
-    <wire from="(830,180)" to="(830,220)"/>
-    <wire from="(580,480)" to="(600,480)"/>
-    <wire from="(580,470)" to="(610,470)"/>
-    <wire from="(180,200)" to="(390,200)"/>
-    <wire from="(780,140)" to="(870,140)"/>
-    <wire from="(810,200)" to="(810,260)"/>
-    <wire from="(780,160)" to="(850,160)"/>
-    <wire from="(780,150)" to="(860,150)"/>
-    <comp lib="3" loc="(670,530)" name="LED"/>
-    <comp lib="1" loc="(540,260)" name="AND Gate">
+    <wire from="(1030,70)" to="(1080,70)"/>
+    <wire from="(930,130)" to="(930,140)"/>
+    <wire from="(940,210)" to="(1000,210)"/>
+    <wire from="(1030,60)" to="(1090,60)"/>
+    <wire from="(510,270)" to="(510,800)"/>
+    <wire from="(1030,80)" to="(1070,80)"/>
+    <wire from="(510,270)" to="(940,270)"/>
+    <wire from="(1030,100)" to="(1050,100)"/>
+    <wire from="(860,130)" to="(860,230)"/>
+    <wire from="(1030,200)" to="(1120,200)"/>
+    <wire from="(850,260)" to="(940,260)"/>
+    <wire from="(1030,90)" to="(1060,90)"/>
+    <wire from="(850,120)" to="(1010,120)"/>
+    <wire from="(360,800)" to="(510,800)"/>
+    <wire from="(740,130)" to="(810,130)"/>
+    <wire from="(860,130)" to="(930,130)"/>
+    <wire from="(840,120)" to="(850,120)"/>
+    <wire from="(850,120)" to="(850,260)"/>
+    <wire from="(800,300)" to="(980,300)"/>
+    <wire from="(1090,60)" to="(1090,90)"/>
+    <wire from="(980,230)" to="(980,260)"/>
+    <wire from="(60,20)" to="(740,20)"/>
+    <wire from="(1110,40)" to="(1110,50)"/>
+    <wire from="(1070,80)" to="(1070,130)"/>
+    <wire from="(790,80)" to="(790,120)"/>
+    <wire from="(740,20)" to="(740,130)"/>
+    <wire from="(1050,170)" to="(1120,170)"/>
+    <wire from="(950,80)" to="(950,140)"/>
+    <wire from="(800,110)" to="(800,300)"/>
+    <wire from="(970,260)" to="(980,260)"/>
+    <wire from="(990,200)" to="(1000,200)"/>
+    <wire from="(1010,110)" to="(1010,120)"/>
+    <wire from="(1080,110)" to="(1120,110)"/>
+    <wire from="(1050,100)" to="(1050,170)"/>
+    <wire from="(990,200)" to="(990,270)"/>
+    <wire from="(1060,150)" to="(1120,150)"/>
+    <wire from="(980,280)" to="(980,300)"/>
+    <wire from="(1070,130)" to="(1120,130)"/>
+    <wire from="(790,120)" to="(810,120)"/>
+    <wire from="(1110,50)" to="(1120,50)"/>
+    <wire from="(790,80)" to="(950,80)"/>
+    <wire from="(720,280)" to="(940,280)"/>
+    <wire from="(130,500)" to="(720,500)"/>
+    <wire from="(1090,90)" to="(1120,90)"/>
+    <wire from="(1100,70)" to="(1120,70)"/>
+    <wire from="(1100,50)" to="(1100,70)"/>
+    <wire from="(860,230)" to="(980,230)"/>
+    <wire from="(720,280)" to="(720,500)"/>
+    <wire from="(970,270)" to="(990,270)"/>
+    <wire from="(940,170)" to="(940,210)"/>
+    <wire from="(60,80)" to="(790,80)"/>
+    <wire from="(1030,30)" to="(1120,30)"/>
+    <wire from="(1060,90)" to="(1060,150)"/>
+    <wire from="(1030,50)" to="(1100,50)"/>
+    <wire from="(1080,70)" to="(1080,110)"/>
+    <wire from="(970,280)" to="(980,280)"/>
+    <wire from="(800,110)" to="(810,110)"/>
+    <wire from="(1030,40)" to="(1110,40)"/>
+    <comp lib="3" loc="(1120,110)" name="LED"/>
+    <comp loc="(380,340)" name="MemoryCell">
+      <a name="label" val="M1"/>
+    </comp>
+    <comp loc="(1030,200)" name="D latch">
+      <a name="label" val="Carry"/>
+    </comp>
+    <comp loc="(970,280)" name="ALU">
+      <a name="label" val="ALU"/>
+    </comp>
+    <comp lib="3" loc="(1120,150)" name="LED"/>
+    <comp lib="3" loc="(1120,170)" name="LED"/>
+    <comp lib="3" loc="(1120,90)" name="LED"/>
+    <comp lib="3" loc="(1120,30)" name="LED"/>
+    <comp lib="1" loc="(940,170)" name="AND Gate">
       <a name="facing" val="south"/>
       <a name="size" val="30"/>
       <a name="inputs" val="2"/>
     </comp>
-    <comp lib="0" loc="(760,220)" name="Splitter">
-      <a name="fanout" val="8"/>
-      <a name="incoming" val="8"/>
+    <comp loc="(380,140)" name="MemoryCell">
+      <a name="label" val="P2"/>
     </comp>
-    <comp lib="3" loc="(670,510)" name="LED"/>
-    <comp lib="3" loc="(670,450)" name="LED"/>
-    <comp lib="3" loc="(670,490)" name="LED"/>
-    <comp lib="3" loc="(870,260)" name="LED"/>
-    <comp lib="3" loc="(870,180)" name="LED"/>
-    <comp lib="3" loc="(670,430)" name="LED"/>
-    <comp lib="3" loc="(670,410)" name="LED"/>
-    <comp lib="3" loc="(870,240)" name="LED"/>
-    <comp lib="3" loc="(870,160)" name="LED"/>
-    <comp lib="3" loc="(670,550)" name="LED"/>
-    <comp lib="0" loc="(560,490)" name="Splitter">
-      <a name="fanout" val="8"/>
-      <a name="incoming" val="8"/>
-    </comp>
-    <comp lib="0" loc="(150,370)" name="Pin">
-      <a name="width" val="8"/>
-      <a name="tristate" val="false"/>
-      <a name="label" val="Bus"/>
-    </comp>
-    <comp lib="3" loc="(670,470)" name="LED"/>
-    <comp lib="0" loc="(60,20)" name="Pin">
-      <a name="tristate" val="false"/>
-      <a name="label" val="Init"/>
-    </comp>
-    <comp lib="3" loc="(870,220)" name="LED"/>
-    <comp loc="(660,220)" name="MemoryCell">
-      <a name="label" val="Accu"/>
-    </comp>
-    <comp lib="3" loc="(870,200)" name="LED"/>
-    <comp lib="0" loc="(130,290)" name="Pin">
+    <comp lib="0" loc="(360,800)" name="Pin">
       <a name="width" val="3"/>
       <a name="tristate" val="false"/>
       <a name="label" val="Control Unit"/>
     </comp>
-    <comp loc="(660,270)" name="D latch">
-      <a name="label" val="Carry"/>
+    <comp lib="0" loc="(60,20)" name="Pin">
+      <a name="tristate" val="false"/>
+      <a name="label" val="Init"/>
     </comp>
-    <comp loc="(420,210)" name="ALU">
-      <a name="label" val="ALU"/>
+    <comp loc="(380,290)" name="MemoryCell">
+      <a name="label" val="M2"/>
     </comp>
-    <comp lib="3" loc="(870,280)" name="LED"/>
-    <comp lib="3" loc="(870,140)" name="LED"/>
-    <comp lib="3" loc="(870,310)" name="LED"/>
+    <comp lib="3" loc="(1120,200)" name="LED"/>
+    <comp loc="(840,120)" name="MemoryCell">
+      <a name="label" val="Accu"/>
+    </comp>
+    <comp lib="0" loc="(130,500)" name="Pin">
+      <a name="width" val="8"/>
+      <a name="tristate" val="false"/>
+      <a name="label" val="Bus"/>
+    </comp>
+    <comp lib="0" loc="(1010,110)" name="Splitter">
+      <a name="fanout" val="8"/>
+      <a name="incoming" val="8"/>
+    </comp>
+    <comp loc="(380,190)" name="MemoryCell">
+      <a name="label" val="P1"/>
+    </comp>
     <comp lib="0" loc="(60,80)" name="Clock"/>
+    <comp lib="3" loc="(1120,50)" name="LED"/>
+    <comp lib="3" loc="(1120,130)" name="LED"/>
+    <comp lib="3" loc="(1120,70)" name="LED"/>
   </circuit>
   <circuit name="ALU">
     <a name="circuit" val="ALU"/>
