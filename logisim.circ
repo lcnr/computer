@@ -245,6 +245,7 @@
     </comp>
     <comp lib="3" loc="(600,150)" name="Hex Digit Display"/>
     <comp lib="1" loc="(570,500)" name="NOT Gate"/>
+    <comp lib="3" loc="(30,20)" name="Button"/>
     <comp lib="1" loc="(510,270)" name="Controlled Buffer">
       <a name="facing" val="west"/>
       <a name="width" val="8"/>
@@ -272,9 +273,6 @@
       <a name="bit13" val="1"/>
       <a name="bit14" val="1"/>
       <a name="bit15" val="1"/>
-    </comp>
-    <comp lib="0" loc="(30,20)" name="Pin">
-      <a name="tristate" val="false"/>
     </comp>
     <comp lib="3" loc="(1010,380)" name="Hex Digit Display"/>
     <comp lib="1" loc="(940,620)" name="Buffer"/>
