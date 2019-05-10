@@ -3,7 +3,7 @@
 0. Increment P
 1. Bus to RAM
 2. Bus select RAM (default Accu)
-3. RAM select P (default M)
+3. RAM select M (default P)
 4. Bus to M1
 5. Bus to M2
 6. Bus to P1
