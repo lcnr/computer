@@ -52,12 +52,12 @@
 - `0x06`, shlm: Accu = Accu << mem[MR]; PC += 1;
 - `0x07`, shrc: Accu = Accu >> mem[PC + 1]; PC += 2;
 - `0x08`, shrm: Accu = Accu >> mem[MR]; PC += 1;
-- `0x09`, andc: Accu = Accu & mem[PC + 1]; PC += 2; TODO
-- `0x0a`, andm: Accu = Accu & mem[MR]; PC += 1; TODO
-- `0x0b`, orc: Accu = Accu | mem[PC + 1]; PC += 2; TODO
-- `0x0c`, orm: Accu = Accu | mem[MR]; PC += 1; TODO
-- `0x0d`, xorc: Accu = Accu ^ mem[PC + 1]; PC += 2; TODO
-- `0x0e`, xorm: Accu = Accu ^ mem[MR]; PC += 1; TODO
+- `0x09`, andc: Accu = Accu & mem[PC + 1]; PC += 2;
+- `0x0a`, andm: Accu = Accu & mem[MR]; PC += 1;
+- `0x0b`, orc: Accu = Accu | mem[PC + 1]; PC += 2;
+- `0x0c`, orm: Accu = Accu | mem[MR]; PC += 1;
+- `0x0d`, xorc: Accu = Accu ^ mem[PC + 1]; PC += 2;
+- `0x0e`, xorm: Accu = Accu ^ mem[MR]; PC += 1;
 - `0x0f`, inv: Accu = !Accu; PC += 1; TODO
 
 - `0x10`, loadc: Accu = Mem[PC + 1]; PC += 2;
