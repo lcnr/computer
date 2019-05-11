@@ -161,7 +161,6 @@
     <wire from="(220,200)" to="(220,210)"/>
     <wire from="(950,200)" to="(1010,200)"/>
     <wire from="(820,130)" to="(820,840)"/>
-    <wire from="(640,650)" to="(890,650)"/>
     <wire from="(510,370)" to="(510,380)"/>
     <wire from="(170,600)" to="(170,810)"/>
     <wire from="(720,330)" to="(720,420)"/>
@@ -201,8 +200,10 @@
     <wire from="(670,420)" to="(720,420)"/>
     <wire from="(770,240)" to="(770,510)"/>
     <wire from="(450,180)" to="(450,820)"/>
+    <wire from="(640,620)" to="(890,620)"/>
     <wire from="(1010,80)" to="(1010,110)"/>
     <wire from="(560,150)" to="(560,180)"/>
+    <wire from="(640,590)" to="(640,620)"/>
     <wire from="(940,290)" to="(940,310)"/>
     <wire from="(280,470)" to="(280,500)"/>
     <wire from="(1050,80)" to="(1050,100)"/>
@@ -229,7 +230,6 @@
     <wire from="(770,110)" to="(840,110)"/>
     <wire from="(50,200)" to="(50,250)"/>
     <wire from="(210,800)" to="(220,800)"/>
-    <wire from="(640,590)" to="(640,650)"/>
     <wire from="(890,230)" to="(960,230)"/>
     <wire from="(990,220)" to="(1000,220)"/>
     <wire from="(1060,200)" to="(1080,200)"/>
@@ -593,6 +593,9 @@
       <a name="label" val="ALU"/>
       <a name="labelloc" val="east"/>
     </comp>
+    <comp lib="4" loc="(553,209)" name="Text">
+      <a name="text" val="high = prev_low"/>
+    </comp>
     <comp lib="0" loc="(1120,470)" name="Pin">
       <a name="facing" val="west"/>
       <a name="output" val="true"/>
@@ -703,8 +706,14 @@
       <a name="negate1" val="true"/>
     </comp>
     <comp lib="1" loc="(610,480)" name="NOT Gate"/>
+    <comp lib="4" loc="(505,164)" name="Text">
+      <a name="text" val="huffman code with 2 bits"/>
+    </comp>
     <comp loc="(520,560)" name="MemoryCell">
       <a name="label" val="IR"/>
+    </comp>
+    <comp lib="4" loc="(557,189)" name="Text">
+      <a name="text" val="low = !prev_high"/>
     </comp>
     <comp lib="0" loc="(1120,550)" name="Pin">
       <a name="facing" val="west"/>
