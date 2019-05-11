@@ -82,4 +82,4 @@
 - `0x2a`, ljmpnzm: if Accu != 0 { P1 = 0; P2 = Mem[MR] } else { PC += 1 }; TODO
 - `0x2b`, ljmpnza: if Accu != 0 { P1 = 0; P2 = Accu } else { PC += 1 }; TODO
 
-- `0xff`, reset: set registers, RAM, PC to 0
+- `0xff`, reset: set registers, Accu and PC to 0
