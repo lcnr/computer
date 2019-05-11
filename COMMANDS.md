@@ -48,8 +48,8 @@
 | `0x08` | shrm     | Accu = Accu >> mem[MR]; PC += 1;          |
 | `0x09` | andc     | Accu = Accu & mem[PC + 1]; PC += 2;       |
 | `0x0a` | andm     | Accu = Accu & mem[MR]; PC += 1;           |
-| `0x0b` | orc      | Accu = Accu | mem[PC + 1]; PC += 2;       |
-| `0x0c` | orm      | Accu = Accu | mem[MR]; PC += 1;           |
+| `0x0b` | orc      | Accu = Accu \| mem[PC + 1]; PC += 2;       |
+| `0x0c` | orm      | Accu = Accu \| mem[MR]; PC += 1;           |
 | `0x0d` | xorc     | Accu = Accu ^ mem[PC + 1]; PC += 2;       |
 | `0x0e` | xorm     | Accu = Accu ^ mem[MR]; PC += 1;           |
 | `0x0f` | inv      | Accu = !Accu; PC += 1;                    |
