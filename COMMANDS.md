@@ -48,8 +48,8 @@
 - `0x02`, addm: Accu = Accu + mem[MR]; PC += 1;
 - `0x03`, subc: Accu = Accu - mem[PC + 1]; PC += 2;
 - `0x04`, subm: Accu = Accu - mem[MR]; PC += 1;
-- `0x05`, shlc: Accu = Accu << mem[PC + 1]; PC += 2; TODO
-- `0x06`, shlm: Accu = Accu << mem[MR]; PC += 1; TODO
+- `0x05`, shlc: Accu = Accu << mem[PC + 1]; PC += 2;
+- `0x06`, shlm: Accu = Accu << mem[MR]; PC += 1;
 - `0x07`, shrc: Accu = Accu >> mem[PC + 1]; PC += 2; TODO
 - `0x08`, shrm: Accu = Accu >> mem[MR]; PC += 1; TODO
 - `0x09`, andc: Accu = Accu & mem[PC + 1]; PC += 2; TODO
