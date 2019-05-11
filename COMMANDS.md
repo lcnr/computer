@@ -52,6 +52,8 @@
 - `0x0e`, xorm: Accu = Accu ^ mem[MR]; PC += 1;
 - `0x0f`, inv: Accu = !Accu; PC += 1;
 
+---
+
 - `0x10`, loadc: Accu = Mem[PC + 1]; PC += 2;
 - `0x11`, loadm: Accu = mem[MR]; PC += 1;
 - `0x12`, store: mem[MR] = Accu; PC += 1;
@@ -62,6 +64,8 @@
 - `0x17`, seta M2: M2 = Accu; PC += 1;
 - `0x18`, get M1: Accu = M1; PC += 2;
 - `0x19`, get M2: Accu = M2; PC += 1;
+
+---
 
 - `0x1a`, jmpc: P1 = Mem[PC + 1]; TODO
 - `0x1b`, jmpm: P1 = Mem[MR]; TODO
@@ -81,5 +85,7 @@
 - `0x29`, ljmpnzc: if Accu != 0 { P1 = 0; P2 = Mem[PC + 1] } else { PC += 2 }; TODO
 - `0x2a`, ljmpnzm: if Accu != 0 { P1 = 0; P2 = Mem[MR] } else { PC += 1 }; TODO
 - `0x2b`, ljmpnza: if Accu != 0 { P1 = 0; P2 = Accu } else { PC += 1 }; TODO
+
+---
 
 - `0xff`, reset: set registers, Accu and PC to 0
