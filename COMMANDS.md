@@ -1,10 +1,9 @@
 # Micro Commands
 
 0. Increment P
-1. Bus to RAM
-2. Bus select Accu (default RAM)
-3. RAM select M (default P)
-
+1. ALU
+2. ALU
+3. ALU
 ---
 4. Bus to M1
 5. Bus to M2
@@ -13,13 +12,13 @@
 ---
 8. Update Accu
 9. Accu select Bus (default ALU)
-10. Zero Bus
-11. Update IR
+10. Update RAM
+11. RAM select M (default P)
 ---
-12. Update IR
-13. ALU
-14. ALU
-15. ALU
+12. Bus Input
+13. Bus Input
+14. Update IR
+15. Update IR
 
 ## ALU
 
@@ -31,6 +30,13 @@
 - `0b101`: `!Accu`
 - `0b110`: `Accu << Bus`
 - `0b111`: `Accu >> Bus`
+
+## Bus Input
+
+- `0b00`: RAM
+- `0b01`: Accu
+- `0b10`: M1
+- `0b11`: M2
 
 ## Update IR
 
