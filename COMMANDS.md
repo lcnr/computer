@@ -60,8 +60,8 @@
 - `0x0e`, xorm: Accu = Accu ^ mem[MR]; PC += 1; TODO
 - `0x0f`, inv: Accu = !Accu; PC += 1; TODO
 
-- `0x10`, loadc: Accu = Mem[PC + 1]; PC += 2; TODO
-- `0x11`, loadm: Accu = mem[MR]; PC += 1; TODO
+- `0x10`, loadc: Accu = Mem[PC + 1]; PC += 2;
+- `0x11`, loadm: Accu = mem[MR]; PC += 1;
 - `0x12`, store: mem[MR] = Accu; PC += 1; TODO
 - `0x13`, setc M1: M1 = mem[PC + 1]; PC += 2; TODO
 - `0x14`, seta M1: M1 = Accu; PC += 1; TODO
