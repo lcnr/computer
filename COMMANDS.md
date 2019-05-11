@@ -73,13 +73,13 @@
 - `0x19`, jmpa: P1 = Accu; PC += 1; TODO
 - `0x1a`, ljmpc: P1 = 0; P2 = Mem[PC + 1]; PC += 2; TODO
 - `0x1b`, ljmpa: P1 = 0; P2 = Accu; PC += 1; TODO
-- `0x1c`, jmpzc: if Accu == 0 { P1 = Mem[PC + 1] }; PC += 2; TODO
-- `0x1d`, jmpza: if Accu == 0 { P1 = Accu }; PC += 1; TODO
-- `0x1e`, ljmpzc: if Accu == 0 { P1 = 0; P2 = Mem[PC + 1] }; PC += 2; TODO
-- `0x1f`, ljmpza: if Accu == 0 { P1 = 0; P2 = Accu }; PC += 1; TODO
-- `0x20`, jmpnzc: if Accu != 0 { P1 = Mem[PC + 1] }; PC += 2; TODO
-- `0x21`, jmpnza: if Accu != 0 { P1 = Accu }; PC += 1; TODO
-- `0x22`, ljmpnzc: if Accu != 0 { P1 = 0; P2 = Mem[PC + 1] }; PC += 2; TODO
-- `0x23`, ljmpnza: if Accu != 0 { P1 = 0; P2 = Accu }; PC += 1; TODO
+- `0x1c`, jmpzc: if Accu == 0 { P1 = Mem[PC + 1] } else { PC += 2 }; TODO
+- `0x1d`, jmpza: if Accu == 0 { P1 = Accu } else { PC += 1 }; TODO
+- `0x1e`, ljmpzc: if Accu == 0 { P1 = 0; P2 = Mem[PC + 1] } else { PC += 2 }; TODO
+- `0x1f`, ljmpza: if Accu == 0 { P1 = 0; P2 = Accu } else { PC += 1 }; TODO
+- `0x20`, jmpnzc: if Accu != 0 { P1 = Mem[PC + 1] } else { PC += 2 }; TODO
+- `0x21`, jmpnza: if Accu != 0 { P1 = Accu } else { PC += 1 }; TODO
+- `0x22`, ljmpnzc: if Accu != 0 { P1 = 0; P2 = Mem[PC + 1] } else { PC += 2 }; TODO
+- `0x23`, ljmpnza: if Accu != 0 { P1 = 0; P2 = Accu } else { PC += 1 }; TODO
 
 - `0xff`, reset: set registers, RAM, PC to 0
