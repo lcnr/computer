@@ -37,7 +37,7 @@
 
 # Commands
 
-*steps are stored in RAM with the order 1, 2, 4, 3 to prevent timing errors. (Huffman code 00 01 11 10)
+*steps are stored in RAM with the order 1, 2, 4, 3 to prevent timing errors. (Huffman code 00 01 11 10)*
 
 - `0x00`, idle: do nothing/simply increment PC by 1,
     1. `0000 0000 0000 0000`
