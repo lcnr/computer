@@ -20,30 +20,16 @@
 14. Update IR
 15. Update IR
 
-## ALU
-
-- `0b000`: `Accu + Bus`
-- `0b001`: `Accu - Bus`
-- `0b010`: `Accu & Bus`
-- `0b011`: `Accu | Bus`
-- `0b100`: `Accu ^ Bus`
-- `0b101`: `!Accu`
-- `0b110`: `Accu << Bus`
-- `0b111`: `Accu >> Bus`
-
-## Bus Input
-
-- `0b00`: RAM
-- `0b01`: Accu
-- `0b10`: M1
-- `0b11`: M2
-
-## Update IR
-
-- `0b00`: don't update
-- `0b01`: unconditional update
-- `0b10`: update on Carry
-- `0b11`: update on Zero
+|           | ALU           | Bus Input | Update IR     |
+| --------- | ------------- | --------- | ------------- |
+| `0b000`   | `Accu + Bus`  | RAM       | don't         |
+| `0b001`   | `Accu - Bus`  | Accu      | unconditional |
+| `0b010`   | `Accu & Bus`  | M1        | if Carry == 1 |
+| `0b011`   | `Accu | Bus`  | M2        | if Bus == 0   |
+| `0b100`   | `Accu ^ Bus`  | -         | -             |
+| `0b101`   | `!Accu`       | -         | -             |
+| `0b110`   | `Accu << Bus` | -         | -             |
+| `0b111`   | `Accu >> Bus` | -         | -             |
 
 # Commands
 
