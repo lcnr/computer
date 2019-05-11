@@ -4,14 +4,18 @@
 1. Bus to RAM
 2. Bus select Accu (default RAM)
 3. RAM select M (default P)
+
+---
 4. Bus to M1
 5. Bus to M2
 6. Bus to P1
 7. Bus to P2
+---
 8. Update Accu
 9. Accu select Bus (default ALU)
 10. Zero Bus
 11. Update IR
+---
 12. Update IR
 13. ALU
 14. ALU
@@ -40,9 +44,8 @@
 *steps are stored in RAM with the order 1, 2, 4, 3 to prevent timing errors. (Huffman code 00 01 11 10)*
 
 - `0x00`, idle: do nothing/simply increment PC by 1,
-
 - `0x01`, addc: Accu = Accu + mem[PC + 1]; PC += 2;
-- `0x02`, addm: Accu = Accu + mem[MR]; PC += 1; TODO
+- `0x02`, addm: Accu = Accu + mem[MR]; PC += 1;
 - `0x03`, subc: Accu = Accu - mem[PC + 1]; PC += 2; TODO
 - `0x04`, subm: Accu = Accu - mem[MR]; PC += 1; TODO
 - `0x05`, shlc: Accu = Accu << mem[PC + 1]; PC += 2; TODO
