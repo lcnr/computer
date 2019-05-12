@@ -48,8 +48,8 @@
 | `0x08` | shrm     | Accu = Accu >> mem[MR]; PC += 1;          |
 | `0x09` | andc     | Accu = Accu & mem[PC + 1]; PC += 2;       |
 | `0x0a` | andm     | Accu = Accu & mem[MR]; PC += 1;           |
-| `0x0b` | orc      | Accu = Accu \| mem[PC + 1]; PC += 2;       |
-| `0x0c` | orm      | Accu = Accu \| mem[MR]; PC += 1;           |
+| `0x0b` | orc      | Accu = Accu \| mem[PC + 1]; PC += 2;      |
+| `0x0c` | orm      | Accu = Accu \| mem[MR]; PC += 1;          |
 | `0x0d` | xorc     | Accu = Accu ^ mem[PC + 1]; PC += 2;       |
 | `0x0e` | xorm     | Accu = Accu ^ mem[MR]; PC += 1;           |
 | `0x0f` | inv      | Accu = !Accu; PC += 1;                    |
@@ -63,9 +63,9 @@
 | `0x17` | seta M2  | M2 = Accu; PC += 1;                       |
 | `0x18` | get M1   | Accu = M1; PC += 2;                       |
 | `0x19` | get M2   | Accu = M2; PC += 1;                       |
-| `0x1a` | jmpc     | P1 = Mem[PC + 1]; TODO                    |
-| `0x1b` | jmpm     | P1 = Mem[MR]; TODO                        |
-| `0x1c` | jmpa     | P1 = Accu; TODO                           |
+| `0x1a` | jmpc     | P1 = Mem[PC + 1];                         |
+| `0x1b` | jmpm     | P1 = Mem[MR];                             |
+| `0x1c` | jmpa     | P1 = Accu;                                |
 | `0x1d` | ljmpc    | P1 = 0; P2 = Mem[PC + 1]; TODO            |
 | `0x1e` | ljmpm    | P1 = 0; P2 = Mem[MR]; TODO                |
 | `0x1f` | ljmpa    | P1 = 0; P2 = Accu; TODO                   |
