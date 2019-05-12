@@ -23,7 +23,7 @@
 |           | ALU           | Bus Input | Update IR     |
 | --------- | ------------- | --------- | ------------- |
 | `0b000`   | Accu + Bus    | RAM       | don't         |
-| `0b001`   | Accu - Bus    | Accu    | unconditional |
+| `0b001`   | Accu - Bus    | Accu      | unconditional |
 | `0b010`   | Accu & Bus    | M1        | if Carry == 1 |
 | `0b011`   | Accu \| Bus   | M2        | if Bus == 0   |
 | `0b100`   | Accu ^ Bus    | -         | -             |
