@@ -1,5 +1,9 @@
 # Micro Commands
 
+Notes:
+
+- The highest bit of `Bus Input` is `1, 2, 3, 9`.
+
 0. Increment P
 1. ALU
 2. ALU
@@ -26,10 +30,10 @@
 | `0b001`   | Accu - Bus    | Accu      | unconditional |
 | `0b010`   | Accu & Bus    | M1        | if Carry == 1 |
 | `0b011`   | Accu \| Bus   | M2        | if Bus == 0   |
-| `0b100`   | Accu ^ Bus    | -         | -             |
-| `0b101`   | !Accu         | -         | -             |
-| `0b110`   | Accu << Bus   | -         | -             |
-| `0b111`   | Accu >> Bus   | -         | -             |
+| `0b100`   | Accu ^ Bus    | P1        | -             |
+| `0b101`   | !Accu         | P2        | -             |
+| `0b110`   | Accu << Bus   | Zero      | -             |
+| `0b111`   | Accu >> Bus   | Zero      | -             |
 
 # Commands
 
@@ -53,7 +57,7 @@
 | `0x0d` | xorc     | Accu = Accu ^ mem[PC + 1]; PC += 2;       |
 | `0x0e` | xorm     | Accu = Accu ^ mem[MR]; PC += 1;           |
 | `0x0f` | inv      | Accu = !Accu; PC += 1;                    |
-| `0x10` | loadc    | Accu = Mem[PC + 1]; PC += 2;              |
+| `0x10` | loadc    | Accu = Mem[PC + 1]; PC += 2;1              |
 | `0x11` | loadm    | Accu = mem[MR]; PC += 1;                  |
 | `0x12` | store    | mem[MR] = Accu; PC += 1;                  |
 | `0x13` | zero     | Accu = 0; PC += 1;                        |
