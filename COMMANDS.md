@@ -2,7 +2,7 @@
 
 Notes:
 
-- The highest bit of `Bus Input` is `1, 2, 3, 9`.
+- The highest bit of `Bus Input` is `1 & 2 & 3 & 9`.
 
 0. Increment P
 1. ALU
@@ -57,7 +57,7 @@ Notes:
 | `0x0d` | xorc     | Accu = Accu ^ mem[PC + 1]; PC += 2;       |
 | `0x0e` | xorm     | Accu = Accu ^ mem[MR]; PC += 1;           |
 | `0x0f` | inv      | Accu = !Accu; PC += 1;                    |
-| `0x10` | loadc    | Accu = Mem[PC + 1]; PC += 2;1              |
+| `0x10` | loadc    | Accu = Mem[PC + 1]; PC += 2;1             |
 | `0x11` | loadm    | Accu = mem[MR]; PC += 1;                  |
 | `0x12` | store    | mem[MR] = Accu; PC += 1;                  |
 | `0x13` | zero     | Accu = 0; PC += 1;                        |
