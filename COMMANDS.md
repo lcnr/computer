@@ -2,7 +2,7 @@
 
 Notes:
 
-- The highest bit of `Bus Input` is `1 & 2 & 3 & 9`.
+- The highest bit of `Bus Input`   is `1 & 2 & 3 & 9`.
 
 0. Increment P
 1. ALU
@@ -39,50 +39,82 @@ Notes:
 
 *steps are stored in RAM with the order 1, 2, 4, 3 to prevent timing errors. (Huffman code 00 01 11 10)*
 
-| Opcode   | Name     | Function                                                      |
-| -------- | -------- | ------------------------------------------------------------- |
-| `0x00`   | idle     | do nothing/simply increment PC by 1                           |
-| `0x01`   | addc     | Accu = Accu + mem[PC + 1]; PC += 2;                           |
-| `0x02`   | addm     |Accu = Accu + mem[MR]; PC += 1;                                |
-| `0x03`   | subc     | Accu = Accu - mem[PC + 1]; PC += 2;                           |
-| `0x04`   | subm     | Accu = Accu - mem[MR]; PC += 1;                               |
-| `0x05`   | shlc     | Accu = Accu << mem[PC + 1]; PC += 2;                          |
-| `0x06`   | shlm     | Accu = Accu << mem[MR]; PC += 1;                              |
-| `0x07`   | shrc     | Accu = Accu >> mem[PC + 1]; PC += 2;                          |
-| `0x08`   | shrm     | Accu = Accu >> mem[MR]; PC += 1;                              |
-| `0x09`   | andc     | Accu = Accu & mem[PC + 1]; PC += 2;                           |
-| `0x0a`   | andm     | Accu = Accu & mem[MR]; PC += 1;                               |
-| `0x0b`   | orc      | Accu = Accu \| mem[PC + 1]; PC += 2;                          |
-| `0x0c`   | orm      | Accu = Accu \| mem[MR]; PC += 1;                              |
-| `0x0d`   | xorc     | Accu = Accu ^ mem[PC + 1]; PC += 2;                           |
-| `0x0e`   | xorm     | Accu = Accu ^ mem[MR]; PC += 1;                               |
-| `0x0f`   | inv      | Accu = !Accu; PC += 1;                                        |
-| `0x10`   | loadc    | Accu = Mem[PC + 1]; PC += 2;1                                 |
-| `0x11`   | loadm    | Accu = mem[MR]; PC += 1;                                      |
-| `0x12`   | store    | mem[MR] = Accu; PC += 1;                                      |
-| `0x13`   | zero     | Accu = 0; PC += 1;                                            |
-| `0x14`   | setc M1  | M1 = mem[PC + 1]; PC += 2;                                    |
-| `0x15`   | seta M1  | M1 = Accu; PC += 1;                                           |
-| `0x16`   | setc M2  | M2 = mem[PC + 1]; PC += 2;                                    |
-| `0x17`   | seta M2  | M2 = Accu; PC += 1;                                           |
-| `0x18`   | get M1   | Accu = M1; PC += 2;                                           |
-| `0x19`   | get M2   | Accu = M2; PC += 1;                                           |
-| `0x1a`   | jmpc     | P1 = Mem[PC + 1];                                             |
-| `0x1b`   | jmpm     | P1 = Mem[MR];                                                 |
-| `0x1c`   | jmpa     | P1 = Accu;                                                    |
-| `0x1d`   | ljmpc    | P1 = 0; P2 = Mem[PC + 1];                                     |
-| `0x1e`   | ljmpm    | P1 = 0; P2 = Mem[MR];                                         |
-| `0x1f`   | ljmpa    | P1 = 0; P2 = Accu;                                            |
-| `0x2021` | jmpzc    | if Accu == 0 { P1 = Mem[PC + 2] } else { PC += 3 };           |
-| `0x2120` | jmpnzc   | if Accu != 0 { P1 = Mem[PC + 2] } else { PC += 3 };           |
-| `0x2223` | jmpzm    | if Accu == 0 { P1 = Mem[MR] } else { PC += 2 };               |
-| `0x2322` | jmpnzm   | if Accu != 0 { P1 = Mem[MR] } else { PC += 2 };               |
-| `0x2425` | jmpza    | if Accu == 0 { P1 = Accu } else { PC += 2 };                  |
-| `0x2524` | jmpnza   | if Accu != 0 { P1 = Accu } else { PC += 2 };                  |
-| `0x2627` | ljmpzc   | if Accu == 0 { P1 = 0; P2 = Mem[PC + 1] } else { PC += 3 };   |
-| `0x2726` | ljmpnzc  | if Accu != 0 { P1 = 0; P2 = Mem[PC + 1] } else { PC += 3 };   |
-| `0x2829` | ljmpzm   | if Accu == 0 { P1 = 0; P2 = Mem[MR] } else { PC += 2 };       |
-| `0x2928` | ljmpnzm  | if Accu != 0 { P1 = 0; P2 = Mem[MR] } else { PC += 2 };       |
-| `0x2a2b` | ljmpza   | if Accu == 0 { P1 = 0; P2 = Accu } else { PC += 2 };          |
-| `0x2b2a` | ljmpnza  | if Accu != 0 { P1 = 0; P2 = Accu } else { PC += 2 };          |
-| `0xff`   | reset    | set registers, Accu and PC to 0                               |
+| Opcode     | Name     | Function                                                      |
+| ---------- | -------- | ------------------------------------------------------------- |
+| `0x00`     | idle     | do nothing/simply increment PC by 1                           |
+| `0x01`     | addc     | Accu = Accu + mem[PC + 1]; PC += 2;                           |
+| `0x02`     | addm     | Accu = Accu + mem[MR]; PC += 1;                               |
+| `0x03`     | subc     | Accu = Accu - mem[PC + 1]; PC += 2;                           |
+| `0x04`     | subm     | Accu = Accu - mem[MR]; PC += 1;                               |
+| `0x05`     | shlc     | Accu = Accu << mem[PC + 1]; PC += 2;                          |
+| `0x06`     | shlm     | Accu = Accu << mem[MR]; PC += 1;                              |
+| `0x07`     | shrc     | Accu = Accu >> mem[PC + 1]; PC += 2;                          |
+| `0x08`     | shrm     | Accu = Accu >> mem[MR]; PC += 1;                              |
+| `0x09`     | andc     | Accu = Accu & mem[PC + 1]; PC += 2;                           |
+| `0x0a`     | andm     | Accu = Accu & mem[MR]; PC += 1;                               |
+| `0x0b`     | orc      | Accu = Accu \| mem[PC + 1]; PC += 2;                          |
+| `0x0c`     | orm      | Accu = Accu \| mem[MR]; PC += 1;                              |
+| `0x0d`     | xorc     | Accu = Accu ^ mem[PC + 1]; PC += 2;                           |
+| `0x0e`     | xorm     | Accu = Accu ^ mem[MR]; PC += 1;                               |
+| `0x0f`     | inv      | Accu = !Accu; PC += 1;                                        |
+| `0x10`     | loadc    | Accu = mem[PC + 1]; PC += 2;                                  |
+| `0x11`     | loadm    | Accu = mem[MR]; PC += 1;                                      |
+| `0x12`     | storem   | mem[MR] = Accu; PC += 1;                                      |
+| `0x13`     | zero     | Accu = 0; PC += 1;                                            |
+| `0x14`     | setc M1  | M1 = mem[PC + 1]; PC += 2;                                    |
+| `0x15`     | seta M1  | M1 = Accu; PC += 1;                                           |
+| `0x16`     | setc M2  | M2 = mem[PC + 1]; PC += 2;                                    |
+| `0x17`     | seta M2  | M2 = Accu; PC += 1;                                           |
+| `0x18`     | get M1   | Accu = M1; PC += 2;                                           |
+| `0x19`     | get M2   | Accu = M2; PC += 1;                                           |
+| `0x1a`     | jmpc     | P1 = mem[PC + 1];                                             |
+| `0x1b`     | jmpm     | P1 = mem[MR];                                                 |
+| `0x1c`     | jmpa     | P1 = Accu;                                                    |
+| `0x1d`     | ljmpc    | P1 = 0; P2 = mem[PC + 1];                                     |
+| `0x1e`     | ljmpm    | P1 = 0; P2 = mem[MR];                                         |
+| `0x1f`     | ljmpa    | P1 = 0; P2 = Accu;                                            |
+| `0x2021`   | jmpzc    | if Accu == 0 { P1 = mem[PC + 2] } else { PC += 3 };           |
+| `0x2120`   | jmpnzc   | if Accu != 0 { P1 = mem[PC + 2] } else { PC += 3 };           |
+| `0x2223`   | jmpzm    | if Accu == 0 { P1 = mem[MR] } else { PC += 2 };               |
+| `0x2322`   | jmpnzm   | if Accu != 0 { P1 = mem[MR] } else { PC += 2 };               |
+| `0x2425`   | ljmpzc   | if Accu == 0 { P1 = 0; P2 = mem[PC + 1] } else { PC += 3 };   |
+| `0x2524`   | ljmpnzc  | if Accu != 0 { P1 = 0; P2 = mem[PC + 1] } else { PC += 3 };   |
+| `0x2627`   | ljmpzm   | if Accu == 0 { P1 = 0; P2 = mem[MR] } else { PC += 2 };       |
+| `0x2726`   | ljmpnzm  | if Accu != 0 { P1 = 0; P2 = mem[MR] } else { PC += 2 };       |
+| `0x28xx29` | jmpgtcc  | if Accu > mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4} TODO|
+| `0x29xx28` | jmpltecc | if Accu <= mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4} TODO|
+| `0x2axx2b` | jmpgtecc | if Accu >= mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4} TODO|
+| `0x2bxx2a` | jmpltcc  | if Accu < mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4} TODO|
+| `0x2cxx2d` | jmpeqcc  | if Accu == mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4} TODO|
+| `0x2dxx2c` | jmpneqcc | if Accu != mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4} TODO|
+| `0x2exx2f` | jmpgtcm  | if Accu > mem[PC + 1] { P1 = mem[MR] } else { PC += 3} TODO   |
+| `0x2fxx3e` | jmpltecm | if Accu <= mem[PC + 1] { P1 = mem[MR] } else { PC += 3} TODO  |
+| `0x30xx31` | jmpgtecm | if Accu >= mem[PC + 1] { P1 = mem[MR] } else { PC += 3} TODO  |
+| `0x31xx30` | jmpltcm  | if Accu < mem[PC + 1] { P1 = mem[MR] } else { PC += 3} TODO   |
+| `0x32xx33` | jmpeqcm  | if Accu == mem[PC + 1] { P1 = mem[MR] } else { PC += 3} TODO  |
+| `0x33xx32` | jmpneqcm | if Accu != mem[PC + 1] { P1 = mem[MR] } else { PC += 3} TODO  |
+| `0x3435`   | jmpgtmc  | if Accu > mem[MR] { P1 = mem[PC + 2] } else { PC += 3} TODO   |
+| `0x3534`   | jmpltemc | if Accu <= mem[MR] { P1 = mem[PC + 2] } else { PC += 3} TODO  |
+| `0x3637`   | jmpgtemc | if Accu >= mem[MR] { P1 = mem[PC + 2] } else { PC += 3} TODO  |
+| `0x3736`   | jmpltmc  | if Accu < mem[MR] { P1 = mem[PC + 2] } else { PC += 3} TODO   |
+| `0x3839`   | jmpeqmc  | if Accu == mem[MR] { P1 = mem[PC + 2] } else { PC += 3} TODO  |
+| `0x3938`   | jmpneqmc | if Accu != mem[MR] { P1 = mem[PC + 2] } else { PC += 3} TODO  |
+| `0x3axx3b` | ljmpgtcc  | if Accu > mem[PC + 1] { P1 = 0; P2 = mem[PC + 3] } else { PC += 4} TODO|
+| `0x3bxx3a` | ljmpltecc | if Accu <= mem[PC + 1] { P1 = 0; P2 = mem[PC + 3] } else { PC += 4} TODO|
+| `0x3cxx3d` | ljmpgtecc | if Accu >= mem[PC + 1] { P1 = 0; P2 = mem[PC + 3] } else { PC += 4} TODO|
+| `0x3dxx3c` | ljmpltcc  | if Accu < mem[PC + 1] { P1 = 0; P2 = mem[PC + 3] } else { PC += 4} TODO|
+| `0x3exx3f` | ljmpeqcc  | if Accu == mem[PC + 1] { P1 = 0; P2 = mem[PC + 3] } else { PC += 4} TODO|
+| `0x3fxx3e` | ljmpneqcc | if Accu != mem[PC + 1] { P1 = 0; P2 = mem[PC + 3] } else { PC += 4} TODO|
+| `0x40xx41` | ljmpgtcm  | if Accu > mem[PC + 1] { P1 = 0; P2 = mem[MR] } else { PC += 3} TODO   |
+| `0x41xx40` | ljmpltecm | if Accu <= mem[PC + 1] { P1 = 0; P2 = mem[MR] } else { PC += 3} TODO  |
+| `0x42xx43` | ljmpgtecm | if Accu >= mem[PC + 1] { P1 = 0; P2 = mem[MR] } else { PC += 3} TODO  |
+| `0x43xx42` | ljmpltcm  | if Accu < mem[PC + 1] { P1 = 0; P2 = mem[MR] } else { PC += 3} TODO   |
+| `0x44xx45` | ljmpeqcm  | if Accu == mem[PC + 1] { P1 = 0; P2 = mem[MR] } else { PC += 3} TODO  |
+| `0x45xx44` | ljmpneqcm | if Accu != mem[PC + 1] { P1 = 0; P2 = mem[MR] } else { PC += 3} TODO  |
+| `0x4647`   | ljmpgtmc  | if Accu > mem[MR] { P1 = 0; P2 = mem[PC + 2] } else { PC += 3} TODO   |
+| `0x4849`   | ljmpltemc | if Accu <= mem[MR] { P1 = 0; P2 = mem[PC + 2] } else { PC += 3} TODO  |
+| `0x4a4b`   | ljmpgtemc | if Accu >= mem[MR] { P1 = 0; P2 = mem[PC + 2] } else { PC += 3} TODO  |
+| `0x4b4a`   | ljmpltmc  | if Accu < mem[MR] { P1 = 0; P2 = mem[PC + 2] } else { PC += 3} TODO   |
+| `0x4c4d`   | ljmpeqmc  | if Accu == mem[MR] { P1 = 0; P2 = mem[PC + 2] } else { PC += 3} TODO  |
+| `0x4d4c`   | ljmpneqmc | if Accu != mem[MR] { P1 = 0; P2 = mem[PC + 2] } else { PC += 3} TODO  |
+| `0xff`     | reset    | set registers, Accu and PC to 0                               |
