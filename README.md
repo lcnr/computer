@@ -21,8 +21,14 @@ to undo the last commit and resume with step 3.
 
 ## Roadmap
 
-1. [ ] build the computer in [logisim]
+1. [] build the computer in [logisim]
+    1.1. [x] basic functionality
+    1.2. [ ] conditional jumps
+        1.2.1 [x] jmp on Accu == 0
+        1.2.2 [x] jmp on Accu != 0
+        1.2.3 [] jmp on Accu cmp Bus
+1. [ ] build a assembler targeting this architecture ([rock])
 1. [ ] build it in real life
 
-
 [logisim]: http://www.cburch.com/logisim
+[rock]: ./rock/README.md
