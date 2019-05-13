@@ -75,14 +75,14 @@ Notes:
 | `0x1f`   | ljmpa    | P1 = 0; P2 = Accu;                                            |
 | `0x2021` | jmpzc    | if Accu == 0 { P1 = Mem[PC + 2] } else { PC += 3 };           |
 | `0x2120` | jmpnzc   | if Accu != 0 { P1 = Mem[PC + 2] } else { PC += 3 };           |
-| `0x2223` | jmpzm    | if Accu == 0 { P1 = Mem[MR] } else { PC += 2 }; TODO          |
-| `0x2322` | jmpnzm   | if Accu != 0 { P1 = Mem[MR] } else { PC += 2 }; TODO          |
-| `0x2425` | jmpza    | if Accu == 0 { P1 = Accu } else { PC += 2 }; TODO             |
-| `0x2524` | jmpnza   | if Accu != 0 { P1 = Accu } else { PC += 2 }; TODO             |
+| `0x2223` | jmpzm    | if Accu == 0 { P1 = Mem[MR] } else { PC += 2 };               |
+| `0x2322` | jmpnzm   | if Accu != 0 { P1 = Mem[MR] } else { PC += 2 };               |
+| `0x2425` | jmpza    | if Accu == 0 { P1 = Accu } else { PC += 2 };                  |
+| `0x2524` | jmpnza   | if Accu != 0 { P1 = Accu } else { PC += 2 };                  |
 | `0x2627` | ljmpzc   | if Accu == 0 { P1 = 0; P2 = Mem[PC + 1] } else { PC += 3 }; TO|
 | `0x2726` | ljmpnzc  | if Accu != 0 { P1 = 0; P2 = Mem[PC + 1] } else { PC += 3 }; TO|
-| `0x2829` | ljmpzm   | if Accu == 0 { P1 = 0; P2 = Mem[MR] } else { PC += 2 }; TODO  |
-| `0x2928` | ljmpnzm  | if Accu != 0 { P1 = 0; P2 = Mem[MR] } else { PC += 2 }; TODO  |
-| `0x25`   | ljmpza   | if Accu == 0 { P1 = 0; P2 = Accu } else { PC += 2 }; TODO     |
-| `0x2b`   | ljmpnza  | if Accu != 0 { P1 = 0; P2 = Accu } else { PC += 2 }; TODO     |
+| `0x2829` | ljmpzm   | if Accu == 0 { P1 = 0; P2 = Mem[MR] } else { PC += 2 };       |
+| `0x2928` | ljmpnzm  | if Accu != 0 { P1 = 0; P2 = Mem[MR] } else { PC += 2 };       |
+| `0x25`   | ljmpza   | if Accu == 0 { P1 = 0; P2 = Accu } else { PC += 2 };          |
+| `0x2b`   | ljmpnza  | if Accu != 0 { P1 = 0; P2 = Accu } else { PC += 2 };          |
 | `0xff`   | reset    | set registers, Accu and PC to 0                               |
