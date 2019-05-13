@@ -112,9 +112,9 @@ Notes:
 | `0x44xx45` | ljmpeqcm  | if Accu == mem[PC + 1] { P1 = 0; P2 = mem[MR] } else { PC += 3} TODO  |
 | `0x45xx44` | ljmpneqcm | if Accu != mem[PC + 1] { P1 = 0; P2 = mem[MR] } else { PC += 3} TODO  |
 | `0x4647`   | ljmpgtmc  | if Accu > mem[MR] { P1 = 0; P2 = mem[PC + 2] } else { PC += 3} TODO   |
-| `0x4849`   | ljmpltemc | if Accu <= mem[MR] { P1 = 0; P2 = mem[PC + 2] } else { PC += 3} TODO  |
-| `0x4a4b`   | ljmpgtemc | if Accu >= mem[MR] { P1 = 0; P2 = mem[PC + 2] } else { PC += 3} TODO  |
-| `0x4b4a`   | ljmpltmc  | if Accu < mem[MR] { P1 = 0; P2 = mem[PC + 2] } else { PC += 3} TODO   |
-| `0x4c4d`   | ljmpeqmc  | if Accu == mem[MR] { P1 = 0; P2 = mem[PC + 2] } else { PC += 3} TODO  |
-| `0x4d4c`   | ljmpneqmc | if Accu != mem[MR] { P1 = 0; P2 = mem[PC + 2] } else { PC += 3} TODO  |
+| `0x4746`   | ljmpltemc | if Accu <= mem[MR] { P1 = 0; P2 = mem[PC + 2] } else { PC += 3} TODO  |
+| `0x4849`   | ljmpgtemc | if Accu >= mem[MR] { P1 = 0; P2 = mem[PC + 2] } else { PC += 3} TODO  |
+| `0x4948`   | ljmpltmc  | if Accu < mem[MR] { P1 = 0; P2 = mem[PC + 2] } else { PC += 3} TODO   |
+| `0x4a4b`   | ljmpeqmc  | if Accu == mem[MR] { P1 = 0; P2 = mem[PC + 2] } else { PC += 3} TODO  |
+| `0x4b4a`   | ljmpneqmc | if Accu != mem[MR] { P1 = 0; P2 = mem[PC + 2] } else { PC += 3} TODO  |
 | `0xff`     | reset    | set registers, Accu and PC to 0                               |
