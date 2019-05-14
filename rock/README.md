@@ -17,6 +17,11 @@ start:
 
 # Roadmap
 
-1. [ ] finish an MVP
+- [ ] MVP
+  - [x] Tokenizer
+  - [ ] Parser
+  - [ ] resolve jmp targets
+  - [ ] code generation
+
 
 [commands]: ../COMMANDS.md
