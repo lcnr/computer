@@ -1,78 +1,111 @@
-use std::io::{self, BufRead, Read};
-
-pub enum Command {
-    Idle,
+pub enum TokenType {
+    Byte(u8),
+    Ident,
+    Colon,
+    SemiColon,
+    Invalid
 }
 
-struct ParseError;
+pub struct Token {
+    line: usize,
+    byte_offset: usize,
+    len: usize,
+    ty: TokenType
+}
 
-#[derive(Debug, Clone)]
-pub struct Error;
+pub struct TokenIter<'a> {
+    src: &'a str,
+    line: usize,
+    byte_offset: usize,
+}
 
-#[derive(Debug, Clone)]
-pub struct Warning;
+impl<'a> TokenIter<'a> {
+    pub fn new(src: &'a str) -> Self {
+        TokenIter {
+            src,
+            line: 0,
+            byte_offset: 0
+        }
+    }
 
-impl Command {
-    fn parse<L: Logger>(s: &str, logger: &mut L) -> Result<Self, ParseError> {
+    fn current_char(&self) -> Option<char> {
+        self.src[self.byte_offset..].chars().next()
+    }
+
+    fn next_char(&self) -> Option<char> {
+        self.src[self.byte_offset..].chars().skip(1).next()
+    }
+
+    fn recover(&mut self) -> usize {
+        0
+    }
+
+    fn advance(&mut self) {
+        if let Some(c) = self.next_char() {
+            self.byte_offset += c.len_utf8();
+            if c == '\n' {
+                self.line += 1;
+            }
+        }
+    }
+
+    fn parse_ident(&mut self) -> Token {
+        unimplemented!()
+    }
+
+    fn parse_num(&mut self) -> Token {
         unimplemented!()
     }
 }
 
-#[derive(Debug)]
-pub enum GenerateAsmError {
-    IoError(io::Error),
-    InvalidAsm
-}
+impl Iterator for TokenIter<'_> {
+    type Item = Token;
 
-impl From<io::Error> for GenerateAsmError {
-    fn from(err: io::Error) -> Self {
-        GenerateAsmError::IoError(err)
-    }
-}
+    fn next(&mut self) -> Option<Token> {
+        if let Some(first) = self.current_char() {
+            if first.is_alphabetic() || first == '.' || first == '_' {
+                Some(self.parse_ident())
+            }
+            else if first.is_numeric() {
+                Some(self.parse_num())
 
-pub trait Logger {
-    fn log_error(&mut self, err: Error);
-
-    fn log_warning(&mut self, warning: Warning);
-}
-
-pub struct DebugLogger;
-
-impl Logger for DebugLogger {
-    fn log_error(&mut self, err: Error) {
-        println!("ERROR: {:?}", err);
-    }
-
-    fn log_warning(&mut self, warning: Warning) {
-        println!("WARN: {:?}", warning);
-    }
-}
-
-pub fn generate_asm<R: BufRead, L: Logger>(src: R, logger: &mut L) -> Result<Vec<u8>, GenerateAsmError> {
-    let mut commands = Vec::new();
-    let mut success = true;
-
-    for line in src.lines() {
-        let line = line?;
-        if let Ok(command) = Command::parse(&line, logger) {
-            commands.push(command);
-        } else {
-            success = false;
+            } else if first.is_whitespace() {
+                self.advance();
+                self.next()
+            }
+            else if first == ';' {
+                let token = Token {
+                    line: self.line,
+                    byte_offset: self.byte_offset,
+                    len: 1,
+                    ty: TokenType::SemiColon
+                };
+                self.advance();
+                Some(token)
+            }
+            else if first == ':' {
+                let token = Token {
+                    line: self.line,
+                    byte_offset: self.byte_offset,
+                    len: 1,
+                    ty: TokenType::Colon
+                };
+                self.advance();
+                Some(token)
+            }
+            else {
+                let byte_offset = self.byte_offset;
+                let len = self.recover();
+                Some(Token {
+                    line: self.line,
+                    byte_offset: byte_offset,
+                    len,
+                    ty: TokenType::Invalid,
+                })
+            }
         }
-    }
-
-
-    let mut data = Vec::new();
-    for command in commands.iter() {
-        match command {
-            Command::Idle => data.extend_from_slice(b"00"),
+        else {
+            None
         }
-    }
-
-
-    if success {
-        Ok(data)
-    } else {
-        Err(GenerateAsmError::InvalidAsm)
     }
 }
