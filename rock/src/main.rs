@@ -19,7 +19,7 @@ pub fn main() {
 
             if let Ok(mut file) = File::create(output) {
                 for tok in token {
-                    if let Err(err) = write!(file, "{:?}", tok) {
+                    if let Err(err) = writeln!(file, "{:?}", tok.content(&src)) {
                         println!("Error while writing to {}: {:?}", input, err);
                         return;
                     }
