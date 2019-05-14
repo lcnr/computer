@@ -1,2 +1,6 @@
 start:
-    loadc 255
+    loadc 0b1111_1011
+    addc 4
+    inv
+.loop
+    jmpzc .loop
