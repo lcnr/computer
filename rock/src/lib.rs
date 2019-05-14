@@ -1,16 +1,18 @@
+#[derive(Debug, Clone)]
 pub enum TokenType {
     Byte(u8),
     Ident,
     Colon,
     SemiColon,
-    Invalid
+    Invalid,
 }
 
+#[derive(Debug, Clone)]
 pub struct Token {
     line: usize,
     byte_offset: usize,
     len: usize,
-    ty: TokenType
+    ty: TokenType,
 }
 
 pub struct TokenIter<'a> {
@@ -24,7 +26,7 @@ impl<'a> TokenIter<'a> {
         TokenIter {
             src,
             line: 0,
-            byte_offset: 0
+            byte_offset: 0,
         }
     }
 
@@ -37,7 +39,15 @@ impl<'a> TokenIter<'a> {
     }
 
     fn recover(&mut self) -> usize {
-        0
+        let mut skipped = 0;
+        while let Some(c) = self.current_char() {
+            if c.is_whitespace() || c == ';' || c == ':' {
+                break;
+            }
+            self.advance();
+            skipped += 1;
+        }
+        skipped
     }
 
     fn advance(&mut self) {
@@ -65,35 +75,30 @@ impl Iterator for TokenIter<'_> {
         if let Some(first) = self.current_char() {
             if first.is_alphabetic() || first == '.' || first == '_' {
                 Some(self.parse_ident())
-            }
-            else if first.is_numeric() {
+            } else if first.is_numeric() {
                 Some(self.parse_num())
-
             } else if first.is_whitespace() {
                 self.advance();
                 self.next()
-            }
-            else if first == ';' {
+            } else if first == ';' {
                 let token = Token {
                     line: self.line,
                     byte_offset: self.byte_offset,
                     len: 1,
-                    ty: TokenType::SemiColon
+                    ty: TokenType::SemiColon,
                 };
                 self.advance();
                 Some(token)
-            }
-            else if first == ':' {
+            } else if first == ':' {
                 let token = Token {
                     line: self.line,
                     byte_offset: self.byte_offset,
                     len: 1,
-                    ty: TokenType::Colon
+                    ty: TokenType::Colon,
                 };
                 self.advance();
                 Some(token)
-            }
-            else {
+            } else {
                 let byte_offset = self.byte_offset;
                 let len = self.recover();
                 Some(Token {
@@ -103,8 +108,7 @@ impl Iterator for TokenIter<'_> {
                     ty: TokenType::Invalid,
                 })
             }
-        }
-        else {
+        } else {
             None
         }
     }
