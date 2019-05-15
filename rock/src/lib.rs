@@ -254,7 +254,7 @@ impl<'b> Iterator for TokenIter<'b> {
 #[derive(Debug, Clone)]
 pub enum Command<'a> {
     Invalid,
-    Section(&'a str),
+    Section(&'a str, usize),
     Idle,
     Inv,
 }
@@ -296,7 +296,7 @@ impl<'a> Command<'a> {
 
     fn section(curr: &mut Vec<Token<'a>>, l: &mut impl Logger) -> Self {
         if curr.len() == 1 {
-            Command::Section(curr.first().unwrap().origin())
+            Command::Section(curr.first().unwrap().origin(), 0)
         } else {
             l.log_err(Error::from_token(
                 ErrorLevel::Error,
@@ -304,6 +304,13 @@ impl<'a> Command<'a> {
                 curr.first().unwrap(),
             ));
             Command::Invalid
+        }
+    }
+
+    fn size(&self) -> usize {
+        match self {
+            Command::Invalid | Command::Section(_, _) => 0,
+            Command::Idle | Command::Inv => 1,
         }
     }
 }
