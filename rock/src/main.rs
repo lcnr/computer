@@ -15,14 +15,12 @@ pub fn main() {
                 return;
             }
 
-            let token = TokenIter::new(&src);
+            let blocks = rock::parse(&src, &mut rock::DebugLogger);
 
             if let Ok(mut file) = File::create(output) {
-                for tok in token {
-                    if let Err(err) = writeln!(file, "{:?}: {}", tok, tok.content(&src)) {
-                        println!("Error while writing to {}: {:?}", input, err);
-                        return;
-                    }
+                if let Err(err) = writeln!(file, "{:?}", blocks) {
+                    println!("Error while writing to {}: {:?}", input, err);
+                    return;
                 }
             }
         } else {
