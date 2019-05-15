@@ -263,7 +263,6 @@ impl<'a> Command<'a> {
     fn new(curr: &mut Vec<Token<'a>>, l: &mut impl Logger) -> Self {
         if let Some(command) = curr.first() {
             if !command.is_ident() {
-                println!("hey");
                 l.log_err(Error::expected(vec![TokenType::Ident], command));
                 return Command::Invalid;
             }
@@ -330,7 +329,6 @@ impl<'a> Block<'a> {
                         Block::invalid()
                     }
                 } else {
-                    println!("ho");
                     l.log_err(Error::expected(vec![TokenType::Ident], &a));
                     Block::invalid()
                 }
@@ -344,7 +342,6 @@ impl<'a> Block<'a> {
                         content: Vec::new(),
                     }
                 } else {
-                    println!("hi");
                     l.log_err(Error::expected(vec![TokenType::Ident], &ident));
                     Block::invalid()
                 }
