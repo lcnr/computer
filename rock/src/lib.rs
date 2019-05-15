@@ -1,256 +1,83 @@
+mod token;
+
+use std::collections::HashMap;
+
+#[derive(Clone, Copy, Debug)]
+pub struct CodeGenError;
+
+#[derive(Debug, Clone)]
+pub enum Cause<'a> {
+    MissingStartBlock,
+    UnknownCommand(&'a str),
+    InvalidToken {
+        expected: Vec<TokenType>,
+        found: TokenType,
+    },
+    InvalidSection,
+    UnspecifiedError,
+    WrongArgCount(&'a str, usize, usize),
+    /// only 256 blocks can be stored
+    BlockCount(usize),
+    /// the same block position is used twice
+    BlockReuse,
+}
+
 #[derive(Debug, Clone, Copy)]
-pub enum TokenType {
-    Byte(u8),
-    Ident,
-    Section,
-    Colon,
-    SemiColon,
-    Invalid,
+pub enum ErrorLevel {
+    Warn,
+    Error,
 }
 
 #[derive(Debug, Clone)]
-pub struct Token<'a> {
+pub struct Error<'a> {
+    lvl: ErrorLevel,
+    cause: Cause<'a>,
     line: usize,
     origin: &'a str,
-    ty: TokenType,
 }
 
-impl<'a> Token<'a> {
-    fn byte(line: usize, origin: &'a str, value: u8) -> Self {
+impl<'a> Error<'a> {
+    pub fn new(lvl: ErrorLevel, cause: Cause<'a>, line: usize, origin: &'a str) -> Self {
         Self {
+            lvl,
+            cause,
             line,
             origin,
-            ty: TokenType::Byte(value),
         }
     }
 
-    fn ident(line: usize, origin: &'a str) -> Self {
+    pub fn at_token(lvl: ErrorLevel, cause: Cause<'a>, tok: &Token<'a>) -> Self {
         Self {
-            line,
-            origin,
-            ty: TokenType::Ident,
+            lvl,
+            cause,
+            line: tok.line(),
+            origin: tok.origin(),
         }
     }
 
-    fn colon(line: usize, origin: &'a str) -> Self {
+    /// Error: expected ... found ...
+    fn expected(expected: Vec<TokenType>, tok: &Token<'a>) -> Self {
         Self {
-            line,
-            origin,
-            ty: TokenType::Colon,
+            lvl: ErrorLevel::Error,
+            cause: Cause::InvalidToken {
+                expected,
+                found: tok.ty(),
+            },
+            line: tok.line(),
+            origin: tok.origin(),
         }
     }
 
-    fn semi_colon(line: usize, origin: &'a str) -> Self {
-        Self {
-            line,
-            origin,
-            ty: TokenType::SemiColon,
-        }
+    pub fn lvl(&self) -> ErrorLevel {
+        self.lvl
     }
 
-    fn invalid(line: usize, origin: &'a str) -> Self {
-        Self {
-            line,
-            origin,
-            ty: TokenType::Invalid,
-        }
-    }
-
-    pub fn origin(&self) -> &'a str {
-        self.origin
-    }
-
-    pub fn ty(&self) -> TokenType {
-        self.ty
-    }
-
-    pub fn is_byte(&self) -> bool {
-        match self.ty {
-            TokenType::Byte(_) => true,
-            _ => false,
-        }
-    }
-
-    /// this method returns u8::MAX if `self.ty != TokenType::Byte`
-    pub fn byte_value(&self) -> u8 {
-        match self.ty {
-            TokenType::Byte(v) => v,
-            _ => std::u8::MAX,
-        }
-    }
-
-    pub fn is_ident(&self) -> bool {
-        match self.ty {
-            TokenType::Ident => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_section(&self) -> bool {
-        match self.ty {
-            TokenType::Section => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_colon(&self) -> bool {
-        match self.ty {
-            TokenType::Colon => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_semi_colon(&self) -> bool {
-        match self.ty {
-            TokenType::SemiColon => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_invalid(&self) -> bool {
-        match self.ty {
-            TokenType::Invalid => true,
-            _ => false,
-        }
+    pub fn cause(&self) -> &Cause<'a> {
+        &self.cause
     }
 }
 
-pub struct TokenIter<'a> {
-    src: &'a str,
-    line: usize,
-    byte_offset: usize,
-}
-
-impl<'a, 'b: 'a> TokenIter<'b> {
-    pub fn new(src: &'b str) -> Self {
-        TokenIter {
-            src,
-            line: 1,
-            byte_offset: 0,
-        }
-    }
-
-    fn current_char(&self) -> Option<char> {
-        self.src[self.byte_offset..].chars().next()
-    }
-
-    /// returns an invalid token,
-    /// recover never needs to skip a newline
-    fn recover(&'a mut self, tok_start: usize) -> Token<'b> {
-        while let Some(c) = self.current_char() {
-            if c.is_whitespace() || c == ';' || c == ':' {
-                break;
-            }
-            self.advance();
-        }
-        Token::invalid(self.line, &self.src[tok_start..self.byte_offset])
-    }
-
-    fn advance(&mut self) {
-        if let Some(c) = self.current_char() {
-            self.byte_offset += c.len_utf8();
-            if c == '\n' {
-                self.line += 1;
-            }
-        }
-    }
-
-    /// expects that the first byte is already checked to be alphabetical
-    fn parse_ident(&'a mut self) -> Token<'b> {
-        let start = self.byte_offset;
-        self.advance();
-        while let Some(c) = self.current_char() {
-            if !(c.is_alphanumeric() || c == '_') {
-                if c.is_whitespace() || c == ';' || c == ':' {
-                    break;
-                } else {
-                    return self.recover(start);
-                }
-            }
-            self.advance();
-        }
-
-        Token::ident(self.line, &self.src[start..self.byte_offset])
-    }
-
-    fn parse_num(&'a mut self) -> Token<'b> {
-        // get num str
-        let s = self.src[self.byte_offset..]
-            .split(|c: char| c.is_whitespace() || c == ':' || c == ';')
-            .next()
-            .unwrap();
-
-        // strip underscores without allocating a new String unless necessary.
-        let s2;
-        let mut num_str = if s.chars().any(|c| c == '_') {
-            s2 = s.chars().filter(|&c| c != '_').collect::<String>();
-            &s2
-        } else {
-            s
-        };
-
-        let base = if num_str.starts_with('0') && num_str.len() > 1 {
-            match num_str.as_bytes()[1] {
-                b'x' => 16,
-                b'o' => 8,
-                b'b' => 2,
-                _ => 10,
-            }
-        } else {
-            10
-        };
-
-        if base != 10 {
-            num_str = &num_str[2..];
-        }
-
-        match u8::from_str_radix(num_str, base) {
-            Ok(v) => {
-                self.byte_offset += s.len();
-                Token::byte(self.line, s, v)
-            }
-            Err(_err) => self.recover(self.byte_offset),
-        }
-    }
-}
-
-impl<'b> Iterator for TokenIter<'b> {
-    type Item = Token<'b>;
-
-    fn next(&mut self) -> Option<Token<'b>> {
-        if let Some(first) = self.current_char() {
-            if first.is_alphabetic() || first == '.' || first == '_' {
-                let mut tok = self.parse_ident();
-                if first == '.' && tok.is_ident() {
-                    tok.ty = TokenType::Section;
-                }
-                Some(tok)
-            } else if first.is_numeric() {
-                Some(self.parse_num())
-            } else if first.is_whitespace() {
-                self.advance();
-                self.next()
-            } else if first == ';' {
-                self.advance();
-                Some(Token::semi_colon(
-                    self.line,
-                    &self.src[self.byte_offset - 1..self.byte_offset],
-                ))
-            } else if first == ':' {
-                self.advance();
-                Some(Token::colon(
-                    self.line,
-                    &self.src[self.byte_offset - 1..self.byte_offset],
-                ))
-            } else {
-                Some(self.recover(self.byte_offset))
-            }
-        } else {
-            None
-        }
-    }
-}
-
+use token::{Token, TokenIter, TokenType};
 #[derive(Debug, Clone)]
 pub enum Command<'a> {
     Invalid,
@@ -261,46 +88,52 @@ pub enum Command<'a> {
 
 impl<'a> Command<'a> {
     fn new(curr: &mut Vec<Token<'a>>, l: &mut impl Logger) -> Self {
-        if let Some(command) = curr.first() {
-            if !command.is_ident() {
-                l.log_err(Error::expected(vec![TokenType::Ident], command));
-                return Command::Invalid;
-            }
+        if curr.len() < 2 {
+            l.log_err(Error::expected(
+                vec![TokenType::Ident],
+                curr.last().unwrap(),
+            ));
+            return Command::Invalid;
+        } else {
+            curr.pop();
+        }
+        let command = curr.first().unwrap();
+        if !command.is_ident() {
+            l.log_err(Error::expected(vec![TokenType::Ident], command));
+            return Command::Invalid;
+        }
 
-            match command.origin() {
-                "idle" => {
-                    if curr.len() != 1 {
-                        l.log_err(Error::from_token(
-                            ErrorLevel::Error,
-                            ErrorType::WrongArgCount(command.origin(), 1, curr.len()),
-                            command,
-                        ));
-                        Command::Invalid
-                    } else {
-                        Command::Idle
-                    }
-                }
-                unknown => {
-                    l.log_err(Error::new(
+        match command.origin() {
+            "idle" => {
+                if curr.len() != 1 {
+                    l.log_err(Error::at_token(
                         ErrorLevel::Error,
-                        ErrorType::UnknownCommand(unknown),
+                        Cause::WrongArgCount(command.origin(), 1, curr.len()),
+                        command,
                     ));
                     Command::Invalid
+                } else {
+                    Command::Idle
                 }
             }
-        } else {
-            l.log_err(Error::new(ErrorLevel::Error, ErrorType::UnknownCommand("")));
-            Command::Invalid
+            unknown => {
+                l.log_err(Error::at_token(
+                    ErrorLevel::Error,
+                    Cause::UnknownCommand(unknown),
+                    command,
+                ));
+                Command::Invalid
+            }
         }
     }
 
     fn section(curr: &mut Vec<Token<'a>>, l: &mut impl Logger) -> Self {
-        if curr.len() == 1 {
+        if curr.len() == 2 {
             Command::Section(curr.first().unwrap().origin(), 0)
         } else {
-            l.log_err(Error::from_token(
+            l.log_err(Error::at_token(
                 ErrorLevel::Error,
-                ErrorType::InvalidSection,
+                Cause::InvalidSection,
                 curr.first().unwrap(),
             ));
             Command::Invalid
@@ -319,13 +152,14 @@ impl<'a> Command<'a> {
 pub struct Block<'a> {
     name: &'a str,
     pos: Option<u8>,
+    line: usize,
     content: Vec<Command<'a>>,
 }
 
 impl<'a> Block<'a> {
     fn new<L: Logger>(curr: &mut Vec<Token<'a>>, l: &mut L) -> Self {
         match curr.len() {
-            2 => {
+            3 => {
                 let b = &curr[1];
                 let a = &curr[0];
                 if a.is_ident() {
@@ -333,50 +167,57 @@ impl<'a> Block<'a> {
                         Block {
                             name: a.origin(),
                             pos: Some(b.byte_value()),
+                            line: a.line(),
                             content: Vec::new(),
                         }
                     } else {
                         l.log_err(Error::expected(vec![TokenType::Byte(0)], &b));
-                        Block::invalid()
+                        Block::invalid(b.line())
                     }
                 } else {
                     l.log_err(Error::expected(vec![TokenType::Ident], &a));
-                    Block::invalid()
+                    Block::invalid(a.line())
                 }
             }
-            1 => {
-                let ident = &curr[0];
-                if ident.is_ident() {
+            2 => {
+                let a = &curr[0];
+                if a.is_ident() {
                     Block {
-                        name: ident.origin(),
+                        name: a.origin(),
                         pos: None,
+                        line: a.line(),
+                        content: Vec::new(),
+                    }
+                } else if a.is_byte() {
+                    Block {
+                        name: "<unnamed>",
+                        pos: Some(a.byte_value()),
+                        line: a.line(),
                         content: Vec::new(),
                     }
                 } else {
-                    l.log_err(Error::expected(vec![TokenType::Ident], &ident));
-                    Block::invalid()
+                    l.log_err(Error::expected(vec![TokenType::Ident], a));
+                    Block::invalid(a.line())
                 }
             }
             _ => {
-                if let Some(tok) = curr.first() {
-                    l.log_err(Error::from_token(
-                        ErrorLevel::Error,
-                        ErrorType::UnspecifiedError,
-                        tok,
-                    ));
-                } else {
-                    l.log_err(Error::new(ErrorLevel::Error, ErrorType::UnspecifiedError));
-                }
+                let tok = curr.first().unwrap();
+                l.log_err(Error::at_token(
+                    ErrorLevel::Error,
+                    Cause::UnspecifiedError,
+                    tok,
+                ));
 
-                Block::invalid()
+                Block::invalid(tok.line())
             }
         }
     }
 
-    fn invalid() -> Self {
+    fn invalid(line: usize) -> Self {
         Self {
             name: "<invalid>",
             pos: None,
+            line,
             content: Vec::new(),
         }
     }
@@ -386,83 +227,19 @@ impl<'a> Block<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
-enum ErrorType<'a> {
-    MissingStartBlock,
-    UnknownCommand(&'a str),
-    InvalidToken {
-        expected: Vec<TokenType>,
-        found: TokenType,
-    },
-    InvalidSection,
-    UnspecifiedError,
-    WrongArgCount(&'a str, usize, usize),
-}
-
-#[derive(Debug, Clone, Copy)]
-enum ErrorLevel {
-    Warn,
-    Error,
-}
-
-#[derive(Debug, Clone)]
-pub struct Error<'a> {
-    lvl: ErrorLevel,
-    ty: ErrorType<'a>,
-    meta: Option<(usize, &'a str)>,
-}
-
-impl<'a> Error<'a> {
-    fn new(lvl: ErrorLevel, ty: ErrorType<'a>) -> Self {
-        Self {
-            lvl,
-            ty,
-            meta: None,
-        }
-    }
-
-    fn with_meta(lvl: ErrorLevel, ty: ErrorType<'a>, line: usize, origin: &'a str) -> Self {
-        Self {
-            lvl,
-            ty,
-            meta: Some((line, origin)),
-        }
-    }
-
-    fn from_token(lvl: ErrorLevel, ty: ErrorType<'a>, tok: &Token<'a>) -> Self {
-        Self {
-            lvl,
-            ty,
-            meta: Some((tok.line, tok.origin)),
-        }
-    }
-
-    /// Error: expected ... found ...
-    fn expected(expected: Vec<TokenType>, tok: &Token<'a>) -> Self {
-        Self {
-            lvl: ErrorLevel::Error,
-            ty: ErrorType::InvalidToken {
-                expected,
-                found: tok.ty,
-            },
-            meta: Some((tok.line, tok.origin)),
-        }
-    }
-}
-
 fn current_block<'a, 'b: 'a>(
     blocks: &'a mut Vec<Block<'b>>,
     src: &'b str,
     l: &mut impl Logger,
 ) -> &'a mut Block<'b> {
     if blocks.is_empty() {
-        l.log_err(Error::with_meta(
+        l.log_err(Error::new(
             ErrorLevel::Warn,
-            ErrorType::MissingStartBlock,
+            Cause::MissingStartBlock,
             1,
             src.split(';').next().unwrap(),
         ));
-        let block = Block::invalid();
+        let block = Block::invalid(1);
         blocks.push(block);
     }
 
@@ -481,12 +258,13 @@ impl Logger for DebugLogger {
     }
 }
 
-pub fn parse<'a, L: Logger>(src: &'a str, l: &mut L) -> Vec<Block<'a>> {
+pub fn parse<'a, L: Logger>(src: &'a str, l: &mut L) -> Result<Vec<Block<'a>>, CodeGenError> {
     let mut blocks = Vec::new();
 
     let mut curr: Vec<Token> = Vec::with_capacity(4);
     for token in TokenIter::new(src) {
         let ty = token.ty();
+        curr.push(token);
         match ty {
             TokenType::Colon => {
                 if curr.first().map(|c| c.is_section()).unwrap_or(false) {
@@ -504,7 +282,7 @@ pub fn parse<'a, L: Logger>(src: &'a str, l: &mut L) -> Vec<Block<'a>> {
                 current_block.push(command);
                 curr.clear();
             }
-            _ => curr.push(token),
+            _ => (),
         }
     }
 
@@ -514,5 +292,45 @@ pub fn parse<'a, L: Logger>(src: &'a str, l: &mut L) -> Vec<Block<'a>> {
         current_block.push(command);
     }
 
-    blocks
+    if blocks.len() > 256 {
+        let problematic = &blocks[256];
+        l.log_err(Error::new(
+            ErrorLevel::Error,
+            Cause::BlockCount(blocks.len()),
+            problematic.line,
+            problematic.name,
+        ));
+    }
+
+    resolve(&mut blocks, l)?;
+    Ok(blocks)
+}
+
+fn register<'a>(blocks: &[Block<'a>]) -> HashMap<&'a str, u8> {
+    let mut map = HashMap::new();
+
+    for block in blocks.iter() {
+        map.insert(block.name, block.pos.unwrap());
+    }
+
+    map
+}
+
+pub fn resolve<'a>(blocks: &mut [Block<'a>], l: &mut impl Logger) -> Result<(), CodeGenError> {
+    let mut used = [false; 256];
+    for block in blocks {
+        if let Some(pos) = block.pos {
+            if used[pos as usize] == true {
+                l.log_err(Error::new(
+                    ErrorLevel::Error,
+                    Cause::BlockReuse,
+                    block.line,
+                    block.name,
+                ));
+                return Err(CodeGenError);
+            }
+        }
+    }
+
+    Ok(())
 }
