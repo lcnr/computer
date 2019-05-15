@@ -4,8 +4,6 @@ use std::env;
 use std::fs::File;
 use std::io::{Read, Write};
 
-use rock::TokenIter;
-
 pub fn main() {
     if let [ref input, ref output] = *env::args().skip(1).collect::<Box<_>>() {
         if let Ok(mut file) = File::open(input) {
