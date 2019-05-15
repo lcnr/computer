@@ -296,9 +296,13 @@ impl<'a> Command<'a> {
 
     fn section(curr: &mut Vec<Token<'a>>, l: &mut impl Logger) -> Self {
         if curr.len() == 1 {
-           Command::Section(curr.first().unwrap().origin())
+            Command::Section(curr.first().unwrap().origin())
         } else {
-            l.log_err(Error::from_token(ErrorLevel::Error, ErrorType::InvalidSection, curr.first().unwrap()));
+            l.log_err(Error::from_token(
+                ErrorLevel::Error,
+                ErrorType::InvalidSection,
+                curr.first().unwrap(),
+            ));
             Command::Invalid
         }
     }
