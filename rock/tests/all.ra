@@ -6,5 +6,12 @@
     subm;
     shlc 0x3;
     shlm;
-    shrc 0b___1;
+    shrc 0b0__1;
     shrm;
+    andc 0o74;
+    andm;
+    orc 0xff;
+    orm;
+    xorc 0x0f;
+    xorm;
+    inv;

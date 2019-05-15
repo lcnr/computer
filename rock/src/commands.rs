@@ -14,6 +14,12 @@ pub enum Command<'a> {
     Shlm,
     Shrc(u8),
     Shrm,
+    Andc(u8),
+    Andm,
+    Orc(u8),
+    Orm,
+    Xorc(u8),
+    Xorm,
     Inv,
 }
 
@@ -28,6 +34,12 @@ pub fn parse_commands<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logg
         "shlm" => without_args(cmd, args, l, Command::Shlm),
         "shrc" => with_byte(cmd, args, l, Command::Shrc),
         "shrm" => without_args(cmd, args, l, Command::Shrm),
+        "andc" => with_byte(cmd, args, l, Command::Andc),
+        "andm" => without_args(cmd, args, l, Command::Andm),
+        "orc" => with_byte(cmd, args, l, Command::Orc),
+        "orm" => without_args(cmd, args, l, Command::Orm),
+        "xorc" => with_byte(cmd, args, l, Command::Xorc),
+        "xorm" => without_args(cmd, args, l, Command::Xorm),
         "inv" => without_args(cmd, args, l, Command::Inv),
         unknown => {
             l.log_err(Error::at_token(
@@ -81,8 +93,17 @@ impl<'a> Command<'a> {
             | Command::Addm
             | Command::Subm
             | Command::Shlm
-            | Command::Shrm => 1,
-            Command::Addc(_) | Command::Subc(_) | Command::Shlc(_) | Command::Shrc(_) => 2,
+            | Command::Shrm
+            | Command::Andm
+            | Command::Orm
+            | Command::Xorm => 1,
+            Command::Addc(_)
+            | Command::Subc(_)
+            | Command::Shlc(_)
+            | Command::Shrc(_)
+            | Command::Andc(_)
+            | Command::Orc(_)
+            | Command::Xorc(_) => 2,
         }
     }
 }
