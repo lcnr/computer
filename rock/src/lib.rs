@@ -1,6 +1,11 @@
+use std::collections::HashMap;
+use std::mem;
+
+mod commands;
 mod token;
 
-use std::collections::HashMap;
+use commands::Command;
+use token::{Token, TokenIter, TokenType};
 
 #[derive(Clone, Copy, Debug)]
 pub struct CodeGenError;
@@ -20,6 +25,8 @@ pub enum Cause<'a> {
     BlockCount(usize),
     /// the same block position is used twice
     BlockReuse,
+    /// more than 256 bytes in one block
+    BlockSize,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -74,77 +81,6 @@ impl<'a> Error<'a> {
 
     pub fn cause(&self) -> &Cause<'a> {
         &self.cause
-    }
-}
-
-use token::{Token, TokenIter, TokenType};
-#[derive(Debug, Clone)]
-pub enum Command<'a> {
-    Invalid,
-    Section(&'a str, usize),
-    Idle,
-    Inv,
-}
-
-impl<'a> Command<'a> {
-    fn new(curr: &mut Vec<Token<'a>>, l: &mut impl Logger) -> Self {
-        if curr.len() < 2 {
-            l.log_err(Error::expected(
-                vec![TokenType::Ident],
-                curr.last().unwrap(),
-            ));
-            return Command::Invalid;
-        } else {
-            curr.pop();
-        }
-        let command = curr.first().unwrap();
-        if !command.is_ident() {
-            l.log_err(Error::expected(vec![TokenType::Ident], command));
-            return Command::Invalid;
-        }
-
-        match command.origin() {
-            "idle" => {
-                if curr.len() != 1 {
-                    l.log_err(Error::at_token(
-                        ErrorLevel::Error,
-                        Cause::WrongArgCount(command.origin(), 1, curr.len()),
-                        command,
-                    ));
-                    Command::Invalid
-                } else {
-                    Command::Idle
-                }
-            }
-            unknown => {
-                l.log_err(Error::at_token(
-                    ErrorLevel::Error,
-                    Cause::UnknownCommand(unknown),
-                    command,
-                ));
-                Command::Invalid
-            }
-        }
-    }
-
-    fn section(curr: &mut Vec<Token<'a>>, l: &mut impl Logger) -> Self {
-        if curr.len() == 2 {
-            Command::Section(curr.first().unwrap().origin(), 0)
-        } else {
-            l.log_err(Error::at_token(
-                ErrorLevel::Error,
-                Cause::InvalidSection,
-                curr.first().unwrap(),
-            ));
-            Command::Invalid
-        }
-    }
-
-    fn size(&self) -> usize {
-        match self {
-            Command::Invalid | Command::Section(_, _) => 0,
-            Command::Idle | Command::Inv => 1,
-        }
     }
 }
 
@@ -258,7 +194,25 @@ impl Logger for DebugLogger {
     }
 }
 
-pub fn parse<'a, L: Logger>(src: &'a str, l: &mut L) -> Result<Vec<Block<'a>>, CodeGenError> {
+pub fn codegen<L: Logger>(src: &str, logger: &mut L) -> Result<Vec<u8>, CodeGenError> {
+    let mut blocks = parse(src, logger)?;
+    resolve(&mut blocks, logger)?;
+
+    for block in blocks.iter() {
+        if block.name == "<invalid>"
+            || block.content.iter().any(|cmd| match cmd {
+                Command::Invalid => true,
+                _ => false,
+            })
+        {
+            return Err(CodeGenError);
+        }
+    }
+
+    Ok(finalize(blocks))
+}
+
+fn parse<'a, L: Logger>(src: &'a str, l: &mut L) -> Result<Vec<Block<'a>>, CodeGenError> {
     let mut blocks = Vec::new();
 
     let mut curr: Vec<Token> = Vec::with_capacity(4);
@@ -300,13 +254,13 @@ pub fn parse<'a, L: Logger>(src: &'a str, l: &mut L) -> Result<Vec<Block<'a>>, C
             problematic.line,
             problematic.name,
         ));
+        return Err(CodeGenError);
     }
 
-    resolve(&mut blocks, l)?;
     Ok(blocks)
 }
 
-fn register<'a>(blocks: &[Block<'a>]) -> HashMap<&'a str, u8> {
+fn register_blocks<'a>(blocks: &[Block<'a>]) -> HashMap<&'a str, u8> {
     let mut map = HashMap::new();
 
     for block in blocks.iter() {
@@ -316,9 +270,23 @@ fn register<'a>(blocks: &[Block<'a>]) -> HashMap<&'a str, u8> {
     map
 }
 
+fn register_sections<'a>(commands: &[Command<'a>]) -> Option<HashMap<&'a str, u8>> {
+    let mut map: HashMap<&str, u8> = HashMap::new();
+
+    let mut addr = 0u8;
+    for cmd in commands.iter() {
+        match cmd {
+            Command::Section(s) => mem::drop(map.insert(s, addr)),
+            c => addr = addr.checked_add(c.size())?,
+        }
+    }
+
+    Some(map)
+}
+
 pub fn resolve<'a>(blocks: &mut [Block<'a>], l: &mut impl Logger) -> Result<(), CodeGenError> {
     let mut used = [false; 256];
-    for block in blocks {
+    for block in blocks.iter() {
         if let Some(pos) = block.pos {
             if used[pos as usize] == true {
                 l.log_err(Error::new(
@@ -328,9 +296,75 @@ pub fn resolve<'a>(blocks: &mut [Block<'a>], l: &mut impl Logger) -> Result<(), 
                     block.name,
                 ));
                 return Err(CodeGenError);
+            } else {
+                used[pos as usize] = true;
+            }
+        }
+    }
+
+    let mut idx = 0;
+    for block in blocks.iter_mut() {
+        if block.pos.is_none() {
+            while used[idx] {
+                idx += 1;
+            }
+            used[idx] = true;
+            block.pos = Some(idx as u8);
+        }
+    }
+
+    let ljmp_addr = register_blocks(blocks);
+    for block in blocks {
+        let jmp_addr = if let Some(addr) = register_sections(&block.content) {
+            addr
+        } else {
+            l.log_err(Error::new(
+                ErrorLevel::Error,
+                Cause::BlockSize,
+                block.line,
+                block.name,
+            ));
+            return Err(CodeGenError);
+        };
+
+        for cmd in block.content.iter() {
+            // set the byte addr of all jumps
+            let _ = (&ljmp_addr, &jmp_addr);
+            match cmd {
+                _ => (),
             }
         }
     }
 
     Ok(())
+}
+
+fn finalize(mut blocks: Vec<Block<'_>>) -> Vec<u8> {
+    if blocks.is_empty() {
+        return Vec::new();
+    }
+
+    blocks.sort_by_key(|b| b.pos.unwrap());
+    let mut res = Vec::with_capacity((blocks.last().unwrap().pos.unwrap() as usize + 1) * 256);
+    for block in blocks {
+        res.resize(block.pos.unwrap() as usize * 256, 0);
+        for cmd in block.content {
+            match cmd {
+                Command::Idle => res.push(0x00),
+                Command::Addc(v) => res.extend_from_slice(&[0x01, v]),
+                Command::Addm => res.push(0x02),
+                Command::Subc(v) => res.extend_from_slice(&[0x03, v]),
+                Command::Subm => res.push(0x04),
+                Command::Shlc(v) => res.extend_from_slice(&[0x05, v]),
+                Command::Shlm => res.push(0x06),
+                Command::Shrc(v) => res.extend_from_slice(&[0x07, v]),
+                Command::Shrm => res.push(0x08),
+                Command::Inv => res.push(0x0f),
+                Command::Section(_) => (),
+                Command::Invalid => unreachable!(),
+            };
+        }
+    }
+
+    res
 }

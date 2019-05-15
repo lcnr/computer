@@ -1,0 +1,10 @@
+00:
+    idle;
+    addc 255;
+    addm;
+    subc 0b010;
+    subm;
+    shlc 0x3;
+    shlm;
+    shrc 0b___1;
+    shrm;

@@ -1,4 +1,6 @@
-00:
+start:
     idle;
+    addc 17;
+    inv;
 .loop:
     idle;

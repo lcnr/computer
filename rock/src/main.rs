@@ -13,7 +13,7 @@ pub fn main() {
                 return;
             }
 
-            let blocks = rock::parse(&src, &mut rock::DebugLogger);
+            let blocks = rock::codegen(&src, &mut rock::DebugLogger);
 
             if let Ok(mut file) = File::create(output) {
                 if let Err(err) = writeln!(file, "{:?}", blocks) {
