@@ -19,9 +19,10 @@ start:
 
 - [ ] MVP
   - [x] Tokenizer
-  - [ ] Parser
-  - [ ] resolve jmp targets
-  - [ ] code generation
+  - [x] Parser
+  - [x] resolve jmp targets
+  - [x] code generation
+  - [ ] implement all commands
 
 
 [commands]: ../COMMANDS.md
