@@ -27,6 +27,7 @@ pub enum Cause<'a> {
     BlockReuse,
     /// more than 256 bytes in one block
     BlockSize,
+    MissingTerminator,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -241,9 +242,12 @@ fn parse<'a, L: Logger>(src: &'a str, l: &mut L) -> Result<Vec<Block<'a>>, CodeG
     }
 
     if !curr.is_empty() {
-        let current_block = current_block(&mut blocks, src, l);
-        let command = Command::new(&mut curr, l);
-        current_block.push(command);
+        l.log_err(Error::at_token(
+            ErrorLevel::Error,
+            Cause::MissingTerminator,
+            curr.last().unwrap(),
+        ));
+        return Err(CodeGenError);
     }
 
     if blocks.len() > 256 {
@@ -350,6 +354,7 @@ fn finalize(mut blocks: Vec<Block<'_>>) -> Vec<u8> {
         res.resize(block.pos.unwrap() as usize * 256, 0);
         for cmd in block.content {
             match cmd {
+                Command::Byte(v) => res.push(v),
                 Command::Idle => res.push(0x00),
                 Command::Addc(v) => res.extend_from_slice(&[0x01, v]),
                 Command::Addm => res.push(0x02),

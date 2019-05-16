@@ -5,6 +5,7 @@ use crate::{Cause, Error, ErrorLevel, Logger};
 pub enum Command<'a> {
     Invalid,
     Section(&'a str),
+    Byte(u8),
     Idle,
     Addc(u8),
     Addm,
@@ -25,6 +26,7 @@ pub enum Command<'a> {
 
 pub fn parse_commands<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logger) -> Command<'a> {
     match cmd.origin() {
+        "byte" => with_byte(cmd, args, l, Command::Byte),
         "idle" => without_args(cmd, args, l, Command::Idle),
         "addc" => with_byte(cmd, args, l, Command::Addc),
         "addm" => without_args(cmd, args, l, Command::Addm),
@@ -88,7 +90,8 @@ impl<'a> Command<'a> {
     pub fn size(&self) -> u8 {
         match self {
             Command::Invalid | Command::Section(_) => 0,
-            Command::Idle
+            Command::Byte(_)
+            | Command::Idle
             | Command::Inv
             | Command::Addm
             | Command::Subm

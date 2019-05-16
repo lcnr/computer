@@ -1,4 +1,5 @@
 00:
+    byte 0xf0;
     idle;
     addc 255;
     addm;
