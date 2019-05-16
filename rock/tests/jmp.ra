@@ -3,6 +3,10 @@ start:
 .loop:
     jmpc .loop;
     jmpc start;
+    jmpzc .loop;
+    jmpzc start;
+    jmpnzc .loop;
+    jmpnzc start;
     ljmpc start;
     ljmpc later;
 later:

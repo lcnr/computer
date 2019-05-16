@@ -44,6 +44,10 @@ pub enum Command<'a> {
     Ljmpc(MemAddr<'a>),
     Ljmpm,
     Ljmpa,
+    Jmpzc(MemAddr<'a>),
+    Jmpnzc(MemAddr<'a>),
+    Jmpzm,
+    Jmpnzm,
 }
 
 pub fn parse_commands<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logger) -> Command<'a> {
@@ -81,6 +85,10 @@ pub fn parse_commands<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logg
         "ljmpc" => with_block_addr(cmd, args, l, Command::Ljmpc),
         "ljmpm" => without_args(cmd, args, l, Command::Ljmpm),
         "ljmpa" => without_args(cmd, args, l, Command::Ljmpa),
+        "jmpzc" => with_mem_addr(cmd, args, l, Command::Jmpzc),
+        "jmpnzc" => with_mem_addr(cmd, args, l, Command::Jmpnzc),
+        "jmpzm" => without_args(cmd, args, l, Command::Jmpzm),
+        "jmpnzm" => without_args(cmd, args, l, Command::Jmpnzm),
         unknown => {
             l.log_err(Error::at_token(
                 ErrorLevel::Error,
@@ -160,7 +168,10 @@ impl<'a> Command<'a> {
             | Command::Setsc(_)
             | Command::Setbc(_)
             | Command::Jmpc(_)
-            | Command::Ljmpc(_) => 2,
+            | Command::Ljmpc(_)
+            | Command::Jmpzm
+            | Command::Jmpnzm => 2,
+            Command::Jmpzc(_) | Command::Jmpnzc(_) => 3,
         }
     }
 }

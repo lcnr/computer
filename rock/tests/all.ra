@@ -32,3 +32,7 @@
     ljmpc 4;
     ljmpm;
     ljmpa;
+    jmpzc 4;
+    jmpnzc 4;
+    jmpzm;
+    jmpnzm;
