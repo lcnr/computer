@@ -61,12 +61,12 @@ Notes:
 | `0x11`     | loadm    | Accu = mem[MR]; PC += 1;                                      |
 | `0x12`     | storem   | mem[MR] = Accu; PC += 1;                                      |
 | `0x13`     | zero     | Accu = 0; PC += 1;                                            |
-| `0x14`     | setc M1  | M1 = mem[PC + 1]; PC += 2;                                    |
-| `0x15`     | seta M1  | M1 = Accu; PC += 1;                                           |
-| `0x16`     | setc M2  | M2 = mem[PC + 1]; PC += 2;                                    |
-| `0x17`     | seta M2  | M2 = Accu; PC += 1;                                           |
-| `0x18`     | get M1   | Accu = M1; PC += 2;                                           |
-| `0x19`     | get M2   | Accu = M2; PC += 1;                                           |
+| `0x14`     | setsc    | M1 = mem[PC + 1]; PC += 2;                                    |
+| `0x15`     | setsa    | M1 = Accu; PC += 1;                                           |
+| `0x16`     | setbc    | M2 = mem[PC + 1]; PC += 2;                                    |
+| `0x17`     | setba    | M2 = Accu; PC += 1;                                           |
+| `0x18`     | gets     | Accu = M1; PC += 2;                                           |
+| `0x19`     | getb     | Accu = M2; PC += 1;                                           |
 | `0x1a`     | jmpc     | P1 = mem[PC + 1];                                             |
 | `0x1b`     | jmpm     | P1 = mem[MR];                                                 |
 | `0x1c`     | jmpa     | P1 = Accu;                                                    |
