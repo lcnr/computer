@@ -20,6 +20,7 @@ pub enum Cause<'a> {
     },
     InvalidSection,
     InvalidBlock,
+    EmptyBlock,
     UnspecifiedError,
     WrongArgCount(&'a str, usize, usize),
     /// only 256 blocks can be stored
@@ -275,18 +276,42 @@ fn register_blocks<'a>(blocks: &[Block<'a>]) -> HashMap<&'a str, u8> {
     map
 }
 
-fn register_sections<'a>(commands: &[Command<'a>]) -> Option<HashMap<&'a str, u8>> {
+fn register_sections<'a>(
+    block: &Block<'a>,
+    l: &mut impl Logger,
+) -> Result<HashMap<&'a str, u8>, CodeGenError> {
     let mut map: HashMap<&str, u8> = HashMap::new();
 
     let mut addr = 0u8;
-    for cmd in commands.iter() {
+    for cmd in block.content.iter() {
         match cmd {
             Command::Section(s) => mem::drop(map.insert(s, addr)),
-            c => addr = addr.checked_add(c.size())?,
+            c => {
+                addr = if let Some(addr) = addr.checked_add(c.size()) {
+                    addr
+                } else {
+                    l.log_err(Error::new(
+                        ErrorLevel::Error,
+                        Cause::BlockSize,
+                        block.line,
+                        block.name,
+                    ));
+                    return Err(CodeGenError);
+                }
+            }
         }
     }
 
-    Some(map)
+    if addr == 0 {
+        l.log_err(Error::new(
+            ErrorLevel::Warn,
+            Cause::EmptyBlock,
+            block.line,
+            block.name,
+        ));
+    }
+
+    Ok(map)
 }
 
 pub fn resolve<'a, L: Logger>(blocks: &mut [Block<'a>], l: &mut L) -> Result<(), CodeGenError> {
@@ -320,34 +345,12 @@ pub fn resolve<'a, L: Logger>(blocks: &mut [Block<'a>], l: &mut L) -> Result<(),
 
     let ljmp_addr = register_blocks(blocks);
     for block in blocks {
-        let jmp_addr = if let Some(addr) = register_sections(&block.content) {
-            addr
-        } else {
-            l.log_err(Error::new(
-                ErrorLevel::Error,
-                Cause::BlockSize,
-                block.line,
-                block.name,
-            ));
-            return Err(CodeGenError);
-        };
+        let jmp_addr = register_sections(&block, l)?;
 
         let line = block.line;
         let name = block.name;
-        let replace_block_addr = |s: &str, l: &mut L| if let Some(&byte) = ljmp_addr.get(s) {
-            Ok(MemAddr::Byte(byte))
-        } else {
-            l.log_err(Error::new(
-                ErrorLevel::Error,
-                Cause::InvalidSection,
-                line,
-                name,
-            ));
-            Err(CodeGenError)
-        };
-
-        let replace_section_addr = |s: &str, l: &mut L| if s.starts_with(".") {
-            if let Some(&byte) = jmp_addr.get(s) {
+        let replace_block_addr = |s: &str, l: &mut L| {
+            if let Some(&byte) = ljmp_addr.get(s) {
                 Ok(MemAddr::Byte(byte))
             } else {
                 l.log_err(Error::new(
@@ -358,23 +361,42 @@ pub fn resolve<'a, L: Logger>(blocks: &mut [Block<'a>], l: &mut L) -> Result<(),
                 ));
                 Err(CodeGenError)
             }
-        } else if s == name {
-            Ok(MemAddr::Byte(0))
-        } else {
-            l.log_err(Error::new(
-                ErrorLevel::Error,
-                Cause::InvalidBlock,
-                line,
-                name,
-            ));
-            Err(CodeGenError)
+        };
+
+        let replace_section_addr = |s: &str, l: &mut L| {
+            if s.starts_with(".") {
+                if let Some(&byte) = jmp_addr.get(s) {
+                    Ok(MemAddr::Byte(byte))
+                } else {
+                    l.log_err(Error::new(
+                        ErrorLevel::Error,
+                        Cause::InvalidSection,
+                        line,
+                        name,
+                    ));
+                    Err(CodeGenError)
+                }
+            } else if s == name {
+                Ok(MemAddr::Byte(0))
+            } else {
+                l.log_err(Error::new(
+                    ErrorLevel::Error,
+                    Cause::InvalidBlock,
+                    line,
+                    name,
+                ));
+                Err(CodeGenError)
+            }
         };
 
         for cmd in block.content.iter_mut() {
-
             match cmd {
-                Command::Jmpc(MemAddr::Named(s)) => *cmd = Command::Jmpc(replace_section_addr(s, l)?),
-                Command::Ljmpc(MemAddr::Named(s)) => *cmd = Command::Ljmpc(replace_block_addr(s, l)?),
+                Command::Jmpc(MemAddr::Named(s)) => {
+                    *cmd = Command::Jmpc(replace_section_addr(s, l)?)
+                }
+                Command::Ljmpc(MemAddr::Named(s)) => {
+                    *cmd = Command::Ljmpc(replace_block_addr(s, l)?)
+                }
                 _ => (),
             }
         }
@@ -430,7 +452,9 @@ fn finalize(mut blocks: Vec<Block<'_>>) -> Vec<u8> {
                 Command::Section(_) => (),
                 cmd @ Command::Invalid
                 | cmd @ Command::Jmpc(MemAddr::Named(_))
-                | cmd @ Command::Ljmpc(MemAddr::Named(_))=> unreachable!("unexpected command: {:?}", cmd),
+                | cmd @ Command::Ljmpc(MemAddr::Named(_)) => {
+                    unreachable!("unexpected command: {:?}", cmd)
+                }
             };
         }
     }

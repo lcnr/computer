@@ -165,7 +165,12 @@ impl<'a> Command<'a> {
     }
 }
 
-fn with_block_addr<'a, F>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logger, f: F) -> Command<'a>
+fn with_block_addr<'a, F>(
+    cmd: &Token<'a>,
+    args: &[Token<'a>],
+    l: &mut impl Logger,
+    f: F,
+) -> Command<'a>
 where
     F: FnOnce(MemAddr<'a>) -> Command<'a>,
 {
@@ -175,7 +180,10 @@ where
         } else if args[0].is_ident() {
             f(MemAddr::Named(args[0].origin()))
         } else {
-            l.log_err(Error::expected(vec![TokenType::Byte(0), TokenType::Ident, TokenType::Section], &args[0]));
+            l.log_err(Error::expected(
+                vec![TokenType::Byte(0), TokenType::Ident, TokenType::Section],
+                &args[0],
+            ));
             Command::Invalid
         }
     } else {
@@ -188,7 +196,12 @@ where
     }
 }
 
-fn with_mem_addr<'a, F>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logger, f: F) -> Command<'a>
+fn with_mem_addr<'a, F>(
+    cmd: &Token<'a>,
+    args: &[Token<'a>],
+    l: &mut impl Logger,
+    f: F,
+) -> Command<'a>
 where
     F: FnOnce(MemAddr<'a>) -> Command<'a>,
 {
@@ -198,7 +211,10 @@ where
         } else if args[0].is_section() || args[0].is_ident() {
             f(MemAddr::Named(args[0].origin()))
         } else {
-            l.log_err(Error::expected(vec![TokenType::Byte(0), TokenType::Ident, TokenType::Section], &args[0]));
+            l.log_err(Error::expected(
+                vec![TokenType::Byte(0), TokenType::Ident, TokenType::Section],
+                &args[0],
+            ));
             Command::Invalid
         }
     } else {
