@@ -16,3 +16,11 @@
     xorc 0x0f;
     xorm;
     inv;
+    loadc 123;
+    loadm;
+    store;
+    zero;
+    setsc 0;
+    setsa;
+    setbc 0;
+    setba;

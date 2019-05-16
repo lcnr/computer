@@ -22,6 +22,14 @@ pub enum Command<'a> {
     Xorc(u8),
     Xorm,
     Inv,
+    Loadc(u8),
+    Loadm,
+    Store,
+    Zero,
+    Setsc(u8),
+    Setsa,
+    Setbc(u8),
+    Setba,
 }
 
 pub fn parse_commands<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logger) -> Command<'a> {
@@ -43,6 +51,14 @@ pub fn parse_commands<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logg
         "xorc" => with_byte(cmd, args, l, Command::Xorc),
         "xorm" => without_args(cmd, args, l, Command::Xorm),
         "inv" => without_args(cmd, args, l, Command::Inv),
+        "loadc" => with_byte(cmd, args, l, Command::Loadc),
+        "loadm" => without_args(cmd, args, l, Command::Loadm),
+        "store" => without_args(cmd, args, l, Command::Store),
+        "zero" => without_args(cmd, args, l, Command::Zero),
+        "setsc" => with_byte(cmd, args, l, Command::Setsc),
+        "setsa" => without_args(cmd, args, l, Command::Setsa),
+        "setbc" => with_byte(cmd, args, l, Command::Setbc),
+        "setba" => without_args(cmd, args, l, Command::Setba),
         unknown => {
             l.log_err(Error::at_token(
                 ErrorLevel::Error,
@@ -99,14 +115,22 @@ impl<'a> Command<'a> {
             | Command::Shrm
             | Command::Andm
             | Command::Orm
-            | Command::Xorm => 1,
+            | Command::Xorm
+            | Command::Loadm
+            | Command::Store
+            | Command::Zero
+            | Command::Setsa
+            | Command::Setba => 1,
             Command::Addc(_)
             | Command::Subc(_)
             | Command::Shlc(_)
             | Command::Shrc(_)
             | Command::Andc(_)
             | Command::Orc(_)
-            | Command::Xorc(_) => 2,
+            | Command::Xorc(_)
+            | Command::Loadc(_)
+            | Command::Setsc(_)
+            | Command::Setbc(_) => 2,
         }
     }
 }
