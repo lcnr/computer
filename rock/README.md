@@ -19,7 +19,7 @@ start:
     loadc 0b1111_1011;
     addc 4;
     inv;
-.loop
+.loop:
     jmpzc .loop;
 ```
 

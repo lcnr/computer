@@ -1,0 +1,8 @@
+start:
+    byte 0b1111_1111;
+.loop:
+    jmpc .loop;
+    jmpc start;
+    ljmpc start;
+    ljmpc later;
+later:

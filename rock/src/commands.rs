@@ -2,6 +2,12 @@ use crate::token::{Token, TokenType};
 use crate::{Cause, Error, ErrorLevel, Logger};
 
 #[derive(Debug, Clone)]
+pub enum MemAddr<'a> {
+    Named(&'a str),
+    Byte(u8),
+}
+
+#[derive(Debug, Clone)]
 pub enum Command<'a> {
     Invalid,
     Section(&'a str),
@@ -30,6 +36,14 @@ pub enum Command<'a> {
     Setsa,
     Setbc(u8),
     Setba,
+    Gets,
+    Getb,
+    Jmpc(MemAddr<'a>),
+    Jmpm,
+    Jmpa,
+    Ljmpc(MemAddr<'a>),
+    Ljmpm,
+    Ljmpa,
 }
 
 pub fn parse_commands<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logger) -> Command<'a> {
@@ -59,6 +73,14 @@ pub fn parse_commands<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logg
         "setsa" => without_args(cmd, args, l, Command::Setsa),
         "setbc" => with_byte(cmd, args, l, Command::Setbc),
         "setba" => without_args(cmd, args, l, Command::Setba),
+        "gets" => without_args(cmd, args, l, Command::Gets),
+        "getb" => without_args(cmd, args, l, Command::Getb),
+        "jmpc" => with_mem_addr(cmd, args, l, Command::Jmpc),
+        "jmpm" => without_args(cmd, args, l, Command::Jmpm),
+        "jmpa" => without_args(cmd, args, l, Command::Jmpa),
+        "ljmpc" => with_block_addr(cmd, args, l, Command::Ljmpc),
+        "ljmpm" => without_args(cmd, args, l, Command::Ljmpm),
+        "ljmpa" => without_args(cmd, args, l, Command::Ljmpa),
         unknown => {
             l.log_err(Error::at_token(
                 ErrorLevel::Error,
@@ -120,7 +142,13 @@ impl<'a> Command<'a> {
             | Command::Store
             | Command::Zero
             | Command::Setsa
-            | Command::Setba => 1,
+            | Command::Setba
+            | Command::Gets
+            | Command::Getb
+            | Command::Jmpm
+            | Command::Jmpa
+            | Command::Ljmpm
+            | Command::Ljmpa => 1,
             Command::Addc(_)
             | Command::Subc(_)
             | Command::Shlc(_)
@@ -130,8 +158,56 @@ impl<'a> Command<'a> {
             | Command::Xorc(_)
             | Command::Loadc(_)
             | Command::Setsc(_)
-            | Command::Setbc(_) => 2,
+            | Command::Setbc(_)
+            | Command::Jmpc(_)
+            | Command::Ljmpc(_) => 2,
         }
+    }
+}
+
+fn with_block_addr<'a, F>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logger, f: F) -> Command<'a>
+where
+    F: FnOnce(MemAddr<'a>) -> Command<'a>,
+{
+    if expect_arg_count(cmd, args, l, 1) {
+        if args[0].is_byte() {
+            f(MemAddr::Byte(args[0].byte_value()))
+        } else if args[0].is_ident() {
+            f(MemAddr::Named(args[0].origin()))
+        } else {
+            l.log_err(Error::expected(vec![TokenType::Byte(0), TokenType::Ident, TokenType::Section], &args[0]));
+            Command::Invalid
+        }
+    } else {
+        l.log_err(Error::at_token(
+            ErrorLevel::Error,
+            Cause::WrongArgCount(cmd.origin(), 1, args.len()),
+            &args[0],
+        ));
+        Command::Invalid
+    }
+}
+
+fn with_mem_addr<'a, F>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logger, f: F) -> Command<'a>
+where
+    F: FnOnce(MemAddr<'a>) -> Command<'a>,
+{
+    if expect_arg_count(cmd, args, l, 1) {
+        if args[0].is_byte() {
+            f(MemAddr::Byte(args[0].byte_value()))
+        } else if args[0].is_section() || args[0].is_ident() {
+            f(MemAddr::Named(args[0].origin()))
+        } else {
+            l.log_err(Error::expected(vec![TokenType::Byte(0), TokenType::Ident, TokenType::Section], &args[0]));
+            Command::Invalid
+        }
+    } else {
+        l.log_err(Error::at_token(
+            ErrorLevel::Error,
+            Cause::WrongArgCount(cmd.origin(), 1, args.len()),
+            &args[0],
+        ));
+        Command::Invalid
     }
 }
 

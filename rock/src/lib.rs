@@ -4,7 +4,7 @@ use std::mem;
 mod commands;
 mod token;
 
-use commands::Command;
+use commands::{Command, MemAddr};
 use token::{Token, TokenIter, TokenType};
 
 #[derive(Clone, Copy, Debug)]
@@ -19,6 +19,7 @@ pub enum Cause<'a> {
         found: TokenType,
     },
     InvalidSection,
+    InvalidBlock,
     UnspecifiedError,
     WrongArgCount(&'a str, usize, usize),
     /// only 256 blocks can be stored
@@ -288,7 +289,7 @@ fn register_sections<'a>(commands: &[Command<'a>]) -> Option<HashMap<&'a str, u8
     Some(map)
 }
 
-pub fn resolve<'a>(blocks: &mut [Block<'a>], l: &mut impl Logger) -> Result<(), CodeGenError> {
+pub fn resolve<'a, L: Logger>(blocks: &mut [Block<'a>], l: &mut L) -> Result<(), CodeGenError> {
     let mut used = [false; 256];
     for block in blocks.iter() {
         if let Some(pos) = block.pos {
@@ -331,10 +332,49 @@ pub fn resolve<'a>(blocks: &mut [Block<'a>], l: &mut impl Logger) -> Result<(), 
             return Err(CodeGenError);
         };
 
-        for cmd in block.content.iter() {
-            // set the byte addr of all jumps
-            let _ = (&ljmp_addr, &jmp_addr);
+        let line = block.line;
+        let name = block.name;
+        let replace_block_addr = |s: &str, l: &mut L| if let Some(&byte) = ljmp_addr.get(s) {
+            Ok(MemAddr::Byte(byte))
+        } else {
+            l.log_err(Error::new(
+                ErrorLevel::Error,
+                Cause::InvalidSection,
+                line,
+                name,
+            ));
+            Err(CodeGenError)
+        };
+
+        let replace_section_addr = |s: &str, l: &mut L| if s.starts_with(".") {
+            if let Some(&byte) = jmp_addr.get(s) {
+                Ok(MemAddr::Byte(byte))
+            } else {
+                l.log_err(Error::new(
+                    ErrorLevel::Error,
+                    Cause::InvalidSection,
+                    line,
+                    name,
+                ));
+                Err(CodeGenError)
+            }
+        } else if s == name {
+            Ok(MemAddr::Byte(0))
+        } else {
+            l.log_err(Error::new(
+                ErrorLevel::Error,
+                Cause::InvalidBlock,
+                line,
+                name,
+            ));
+            Err(CodeGenError)
+        };
+
+        for cmd in block.content.iter_mut() {
+
             match cmd {
+                Command::Jmpc(MemAddr::Named(s)) => *cmd = Command::Jmpc(replace_section_addr(s, l)?),
+                Command::Ljmpc(MemAddr::Named(s)) => *cmd = Command::Ljmpc(replace_block_addr(s, l)?),
                 _ => (),
             }
         }
@@ -379,8 +419,18 @@ fn finalize(mut blocks: Vec<Block<'_>>) -> Vec<u8> {
                 Command::Setsa => res.push(0x15),
                 Command::Setbc(v) => res.extend_from_slice(&[0x16, v]),
                 Command::Setba => res.push(0x17),
+                Command::Gets => res.push(0x18),
+                Command::Getb => res.push(0x19),
+                Command::Jmpc(MemAddr::Byte(v)) => res.extend_from_slice(&[0x1a, v]),
+                Command::Jmpm => res.push(0x1b),
+                Command::Jmpa => res.push(0x1c),
+                Command::Ljmpc(MemAddr::Byte(v)) => res.extend_from_slice(&[0x1d, v]),
+                Command::Ljmpm => res.push(0x1e),
+                Command::Ljmpa => res.push(0x1f),
                 Command::Section(_) => (),
-                Command::Invalid => unreachable!(),
+                cmd @ Command::Invalid
+                | cmd @ Command::Jmpc(MemAddr::Named(_))
+                | cmd @ Command::Ljmpc(MemAddr::Named(_))=> unreachable!("unexpected command: {:?}", cmd),
             };
         }
     }

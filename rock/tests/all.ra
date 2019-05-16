@@ -24,3 +24,11 @@
     setsa;
     setbc 0;
     setba;
+    gets;
+    getb;
+    jmpc 4;
+    jmpm;
+    jmpa;
+    ljmpc 4;
+    ljmpm;
+    ljmpa;
