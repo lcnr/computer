@@ -20,9 +20,11 @@ pub fn main() {
                     println!("Error while writing to {}: {:?}", input, err);
                     return;
                 }
+            } else {
+                println!("unable to create file: {}", output);
             }
         } else {
-
+            println!("unable to open file: {}", input);
         }
     } else {
         println!("usage: rock <input file> <output file>");
