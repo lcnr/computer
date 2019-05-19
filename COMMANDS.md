@@ -1,39 +1,43 @@
 # Micro Commands
 
-Notes:
-
-- The highest bit of `Bus Input`   is `1 & 2 & 3 & 9`.
-
 0. Increment P
-1. ALU
-2. ALU
-3. ALU
+1. Bus Input
+2. Bus Input
+3. Bus Input
 ---
-4. Bus to M1
-5. Bus to M2
-6. Bus to P1
-7. Bus to P2
+4. Uüdate Registers
+5. Update Registers
+6. Update RAM
+7. RAM select M (default P)
 ---
-8. Update Accu
-9. Accu select Bus (default ALU)
-10. Update RAM
-11. RAM select M (default P)
+8. ALU
+9. ALU
+10. ALU
+11. ALU
 ---
-12. Bus Input
-13. Bus Input
+12. Update Accu
+13. Accu select Bus (default ALU)
 14. Update IR
 15. Update IR
 
-|           | ALU           | Bus Input | Update IR     |
-| --------- | ------------- | --------- | ------------- |
-| `0b000`   | Accu + Bus    | RAM       | don't         |
-| `0b001`   | Accu - Bus    | Accu      | unconditional |
-| `0b010`   | Accu & Bus    | M1        | if Carry == 1 |
-| `0b011`   | Accu \| Bus   | M2        | if Accu == 0  |
-| `0b100`   | Accu ^ Bus    | P1        | -             |
-| `0b101`   | !Accu         | P2        | -             |
-| `0b110`   | Accu << Bus   | Zero      | -             |
-| `0b111`   | Accu >> Bus   | Zero      | -             |
+|           | ALU           | Bus Input | Update IR     | Update Registers  |
+| --------- | ------------- | --------- | ------------- | ----------------- |
+| `0b0000`  | Accu & Bus    | RAM       | don't         | M1                |
+| `0b0001`  | Bus \| Accu   | Accu      | unconditional | M2                |
+| `0b0010`  | Accu ^ Bus    | ALU       | if Carry == 1 | P1                |
+| `0b0011`  | Accu + Bus    | Zero      | if Accu == 0  | P2                |
+| `0b0100`  | Accu - Bus    | M1        | -             | -                 |
+| `0b0101`  | Bus - Accu    | M2        | -             | -                 |
+| `0b0110`  | !Accu         | P1        | -             | -                 |
+| `0b0111`  | !Bus          | P2        | -             | -                 |
+| `0b1000`  | Accu << Bus   | -         | -             | -                 |
+| `0b1001`  | Bus << Accu   | -         | -             | -                 |
+| `0b1010`  | Accu >> Bus   | -         | -             | -                 |
+| `0b1011`  | Bus >> Accu   | -         | -             | -                 |
+| `0b1100`  | -             | -         | -             | -                 |
+| `0b1101`  | -             | -         | -             | -                 |
+| `0b1110`  | -             | -         | -             | -                 |
+| `0b1111`  | -             | -         | -             | -                 |
 
 # Commands
 
