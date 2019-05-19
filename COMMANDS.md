@@ -5,7 +5,7 @@
 2. Bus Input
 3. Bus Input
 ---
-4. Uüdate Registers
+4. Update Registers
 5. Update Registers
 6. Update RAM
 7. RAM select M (default P)
