@@ -48,6 +48,10 @@ pub enum Command<'a> {
     Jmpnzc(MemAddr<'a>),
     Jmpzm,
     Jmpnzm,
+    Ljmpzc(MemAddr<'a>),
+    Ljmpnzc(MemAddr<'a>),
+    Ljmpzm,
+    Ljmpnzm,
 }
 
 pub fn parse_commands<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logger) -> Command<'a> {
@@ -79,16 +83,21 @@ pub fn parse_commands<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logg
         "setba" => without_args(cmd, args, l, Command::Setba),
         "gets" => without_args(cmd, args, l, Command::Gets),
         "getb" => without_args(cmd, args, l, Command::Getb),
-        "jmpc" => with_mem_addr(cmd, args, l, Command::Jmpc),
+        "jmpc" => with_section_addr(cmd, args, l, Command::Jmpc),
         "jmpm" => without_args(cmd, args, l, Command::Jmpm),
         "jmpa" => without_args(cmd, args, l, Command::Jmpa),
         "ljmpc" => with_block_addr(cmd, args, l, Command::Ljmpc),
         "ljmpm" => without_args(cmd, args, l, Command::Ljmpm),
         "ljmpa" => without_args(cmd, args, l, Command::Ljmpa),
-        "jmpzc" => with_mem_addr(cmd, args, l, Command::Jmpzc),
-        "jmpnzc" => with_mem_addr(cmd, args, l, Command::Jmpnzc),
+        "jmpzc" => with_section_addr(cmd, args, l, Command::Jmpzc),
+        "jmpnzc" => with_section_addr(cmd, args, l, Command::Jmpnzc),
         "jmpzm" => without_args(cmd, args, l, Command::Jmpzm),
         "jmpnzm" => without_args(cmd, args, l, Command::Jmpnzm),
+        "ljmpzc" => with_block_addr(cmd, args, l, Command::Ljmpzc),
+        "ljmpnzc" => with_block_addr(cmd, args, l, Command::Ljmpnzc),
+        "ljmpzm" => without_args(cmd, args, l, Command::Ljmpzm),
+        "ljmpnzm" => without_args(cmd, args, l, Command::Ljmpnzm),
+
         unknown => {
             l.log_err(Error::at_token(
                 ErrorLevel::Error,
@@ -170,8 +179,10 @@ impl<'a> Command<'a> {
             | Command::Jmpc(_)
             | Command::Ljmpc(_)
             | Command::Jmpzm
-            | Command::Jmpnzm => 2,
-            Command::Jmpzc(_) | Command::Jmpnzc(_) => 3,
+            | Command::Jmpnzm
+            | Command::Ljmpzm
+            | Command::Ljmpnzm => 2,
+            Command::Jmpzc(_) | Command::Jmpnzc(_) | Command::Ljmpzc(_) | Command::Ljmpnzc(_) => 3,
         }
     }
 }
@@ -192,7 +203,7 @@ where
             f(MemAddr::Named(args[0].origin()))
         } else {
             l.log_err(Error::expected(
-                vec![TokenType::Byte(0), TokenType::Ident, TokenType::Section],
+                vec![TokenType::Byte(0), TokenType::Ident],
                 &args[0],
             ));
             Command::Invalid
@@ -207,7 +218,7 @@ where
     }
 }
 
-fn with_mem_addr<'a, F>(
+fn with_section_addr<'a, F>(
     cmd: &Token<'a>,
     args: &[Token<'a>],
     l: &mut impl Logger,

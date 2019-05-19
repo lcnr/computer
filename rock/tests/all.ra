@@ -36,3 +36,7 @@
     jmpnzc 4;
     jmpzm;
     jmpnzm;
+    ljmpzc 4;
+    ljmpnzc 4;
+    ljmpzm;
+    ljmpnzm;

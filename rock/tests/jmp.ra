@@ -9,4 +9,8 @@ start:
     jmpnzc start;
     ljmpc start;
     ljmpc later;
+    ljmpzc start;
+    ljmpzc later;
+    ljmpnzc start;
+    ljmpnzc later;
 later:

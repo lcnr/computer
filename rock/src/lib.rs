@@ -391,17 +391,35 @@ pub fn resolve<'a, L: Logger>(blocks: &mut [Block<'a>], l: &mut L) -> Result<(),
 
         for cmd in block.content.iter_mut() {
             match cmd {
-                Command::Jmpc(MemAddr::Named(s)) => {
-                    *cmd = Command::Jmpc(replace_section_addr(s, l)?)
+                Command::Jmpc(ref mut addr) => {
+                    if let MemAddr::Named(s) = addr {
+                        *addr = replace_section_addr(s, l)?
+                    }
                 }
-                Command::Ljmpc(MemAddr::Named(s)) => {
-                    *cmd = Command::Ljmpc(replace_block_addr(s, l)?)
+                Command::Ljmpc(ref mut addr) => {
+                    if let MemAddr::Named(s) = addr {
+                        *addr = replace_block_addr(s, l)?
+                    }
                 }
-                Command::Jmpzc(MemAddr::Named(s)) => {
-                    *cmd = Command::Jmpzc(replace_section_addr(s, l)?)
+                Command::Jmpzc(ref mut addr) => {
+                    if let MemAddr::Named(s) = addr {
+                        *addr = replace_section_addr(s, l)?
+                    }
                 }
-                Command::Jmpnzc(MemAddr::Named(s)) => {
-                    *cmd = Command::Jmpnzc(replace_section_addr(s, l)?)
+                Command::Jmpnzc(ref mut addr) => {
+                    if let MemAddr::Named(s) = addr {
+                        *addr = replace_section_addr(s, l)?
+                    }
+                }
+                Command::Ljmpzc(ref mut addr) => {
+                    if let MemAddr::Named(s) = addr {
+                        *addr = replace_block_addr(s, l)?
+                    }
+                }
+                Command::Ljmpnzc(ref mut addr) => {
+                    if let MemAddr::Named(s) = addr {
+                        *addr = replace_block_addr(s, l)?
+                    }
                 }
                 _ => (),
             }
@@ -459,12 +477,18 @@ fn finalize(mut blocks: Vec<Block<'_>>) -> Vec<u8> {
                 Command::Jmpnzc(MemAddr::Byte(v)) => res.extend_from_slice(&[0x21, 0x20, v]),
                 Command::Jmpzm => res.extend_from_slice(&[0x22, 0x23]),
                 Command::Jmpnzm => res.extend_from_slice(&[0x23, 0x22]),
+                Command::Ljmpzc(MemAddr::Byte(v)) => res.extend_from_slice(&[0x24, 0x25, v]),
+                Command::Ljmpnzc(MemAddr::Byte(v)) => res.extend_from_slice(&[0x25, 0x24, v]),
+                Command::Ljmpzm => res.extend_from_slice(&[0x26, 0x27]),
+                Command::Ljmpnzm => res.extend_from_slice(&[0x27, 0x26]),
                 Command::Section(_) => (),
                 cmd @ Command::Invalid
                 | cmd @ Command::Jmpc(MemAddr::Named(_))
                 | cmd @ Command::Ljmpc(MemAddr::Named(_))
                 | cmd @ Command::Jmpzc(MemAddr::Named(_))
-                | cmd @ Command::Jmpnzc(MemAddr::Named(_)) => {
+                | cmd @ Command::Jmpnzc(MemAddr::Named(_))
+                | cmd @ Command::Ljmpzc(MemAddr::Named(_))
+                | cmd @ Command::Ljmpnzc(MemAddr::Named(_)) => {
                     unreachable!("unexpected command: {:?}", cmd)
                 }
             };
