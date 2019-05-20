@@ -28,7 +28,9 @@ to undo the last commit and resume with step 3.
     - [x] jmp on Accu != 0
     - [ ] jmp on Accu cmp Bus
 - [ ] build an assembler targeting this architecture ([rock])
+- [ ] create a high level language which can be compiled to this architecture ([boulder])
 - [ ] build it in real life
 
 [logisim]: http://www.cburch.com/logisim
 [rock]: ./rock/README.md
+[boulder]: ./boulder/README.md

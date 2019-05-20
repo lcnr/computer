@@ -1,0 +1,11 @@
+enum Option<T> {
+    Some(T),
+    None
+}
+
+# this can be roughly desugared to the following
+
+struct Some<T>(T);
+struct None;
+
+type Option<T> = Some<T> | None;
