@@ -78,7 +78,6 @@
     <wire from="(450,390)" to="(450,790)"/>
     <wire from="(540,450)" to="(650,450)"/>
     <wire from="(340,340)" to="(340,370)"/>
-    <wire from="(290,900)" to="(330,900)"/>
     <wire from="(850,280)" to="(850,360)"/>
     <wire from="(720,120)" to="(720,140)"/>
     <wire from="(690,250)" to="(690,270)"/>
@@ -97,7 +96,6 @@
     <wire from="(270,190)" to="(280,190)"/>
     <wire from="(810,310)" to="(940,310)"/>
     <wire from="(50,250)" to="(60,250)"/>
-    <wire from="(290,850)" to="(290,900)"/>
     <wire from="(540,480)" to="(670,480)"/>
     <wire from="(400,330)" to="(400,570)"/>
     <wire from="(520,530)" to="(520,770)"/>
@@ -209,7 +207,6 @@
     <wire from="(940,290)" to="(940,310)"/>
     <wire from="(290,600)" to="(290,630)"/>
     <wire from="(760,100)" to="(760,180)"/>
-    <wire from="(250,850)" to="(290,850)"/>
     <wire from="(750,320)" to="(750,470)"/>
     <wire from="(590,170)" to="(590,510)"/>
     <wire from="(720,230)" to="(720,250)"/>
@@ -348,11 +345,6 @@
     <comp loc="(870,120)" name="MemoryCell">
       <a name="label" val="Accu"/>
     </comp>
-    <comp lib="0" loc="(330,900)" name="Probe">
-      <a name="facing" val="west"/>
-      <a name="label" val="IR"/>
-      <a name="labelloc" val="north"/>
-    </comp>
     <comp lib="1" loc="(660,270)" name="Controlled Buffer">
       <a name="facing" val="west"/>
       <a name="width" val="8"/>
@@ -428,14 +420,14 @@
     <wire from="(270,180)" to="(270,260)"/>
     <wire from="(1040,510)" to="(1100,510)"/>
     <wire from="(1210,560)" to="(1270,560)"/>
+    <wire from="(1210,640)" to="(1270,640)"/>
     <wire from="(470,180)" to="(470,530)"/>
-    <wire from="(400,750)" to="(400,840)"/>
     <wire from="(1220,540)" to="(1270,540)"/>
     <wire from="(820,410)" to="(840,410)"/>
     <wire from="(250,620)" to="(340,620)"/>
     <wire from="(570,560)" to="(590,560)"/>
+    <wire from="(1180,620)" to="(1190,620)"/>
     <wire from="(1080,440)" to="(1090,440)"/>
-    <wire from="(740,580)" to="(740,880)"/>
     <wire from="(370,440)" to="(390,440)"/>
     <wire from="(460,740)" to="(990,740)"/>
     <wire from="(1200,520)" to="(1200,580)"/>
@@ -452,7 +444,7 @@
     <wire from="(560,560)" to="(570,560)"/>
     <wire from="(1250,480)" to="(1270,480)"/>
     <wire from="(450,260)" to="(450,520)"/>
-    <wire from="(570,580)" to="(570,590)"/>
+    <wire from="(1180,540)" to="(1180,620)"/>
     <wire from="(1090,420)" to="(1090,440)"/>
     <wire from="(910,630)" to="(910,700)"/>
     <wire from="(240,610)" to="(240,620)"/>
@@ -462,7 +454,6 @@
     <wire from="(400,730)" to="(400,750)"/>
     <wire from="(280,360)" to="(280,440)"/>
     <wire from="(520,570)" to="(520,600)"/>
-    <wire from="(400,840)" to="(1270,840)"/>
     <wire from="(150,640)" to="(250,640)"/>
     <wire from="(240,610)" to="(340,610)"/>
     <wire from="(210,560)" to="(240,560)"/>
@@ -489,6 +480,7 @@
     <wire from="(260,360)" to="(260,370)"/>
     <wire from="(150,440)" to="(260,440)"/>
     <wire from="(390,440)" to="(880,440)"/>
+    <wire from="(1180,620)" to="(1180,750)"/>
     <wire from="(800,510)" to="(840,510)"/>
     <wire from="(1250,470)" to="(1250,480)"/>
     <wire from="(1120,480)" to="(1240,480)"/>
@@ -500,7 +492,6 @@
     <wire from="(1120,520)" to="(1200,520)"/>
     <wire from="(270,180)" to="(360,180)"/>
     <wire from="(150,620)" to="(240,620)"/>
-    <wire from="(740,880)" to="(1270,880)"/>
     <wire from="(620,510)" to="(640,510)"/>
     <wire from="(890,550)" to="(890,590)"/>
     <wire from="(1080,420)" to="(1090,420)"/>
@@ -517,7 +508,6 @@
     <wire from="(1120,460)" to="(1270,460)"/>
     <wire from="(910,750)" to="(1180,750)"/>
     <wire from="(380,520)" to="(380,590)"/>
-    <wire from="(1180,540)" to="(1180,750)"/>
     <wire from="(1170,550)" to="(1170,630)"/>
     <wire from="(1090,400)" to="(1090,420)"/>
     <wire from="(330,260)" to="(450,260)"/>
@@ -527,10 +517,9 @@
     <wire from="(330,240)" to="(330,260)"/>
     <wire from="(1190,530)" to="(1190,600)"/>
     <wire from="(1120,540)" to="(1180,540)"/>
-    <wire from="(570,560)" to="(570,580)"/>
+    <wire from="(570,560)" to="(570,590)"/>
     <wire from="(590,540)" to="(590,560)"/>
     <wire from="(150,420)" to="(250,420)"/>
-    <wire from="(570,580)" to="(740,580)"/>
     <wire from="(1120,550)" to="(1170,550)"/>
     <wire from="(210,540)" to="(240,540)"/>
     <wire from="(280,440)" to="(370,440)"/>
@@ -549,6 +538,7 @@
     <wire from="(270,260)" to="(270,320)"/>
     <wire from="(870,420)" to="(880,420)"/>
     <wire from="(400,180)" to="(470,180)"/>
+    <wire from="(1170,630)" to="(1190,630)"/>
     <wire from="(330,390)" to="(400,390)"/>
     <wire from="(590,540)" to="(600,540)"/>
     <comp lib="1" loc="(900,440)" name="Buffer"/>
@@ -629,14 +619,6 @@
     <comp lib="1" loc="(1020,420)" name="Buffer">
       <a name="facing" val="west"/>
     </comp>
-    <comp lib="0" loc="(1270,840)" name="Pin">
-      <a name="facing" val="west"/>
-      <a name="output" val="true"/>
-      <a name="width" val="2"/>
-      <a name="tristate" val="false"/>
-      <a name="label" val="Update IR"/>
-      <a name="labelloc" val="east"/>
-    </comp>
     <comp lib="1" loc="(270,320)" name="AND Gate">
       <a name="facing" val="north"/>
       <a name="size" val="30"/>
@@ -654,6 +636,10 @@
     <comp lib="1" loc="(940,440)" name="Buffer"/>
     <comp lib="4" loc="(557,189)" name="Text">
       <a name="text" val="low = !prev_high"/>
+    </comp>
+    <comp lib="0" loc="(1210,640)" name="Splitter">
+      <a name="facing" val="west"/>
+      <a name="appear" val="right"/>
     </comp>
     <comp lib="2" loc="(270,550)" name="Multiplexer">
       <a name="selloc" val="tr"/>
@@ -728,6 +714,14 @@
       <a name="size" val="30"/>
       <a name="inputs" val="2"/>
     </comp>
+    <comp lib="0" loc="(1270,640)" name="Pin">
+      <a name="facing" val="west"/>
+      <a name="output" val="true"/>
+      <a name="width" val="2"/>
+      <a name="tristate" val="false"/>
+      <a name="label" val="Update IR"/>
+      <a name="labelloc" val="east"/>
+    </comp>
     <comp lib="1" loc="(940,420)" name="Buffer">
       <a name="facing" val="west"/>
     </comp>
@@ -764,14 +758,6 @@ c001 1 0 0 c001 1080 0 224e
     <comp lib="1" loc="(800,510)" name="Buffer">
       <a name="width" val="10"/>
     </comp>
-    <comp lib="0" loc="(1270,880)" name="Pin">
-      <a name="facing" val="west"/>
-      <a name="output" val="true"/>
-      <a name="width" val="8"/>
-      <a name="tristate" val="false"/>
-      <a name="label" val="IR"/>
-      <a name="labelloc" val="east"/>
-    </comp>
     <comp lib="0" loc="(1100,510)" name="Splitter">
       <a name="fanout" val="10"/>
       <a name="incoming" val="16"/>
@@ -794,13 +780,13 @@ c001 1 0 0 c001 1080 0 224e
     <comp lib="1" loc="(1000,420)" name="Buffer">
       <a name="facing" val="west"/>
     </comp>
+    <comp lib="4" loc="(699,717)" name="Text">
+      <a name="text" val="Update IR"/>
+    </comp>
     <comp lib="1" loc="(760,510)" name="Buffer">
       <a name="width" val="10"/>
     </comp>
     <comp lib="1" loc="(1080,440)" name="Buffer"/>
-    <comp lib="4" loc="(1256,697)" name="Text">
-      <a name="text" val="Update IR"/>
-    </comp>
     <comp lib="0" loc="(1270,520)" name="Pin">
       <a name="facing" val="west"/>
       <a name="output" val="true"/>
