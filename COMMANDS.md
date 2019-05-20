@@ -1,12 +1,16 @@
 # Micro Commands
 
+Notes:
+
+- To update a register, Update IR has to be `0b01`.
+
 0. Increment P
 1. Bus Input
 2. Bus Input
 3. Bus Input
 ---
-4. Update Registers
-5. Update Registers
+4. Select Register (to update)
+5. Select Register (to update)
 6. Update RAM
 7. RAM select M (default P)
 ---
@@ -20,10 +24,10 @@
 14. Update IR
 15. Update IR
 
-|           | ALU           | Bus Input | Update IR     | Update Registers  |
+|           | ALU           | Bus Input | Update IR     | Select Register   |
 | --------- | ------------- | --------- | ------------- | ----------------- |
 | `0b0000`  | Accu & Bus    | RAM       | don't         | M1                |
-| `0b0001`  | Bus \| Accu   | Accu      | unconditional | M2                |
+| `0b0001`  | Bus \| Accu   | Accu      | UPDATE REG    | M2                |
 | `0b0010`  | Accu ^ Bus    | ALU       | if Carry == 1 | P1                |
 | `0b0011`  | Accu + Bus    | Zero      | if Accu == 0  | P2                |
 | `0b0100`  | Accu - Bus    | M1        | -             | -                 |
