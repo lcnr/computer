@@ -1,0 +1,20 @@
+start:
+    setbc 1;
+    setsc 1;
+    loadc 1;
+    store;
+    setsc 0;
+.loop:
+    addm;
+    setsc 2;
+    store;
+    setsc 1;
+    loadm;
+    setsc 0;
+    store;
+    setsc 2;
+    loadm;
+    setsc 1;
+    store;
+    setsc 0;
+    jmpc .loop;

@@ -52,6 +52,24 @@ pub enum Command<'a> {
     Ljmpnzc(MemAddr<'a>),
     Ljmpzm,
     Ljmpnzm,
+    Jmpgtcc(u8, MemAddr<'a>),
+    Jmpltecc(u8, MemAddr<'a>),
+    Jmpltcc(u8, MemAddr<'a>),
+    Jmpgtecc(u8, MemAddr<'a>),
+    Jmpeqcc(u8, MemAddr<'a>),
+    Jmpneqcc(u8, MemAddr<'a>),
+    Jmpgtcm(u8),
+    Jmpltecm(u8),
+    Jmpltcm(u8),
+    Jmpgtecm(u8),
+    Jmpeqcm(u8),
+    Jmpneqcm(u8),
+    Jmpgtmc(MemAddr<'a>),
+    Jmpltemc(MemAddr<'a>),
+    Jmpltmc(MemAddr<'a>),
+    Jmpgtemc(MemAddr<'a>),
+    Jmpeqmc(MemAddr<'a>),
+    Jmpneqmc(MemAddr<'a>),
 }
 
 pub fn parse_commands<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logger) -> Command<'a> {
@@ -97,7 +115,24 @@ pub fn parse_commands<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logg
         "ljmpnzc" => with_block_addr(cmd, args, l, Command::Ljmpnzc),
         "ljmpzm" => without_args(cmd, args, l, Command::Ljmpzm),
         "ljmpnzm" => without_args(cmd, args, l, Command::Ljmpnzm),
-
+        "jmpgtcc" => with_byte_and_section_addr(cmd, args, l, Command::Jmpgtcc),
+        "jmpltecc" => with_byte_and_section_addr(cmd, args, l, Command::Jmpltecc),
+        "jmpltcc" => with_byte_and_section_addr(cmd, args, l, Command::Jmpltcc),
+        "jmpgtecc" => with_byte_and_section_addr(cmd, args, l, Command::Jmpgtecc),
+        "jmpeqcc" => with_byte_and_section_addr(cmd, args, l, Command::Jmpeqcc),
+        "jmpneqcc" => with_byte_and_section_addr(cmd, args, l, Command::Jmpneqcc),
+        "jmpgtcm" => with_byte(cmd, args, l, Command::Jmpgtcm),
+        "jmpltecm" => with_byte(cmd, args, l, Command::Jmpltecm),
+        "jmpltcm" => with_byte(cmd, args, l, Command::Jmpltcm),
+        "jmpgtecm" => with_byte(cmd, args, l, Command::Jmpgtecm),
+        "jmpeqcm" => with_byte(cmd, args, l, Command::Jmpeqcm),
+        "jmpneqcm" => with_byte(cmd, args, l, Command::Jmpneqcm),
+        "jmpgtmc" => with_section_addr(cmd, args, l, Command::Jmpgtmc),
+        "jmpltemc" => with_section_addr(cmd, args, l, Command::Jmpltemc),
+        "jmpltmc" => with_section_addr(cmd, args, l, Command::Jmpltmc),
+        "jmpgtemc" => with_section_addr(cmd, args, l, Command::Jmpgtemc),
+        "jmpeqmc" => with_section_addr(cmd, args, l, Command::Jmpeqmc),
+        "jmpneqmc" => with_section_addr(cmd, args, l, Command::Jmpneqmc),
         unknown => {
             l.log_err(Error::at_token(
                 ErrorLevel::Error,
@@ -182,7 +217,28 @@ impl<'a> Command<'a> {
             | Command::Jmpnzm
             | Command::Ljmpzm
             | Command::Ljmpnzm => 2,
-            Command::Jmpzc(_) | Command::Jmpnzc(_) | Command::Ljmpzc(_) | Command::Ljmpnzc(_) => 3,
+            Command::Jmpzc(_)
+            | Command::Jmpnzc(_)
+            | Command::Ljmpzc(_)
+            | Command::Ljmpnzc(_)
+            | Command::Jmpgtcm(_)
+            | Command::Jmpltecm(_)
+            | Command::Jmpltcm(_)
+            | Command::Jmpgtecm(_)
+            | Command::Jmpeqcm(_)
+            | Command::Jmpneqcm(_)
+            | Command::Jmpgtmc(_)
+            | Command::Jmpltemc(_)
+            | Command::Jmpltmc(_)
+            | Command::Jmpgtemc(_)
+            | Command::Jmpeqmc(_)
+            | Command::Jmpneqmc(_) => 3,
+            Command::Jmpgtcc(_, _)
+            | Command::Jmpltecc(_, _)
+            | Command::Jmpltcc(_, _)
+            | Command::Jmpgtecc(_, _)
+            | Command::Jmpeqcc(_, _)
+            | Command::Jmpneqcc(_, _) => 4,
         }
     }
 }
@@ -218,6 +274,43 @@ where
     }
 }
 
+fn with_byte_and_section_addr<'a, F>(
+    cmd: &Token<'a>,
+    args: &[Token<'a>],
+    l: &mut impl Logger,
+    f: F,
+) -> Command<'a>
+where
+    F: FnOnce(u8, MemAddr<'a>) -> Command<'a>,
+{
+    if expect_arg_count(cmd, args, l, 2) {
+        if args[0].is_byte() {
+            let value = args[0].byte_value();
+            if args[1].is_byte() {
+                f(value, MemAddr::Byte(args[1].byte_value()))
+            } else if args[1].is_section() || args[1].is_ident() {
+                f(value, MemAddr::Named(args[1].origin()))
+            } else {
+                l.log_err(Error::expected(
+                    vec![TokenType::Byte(0), TokenType::Ident, TokenType::Section],
+                    &args[1],
+                ));
+                Command::Invalid
+            }
+        } else {
+            l.log_err(Error::expected(vec![TokenType::Byte(0)], &args[0]));
+            Command::Invalid
+        }
+    } else {
+        l.log_err(Error::at_token(
+            ErrorLevel::Error,
+            Cause::WrongArgCount(cmd.origin(), 2, args.len()),
+            &args[0],
+        ));
+        Command::Invalid
+    }
+}
+
 fn with_section_addr<'a, F>(
     cmd: &Token<'a>,
     args: &[Token<'a>],
@@ -240,11 +333,6 @@ where
             Command::Invalid
         }
     } else {
-        l.log_err(Error::at_token(
-            ErrorLevel::Error,
-            Cause::WrongArgCount(cmd.origin(), 1, args.len()),
-            &args[0],
-        ));
         Command::Invalid
     }
 }
@@ -261,11 +349,6 @@ where
             Command::Invalid
         }
     } else {
-        l.log_err(Error::at_token(
-            ErrorLevel::Error,
-            Cause::WrongArgCount(cmd.origin(), 1, args.len()),
-            &args[0],
-        ));
         Command::Invalid
     }
 }

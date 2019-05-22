@@ -25,12 +25,12 @@ start:
 
 # Roadmap
 
-- [ ] MVP
+- [x] MVP
   - [x] Tokenizer
   - [x] Parser
   - [x] resolve jmp targets
   - [x] code generation
-  - [ ] implement all commands
+  - [x] implement all commands
 - [ ] include files
 - [ ] use content of other blocks: `data_block.mem`
 

@@ -13,15 +13,21 @@ pub fn main() {
                 return;
             }
 
-            let blocks = rock::codegen(&src, &mut rock::DebugLogger);
-
-            if let Ok(mut file) = File::create(output) {
-                if let Err(err) = writeln!(file, "{:?}", blocks) {
-                    println!("Error while writing to {}: {:?}", input, err);
-                    return;
+            if let Ok(data) = rock::codegen(&src, &mut rock::DebugLogger) {
+                if let Ok(mut file) = File::create(output) {
+                    writeln!(file, "v2.0 raw").expect("error while writing to file");
+                    for bytes in data.chunks(4) {
+                        for b in bytes {
+                            write!(file, "{:02x} ", b).expect("error while writing to file");
+                        }
+                        write!(file, "\n").expect("error while writing to file");
+                    }
+                } else {
+                    println!("unable to create file: {}", output);
                 }
-            } else {
-                println!("unable to create file: {}", output);
+            }
+            else {
+                println!("COMPILATION FAILED!");
             }
         } else {
             println!("unable to open file: {}", input);
