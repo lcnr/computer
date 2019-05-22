@@ -92,19 +92,19 @@ Notes:
 | `0x28xx29` | jmpgtcc  | if Accu > mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4}    |
 | `0x29xx28` | jmpltecc | if Accu <= mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4}   |
 | `0x2axx2b` | jmpltcc  | if Accu < mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4}    |
-| `0x2bxx2a` | jmpltecc | if Accu >= mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4}   |
+| `0x2bxx2a` | jmpgtecc | if Accu >= mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4}   |
 | `0x2cxx2d` | jmpeqcc  | if Accu == mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4}   |
 | `0x2dxx2c` | jmpneqcc | if Accu != mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4}   |
 | `0x2exx2f` | jmpgtcm  | if Accu > mem[PC + 1] { P1 = mem[MR] } else { PC += 3}        |
 | `0x2fxx3e` | jmpltecm | if Accu <= mem[PC + 1] { P1 = mem[MR] } else { PC += 3}       |
 | `0x30xx31` | jmpgtcm  | if Accu < mem[PC + 1] { P1 = mem[MR] } else { PC += 3}        |
-| `0x31xx30` | jmpltecm | if Accu >= mem[PC + 1] { P1 = mem[MR] } else { PC += 3}       |
+| `0x31xx30` | jmpgtecm | if Accu >= mem[PC + 1] { P1 = mem[MR] } else { PC += 3}       |
 | `0x32xx33` | jmpeqcm  | if Accu == mem[PC + 1] { P1 = mem[MR] } else { PC += 3}       |
 | `0x33xx32` | jmpneqcm | if Accu != mem[PC + 1] { P1 = mem[MR] } else { PC += 3}       |
 | `0x3435`   | jmpgtmc  | if Accu > mem[MR] { P1 = mem[PC + 2] } else { PC += 3}        |
 | `0x3534`   | jmpltemc | if Accu <= mem[MR] { P1 = mem[PC + 2] } else { PC += 3}       |
 | `0x3637`   | jmpgtmc  | if Accu < mem[MR] { P1 = mem[PC + 2] } else { PC += 3}        |
-| `0x3736`   | jmpltemc | if Accu >= mem[MR] { P1 = mem[PC + 2] } else { PC += 3}       |
+| `0x3736`   | jmpgtemc | if Accu >= mem[MR] { P1 = mem[PC + 2] } else { PC += 3}       |
 | `0x3839`   | jmpeqmc  | if Accu == mem[MR] { P1 = mem[PC + 2] } else { PC += 3}       |
 | `0x3938`   | jmpneqmc | if Accu != mem[MR] { P1 = mem[PC + 2] } else { PC += 3}       |
 | `0x3axx3b` | ljmpgtcc  | if Accu > mem[PC + 1] { P1 = 0; P2 = mem[PC + 3] } else { PC += 4} TODO|
