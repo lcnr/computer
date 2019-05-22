@@ -29,19 +29,19 @@ Notes:
 | `0b0000`  | Accu & Bus    | RAM       | don't         | M1                |
 | `0b0001`  | Bus \| Accu   | Accu      | UPDATE REG    | M2                |
 | `0b0010`  | Accu ^ Bus    | ALU       | if Carry == 1 | P1                |
-| `0b0011`  | Accu + Bus    | Zero      | if Accu == 0  | P2                |
+| `0b0011`  | Accu + Bus    | Zero      | if ALU == 0   | P2                |
 | `0b0100`  | Accu - Bus    | M1        | -             | -                 |
 | `0b0101`  | Bus - Accu    | M2        | -             | -                 |
-| `0b0110`  | !Accu         | P1        | -             | -                 |
-| `0b0111`  | !Bus          | P2        | -             | -                 |
+| `0b0110`  | -             | P1        | -             | -                 |
+| `0b0111`  | -             | P2        | -             | -                 |
 | `0b1000`  | Accu << Bus   | -         | -             | -                 |
 | `0b1001`  | Bus << Accu   | -         | -             | -                 |
 | `0b1010`  | Accu >> Bus   | -         | -             | -                 |
 | `0b1011`  | Bus >> Accu   | -         | -             | -                 |
-| `0b1100`  | -             | -         | -             | -                 |
-| `0b1101`  | -             | -         | -             | -                 |
-| `0b1110`  | -             | -         | -             | -                 |
-| `0b1111`  | -             | -         | -             | -                 |
+| `0b1100`  | Accu          | -         | -             | -                 |
+| `0b1101`  | Bus           | -         | -             | -                 |
+| `0b1110`  | !Accu         | -         | -             | -                 |
+| `0b1111`  | !Bus          | -         | -             | -                 |
 
 # Commands
 
@@ -73,7 +73,7 @@ Notes:
 | `0x15`     | setsa    | M1 = Accu; PC += 1;                                           |
 | `0x16`     | setbc    | M2 = mem[PC + 1]; PC += 2;                                    |
 | `0x17`     | setba    | M2 = Accu; PC += 1;                                           |
-| `0x18`     | gets     | Accu = M1; PC += 2;                                           |
+| `0x18`     | gets     | Accu = M1; PC += 1;                                           |
 | `0x19`     | getb     | Accu = M2; PC += 1;                                           |
 | `0x1a`     | jmpc     | P1 = mem[PC + 1];                                             |
 | `0x1b`     | jmpm     | P1 = mem[MR];                                                 |
@@ -89,24 +89,24 @@ Notes:
 | `0x2524`   | ljmpnzc  | if Accu != 0 { P1 = 0; P2 = mem[PC + 1] } else { PC += 3 };   |
 | `0x2627`   | ljmpzm   | if Accu == 0 { P1 = 0; P2 = mem[MR] } else { PC += 2 };       |
 | `0x2726`   | ljmpnzm  | if Accu != 0 { P1 = 0; P2 = mem[MR] } else { PC += 2 };       |
-| `0x28xx29` | jmpgtcc  | if Accu > mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4} TODO|
-| `0x29xx28` | jmpltecc | if Accu <= mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4} TODO|
-| `0x2axx2b` | jmpgtecc | if Accu >= mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4} TODO|
-| `0x2bxx2a` | jmpltcc  | if Accu < mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4} TODO|
-| `0x2cxx2d` | jmpeqcc  | if Accu == mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4} TODO|
-| `0x2dxx2c` | jmpneqcc | if Accu != mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4} TODO|
-| `0x2exx2f` | jmpgtcm  | if Accu > mem[PC + 1] { P1 = mem[MR] } else { PC += 3} TODO   |
-| `0x2fxx3e` | jmpltecm | if Accu <= mem[PC + 1] { P1 = mem[MR] } else { PC += 3} TODO  |
-| `0x30xx31` | jmpgtecm | if Accu >= mem[PC + 1] { P1 = mem[MR] } else { PC += 3} TODO  |
-| `0x31xx30` | jmpltcm  | if Accu < mem[PC + 1] { P1 = mem[MR] } else { PC += 3} TODO   |
-| `0x32xx33` | jmpeqcm  | if Accu == mem[PC + 1] { P1 = mem[MR] } else { PC += 3} TODO  |
-| `0x33xx32` | jmpneqcm | if Accu != mem[PC + 1] { P1 = mem[MR] } else { PC += 3} TODO  |
-| `0x3435`   | jmpgtmc  | if Accu > mem[MR] { P1 = mem[PC + 2] } else { PC += 3} TODO   |
-| `0x3534`   | jmpltemc | if Accu <= mem[MR] { P1 = mem[PC + 2] } else { PC += 3} TODO  |
-| `0x3637`   | jmpgtemc | if Accu >= mem[MR] { P1 = mem[PC + 2] } else { PC += 3} TODO  |
-| `0x3736`   | jmpltmc  | if Accu < mem[MR] { P1 = mem[PC + 2] } else { PC += 3} TODO   |
-| `0x3839`   | jmpeqmc  | if Accu == mem[MR] { P1 = mem[PC + 2] } else { PC += 3} TODO  |
-| `0x3938`   | jmpneqmc | if Accu != mem[MR] { P1 = mem[PC + 2] } else { PC += 3} TODO  |
+| `0x28xx29` | jmpgtcc  | if Accu > mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4} DONE|
+| `0x29xx28` | jmpltecc | if Accu <= mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4} DONE|
+| `0x2axx2b` | jmpgtcc  | if Accu < mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4} DONE|     changed order with following command*
+| `0x2bxx2a` | jmpltecc | if Accu >= mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4} DONE|	*
+| `0x2cxx2d` | jmpeqcc  | if Accu == mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4} DONE|
+| `0x2dxx2c` | jmpneqcc | if Accu != mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4} DONE|
+| `0x2exx2f` | jmpgtcm  | if Accu > mem[PC + 1] { P1 = mem[MR] } else { PC += 3} DONE   |
+| `0x2fxx3e` | jmpltecm | if Accu <= mem[PC + 1] { P1 = mem[MR] } else { PC += 3} DONE  |	
+| `0x30xx31` | jmpgtcm  | if Accu < mem[PC + 1] { P1 = mem[MR] } else { PC += 3} DONE  |	*
+| `0x31xx30` | jmpltecm | if Accu >= mem[PC + 1] { P1 = mem[MR] } else { PC += 3} DONE   |	*
+| `0x32xx33` | jmpeqcm  | if Accu == mem[PC + 1] { P1 = mem[MR] } else { PC += 3} DONE  |
+| `0x33xx32` | jmpneqcm | if Accu != mem[PC + 1] { P1 = mem[MR] } else { PC += 3} DONE  |
+| `0x3435`   | jmpgtmc  | if Accu > mem[MR] { P1 = mem[PC + 2] } else { PC += 3} DONE   |
+| `0x3534`   | jmpltemc | if Accu <= mem[MR] { P1 = mem[PC + 2] } else { PC += 3} DONE  |
+| `0x3637`   | jmpgtmc  | if Accu < mem[MR] { P1 = mem[PC + 2] } else { PC += 3} DONE  |	*
+| `0x3736`   | jmpltemc | if Accu >= mem[MR] { P1 = mem[PC + 2] } else { PC += 3} DONE   |	*
+| `0x3839`   | jmpeqmc  | if Accu == mem[MR] { P1 = mem[PC + 2] } else { PC += 3} DONE  |
+| `0x3938`   | jmpneqmc | if Accu != mem[MR] { P1 = mem[PC + 2] } else { PC += 3} DONE  |
 | `0x3axx3b` | ljmpgtcc  | if Accu > mem[PC + 1] { P1 = 0; P2 = mem[PC + 3] } else { PC += 4} TODO|
 | `0x3bxx3a` | ljmpltecc | if Accu <= mem[PC + 1] { P1 = 0; P2 = mem[PC + 3] } else { PC += 4} TODO|
 | `0x3cxx3d` | ljmpgtecc | if Accu >= mem[PC + 1] { P1 = 0; P2 = mem[PC + 3] } else { PC += 4} TODO|
