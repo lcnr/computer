@@ -4,4 +4,4 @@
 	idle;
 	loadc 55;
 	jmpc .start;
-#toggle between 10101010 and 01010101 lol
+# toggle between 10101010 and 01010101
