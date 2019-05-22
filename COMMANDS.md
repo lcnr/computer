@@ -67,7 +67,7 @@ Notes:
 | `0x0f`     | inv      | Accu = !Accu; PC += 1;                                        |
 | `0x10`     | loadc    | Accu = mem[PC + 1]; PC += 2;                                  |
 | `0x11`     | loadm    | Accu = mem[MR]; PC += 1;                                      |
-| `0x12`     | storem   | mem[MR] = Accu; PC += 1;                                      |
+| `0x12`     | store   | mem[MR] = Accu; PC += 1;                                      |
 | `0x13`     | zero     | Accu = 0; PC += 1;                                            |
 | `0x14`     | setsc    | M1 = mem[PC + 1]; PC += 2;                                    |
 | `0x15`     | setsa    | M1 = Accu; PC += 1;                                           |
