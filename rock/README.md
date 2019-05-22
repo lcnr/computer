@@ -16,7 +16,7 @@ are longer than 256 bytes. While most commands are listed in [COMMANDS.md][comma
 
 ```
 start:
-    loadc 0b1111_1011;
+    loadc 0b1111_1011; # this is a single line comment
     addc 4;
     inv;
 .loop:

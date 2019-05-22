@@ -1,0 +1,6 @@
+aba: # this is a comment
+    byte # comment
+0x12 # comment
+; .section # :
+: jmpc .section;
+#comment
