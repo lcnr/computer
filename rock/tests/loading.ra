@@ -1,0 +1,28 @@
+.loop:
+	load 01;
+	idle;
+	add 02;
+	idle;
+	add 04;
+	Idle;
+	add 08;
+	idle;
+	add 10;
+	idle;
+	add 20;
+	idle;
+	add 40;
+	idle;
+	add 80;
+	.loop2:
+		shl 01;
+		jmpnzc loop2;
+	load 80;
+	.loop3:
+		shr 01;
+		jmpnecc ff loop3;
+	load 7f;
+	.loop4:
+		shr 01;
+		jmpnzc loop2;
+	jmp .loop;

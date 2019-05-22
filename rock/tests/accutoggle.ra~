@@ -1,0 +1,4 @@
+.start:
+	loadc aa;
+	loadc 55;
+	jmpc .start;
