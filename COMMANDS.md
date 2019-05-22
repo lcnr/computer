@@ -29,7 +29,7 @@ Notes:
 | `0b0000`  | Accu & Bus    | RAM       | don't         | M1                |
 | `0b0001`  | Bus \| Accu   | Accu      | UPDATE REG    | M2                |
 | `0b0010`  | Accu ^ Bus    | ALU       | if Carry == 1 | P1                |
-| `0b0011`  | Accu + Bus    | Zero      | if ALU == 0   | P2                |
+| `0b0011`  | Accu + Bus    | Zero      | if ALU == 0   | P2, sets P1 to 0  |
 | `0b0100`  | Accu - Bus    | M1        | -             | -                 |
 | `0b0101`  | Bus - Accu    | M2        | -             | -                 |
 | `0b0110`  | -             | P1        | -             | -                 |
