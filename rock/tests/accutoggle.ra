@@ -1,7 +1,7 @@
-.start:
+start:
 	idle;
-	loadc aa;
+	loadc 0xaa;
 	idle;
-	loadc 55;
-	jmpc .start;
+	loadc 0x55;
+	jmpc start;
 # toggle between 10101010 and 01010101

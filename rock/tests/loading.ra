@@ -1,28 +1,32 @@
-.loop:
-	load 01;
+start:
+.loop1:
+	loadc 0x01;
 	idle;
-	add 02;
+	addc 0x02;
 	idle;
-	add 04;
-	Idle;
-	add 08;
+	addc 0x04;
 	idle;
-	add 10;
+	addc 0x08;
 	idle;
-	add 20;
+	addc 0x10;
 	idle;
-	add 40;
+	addc 0x20;
 	idle;
-	add 80;
+	addc 0x40;
+	idle;
+	addc 0x80;
+	idle;
 	.loop2:
-		shl 01;
-		jmpnzc loop2;
-	load 80;
+		shlc 0x01;
+		jmpnzc .loop2;
+	loadc 0x80;
+	idle;
 	.loop3:
-		shr 01;
-		jmpnecc ff loop3;
-	load 7f;
+		shrc 0x01;
+		jmpneqcc 0xff .loop3;
+	loadc 0x7f;
+	idle;
 	.loop4:
-		shr 01;
-		jmpnzc loop2;
-	jmp .loop;
+		shrc 0x01;
+		jmpnzc .loop4;
+	jmpc .loop1;
