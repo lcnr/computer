@@ -88,6 +88,7 @@ pub enum Command<'a> {
     Ljmpgtemc(MemAddr<'a>),
     Ljmpeqmc(MemAddr<'a>),
     Ljmpneqmc(MemAddr<'a>),
+    Reset,
 }
 
 pub fn parse_commands<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logger) -> Command<'a> {
@@ -169,6 +170,7 @@ pub fn parse_commands<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logg
         "ljmpgtemc" => with_block_addr(cmd, args, l, Command::Ljmpgtemc),
         "ljmpeqmc" => with_block_addr(cmd, args, l, Command::Ljmpeqmc),
         "ljmpneqmc" => with_block_addr(cmd, args, l, Command::Ljmpneqmc),
+        "reset" => without_args(cmd, args, l, Command::Reset),
         unknown => {
             l.log_err(Error::at_token(
                 ErrorLevel::Error,
@@ -236,7 +238,8 @@ impl<'a> Command<'a> {
             | Command::Jmpm
             | Command::Jmpa
             | Command::Ljmpm
-            | Command::Ljmpa => 1,
+            | Command::Ljmpa
+            | Command::Reset => 1,
             Command::Addc(_)
             | Command::Subc(_)
             | Command::Shlc(_)

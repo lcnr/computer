@@ -76,3 +76,4 @@
     ljmpgtemc 3;
     ljmpeqmc 4;
     ljmpneqmc 5;
+    reset;

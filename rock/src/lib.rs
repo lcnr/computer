@@ -655,6 +655,7 @@ fn finalize(mut blocks: Vec<Block<'_>>) -> Vec<u8> {
                 Command::Ljmpgtemc(MemAddr::Byte(v)) => res.extend_from_slice(&[0x49, 0x48, v]),
                 Command::Ljmpeqmc(MemAddr::Byte(v)) => res.extend_from_slice(&[0x4a, 0x4b, v]),
                 Command::Ljmpneqmc(MemAddr::Byte(v)) => res.extend_from_slice(&[0x4b, 0x4a, v]),
+                Command::Reset => res.push(0xff),
                 Command::Section(_) => (),
                 cmd @ Command::Invalid
                 | cmd @ Command::Jmpc(MemAddr::Named(_))
