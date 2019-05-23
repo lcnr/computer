@@ -481,6 +481,66 @@ pub fn resolve<'a, L: Logger>(blocks: &mut [Block<'a>], l: &mut L) -> Result<(),
                         *addr = replace_section_addr(s, l)?
                     }
                 }
+                Command::Ljmpgtcc(_, ref mut addr) => {
+                    if let MemAddr::Named(s) = addr {
+                        *addr = replace_block_addr(s, l)?
+                    }
+                }
+                Command::Ljmpltecc(_, ref mut addr) => {
+                    if let MemAddr::Named(s) = addr {
+                        *addr = replace_block_addr(s, l)?
+                    }
+                }
+                Command::Ljmpltcc(_, ref mut addr) => {
+                    if let MemAddr::Named(s) = addr {
+                        *addr = replace_block_addr(s, l)?
+                    }
+                }
+                Command::Ljmpgtecc(_, ref mut addr) => {
+                    if let MemAddr::Named(s) = addr {
+                        *addr = replace_block_addr(s, l)?
+                    }
+                }
+                Command::Ljmpeqcc(_, ref mut addr) => {
+                    if let MemAddr::Named(s) = addr {
+                        *addr = replace_block_addr(s, l)?
+                    }
+                }
+                Command::Ljmpneqcc(_, ref mut addr) => {
+                    if let MemAddr::Named(s) = addr {
+                        *addr = replace_block_addr(s, l)?
+                    }
+                }
+                Command::Ljmpgtmc(ref mut addr) => {
+                    if let MemAddr::Named(s) = addr {
+                        *addr = replace_block_addr(s, l)?
+                    }
+                }
+                Command::Ljmpltemc(ref mut addr) => {
+                    if let MemAddr::Named(s) = addr {
+                        *addr = replace_block_addr(s, l)?
+                    }
+                }
+                Command::Ljmpltmc(ref mut addr) => {
+                    if let MemAddr::Named(s) = addr {
+                        *addr = replace_block_addr(s, l)?
+                    }
+                }
+                Command::Ljmpgtemc(ref mut addr) => {
+                    if let MemAddr::Named(s) = addr {
+                        *addr = replace_block_addr(s, l)?
+                    }
+                }
+                Command::Ljmpeqmc(ref mut addr) => {
+                    if let MemAddr::Named(s) = addr {
+                        *addr = replace_block_addr(s, l)?
+                    }
+                }
+                Command::Ljmpneqmc(ref mut addr) => {
+                    if let MemAddr::Named(s) = addr {
+                        *addr = replace_block_addr(s, l)?
+                    }
+                }
                 _ => (),
             }
         }
@@ -542,11 +602,17 @@ fn finalize(mut blocks: Vec<Block<'_>>) -> Vec<u8> {
                 Command::Ljmpzm => res.extend_from_slice(&[0x26, 0x27]),
                 Command::Ljmpnzm => res.extend_from_slice(&[0x27, 0x26]),
                 Command::Jmpgtcc(b, MemAddr::Byte(v)) => res.extend_from_slice(&[0x28, b, 0x29, v]),
-                Command::Jmpltecc(b, MemAddr::Byte(v)) => res.extend_from_slice(&[0x29, b, 0x28, v]),
+                Command::Jmpltecc(b, MemAddr::Byte(v)) => {
+                    res.extend_from_slice(&[0x29, b, 0x28, v])
+                }
                 Command::Jmpltcc(b, MemAddr::Byte(v)) => res.extend_from_slice(&[0x2a, b, 0x2b, v]),
-                Command::Jmpgtecc(b, MemAddr::Byte(v)) => res.extend_from_slice(&[0x2b, b, 0x2a, v]),
+                Command::Jmpgtecc(b, MemAddr::Byte(v)) => {
+                    res.extend_from_slice(&[0x2b, b, 0x2a, v])
+                }
                 Command::Jmpeqcc(b, MemAddr::Byte(v)) => res.extend_from_slice(&[0x2c, b, 0x2d, v]),
-                Command::Jmpneqcc(b, MemAddr::Byte(v)) => res.extend_from_slice(&[0x2d, b, 0x2c, v]),
+                Command::Jmpneqcc(b, MemAddr::Byte(v)) => {
+                    res.extend_from_slice(&[0x2d, b, 0x2c, v])
+                }
                 Command::Jmpgtcm(b) => res.extend_from_slice(&[0x2e, b, 0x2f]),
                 Command::Jmpltecm(b) => res.extend_from_slice(&[0x2f, b, 0x2e]),
                 Command::Jmpltcm(b) => res.extend_from_slice(&[0x30, b, 0x31]),
@@ -559,6 +625,36 @@ fn finalize(mut blocks: Vec<Block<'_>>) -> Vec<u8> {
                 Command::Jmpgtemc(MemAddr::Byte(v)) => res.extend_from_slice(&[0x37, 0x36, v]),
                 Command::Jmpeqmc(MemAddr::Byte(v)) => res.extend_from_slice(&[0x38, 0x39, v]),
                 Command::Jmpneqmc(MemAddr::Byte(v)) => res.extend_from_slice(&[0x39, 0x38, v]),
+                Command::Ljmpgtcc(b, MemAddr::Byte(v)) => {
+                    res.extend_from_slice(&[0x3a, b, 0x3b, v])
+                }
+                Command::Ljmpltecc(b, MemAddr::Byte(v)) => {
+                    res.extend_from_slice(&[0x3b, b, 0x3a, v])
+                }
+                Command::Ljmpltcc(b, MemAddr::Byte(v)) => {
+                    res.extend_from_slice(&[0x3c, b, 0x3d, v])
+                }
+                Command::Ljmpgtecc(b, MemAddr::Byte(v)) => {
+                    res.extend_from_slice(&[0x3d, b, 0x3c, v])
+                }
+                Command::Ljmpeqcc(b, MemAddr::Byte(v)) => {
+                    res.extend_from_slice(&[0x3e, b, 0x3f, v])
+                }
+                Command::Ljmpneqcc(b, MemAddr::Byte(v)) => {
+                    res.extend_from_slice(&[0x3f, b, 0x3e, v])
+                }
+                Command::Ljmpgtcm(b) => res.extend_from_slice(&[0x40, b, 0x41]),
+                Command::Ljmpltecm(b) => res.extend_from_slice(&[0x41, b, 0x40]),
+                Command::Ljmpltcm(b) => res.extend_from_slice(&[0x42, b, 0x43]),
+                Command::Ljmpgtecm(b) => res.extend_from_slice(&[0x43, b, 0x42]),
+                Command::Ljmpeqcm(b) => res.extend_from_slice(&[0x44, b, 0x45]),
+                Command::Ljmpneqcm(b) => res.extend_from_slice(&[0x45, b, 0x44]),
+                Command::Ljmpgtmc(MemAddr::Byte(v)) => res.extend_from_slice(&[0x46, 0x47, v]),
+                Command::Ljmpltemc(MemAddr::Byte(v)) => res.extend_from_slice(&[0x47, 0x46, v]),
+                Command::Ljmpltmc(MemAddr::Byte(v)) => res.extend_from_slice(&[0x48, 0x49, v]),
+                Command::Ljmpgtemc(MemAddr::Byte(v)) => res.extend_from_slice(&[0x49, 0x48, v]),
+                Command::Ljmpeqmc(MemAddr::Byte(v)) => res.extend_from_slice(&[0x4a, 0x4b, v]),
+                Command::Ljmpneqmc(MemAddr::Byte(v)) => res.extend_from_slice(&[0x4b, 0x4a, v]),
                 Command::Section(_) => (),
                 cmd @ Command::Invalid
                 | cmd @ Command::Jmpc(MemAddr::Named(_))
@@ -578,7 +674,19 @@ fn finalize(mut blocks: Vec<Block<'_>>) -> Vec<u8> {
                 | cmd @ Command::Jmpltmc(MemAddr::Named(_))
                 | cmd @ Command::Jmpgtemc(MemAddr::Named(_))
                 | cmd @ Command::Jmpeqmc(MemAddr::Named(_))
-                | cmd @ Command::Jmpneqmc(MemAddr::Named(_)) => {
+                | cmd @ Command::Jmpneqmc(MemAddr::Named(_))
+                | cmd @ Command::Ljmpgtcc(_, MemAddr::Named(_))
+                | cmd @ Command::Ljmpltecc(_, MemAddr::Named(_))
+                | cmd @ Command::Ljmpltcc(_, MemAddr::Named(_))
+                | cmd @ Command::Ljmpgtecc(_, MemAddr::Named(_))
+                | cmd @ Command::Ljmpeqcc(_, MemAddr::Named(_))
+                | cmd @ Command::Ljmpneqcc(_, MemAddr::Named(_))
+                | cmd @ Command::Ljmpgtmc(MemAddr::Named(_))
+                | cmd @ Command::Ljmpltemc(MemAddr::Named(_))
+                | cmd @ Command::Ljmpltmc(MemAddr::Named(_))
+                | cmd @ Command::Ljmpgtemc(MemAddr::Named(_))
+                | cmd @ Command::Ljmpeqmc(MemAddr::Named(_))
+                | cmd @ Command::Ljmpneqmc(MemAddr::Named(_)) => {
                     unreachable!("unexpected command: {:?}", cmd)
                 }
             };

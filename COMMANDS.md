@@ -96,7 +96,7 @@ Notes:
 | `0x2cxx2d` | jmpeqcc  | if Accu == mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4}        |
 | `0x2dxx2c` | jmpneqcc | if Accu != mem[PC + 1] { P1 = mem[PC + 3] } else { PC += 4}        |
 | `0x2exx2f` | jmpgtcm  | if Accu > mem[PC + 1] { P1 = mem[MR] } else { PC += 3}             |
-| `0x2fxx3e` | jmpltecm | if Accu <= mem[PC + 1] { P1 = mem[MR] } else { PC += 3}            |
+| `0x2fxx2e` | jmpltecm | if Accu <= mem[PC + 1] { P1 = mem[MR] } else { PC += 3}            |
 | `0x30xx31` | jmpltcm  | if Accu < mem[PC + 1] { P1 = mem[MR] } else { PC += 3}             |
 | `0x31xx30` | jmpgtecm | if Accu >= mem[PC + 1] { P1 = mem[MR] } else { PC += 3}            |
 | `0x32xx33` | jmpeqcm  | if Accu == mem[PC + 1] { P1 = mem[MR] } else { PC += 3}            |

@@ -70,6 +70,24 @@ pub enum Command<'a> {
     Jmpgtemc(MemAddr<'a>),
     Jmpeqmc(MemAddr<'a>),
     Jmpneqmc(MemAddr<'a>),
+    Ljmpgtcc(u8, MemAddr<'a>),
+    Ljmpltecc(u8, MemAddr<'a>),
+    Ljmpltcc(u8, MemAddr<'a>),
+    Ljmpgtecc(u8, MemAddr<'a>),
+    Ljmpeqcc(u8, MemAddr<'a>),
+    Ljmpneqcc(u8, MemAddr<'a>),
+    Ljmpgtcm(u8),
+    Ljmpltecm(u8),
+    Ljmpltcm(u8),
+    Ljmpgtecm(u8),
+    Ljmpeqcm(u8),
+    Ljmpneqcm(u8),
+    Ljmpgtmc(MemAddr<'a>),
+    Ljmpltemc(MemAddr<'a>),
+    Ljmpltmc(MemAddr<'a>),
+    Ljmpgtemc(MemAddr<'a>),
+    Ljmpeqmc(MemAddr<'a>),
+    Ljmpneqmc(MemAddr<'a>),
 }
 
 pub fn parse_commands<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logger) -> Command<'a> {
@@ -133,6 +151,24 @@ pub fn parse_commands<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logg
         "jmpgtemc" => with_section_addr(cmd, args, l, Command::Jmpgtemc),
         "jmpeqmc" => with_section_addr(cmd, args, l, Command::Jmpeqmc),
         "jmpneqmc" => with_section_addr(cmd, args, l, Command::Jmpneqmc),
+        "ljmpgtcc" => with_byte_and_block_addr(cmd, args, l, Command::Ljmpgtcc),
+        "ljmpltecc" => with_byte_and_block_addr(cmd, args, l, Command::Ljmpltecc),
+        "ljmpltcc" => with_byte_and_block_addr(cmd, args, l, Command::Ljmpltcc),
+        "ljmpgtecc" => with_byte_and_block_addr(cmd, args, l, Command::Ljmpgtecc),
+        "ljmpeqcc" => with_byte_and_block_addr(cmd, args, l, Command::Ljmpeqcc),
+        "ljmpneqcc" => with_byte_and_block_addr(cmd, args, l, Command::Ljmpneqcc),
+        "ljmpgtcm" => with_byte(cmd, args, l, Command::Ljmpgtcm),
+        "ljmpltecm" => with_byte(cmd, args, l, Command::Ljmpltecm),
+        "ljmpltcm" => with_byte(cmd, args, l, Command::Ljmpltcm),
+        "ljmpgtecm" => with_byte(cmd, args, l, Command::Ljmpgtecm),
+        "ljmpeqcm" => with_byte(cmd, args, l, Command::Ljmpeqcm),
+        "ljmpneqcm" => with_byte(cmd, args, l, Command::Ljmpneqcm),
+        "ljmpgtmc" => with_block_addr(cmd, args, l, Command::Ljmpgtmc),
+        "ljmpltemc" => with_block_addr(cmd, args, l, Command::Ljmpltemc),
+        "ljmpltmc" => with_block_addr(cmd, args, l, Command::Ljmpltmc),
+        "ljmpgtemc" => with_block_addr(cmd, args, l, Command::Ljmpgtemc),
+        "ljmpeqmc" => with_block_addr(cmd, args, l, Command::Ljmpeqmc),
+        "ljmpneqmc" => with_block_addr(cmd, args, l, Command::Ljmpneqmc),
         unknown => {
             l.log_err(Error::at_token(
                 ErrorLevel::Error,
@@ -232,14 +268,69 @@ impl<'a> Command<'a> {
             | Command::Jmpltmc(_)
             | Command::Jmpgtemc(_)
             | Command::Jmpeqmc(_)
-            | Command::Jmpneqmc(_) => 3,
+            | Command::Jmpneqmc(_)
+            | Command::Ljmpgtcm(_)
+            | Command::Ljmpltecm(_)
+            | Command::Ljmpltcm(_)
+            | Command::Ljmpgtecm(_)
+            | Command::Ljmpeqcm(_)
+            | Command::Ljmpneqcm(_)
+            | Command::Ljmpgtmc(_)
+            | Command::Ljmpltemc(_)
+            | Command::Ljmpltmc(_)
+            | Command::Ljmpgtemc(_)
+            | Command::Ljmpeqmc(_)
+            | Command::Ljmpneqmc(_) => 3,
             Command::Jmpgtcc(_, _)
             | Command::Jmpltecc(_, _)
             | Command::Jmpltcc(_, _)
             | Command::Jmpgtecc(_, _)
             | Command::Jmpeqcc(_, _)
-            | Command::Jmpneqcc(_, _) => 4,
+            | Command::Jmpneqcc(_, _)
+            | Command::Ljmpgtcc(_, _)
+            | Command::Ljmpltecc(_, _)
+            | Command::Ljmpltcc(_, _)
+            | Command::Ljmpgtecc(_, _)
+            | Command::Ljmpeqcc(_, _)
+            | Command::Ljmpneqcc(_, _) => 4,
         }
+    }
+}
+
+fn with_byte_and_block_addr<'a, F>(
+    cmd: &Token<'a>,
+    args: &[Token<'a>],
+    l: &mut impl Logger,
+    f: F,
+) -> Command<'a>
+where
+    F: FnOnce(u8, MemAddr<'a>) -> Command<'a>,
+{
+    if expect_arg_count(cmd, args, l, 2) {
+        if args[0].is_byte() {
+            let value = args[0].byte_value();
+            if args[1].is_byte() {
+                f(value, MemAddr::Byte(args[1].byte_value()))
+            } else if args[1].is_ident() {
+                f(value, MemAddr::Named(args[1].origin()))
+            } else {
+                l.log_err(Error::expected(
+                    vec![TokenType::Byte(0), TokenType::Ident],
+                    &args[1],
+                ));
+                Command::Invalid
+            }
+        } else {
+            l.log_err(Error::expected(vec![TokenType::Byte(0)], &args[0]));
+            Command::Invalid
+        }
+    } else {
+        l.log_err(Error::at_token(
+            ErrorLevel::Error,
+            Cause::WrongArgCount(cmd.origin(), 2, args.len()),
+            &args[0],
+        ));
+        Command::Invalid
     }
 }
 

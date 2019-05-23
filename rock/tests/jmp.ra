@@ -37,6 +37,30 @@ start:
     jmpeqmc start;
     jmpneqmc .section;
     jmpneqmc start;
+    ljmpgtcc 0 start;
+    ljmpgtcc 0 later;
+    ljmpltecc 0 start;
+    ljmpltecc 0 later;
+    ljmpltcc 0 start;
+    ljmpltcc 0 later;
+    ljmpgtecc 0 start;
+    ljmpgtecc 0 later;
+    ljmpeqcc 0 start;
+    ljmpeqcc 0 later;
+    ljmpneqcc 0 start;
+    ljmpneqcc 0 later;
+    ljmpgtmc start;
+    ljmpgtmc later;
+    ljmpltemc start;
+    ljmpltemc later;
+    ljmpltmc start;
+    ljmpltmc later;
+    ljmpgtemc start;
+    ljmpgtemc later;
+    ljmpeqmc start;
+    ljmpeqmc later;
+    ljmpneqmc start;
+    ljmpneqmc later;
 later:
     byte 0;
 even_later:

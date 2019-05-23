@@ -137,7 +137,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
     fn current_char(&self) -> Option<char> {
         self.src[self.byte_offset..].chars().next()
     }
-    
+
     /// returns an invalid token,
     /// recover never needs to skip a newline
     fn recover(&'a mut self, tok_start: usize) -> Token<'b> {
@@ -166,7 +166,6 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                     self.byte_offset += c.len_utf8();
                 }
             }
-                
         }
     }
 
