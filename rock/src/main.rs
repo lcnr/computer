@@ -4,13 +4,22 @@ use std::env;
 use std::fs::File;
 use std::io::{Read, Write};
 
+const USAGE: &str = "usage: rock <input file> [<output file>]";
+
 pub fn main() {
-    if let [ref input, ref output] = *env::args().skip(1).collect::<Box<_>>() {
+    let mut args = env::args().skip(1);
+    if let Some(ref input) = args.next() {
+        let output = args.next();
+        let output = output.as_ref().map(|t| &**t).unwrap_or("a.data");
+        if let Some(_) = args.next() {
+            println!("{}", USAGE);
+            return;
+        }
+
         if let Ok(mut file) = File::open(input) {
             let mut src = String::new();
             if let Err(err) = file.read_to_string(&mut src) {
                 println!("Error while reading {}: {:?}", input, err);
-                return;
             }
 
             if let Ok(data) = rock::codegen(&src, &mut rock::DebugLogger) {
@@ -26,13 +35,10 @@ pub fn main() {
                     println!("unable to create file: {}", output);
                 }
             }
-            else {
-                println!("COMPILATION FAILED!");
-            }
         } else {
             println!("unable to open file: {}", input);
         }
     } else {
-        println!("usage: rock <input file> <output file>");
+        println!("{}", USAGE);
     }
 }
