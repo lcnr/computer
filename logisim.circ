@@ -277,7 +277,9 @@
       <a name="width" val="8"/>
     </comp>
     <comp lib="3" loc="(30,90)" name="Button"/>
-    <comp loc="(930,270)" name="ALU"/>
+    <comp loc="(930,270)" name="ALU">
+      <a name="label" val="ALU"/>
+    </comp>
     <comp lib="0" loc="(870,360)" name="Probe">
       <a name="facing" val="west"/>
       <a name="label" val="ALU"/>
@@ -2748,6 +2750,7 @@ c581 1 1 0 c581 1 4030 713*0
     <wire from="(220,240)" to="(770,240)"/>
     <wire from="(200,560)" to="(200,590)"/>
     <wire from="(220,450)" to="(570,450)"/>
+    <wire from="(120,710)" to="(280,710)"/>
     <wire from="(210,550)" to="(430,550)"/>
     <wire from="(220,500)" to="(220,540)"/>
     <wire from="(620,640)" to="(840,640)"/>
@@ -2779,7 +2782,6 @@ c581 1 1 0 c581 1 4030 713*0
     <wire from="(210,460)" to="(210,510)"/>
     <wire from="(280,650)" to="(290,650)"/>
     <wire from="(350,640)" to="(360,640)"/>
-    <wire from="(200,710)" to="(280,710)"/>
     <wire from="(700,350)" to="(710,350)"/>
     <wire from="(750,320)" to="(760,320)"/>
     <wire from="(310,750)" to="(380,750)"/>
@@ -2792,7 +2794,6 @@ c581 1 1 0 c581 1 4030 713*0
     <wire from="(210,330)" to="(710,330)"/>
     <wire from="(550,650)" to="(840,650)"/>
     <wire from="(700,350)" to="(700,710)"/>
-    <wire from="(200,610)" to="(200,710)"/>
     <wire from="(210,510)" to="(210,550)"/>
     <wire from="(240,220)" to="(770,220)"/>
     <wire from="(420,600)" to="(430,600)"/>
@@ -2926,6 +2927,9 @@ c581 1 1 0 c581 1 4030 713*0
     </comp>
     <comp lib="0" loc="(880,620)" name="Constant">
       <a name="width" val="8"/>
+      <a name="value" val="0x0"/>
+    </comp>
+    <comp lib="0" loc="(120,710)" name="Constant">
       <a name="value" val="0x0"/>
     </comp>
   </circuit>
