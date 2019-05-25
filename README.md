@@ -21,12 +21,14 @@ to undo the last commit and resume with step 3.
 
 ## Roadmap
 
-- [ ] build the computer in [logisim]
+- [x] build the computer in [logisim]
   - [x] basic functionality
-  - [ ] conditional jumps
+  - [x] conditional jumps
     - [x] jmp on Accu == 0
     - [x] jmp on Accu != 0
-    - [ ] jmp on Accu cmp Bus
+    - [x] jmp on Accu cmp Bus
+  - [ ] tests
+  - [ ] add quality of life improvements (swap command/trapping arithmetic)
 - [ ] build an assembler targeting this architecture ([rock])
 - [ ] create a high level language which can be compiled to this architecture ([boulder])
 - [ ] build it in real life
