@@ -125,4 +125,5 @@ Notes:
 | `0x4948`   | ljmpgtemc| if Accu >= mem[MR] { P1 = 0; P2 = mem[PC + 2] } else { PC += 3}    |
 | `0x4a4b`   | ljmpeqmc | if Accu == mem[MR] { P1 = 0; P2 = mem[PC + 2] } else { PC += 3}    |
 | `0x4b4a`   | ljmpneqmc| if Accu != mem[MR] { P1 = 0; P2 = mem[PC + 2] } else { PC += 3}    |
+| `0xfe`     | swapm    | (Accu, mem[MR]) = (mem[MR], Accu); PC += 1;                        |
 | `0xff`     | reset    | set registers, Accu and PC to 0                                    |
