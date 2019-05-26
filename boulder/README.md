@@ -4,9 +4,16 @@ WIP: A high level programming language
 
 ## Goals
 
-Learn about type theory/inference, optimizations and other interesting subjects.
+Learn about type theory, optimizations and other interesting subjects.
+The current design idea should sadly not require any kind of type inference, as all
+generic functions require explicit type annotations and operators can not
+be overloaded.
 
-# Inspirations
+## Design limitations
+
+- support methods (`object.method` instead of `method(object)`)
+
+## Inspirations
 
 This language is mostly inspired by rust.
 Other inspirations:

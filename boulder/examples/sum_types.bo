@@ -1,11 +1,9 @@
-enum Option<T> {
-    Some(T),
-    None
+const None: type = struct;
+
+fn checked_add(a: u32, b: u32) -> u32 | None {
+    if b > u32::MAX - a {
+        None
+    } else {
+        a + b
+    }
 }
-
-# this can be roughly desugared to the following
-
-struct Some<T>(T);
-struct None;
-
-type Option<T> = Some<T> | None;
