@@ -2,6 +2,14 @@
 
 WIP: A high level programming language
 
+## Structure
+
+- `boulder`: code written in boulder
+- `cli`: a small binary which glues all other parts together
+- `meta`: a crate which enables easy and helpful error messages
+- `hir`: the high level intermediate language
+- `parse`: a library which creates the HIR
+
 ## Goals
 
 Learn about type theory, optimizations and other interesting subjects.

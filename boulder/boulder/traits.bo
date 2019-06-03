@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::compile;
 
-const IMPL_MAP: type = HashMap((type, type, type), fn(type, type) -> type);
+const IMPL_MAP: type = HashMap((type, type, type), object);
 
 const IMPLEMENTATIONS: IMPL_MAP = IMPL_MAP::new();
 
@@ -30,5 +30,6 @@ pub fn add(
     match f = IMPLEMENTATIONS.get((RHS, LHS, OUT)) {
         fn(RHS, LHS) -> OUT => f(rhs, lhs),
         None => compile.error("add with the types `(RHS, LHS, OUT) = ({}, {}, {})` is not implemented", RHS.name, LHS.name, OUT.name),
+        _ => compile.bug("unexpected type in add implementation of `add({}, {}, {})`: `{}`, RHS.name, LHS.name, OUT.name, f.type.name),
     }
 }

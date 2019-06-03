@@ -1,4 +1,6 @@
-const None: type = struct;
+const None: type = struct {
+    
+};
 
 fn checked_add(a: u32, b: u32) -> u32 | None {
     if b > u32::MAX - a {
