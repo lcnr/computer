@@ -27,9 +27,9 @@ Notes:
 |          | ALU           | Bus Input | Update IR     | Update Register   |
 | -------- | ------------- | --------- | ------------- | ----------------- |
 | `0b000`  | A & B         | RAM       | don't         | A                 |
-| `0b001`  | A \| B        | T         | UPDATE REG    | B                 |
-| `0b010`  | A ^ B         | ALU       | if Carry == 1 | C                 |
-| `0b011`  | A - B         | Zero      | if ALU == 0   | D                 |
+| `0b001`  | A \| B        | ALU       | UPDATE REG    | B                 |
+| `0b010`  | A ^ B         | -         | if Carry == 1 | C                 |
+| `0b011`  | A - B         | -         | if ALU == 0   | D                 |
 | `0b100`  | A + B         | A         | -             | M1                |
 | `0b101`  | A << B        | B         | -             | M2                |
 | `0b110`  | A >> B        | C         | -             | P1                |
