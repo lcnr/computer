@@ -9,39 +9,31 @@ Notes:
 2. Bus Input
 3. Bus Input
 ---
-4. Select Register (to update)
-5. Select Register (to update)
-6. Update RAM
-7. RAM select M (default P)
+4. Update Register
+5. Update Register
+6. Update Register
+7. 
 ---
 8. ALU
 9. ALU
 10. ALU
-11. ALU
+11. 
 ---
-12. Update Accu
-13. Update T
+12. Update RAM
+13. RAM select M (default P)
 14. Update IR
 15. Update IR
 
-|           | ALU           | Bus Input | Update IR     | Select Register   |
-| --------- | ------------- | --------- | ------------- | ----------------- |
-| `0b0000`  | Accu & Bus    | RAM       | don't         | M1                |
-| `0b0001`  | Bus \| Accu   | T         | UPDATE REG    | M2                |
-| `0b0010`  | Accu ^ Bus    | ALU       | if Carry == 1 | P1                |
-| `0b0011`  | Accu + Bus    | Zero      | if ALU == 0   | P2, sets P1 to 0  |
-| `0b0100`  | Accu - Bus    | M1        | -             | -                 |
-| `0b0101`  | Bus - Accu    | M2        | -             | -                 |
-| `0b0110`  | -             | P1        | -             | -                 |
-| `0b0111`  | -             | P2        | -             | -                 |
-| `0b1000`  | Accu << Bus   | -         | -             | -                 |
-| `0b1001`  | Bus << Accu   | -         | -             | -                 |
-| `0b1010`  | Accu >> Bus   | -         | -             | -                 |
-| `0b1011`  | Bus >> Accu   | -         | -             | -                 |
-| `0b1100`  | Accu          | -         | -             | -                 |
-| `0b1101`  | Bus           | -         | -             | -                 |
-| `0b1110`  | !Accu         | -         | -             | -                 |
-| `0b1111`  | !Bus          | -         | -             | -                 |
+|          | ALU           | Bus Input | Update IR     | Update Register   |
+| -------- | ------------- | --------- | ------------- | ----------------- |
+| `0b000`  | A & B         | RAM       | don't         | A                 |
+| `0b001`  | A \| B        | T         | UPDATE REG    | B                 |
+| `0b010`  | A ^ B         | ALU       | if Carry == 1 | C                 |
+| `0b011`  | A - B         | Zero      | if ALU == 0   | D                 |
+| `0b100`  | A + B         | A         | -             | M1                |
+| `0b101`  | A << B        | B         | -             | M2                |
+| `0b110`  | A >> B        | C         | -             | P1                |
+| `0b111`  | !A            | D         | -             | P2                |
 
 # Commands
 

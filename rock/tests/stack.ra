@@ -1,0 +1,33 @@
+# the stack pointer MEM[1][0] should always point above the last element on the stack
+store:
+    # store B, C and D on the stack
+    setb 1;
+    sets 0;
+    sets MEM;
+    store B;
+    load 1 B;
+    load MEM A;
+    add A;
+    sets A;
+    store C;
+    add A;
+    sets A;
+    store D;
+    add A; # update stack pointer
+    sets 0;
+    store A;
+load:
+    # load C and D from the stack
+    setb 1;
+    sets 0;
+    load MEM A;
+    load 1 B;
+    sub A;
+    sets A;
+    load MEM C;
+    sub A;
+    sets A;
+    load MEM D;
+    sets 0; # update stack pointer
+    store A;
+

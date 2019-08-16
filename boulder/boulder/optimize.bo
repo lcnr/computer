@@ -1,0 +1,20 @@
+# infinite loops are UB, this function is a noop
+fn infinite_loop(a: u32) -> () {
+    loop {
+        if a == 7 {
+            return;
+        }
+    }
+}
+
+# as `a == 7` is required by `fn infinite_loop`, this function can be optimized to
+# 
+# ```
+# fn simplify(_: u32) -> u32 {
+#     49
+# }
+# ```
+fn simplify(a: u32) -> u32 {
+    infinite_loop(a);
+    a * a
+}
