@@ -1,0 +1,54 @@
+start:
+    store 12 C;
+    store 5 D;
+    # push the return addr of the stack
+    setb 1;
+    sets 0;
+    load MEM A;
+    sets A;
+    store start;
+    loadc 1 B;
+    add A;
+    sets A;
+    store .next_pos;
+    add A;
+    sets 0;
+    store A;
+.next_pos:
+    # the result should now be in a
+    jmp .next_pos;
+
+
+# calculate C * D, storing the result in C
+multiply:
+    store 0 B;
+.loop:
+    mov C A;
+    mov B C;
+    jmpz .end;
+    store 1 B;
+    sub A;
+    mov C B;
+    mov A C;
+    mov D A;
+    add B;
+    jmp .loop;
+.end:
+    # pop the return addr from the stack, jump back
+    setb 1;
+    sets 0;
+    load MEM A;
+    load 1 B;
+    sub A;
+    sets A;
+    load MEM D;
+    sub A;
+    sets A;
+    load MEM B;
+    sets 0; # update stack pointer
+    store A;
+    mov D A;
+    load MEM A;
+    fjmp B A;
+
+

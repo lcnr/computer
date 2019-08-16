@@ -6,6 +6,7 @@ store:
     sets MEM;
     store B;
     load 1 B;
+    sets 0;
     load MEM A;
     add A;
     sets A;
