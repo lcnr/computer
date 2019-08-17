@@ -1,5 +1,7 @@
 use boulder_core::Meta;
 
+use std::ops::Range;
+
 #[derive(Debug, Clone, Copy)]
 pub enum Keyword {
     /// `fn`
@@ -25,7 +27,7 @@ pub enum Operator {
     /// `-`
     Sub,
     /// `*`
-    Mul
+    Mul,
 }
 
 #[derive(Debug, Clone)]
@@ -34,8 +36,13 @@ pub enum Token {
     Ident(Box<str>),
     Keyword(Keyword),
     OpenBlock(BlockDelim),
-    Invalid,
+    CloseBlock(BlockDelim),
     Operator(Operator),
+    SemiColon,
+    Colon,
+    Comma,
+    Invalid,
+    Arrow,
 }
 
 pub struct TokenIter<'a> {
@@ -53,14 +60,22 @@ impl<'a, 'b: 'a> TokenIter<'b> {
         }
     }
 
-    fn new_token(&self, tok: Token, Range<usize>, line: u32) -> Meta<'a, Token> {
+    fn new_token(&self, tok: Token, origin: Range<usize>) -> Meta<'a, Token> {
         Meta {
             data: tok,
-            file: `
-            origin: self.src,
-            line,
-            
+            source: self.src,
+            span: origin,
+            line: self.line,
         }
+    }
+
+    // is the character `c` a terminator for all token types
+    fn is_terminator(&self, c: char) -> bool {
+        c.is_whitespace()
+            || match c {
+                ';' | ':' | '(' | ')' | '{' | '}' | '[' | ']' | '.' | ',' => true,
+                _ => false,
+            }
     }
 
     fn current_char(&self) -> Option<char> {
@@ -69,14 +84,16 @@ impl<'a, 'b: 'a> TokenIter<'b> {
 
     /// returns an invalid token,
     /// recover never needs to skip a newline
-    fn recover(&'a mut self, tok_start: usize) -> Meta<'a, Token> {
+    fn recover(&mut self, tok_start: usize) -> Meta<'a, Token> {
         while let Some(c) = self.current_char() {
-            if c.is_whitespace() || c == ';' || c == ':' {
+            if self.is_terminator(c) {
+                println!("{}", c);
                 break;
             }
             self.advance();
         }
-        Token::invalid(self.line, &self.src[tok_start..self.byte_offset])
+
+        self.new_token(Token::Invalid, tok_start..self.byte_offset)
     }
 
     fn advance(&mut self) {
@@ -104,7 +121,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
         self.advance();
         while let Some(c) = self.current_char() {
             if !(c.is_alphanumeric() || c == '_') {
-                if c.is_whitespace() || c == ';' || c == ':' {
+                if self.is_terminator(c) {
                     break;
                 } else {
                     return self.recover(start);
@@ -113,10 +130,13 @@ impl<'a, 'b: 'a> TokenIter<'b> {
             self.advance();
         }
 
-        Token::ident(self.line, &self.src[start..self.byte_offset])
+        match &self.src[start..self.byte_offset] {
+            "fn" => self.new_token(Token::Keyword(Keyword::Function), start..self.byte_offset),
+            v => self.new_token(Token::Ident(v.into()), start..self.byte_offset),
+        }
     }
 
-    fn parse_num(&'a mut self) -> Meta<'a, Token> {
+    fn parse_num(&mut self) -> Meta<'a, Token> {
         // get num str
         let s = self.src[self.byte_offset..]
             .split(|c: char| c.is_whitespace() || c == ':' || c == ';')
@@ -150,46 +170,108 @@ impl<'a, 'b: 'a> TokenIter<'b> {
         match u128::from_str_radix(num_str, base) {
             Ok(v) => {
                 self.byte_offset += s.len();
-                Token::byte(self.line, s, v)
+                self.new_token(
+                    Token::Integer(v),
+                    self.byte_offset - s.len()..self.byte_offset,
+                )
             }
             Err(_err) => self.recover(self.byte_offset),
         }
     }
 }
 
-impl<'b> Iterator for TokenIter<'b> {
-    type Item = Meta<'b, Token>;
+impl<'a> Iterator for TokenIter<'a> {
+    type Item = Meta<'a, Token>;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(first) = self.current_char() {
-            if first.is_alphabetic() || first == '.' || first == '_' {
-                let mut tok = self.parse_ident();
-                if first == '.' && tok.is_ident() {
-                    tok.ty = TokenType::Section;
-                }
-                Some(tok)
-            } else if first.is_numeric() {
-                Some(self.parse_num())
-            } else if first.is_whitespace() {
-                self.advance();
-                self.next()
-            } else if first == ';' {
-                self.advance();
-                Some(Token::semi_colon(
-                    self.line,
-                    &self.src[self.byte_offset - 1..self.byte_offset],
-                ))
-            } else if first == ':' {
-                self.advance();
-                Some(Token::colon(
-                    self.line,
-                    &self.src[self.byte_offset - 1..self.byte_offset],
-                ))
-            } else {
-                Some(self.recover(self.byte_offset))
-            }
+    fn next(&mut self) -> Option<Meta<'a, Token>> {
+        let first = self.current_char()?;
+        Some(if first.is_alphabetic() || first == '_' {
+            self.parse_ident()
+        } else if first.is_numeric() {
+            self.parse_num()
+        } else if first.is_whitespace() {
+            self.advance();
+            self.next()?
         } else {
-            None
-        }
+            match first {
+                ';' => {
+                    self.advance();
+                    self.new_token(Token::SemiColon, self.byte_offset - 1..self.byte_offset)
+                }
+                ':' => {
+                    self.advance();
+                    self.new_token(Token::Colon, self.byte_offset - 1..self.byte_offset)
+                }
+                ',' => {
+                    self.advance();
+                    self.new_token(Token::Comma, self.byte_offset - 1..self.byte_offset)
+                }
+                '(' => {
+                    self.advance();
+                    self.new_token(
+                        Token::OpenBlock(BlockDelim::Parenthesis),
+                        self.byte_offset - 1..self.byte_offset,
+                    )
+                }
+                '[' => {
+                    self.advance();
+                    self.new_token(
+                        Token::OpenBlock(BlockDelim::Bracket),
+                        self.byte_offset - 1..self.byte_offset,
+                    )
+                }
+                '{' => {
+                    self.advance();
+                    self.new_token(
+                        Token::OpenBlock(BlockDelim::Brace),
+                        self.byte_offset - 1..self.byte_offset,
+                    )
+                }
+                '}' => {
+                    self.advance();
+                    self.new_token(
+                        Token::CloseBlock(BlockDelim::Brace),
+                        self.byte_offset - 1..self.byte_offset,
+                    )
+                }
+                ']' => {
+                    self.advance();
+                    self.new_token(
+                        Token::CloseBlock(BlockDelim::Bracket),
+                        self.byte_offset - 1..self.byte_offset,
+                    )
+                }
+                ')' => {
+                    self.advance();
+                    self.new_token(
+                        Token::CloseBlock(BlockDelim::Parenthesis),
+                        self.byte_offset - 1..self.byte_offset,
+                    )
+                }
+                '+' => {
+                    self.advance();
+                    self.new_token(
+                        Token::Operator(Operator::Add),
+                        self.byte_offset - 1..self.byte_offset,
+                    )
+                }
+                '-' => {
+                    self.advance();
+                    if self.current_char().map(|c| c == '>').unwrap_or(false) {
+                        self.advance();
+                        self.new_token(
+                            Token::Arrow,
+                            self.byte_offset - 2..self.byte_offset,
+                        )
+                    } else {
+                        self.new_token(
+                            Token::Operator(Operator::Sub),
+                            self.byte_offset - 1..self.byte_offset,
+                        )
+                    }
+                }
+                _ => self.recover(self.byte_offset),
+            }
+        })
     }
 }
