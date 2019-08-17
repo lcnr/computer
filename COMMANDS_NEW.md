@@ -1,4 +1,4 @@
-# Micro Commandz
+# Micro Command
 
 Notes:
 
