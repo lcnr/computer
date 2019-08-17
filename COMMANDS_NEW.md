@@ -169,13 +169,13 @@ Notes:
 | `0x80`     | ret mem A    | P1 = mem[MR]; P2 = A;                                             |
 | `0x81`     | ret mem B    | P1 = mem[MR]; P2 = B;                                             |
 | `0x82`     | ret mem C    | P1 = mem[MR]; P2 = C;                                             |
-| `0x83`     | ret mem D    | P1 = mem[MR]; P2 = mem[MR];                                       |
+| `0x83`     | ret mem D    | P1 = mem[MR]; P2 = D;                                       |
 | `0x84$1`   | ret mem $1   | P1 = mem[MR]; P2 = mem[PC + 1];                                   |
 | `0x85$1`   | ret $1 A     | P1 = mem[PC + 1]; P2 = A;                                         |
 | `0x86$1`   | ret $1 B     | P1 = mem[PC + 1]; P2 = B;                                         |
 | `0x87$1`   | ret $1 C     | P1 = mem[PC + 1]; P2 = C;                                         |
 | `0x88$1`   | ret $1 D     | P1 = mem[PC + 1]; P2 = D;                                         |
-| `0x89$1`   | ret $1 mem   | P1 = mem[PC + 1]; P2 = mem[MR;                                    |
+| `0x89$1`   | ret $1 mem   | P1 = mem[PC + 1]; P2 = mem[MR];                                    |
 | `0x8a`     | jmpz B       | if A == 0 { P1 = B; } else { P1 += 1; }                           |
 | `0x8b`     | jmpz C       | if A == 0 { P1 = C; } else { P1 += 1; }                           |
 | `0x8c`     | jmpz D       | if A == 0 { P1 = D; } else { P1 += 1; }                           |
