@@ -169,30 +169,30 @@ Notes:
 | `0x80`     | ret mem A    | P1 = mem[MR]; P2 = A;                                             |
 | `0x81`     | ret mem B    | P1 = mem[MR]; P2 = B;                                             |
 | `0x82`     | ret mem C    | P1 = mem[MR]; P2 = C;                                             |
-| `0x83`     | ret mem D    | P1 = mem[MR]; P2 = mem[MR];                                       |
+| `0x83`     | ret mem D    | P1 = mem[MR]; P2 = D;                                       |
 | `0x84$1`   | ret mem $1   | P1 = mem[MR]; P2 = mem[PC + 1];                                   |
 | `0x85$1`   | ret $1 A     | P1 = mem[PC + 1]; P2 = A;                                         |
 | `0x86$1`   | ret $1 B     | P1 = mem[PC + 1]; P2 = B;                                         |
 | `0x87$1`   | ret $1 C     | P1 = mem[PC + 1]; P2 = C;                                         |
 | `0x88$1`   | ret $1 D     | P1 = mem[PC + 1]; P2 = D;                                         |
-| `0x89$1`   | ret $1 mem   | P1 = mem[PC + 1]; P2 = mem[MR;                                    |
-| `0x8a61`   | jmpz B       | if A == 0 { P1 = B; } else { P1 += 2; }                           |
-| `0x8a62`   | jmpz C       | if A == 0 { P1 = C; } else { P1 += 2; }                           |
-| `0x8a63`   | jmpz D       | if A == 0 { P1 = D; } else { P1 += 2; }                           |
-| `0x8a`     | jmpz mem     | if A == 0 { P1 = mem[MR]; } else { P1 += 2; }                     |
-| `0x8e$1`   | jmpz $1      | if A == 0 { P1 = mem[PC + 2]; } else { P1 += 3; }                 |
-| `0x8f`     | ljmpz B      | if A == 0 { P2 = B; P1 = 0; } else { P1 += 2; }                   |
-| `0x90`     | ljmpz C      | if A == 0 { P2 = C; P1 = 0; } else { P1 += 2; }                   |
-| `0x91`     | ljmpz D      | if A == 0 { P2 = D; P1 = 0; } else { P1 += 2; }                   |
-| `0x92`     | ljmpz mem    | if A == 0 { P2 = mem[MR]; P1 = 0; } else { P1 += 2; }             |
-| `0x93$1`   | ljmpz $1     | if A == 0 { P2 = mem[PC + 2]; P1 = 0; } else { P1 += 3; }         |
-| `0x94`     | jmpnz B      | if A != 0 { P1 = B; } else { P1 += 2; }                           |
-| `0x95`     | jmpnz C      | if A != 0 { P1 = C; } else { P1 += 2; }                           |
-| `0x96`     | jmpnz D      | if A != 0 { P1 = D; } else { P1 += 2; }                           |
-| `0x97`     | jmpnz mem    | if A != 0 { P1 = mem[MR]; } else { P1 += 2; }                     |
-| `0x98$1`   | jmpnz $1     | if A != 0 { P1 = mem[PC + 2]; } else { P1 += 3; }                 |
-| `0x99`     | ljmpnz B     | if A != 0 { P2 = B; P1 = 0; } else { P1 += 2; }                   |
-| `0x9a`     | ljmpnz C     | if A != 0 { P2 = C; P1 = 0; } else { P1 += 2; }                   |
-| `0x9b`     | ljmpnz D     | if A != 0 { P2 = D; P1 = 0; } else { P1 += 2; }                   |
-| `0x9c`     | ljmpnz mem   | if A != 0 { P2 = mem[MR]; P1 = 0; } else { P1 += 2; }             |
-| `0x9d$1`   | ljmpnz $1    | if A != 0 { P2 = mem[PC + 2]; P1 = 0; } else { P1 += 3; }         |
+| `0x89$1`   | ret $1 mem   | P1 = mem[PC + 1]; P2 = mem[MR];                                   |
+| `0x8a`     | jmpz B       | if A == 0 { P1 = B; } else { P1 += 1; }                           |
+| `0x8b`     | jmpz C       | if A == 0 { P1 = C; } else { P1 += 1; }                           |
+| `0x8c`     | jmpz D       | if A == 0 { P1 = D; } else { P1 += 1; }                           |
+| `0x8d`     | jmpz mem     | if A == 0 { P1 = mem[MR]; } else { P1 += 1; }                     |
+| `0x8e$1`   | jmpz $1      | if A == 0 { P1 = mem[PC + 1]; } else { P1 += 2; }                 |
+| `0x8f`     | ljmpz B      | if A == 0 { P2 = B; P1 = 0; } else { P1 += 1; }                   |
+| `0x90`     | ljmpz C      | if A == 0 { P2 = C; P1 = 0; } else { P1 += 1; }                   |
+| `0x91`     | ljmpz D      | if A == 0 { P2 = D; P1 = 0; } else { P1 += 1; }                   |
+| `0x92`     | ljmpz mem    | if A == 0 { P2 = mem[MR]; P1 = 0; } else { P1 += 1; }             |
+| `0x93$1`   | ljmpz $1     | if A == 0 { P2 = mem[PC + 1]; P1 = 0; } else { P1 += 2; }         |
+| `0x94`     | jmpnz B      | if A != 0 { P1 = B; } else { P1 += 1; }                           |
+| `0x95`     | jmpnz C      | if A != 0 { P1 = C; } else { P1 += 1; }                           |
+| `0x96`     | jmpnz D      | if A != 0 { P1 = D; } else { P1 += 1; }                           |
+| `0x97`     | jmpnz mem    | if A != 0 { P1 = mem[MR]; } else { P1 += 1; }                     |
+| `0x98$1`   | jmpnz $1     | if A != 0 { P1 = mem[PC + 1]; } else { P1 += 2; }                 |
+| `0x99`     | ljmpnz B     | if A != 0 { P2 = B; P1 = 0; } else { P1 += 1; }                   |
+| `0x9a`     | ljmpnz C     | if A != 0 { P2 = C; P1 = 0; } else { P1 += 1; }                   |
+| `0x9b`     | ljmpnz D     | if A != 0 { P2 = D; P1 = 0; } else { P1 += 1; }                   |
+| `0x9c`     | ljmpnz mem   | if A != 0 { P2 = mem[MR]; P1 = 0; } else { P1 += 1; }             |
+| `0x9d$1`   | ljmpnz $1    | if A != 0 { P2 = mem[PC + 1]; P1 = 0; } else { P1 += 2; }         |

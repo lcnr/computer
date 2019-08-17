@@ -1,8 +1,8 @@
 use boulder_core::Meta;
 
-use std::ops::Range;
+use std::{fmt, ops::Range};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Keyword {
     /// `fn`
     Function,
@@ -10,7 +10,16 @@ pub enum Keyword {
     Let,
 }
 
-#[derive(Debug, Clone, Copy)]
+impl fmt::Display for Keyword {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Keyword::Function => write!(f, "fn"),
+            Keyword::Let => write!(f, "let"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BlockDelim {
     /// `()`
     Parenthesis,
@@ -20,7 +29,7 @@ pub enum BlockDelim {
     Brace,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Operator {
     /// `+`
     Add,
@@ -30,7 +39,17 @@ pub enum Operator {
     Mul,
 }
 
-#[derive(Debug, Clone)]
+impl fmt::Display for Operator {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Operator::Add => write!(f, "+"),
+            Operator::Sub => write!(f, "-"),
+            Operator::Mul => write!(f, "*"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Integer(u128),
     Ident(Box<str>),
@@ -41,8 +60,32 @@ pub enum Token {
     SemiColon,
     Colon,
     Comma,
-    Invalid,
     Arrow,
+    Invalid,
+    EOF,
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Token::Integer(v) => write!(f, "{}", v),
+            Token::Ident(v) => write!(f, "{}", v),
+            Token::Keyword(k) => write!(f, "{}", k),
+            Token::OpenBlock(BlockDelim::Parenthesis) => write!(f, "("),
+            Token::OpenBlock(BlockDelim::Bracket) => write!(f, "["),
+            Token::OpenBlock(BlockDelim::Brace) => write!(f, "{{"),
+            Token::CloseBlock(BlockDelim::Parenthesis) => write!(f, ")"),
+            Token::CloseBlock(BlockDelim::Bracket) => write!(f, "]"),
+            Token::CloseBlock(BlockDelim::Brace) => write!(f, "}}"),
+            Token::Operator(o) => write!(f, "{}", o),
+            Token::SemiColon => write!(f, ";"),
+            Token::Colon => write!(f, ":"),
+            Token::Comma => write!(f, ","),
+            Token::Arrow => write!(f, "->"),
+            Token::Invalid => write!(f, "<invalid token>"),
+            Token::EOF => write!(f, "<EOF>"),
+        }
+    }
 }
 
 pub struct TokenIter<'a> {
@@ -62,7 +105,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
 
     fn new_token(&self, tok: Token, origin: Range<usize>) -> Meta<'a, Token> {
         Meta {
-            data: tok,
+            item: tok,
             source: self.src,
             span: origin,
             line: self.line,
@@ -132,6 +175,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
 
         match &self.src[start..self.byte_offset] {
             "fn" => self.new_token(Token::Keyword(Keyword::Function), start..self.byte_offset),
+            "let" => self.new_token(Token::Keyword(Keyword::Let), start..self.byte_offset),
             v => self.new_token(Token::Ident(v.into()), start..self.byte_offset),
         }
     }
@@ -178,20 +222,21 @@ impl<'a, 'b: 'a> TokenIter<'b> {
             Err(_err) => self.recover(self.byte_offset),
         }
     }
-}
 
-impl<'a> Iterator for TokenIter<'a> {
-    type Item = Meta<'a, Token>;
+    fn next_token(&mut self) -> Meta<'a, Token> {
+        let first = if let Some(c) = self.current_char() {
+            c
+        } else {
+            return self.new_token(Token::EOF, self.byte_offset - 1..self.byte_offset);
+        };
 
-    fn next(&mut self) -> Option<Meta<'a, Token>> {
-        let first = self.current_char()?;
-        Some(if first.is_alphabetic() || first == '_' {
+        if first.is_alphabetic() || first == '_' {
             self.parse_ident()
         } else if first.is_numeric() {
             self.parse_num()
         } else if first.is_whitespace() {
             self.advance();
-            self.next()?
+            self.next_token()
         } else {
             match first {
                 ';' => {
@@ -259,10 +304,7 @@ impl<'a> Iterator for TokenIter<'a> {
                     self.advance();
                     if self.current_char().map(|c| c == '>').unwrap_or(false) {
                         self.advance();
-                        self.new_token(
-                            Token::Arrow,
-                            self.byte_offset - 2..self.byte_offset,
-                        )
+                        self.new_token(Token::Arrow, self.byte_offset - 2..self.byte_offset)
                     } else {
                         self.new_token(
                             Token::Operator(Operator::Sub),
@@ -270,8 +312,23 @@ impl<'a> Iterator for TokenIter<'a> {
                         )
                     }
                 }
+                '*' => {
+                    self.advance();
+                    self.new_token(
+                        Token::Operator(Operator::Mul),
+                        self.byte_offset - 1..self.byte_offset,
+                    )
+                }
                 _ => self.recover(self.byte_offset),
             }
-        })
+        }
+    }
+}
+
+impl<'a> Iterator for TokenIter<'a> {
+    type Item = Meta<'a, Token>;
+
+    fn next(&mut self) -> Option<Meta<'a, Token>> {
+        Some(self.next_token())
     }
 }
