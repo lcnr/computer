@@ -29,11 +29,11 @@ Notes:
 | `0b000`  | A & B         | RAM       | don't         | A                 |
 | `0b001`  | A \| B        | ALU       | UPDATE REG    | B                 |
 | `0b010`  | A ^ B         | -         | if Carry == 1 | C                 |
-| `0b011`  | A - B         | -         | if ALU == 0   | D                 |
-| `0b100`  | A + B         | A         | -             | M1                |
+| `0b011`  | A + B         | -         | if ALU == 0   | D                 |
+| `0b100`  | A - B         | A         | -             | M1                |
 | `0b101`  | A << B        | B         | -             | M2                |
 | `0b110`  | A >> B        | C         | -             | P1                |
-| `0b111`  | !A            | D         | -             | P2                |
+| `0b111`  | !A            | D         | -             | P2 (P1 = 0)       |
 
 # Commands
 
@@ -134,3 +134,14 @@ Notes:
 | `0x5avv`   | mov *v* D    | D = mem[PC + 1]; PC += 2;                                         |
 | `0x5bvv`   | mov *v* M1   | M1 = mem[PC + 1]; PC += 2;                                        |
 | `0x5cvv`   | mov *v* M2   | M2 = mem[PC + 1]; PC += 2;                                        |
+| `0x60`     | jmp A        | P1 = A;                                                           |
+| `0x61`     | jmp B        | P1 = B;                                                           |
+| `0x62`     | jmp C        | P1 = C;                                                           |
+| `0x63`     | jmp D        | P1 = D;                                                           |
+| `0x64`     | jmp mem      | P1 = mem;                                                         |
+| `0x65`     | ljmp A       | P2 = A;                                                           |
+| `0x66`     | ljmp B       | P2 = B;                                                           |
+| `0x67`     | ljmp C       | P2 = C;                                                           |
+| `0x68`     | ljmp D       | P2 = D;                                                           |
+| `0x69`     | ljmp mem     | P2 = mem;                                                         |
+| `0x6a`     | ret A B      | P1 = A; P2 = B;                                                   |
