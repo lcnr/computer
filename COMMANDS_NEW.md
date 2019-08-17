@@ -98,3 +98,39 @@ Notes:
 | `0x36`     | shl mem      | mem[MR] = A << B; PC += 1;                                        |
 | `0x37`     | shl M1       | M1 = A << B; PC += 1;                                             |
 | `0x38`     | shl M2       | M2 = A << B; PC += 1;                                             |
+| `0x39`     | mov A B      | B = A; PC += 1;                                                   |
+| `0x3a`     | mov A C      | C = A; PC += 1;                                                   |
+| `0x3b`     | mov A D      | D = A; PC += 1;                                                   |
+| `0x3c`     | mov A mem    | mem[MR] = A; PC += 1;                                             |
+| `0x3d`     | mov A M1     | M1 = A; PC += 1;                                                  |
+| `0x3e`     | mov A M2     | M2 = A; PC += 1;                                                  |
+| `0x3f`     | mov B A      | A = B; PC += 1;                                                   |
+| `0x40`     | mov B C      | C = B; PC += 1;                                                   |
+| `0x41`     | mov B D      | D = B; PC += 1;                                                   |
+| `0x42`     | mov B mem    | mem[MR] = B; PC += 1;                                             |
+| `0x43`     | mov B M1     | M1 = B; PC += 1;                                                  |
+| `0x44`     | mov B M2     | M2 = B; PC += 1;                                                  |
+| `0x45`     | mov C A      | A = C; PC += 1;                                                   |
+| `0x46`     | mov C B      | B = C; PC += 1;                                                   |
+| `0x47`     | mov C D      | D = C; PC += 1;                                                   |
+| `0x48`     | mov C mem    | mem[MR] = C; PC += 1;                                             |
+| `0x49`     | mov C M1     | M1 = C; PC += 1;                                                  |
+| `0x4a`     | mov C M2     | M2 = C; PC += 1;                                                  |
+| `0x4b`     | mov D A      | A = D; PC += 1;                                                   |
+| `0x4c`     | mov D B      | B = D; PC += 1;                                                   |
+| `0x4d`     | mov D C      | C = D; PC += 1;                                                   |
+| `0x4e`     | mov D mem    | mem[MR] = D; PC += 1;                                             |
+| `0x4f`     | mov D M1     | M1 = D; PC += 1;                                                  |
+| `0x50`     | mov D M2     | M2 = D; PC += 1;                                                  |
+| `0x51`     | mov mem A    | A = mem[MR]; PC += 1;                                             |
+| `0x52`     | mov mem B    | B = mem[MR]; PC += 1;                                             |
+| `0x53`     | mov mem C    | C = mem[MR]; PC += 1;                                             |
+| `0x54`     | mov mem D    | D = mem[MR]; PC += 1;                                             |
+| `0x55`     | mov mem M1   | M1 = mem[MR]; PC += 1;                                            |
+| `0x56`     | mov mem M2   | M2 = mem[MR]; PC += 1;                                            |
+| `0x57vv`   | mov *v* A    | A = mem[PC + 1]; PC += 2;                                         |
+| `0x58vv`   | mov *v* B    | B = mem[PC + 1]; PC += 2;                                         |
+| `0x59vv`   | mov *v* C    | C = mem[PC + 1]; PC += 2;                                         |
+| `0x5avv`   | mov *v* D    | D = mem[PC + 1]; PC += 2;                                         |
+| `0x5bvv`   | mov *v* M1   | M1 = mem[PC + 1]; PC += 2;                                        |
+| `0x5cvv`   | mov *v* M2   | M2 = mem[PC + 1]; PC += 2;                                        |
