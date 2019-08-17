@@ -3,15 +3,15 @@ pub struct Field<'a> {
 }
 
 pub struct Struct<'a> {
+    name: &'a str,
     fields: &'a str,
-    
 }
 
-pub struct Function {
-
+pub struct Function<'a> {
+    name: &'a str,
 }
 
-pub struct HIR {
-    structs: Vec<Struct>,
-    functions: Vec<Function>,
+pub struct HIR<'a> {
+    structs: Vec<Struct<'a>>,
+    functions: Vec<Function<'a>>,
 }

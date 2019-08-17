@@ -2,7 +2,7 @@
 
 members = [
     "cli",
-    "meta",
+    "boulder_core",
     "parse",
     "hir"
 ]
