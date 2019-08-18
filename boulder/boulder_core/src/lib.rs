@@ -1,4 +1,17 @@
-use std::{fmt, ops::Range, ops::{Deref, DerefMut}};
+#[macro_use]
+extern crate lazy_static;
+
+use std::{
+    fmt,
+    io::{stderr, Write},
+    ops::Range,
+    ops::{Deref, DerefMut},
+    sync::Mutex,
+};
+
+lazy_static! {
+    static ref OUTPUT: Mutex<Box<dyn Write + Send>> = Mutex::new(Box::new(stderr()));
+}
 
 /// This has a private field to force people to use associated functions to create an object.
 #[derive(Debug)]
@@ -6,17 +19,17 @@ pub struct CompileError(());
 
 impl CompileError {
     pub fn new<T, R, D: fmt::Display>(meta: &Meta<T>, err: D) -> Result<R, Self> {
-        eprintln!("[ERROR]: {}", err);
+        writeln!(OUTPUT.lock().unwrap(), "[ERROR]: {}", err).unwrap();
         let offset = meta.line_offset();
         let pos = format!("({}:{}): ", meta.line, offset);
-        eprintln!("{}{}", pos, meta.line_str(),);
+        writeln!(OUTPUT.lock().unwrap(), "{}{}", pos, meta.line_str()).unwrap();
         for _ in 0..(offset as usize + pos.len()) {
-            eprint!(" ");
+            write!(OUTPUT.lock().unwrap(), " ").unwrap();
         }
         for _ in 0..meta.span.len().max(1) {
-            eprint!("^");
+            write!(OUTPUT.lock().unwrap(), "^").unwrap();
         }
-        eprintln!("");
+        writeln!(OUTPUT.lock().unwrap(), "").unwrap();
         Err(Self(()))
     }
 
@@ -25,6 +38,10 @@ impl CompileError {
             meta,
             format_args!("Expected {:?} found `{}`", expected, meta.span_str()),
         )
+    }
+
+    pub fn set_output(output: Box<dyn Write + Send>) {
+        *OUTPUT.lock().unwrap() = output;
     }
 }
 
@@ -95,6 +112,18 @@ impl<'a, T> Meta<'a, T> {
     pub fn replace<U>(self, new: U) -> Meta<'a, U> {
         Meta {
             item: new,
+            span: self.span,
+            source: self.source,
+            line: self.line,
+        }
+    }
+
+    pub fn map<F, U>(self, f: F) -> Meta<'a, U>
+    where
+        F: FnOnce(T) -> U,
+    {
+        Meta {
+            item: f(self.item),
             span: self.span,
             source: self.source,
             line: self.line,

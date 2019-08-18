@@ -106,33 +106,27 @@ impl Expression<'_> {
 
 #[derive(Debug, Clone)]
 pub struct Function<'a> {
-    meta: Meta<'a, ()>,
-    name: Box<str>,
-    arguments: Vec<(Box<str>, Box<str>)>,
-    ret: Box<str>,
+    name: Meta<'a, Box<str>>,
+    arguments: Vec<(Meta<'a, Box<str>>, Meta<'a, Box<str>>)>,
+    ret: Meta<'a, Box<str>>,
     body: Expression<'a>,
 }
 
 impl<'a> Function<'a> {
-    pub fn new(name: impl Into<Box<str>>) -> Self {
+    pub fn new(name: Meta<'a, Box<str>>) -> Self {
         Self {
-            meta: Meta::default(),
-            name: name.into(),
+            name,
             arguments: Vec::new(),
-            ret: "Empty".into(),
+            ret: <Meta<'static, ()>>::default().replace("Empty".into()),
             body: Expression::Constant(Meta::default(), "Empty".into(), "Empty".into()),
         }
     }
 
-    pub fn set_meta<T>(&mut self, meta: Meta<'a, T>) {
-        self.meta = meta.simplify();
-    }
-
-    pub fn add_argument(&mut self, name: Box<str>, ty: Box<str>) {
+    pub fn add_argument(&mut self, name: Meta<'a, Box<str>>, ty: Meta<'a, Box<str>>) {
         self.arguments.push((name, ty));
     }
 
-    pub fn set_ret(&mut self, ty: Box<str>) {
+    pub fn set_ret(&mut self, ty: Meta<'a, Box<str>>) {
         self.ret = ty;
     }
 
@@ -142,19 +136,19 @@ impl<'a> Function<'a> {
 
     pub fn type_ck(&self, ctx: &mut Vec<Context>) -> Result<(), CompileError> {
         let context = Context {
-            variables: self.arguments.iter().cloned().collect(),
+            variables: self.arguments.iter().map(|(a, b)| (a.item.clone(), b.item.clone())).collect(),
             functions: HashMap::new(),
             _phantom: std::marker::PhantomData,
         };
         ctx.push(context);
         let body_ty = self.body.ty(ctx)?;
         ctx.pop();
-        if body_ty != self.ret {
+        if body_ty != self.ret.item {
             CompileError::new(
-                &self.meta,
+                &self.ret,
                 format_args!(
                     "mismatched types: expected `{}`, found `{}`",
-                    self.ret, body_ty
+                    self.ret.item, body_ty
                 ),
             )
         } else {
@@ -202,8 +196,8 @@ impl<'a> HIR<'a> {
     }
 
     pub fn add_function(&mut self, func: Function<'a>) -> Result<(), CompileError> {
-        if let Some(old) = self.ctx.functions.insert(func.name.clone(), func.arguments.iter().cloned().collect()) {
-            CompileError::new(&func.meta, format_args!("Another function with the name {} is already defined", func.name))
+        if let Some(_old) = self.ctx.functions.insert(func.name.item.clone(), func.arguments.iter().map(|(a, b)| (a.item.clone(), b.item.clone())).collect()) {
+            CompileError::new(&func.name, format_args!("Another function with the name {} is already defined", func.name.item))
         } else {
             self.functions.push(func);
             Ok(())
@@ -216,7 +210,7 @@ impl<'a> HIR<'a> {
             func.type_ck(&mut ctx)?;
         }
 
-        if let Some(c) = ctx.pop() {
+        if let Some(_c) = ctx.pop() {
             assert!(ctx.is_empty(), "Internal compiler error, more than 1 context after type check: {:?}", ctx);
         } else {
             panic!("Internal compiler error, empty context after type check: {:?}", ctx);

@@ -7,28 +7,13 @@ mod tokenize;
 
 use tokenize::{BlockDelim, Keyword, Token, TokenIter};
 
-struct Scope(&'static str);
-
-macro_rules! scope {
-    ($l:literal) => {
-        println!("entering scope: {}", $l);
-        let _s = Scope($l);
-    };
-}
-
-impl Drop for Scope {
-    fn drop(&mut self) {
-        println!("exiting scope: {}", self.0);
-    }
-}
-
 pub fn parse(src: &str) -> Result<HIR, CompileError> {
     let iter = &mut TokenIter::new(src);
     let mut hir = HIR::new();
     while let Some(mut token) = iter.next() {
         match mem::replace(&mut token.item, Token::Invalid) {
             Token::Keyword(Keyword::Function) => {
-                hir.add_function(parse_function(iter)?);
+                hir.add_function(parse_function(iter)?)?;
             }
             Token::EOF => break,
             _ => CompileError::expected(&[Token::Keyword(Keyword::Function), Token::EOF], &token)?,
@@ -47,11 +32,18 @@ fn consume_token(expected: Token, iter: &mut TokenIter) -> Result<(), CompileErr
     }
 }
 
-fn expect_ident(tok: Meta<'_, Token>) -> Result<Box<str>, CompileError> {
-    if let Token::Ident(value) = tok.item {
-        Ok(value)
-    } else {
+fn expect_ident<'a>(tok: Meta<'a, Token>) -> Result<Meta<'a, Box<str>>, CompileError> {
+    let tok = tok.map(|t| {
+        if let Token::Ident(value) = t {
+            value
+        } else {
+            "".into()
+        }
+    });
+    if tok.item.is_empty() {
         CompileError::expected(&"Ident", &tok)
+    } else {
+        Ok(tok)
     }
 }
 
@@ -60,8 +52,10 @@ fn parse_variable_decl<'a>(_iter: &mut TokenIter<'a>) -> Result<hir::Expression<
 }
 
 /// parse the rhs of a binary operation, each binop must have a priority greater than `priority`.
-fn parse_binop_rhs<'a>(priority: u32, iter: &mut TokenIter<'a>) -> Result<hir::Expression<'a>, CompileError> {
-    scope!("parse_binop_rhs");
+fn parse_binop_rhs<'a>(
+    priority: u32,
+    iter: &mut TokenIter<'a>,
+) -> Result<hir::Expression<'a>, CompileError> {
     let mut start = iter.next().unwrap();
     let mut expr = match mem::replace(&mut start.item, Token::Invalid) {
         Token::Ident(v) => hir::Expression::Variable(start.simplify(), v),
@@ -99,7 +93,6 @@ fn parse_expression<'a>(
     mut start: Meta<'a, Token>,
     iter: &mut TokenIter<'a>,
 ) -> Result<hir::Expression<'a>, CompileError> {
-    scope!("parse_expr");
     match mem::replace(&mut start.item, Token::Invalid) {
         Token::OpenBlock(BlockDelim::Brace) => parse_block(iter),
         Token::Keyword(Keyword::Let) => parse_variable_decl(iter),
@@ -116,7 +109,11 @@ fn parse_expression<'a>(
                 Token::Operator(_) => {
                     let mut expr = hir::Expression::Variable(next.simplify(), v);
                     while let Token::Operator(op) = next.item {
-                        expr = op.as_hir_expr(next.simplify(), expr, parse_binop_rhs(op.priority(), iter)?);
+                        expr = op.as_hir_expr(
+                            next.simplify(),
+                            expr,
+                            parse_binop_rhs(op.priority(), iter)?,
+                        );
                         next = iter.next().unwrap();
                     }
                     iter.step_back(next);
@@ -140,7 +137,10 @@ fn parse_block<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Expression<'a>, Comp
         let tok = iter.next().unwrap();
         if tok.item == Token::CloseBlock(BlockDelim::Brace) {
             let end = iter.current_offset();
-            return Ok(hir::Expression::Block(Meta::empty(iter.source(), line, start..end), block));
+            return Ok(hir::Expression::Block(
+                Meta::empty(iter.source(), line, start..end),
+                block,
+            ));
         }
 
         block.push(parse_expression(tok, iter)?);

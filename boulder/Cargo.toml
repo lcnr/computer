@@ -1,7 +1,7 @@
 [workspace]
 
 members = [
-    "cli",
+    "boulder",
     "boulder_core",
     "parse",
     "hir"

@@ -51,12 +51,25 @@ impl Operator {
         }
     }
 
-    pub fn as_hir_expr<'a, T>(self, meta: Meta<'a, T>, a: hir::Expression<'a>, b: hir::Expression<'a>) -> hir::Expression<'a> {
+    pub fn as_hir_expr<'a, T>(
+        self,
+        meta: Meta<'a, T>,
+        a: hir::Expression<'a>,
+        b: hir::Expression<'a>,
+    ) -> hir::Expression<'a> {
         match self {
-            Operator::Add => hir::Expression::Binop(meta.replace(hir::Binop::Add), a.into(), b.into()),
-            Operator::Sub => hir::Expression::Binop(meta.replace(hir::Binop::Sub), a.into(), b.into()),
-            Operator::Mul => hir::Expression::Binop(meta.replace(hir::Binop::Mul), a.into(), b.into()),
-            Operator::Div => hir::Expression::Binop(meta.replace(hir::Binop::Div), a.into(), b.into()),
+            Operator::Add => {
+                hir::Expression::Binop(meta.replace(hir::Binop::Add), a.into(), b.into())
+            }
+            Operator::Sub => {
+                hir::Expression::Binop(meta.replace(hir::Binop::Sub), a.into(), b.into())
+            }
+            Operator::Mul => {
+                hir::Expression::Binop(meta.replace(hir::Binop::Mul), a.into(), b.into())
+            }
+            Operator::Div => {
+                hir::Expression::Binop(meta.replace(hir::Binop::Div), a.into(), b.into())
+            }
         }
     }
 }
@@ -282,6 +295,12 @@ impl<'a, 'b: 'a> TokenIter<'b> {
             self.next_token()
         } else {
             match first {
+                '#' => {
+                    while self.current_char().map_or(false, |c| c != '\n') {
+                        self.advance();
+                    }
+                    self.next_token()
+                }
                 ';' => {
                     self.advance();
                     self.new_token(Token::SemiColon, self.byte_offset - 1..self.byte_offset)

@@ -1,3 +1,5 @@
+extern crate boulder;
+
 use std::env;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -20,18 +22,10 @@ pub fn main() {
                 eprintln!("Error while reading {}: {:?}", input, err);
             }
 
-            let hir = if let Ok(hir) = parse::parse(&src) {
-                hir
-            } else {
-                return;
-            };
-            
-            if hir.type_ck().is_err() {
-                return
-            }   
+            let res = boulder::compile(&src);
 
             if let Ok(mut file) = File::create(output) {
-               write!(file, "{:?}", hir).unwrap();
+                write!(file, "{:#?}", res).unwrap();
             } else {
                 eprintln!("unable to create file: {}", output);
             }

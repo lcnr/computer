@@ -7,3 +7,6 @@ edition = "2018"
 [dependencies]
 boulder_core = { path =  "../boulder_core" }
 hir = { path = "../hir" }
+
+[features]
+scope = []
