@@ -12,7 +12,7 @@ Notes:
 4. Update Register
 5. Update Register
 6. Update Register
-7. 
+7. Reset P1 (P1 = 0)
 ---
 8. ALU
 9. ALU
@@ -33,7 +33,7 @@ Notes:
 | `0b100`  | A - B         | A         | -             | M1                |
 | `0b101`  | A << B        | B         | -             | M2                |
 | `0b110`  | A >> B        | C         | -             | P1                |
-| `0b111`  | !A            | D         | -             | P2 (P1 = 0)       |
+| `0b111`  | !A            | D         | -             | P2                |
 
 # Commands
 
