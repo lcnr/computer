@@ -47,8 +47,14 @@ fn expect_ident<'a>(tok: Meta<'a, Token>) -> Result<Meta<'a, Box<str>>, CompileE
     }
 }
 
-fn parse_variable_decl<'a>(_iter: &mut TokenIter<'a>) -> Result<hir::Expression<'a>, CompileError> {
-    unimplemented!("variable declaration");
+fn parse_variable_decl<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Expression<'a>, CompileError> {
+    let name = expect_ident(iter.next().unwrap())?;
+    // TODO: allow for variables with inferred type
+    consume_token(Token::Colon, iter)?;
+    let ty = expect_ident(iter.next().unwrap())?;
+    consume_token(Token::Assignment, iter)?;
+    let input = parse_expression(iter)?;
+    Ok(hir::Expression::VariableDecl(name, ty, Box::new(input)))
 }
 
 /// parse the rhs of a binary operation, each binop must have a priority greater than `priority`.
@@ -58,13 +64,21 @@ fn parse_binop_rhs<'a>(
 ) -> Result<hir::Expression<'a>, CompileError> {
     let mut start = iter.next().unwrap();
     let mut expr = match mem::replace(&mut start.item, Token::Invalid) {
-        Token::Ident(v) => hir::Expression::Variable(start.simplify(), v),
+        Token::Ident(v) => hir::Expression::Variable(start.replace(v)),
+        Token::Integer(c) => hir::Expression::Lit(start.replace(hir::Literal::Integer(c))),
         Token::OpenBlock(BlockDelim::Parenthesis) => {
-            let expr = parse_expression(iter.next().unwrap(), iter)?;
+            let expr = parse_expression(iter)?;
             consume_token(Token::CloseBlock(BlockDelim::Parenthesis), iter)?;
             expr
         }
-        _ => CompileError::expected(&[Token::Ident("".into())], &start)?,
+        _ => CompileError::expected(
+            &[
+                Token::Ident("".into()),
+                Token::Integer(0),
+                Token::OpenBlock(BlockDelim::Parenthesis),
+            ],
+            &start,
+        )?,
     };
 
     let next = iter.next().unwrap();
@@ -89,43 +103,71 @@ fn parse_binop_rhs<'a>(
     }
 }
 
-fn parse_expression<'a>(
-    mut start: Meta<'a, Token>,
-    iter: &mut TokenIter<'a>,
-) -> Result<hir::Expression<'a>, CompileError> {
+fn parse_binop<'a>(mut lhs: hir::Expression<'a>, iter: &mut TokenIter<'a>) -> Result<hir::Expression<'a>, CompileError> {
+    let mut next = iter.next().unwrap();
+    while let Token::Operator(op) = next.item {
+        lhs = op.as_hir_expr(
+            next.simplify(),
+            lhs,
+            parse_binop_rhs(op.priority(), iter)?,
+        );
+        next = iter.next().unwrap();
+    }
+
+    if next.item == Token::SemiColon {
+        Ok(lhs)
+    } else {
+        iter.step_back(next);
+        Ok(lhs)
+    }
+}
+
+fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Expression<'a>, CompileError> {
+    let mut start = iter.next().unwrap();
     match mem::replace(&mut start.item, Token::Invalid) {
         Token::OpenBlock(BlockDelim::Brace) => parse_block(iter),
         Token::Keyword(Keyword::Let) => parse_variable_decl(iter),
         Token::Ident(v) => {
-            let mut next = iter.next().unwrap();
+            let next = iter.next().unwrap();
             match &next.item {
-                Token::Assignment => {
-                    let start = iter.next().unwrap();
-                    Ok(hir::Expression::Assignment(
-                        next.replace(v.into()),
-                        Box::new(parse_expression(start, iter)?),
-                    ))
-                }
+                Token::Assignment => Ok(hir::Expression::Assignment(
+                    next.replace(v.into()),
+                    Box::new(parse_expression(iter)?),
+                )),
                 Token::Operator(_) => {
-                    let mut expr = hir::Expression::Variable(next.simplify(), v);
-                    while let Token::Operator(op) = next.item {
-                        expr = op.as_hir_expr(
-                            next.simplify(),
-                            expr,
-                            parse_binop_rhs(op.priority(), iter)?,
-                        );
-                        next = iter.next().unwrap();
-                    }
                     iter.step_back(next);
-                    Ok(expr)
+                    parse_binop(hir::Expression::Variable(start.replace(v)), iter)
                 }
                 _ => {
                     iter.step_back(next);
-                    Ok(hir::Expression::Variable(start.simplify(), v))
+                    Ok(hir::Expression::Variable(start.replace(v)))
                 }
             }
         }
-        _ => CompileError::expected(&[Token::OpenBlock(BlockDelim::Brace)], &start),
+        Token::Integer(c) => {
+            let next = iter.next().unwrap();
+            match &next.item {
+                Token::Operator(_) => {
+                    iter.step_back(next);
+                    parse_binop(hir::Expression::Lit(start.replace(hir::Literal::Integer(c))), iter)
+                }
+                _ => {
+                    iter.step_back(next);
+                    Ok(hir::Expression::Lit(
+                        start.replace(hir::Literal::Integer(c)),
+                    ))
+                }
+            }
+        }
+        _ => CompileError::expected(
+            &[
+                Token::OpenBlock(BlockDelim::Brace),
+                Token::Keyword(Keyword::Let),
+                Token::Ident("".into()),
+                Token::Integer(0),
+            ],
+            &start,
+        ),
     }
 }
 
@@ -143,7 +185,8 @@ fn parse_block<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Expression<'a>, Comp
             ));
         }
 
-        block.push(parse_expression(tok, iter)?);
+        iter.step_back(tok);
+        block.push(parse_expression(iter)?);
     }
 }
 
@@ -191,13 +234,27 @@ fn parse_function<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Function<'a>, Com
 mod tests {
     use super::*;
 
-    const IDENTITY: &str = "fn identity(t: u32) -> u32 { t }";
-
     #[test]
     fn identity() {
-        parse(IDENTITY).unwrap();
+        parse("fn identity(t: u32) -> u32 { t }").unwrap();
     }
 
+    #[test]
+    fn variables() {
+        parse(
+            "fn var(t: u32) -> u32 { 
+                let a: u32 = t + 1;
+                a
+            }",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn add_one() {
+        parse("fn add_one(t: u32) -> u32 { t + 1 }").unwrap();
+        parse("fn add_one(t: u32) -> u32 { 1 + t }").unwrap();
+    }
     #[test]
     fn binop_chain() {
         parse("fn a(t: u32) -> u32 { t + t / t - (t - t * t) + t }").unwrap();

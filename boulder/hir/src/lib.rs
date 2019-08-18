@@ -11,16 +11,18 @@ pub enum Binop {
 }
 
 #[derive(Debug, Clone)]
+pub enum Literal {
+    Integer(u128),
+}
+
+#[derive(Debug, Clone)]
 pub enum Expression<'a> {
     Block(Meta<'a, ()>, Vec<Expression<'a>>),
     Constant(Meta<'a, ()>, Box<str>, Box<str>),
-    Variable(Meta<'a, ()>, Box<str>),
-    Binop(
-        Meta<'a, Binop>,
-        Box<Expression<'a>>,
-        Box<Expression<'a>>,
-    ),
-    VariableDecl(Meta<'a, (Box<str>, Box<str>)>, Box<Expression<'a>>),
+    Variable(Meta<'a, Box<str>>),
+    Lit(Meta<'a, Literal>),
+    Binop(Meta<'a, Binop>, Box<Expression<'a>>, Box<Expression<'a>>),
+    VariableDecl(Meta<'a, Box<str>>, Meta<'a, Box<str>>, Box<Expression<'a>>),
     Assignment(Meta<'a, Box<str>>, Box<Expression<'a>>),
 }
 
@@ -29,9 +31,10 @@ impl Expression<'_> {
         match self {
             Expression::Block(meta, _v) => meta.simplify(),
             Expression::Constant(meta, _value, _ty) => meta.simplify(),
-            Expression::Variable(meta, _var) => meta.clone(),
+            Expression::Variable(var) => var.simplify(),
+            Expression::Lit(lit) => lit.simplify(),
             Expression::Binop(_op, a, b) => a.meta().append(b.meta()),
-            Expression::VariableDecl(var, expr) => var.simplify().append(expr.meta()),
+            Expression::VariableDecl(var, _ty, expr) => var.simplify().append(expr.meta()),
             Expression::Assignment(var, expr) => var.simplify().append(expr.meta()),
         }
     }
@@ -62,12 +65,16 @@ impl Expression<'_> {
                 }
             }
             Expression::Constant(_meta, _value, ty) => Ok(ty.clone()),
-            Expression::Variable(meta, variable) => get_var_ty(ctx, variable).ok_or_else(|| {
+            Expression::Variable(variable) => get_var_ty(ctx, variable).ok_or_else(|| {
                 CompileError::new::<_, (), _>(
-                    &meta,
-                    format_args!("Unknown variable: `{}`", variable),
-                ).unwrap_err()
+                    &variable,
+                    format_args!("Unknown variable: `{}`", variable.span_str()),
+                )
+                .unwrap_err()
             }),
+            Expression::Lit(ty) => match ty.item {
+                Literal::Integer(_) => Ok("u32".into()),
+            },
             Expression::Binop(op, a, b) => {
                 let a_ty = a.ty(ctx)?;
                 let b_ty = b.ty(ctx)?;
@@ -77,10 +84,16 @@ impl Expression<'_> {
                     Ok(a_ty)
                 }
             }
-            Expression::VariableDecl(var, expr) => {
+            Expression::VariableDecl(var, ty, expr) => {
                 let expr_ty = expr.ty(ctx)?;
-                if var.1 != expr_ty {
-                    CompileError::new(&var, format_args!("Mismatched types: Tried to assign {} to a variable of type {}", var.1, expr_ty))
+                if ty.item != expr_ty {
+                    CompileError::new(
+                        &var,
+                        format_args!(
+                            "Mismatched types: Tried to assign {} to a variable of type {}",
+                            ty.item, expr_ty
+                        ),
+                    )
                 } else {
                     Ok("Empty".into())
                 }
@@ -89,15 +102,18 @@ impl Expression<'_> {
                 if let Some(ty) = get_var_ty(ctx, var) {
                     let expr_ty = expr.ty(ctx)?;
                     if ty != expr_ty {
-                        CompileError::new(&var, format_args!("Mismatched types: Tried to assign {} to a variable of type {}", expr_ty, ty))
+                        CompileError::new(
+                            &var,
+                            format_args!(
+                                "Mismatched types: Tried to assign {} to a variable of type {}",
+                                expr_ty, ty
+                            ),
+                        )
                     } else {
                         Ok("Empty".into())
                     }
                 } else {
-                    CompileError::new(
-                        &var,
-                        format_args!("Unknown variable: `{}`", var.item),
-                    )
+                    CompileError::new(&var, format_args!("Unknown variable: `{}`", var.item))
                 }
             }
         }
@@ -136,7 +152,11 @@ impl<'a> Function<'a> {
 
     pub fn type_ck(&self, ctx: &mut Vec<Context>) -> Result<(), CompileError> {
         let context = Context {
-            variables: self.arguments.iter().map(|(a, b)| (a.item.clone(), b.item.clone())).collect(),
+            variables: self
+                .arguments
+                .iter()
+                .map(|(a, b)| (a.item.clone(), b.item.clone()))
+                .collect(),
             functions: HashMap::new(),
             _phantom: std::marker::PhantomData,
         };
@@ -196,8 +216,20 @@ impl<'a> HIR<'a> {
     }
 
     pub fn add_function(&mut self, func: Function<'a>) -> Result<(), CompileError> {
-        if let Some(_old) = self.ctx.functions.insert(func.name.item.clone(), func.arguments.iter().map(|(a, b)| (a.item.clone(), b.item.clone())).collect()) {
-            CompileError::new(&func.name, format_args!("Another function with the name {} is already defined", func.name.item))
+        if let Some(_old) = self.ctx.functions.insert(
+            func.name.item.clone(),
+            func.arguments
+                .iter()
+                .map(|(a, b)| (a.item.clone(), b.item.clone()))
+                .collect(),
+        ) {
+            CompileError::new(
+                &func.name,
+                format_args!(
+                    "Another function with the name {} is already defined",
+                    func.name.item
+                ),
+            )
         } else {
             self.functions.push(func);
             Ok(())
@@ -211,9 +243,16 @@ impl<'a> HIR<'a> {
         }
 
         if let Some(_c) = ctx.pop() {
-            assert!(ctx.is_empty(), "Internal compiler error, more than 1 context after type check: {:?}", ctx);
+            assert!(
+                ctx.is_empty(),
+                "Internal compiler error, more than 1 context after type check: {:?}",
+                ctx
+            );
         } else {
-            panic!("Internal compiler error, empty context after type check: {:?}", ctx);
+            panic!(
+                "Internal compiler error, empty context after type check: {:?}",
+                ctx
+            );
         }
         Ok(())
     }

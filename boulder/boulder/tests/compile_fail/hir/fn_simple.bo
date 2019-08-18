@@ -1,7 +1,8 @@
 # mismatched types
 # u16
 # u32
-# (5:
+# (6:
+
 fn wrong_identity(a: u32) -> u16 {
     a
 }

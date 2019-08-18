@@ -1,0 +1,8 @@
+# Add
+# u16
+# u32
+# (7:
+
+fn wrong_identity(a: u32, b: u16) {
+    a + b;
+}
