@@ -37,6 +37,28 @@ pub enum Operator {
     Sub,
     /// `*`
     Mul,
+    /// `/`
+    Div,
+}
+
+impl Operator {
+    pub fn priority(self) -> u32 {
+        match self {
+            Operator::Add => 10,
+            Operator::Sub => 10,
+            Operator::Mul => 20,
+            Operator::Div => 20,
+        }
+    }
+
+    pub fn as_hir_expr<'a, T>(self, meta: Meta<'a, T>, a: hir::Expression<'a>, b: hir::Expression<'a>) -> hir::Expression<'a> {
+        match self {
+            Operator::Add => hir::Expression::Binop(meta.replace(hir::Binop::Add), a.into(), b.into()),
+            Operator::Sub => hir::Expression::Binop(meta.replace(hir::Binop::Sub), a.into(), b.into()),
+            Operator::Mul => hir::Expression::Binop(meta.replace(hir::Binop::Mul), a.into(), b.into()),
+            Operator::Div => hir::Expression::Binop(meta.replace(hir::Binop::Div), a.into(), b.into()),
+        }
+    }
 }
 
 impl fmt::Display for Operator {
@@ -45,6 +67,7 @@ impl fmt::Display for Operator {
             Operator::Add => write!(f, "+"),
             Operator::Sub => write!(f, "-"),
             Operator::Mul => write!(f, "*"),
+            Operator::Div => write!(f, "/"),
         }
     }
 }
@@ -57,6 +80,7 @@ pub enum Token {
     OpenBlock(BlockDelim),
     CloseBlock(BlockDelim),
     Operator(Operator),
+    Assignment,
     SemiColon,
     Colon,
     Comma,
@@ -78,6 +102,7 @@ impl fmt::Display for Token {
             Token::CloseBlock(BlockDelim::Bracket) => write!(f, "]"),
             Token::CloseBlock(BlockDelim::Brace) => write!(f, "}}"),
             Token::Operator(o) => write!(f, "{}", o),
+            Token::Assignment => write!(f, "="),
             Token::SemiColon => write!(f, ";"),
             Token::Colon => write!(f, ":"),
             Token::Comma => write!(f, ","),
@@ -103,6 +128,23 @@ impl<'a, 'b: 'a> TokenIter<'b> {
         }
     }
 
+    pub fn step_back(&mut self, undo: Meta<'a, Token>) {
+        self.line = undo.line;
+        self.byte_offset = undo.span.start;
+    }
+
+    pub fn current_line(&self) -> u32 {
+        self.line
+    }
+
+    pub fn current_offset(&self) -> usize {
+        self.byte_offset
+    }
+
+    pub fn source(&self) -> &'b str {
+        self.src
+    }
+
     fn new_token(&self, tok: Token, origin: Range<usize>) -> Meta<'a, Token> {
         Meta {
             item: tok,
@@ -116,7 +158,8 @@ impl<'a, 'b: 'a> TokenIter<'b> {
     fn is_terminator(&self, c: char) -> bool {
         c.is_whitespace()
             || match c {
-                ';' | ':' | '(' | ')' | '{' | '}' | '[' | ']' | '.' | ',' => true,
+                ';' | ':' | '(' | ')' | '{' | '}' | '[' | ']' | '.' | ',' | '=' | '+' | '-'
+                | '*' | '/' => true,
                 _ => false,
             }
     }
@@ -227,7 +270,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
         let first = if let Some(c) = self.current_char() {
             c
         } else {
-            return self.new_token(Token::EOF, self.byte_offset - 1..self.byte_offset);
+            return self.new_token(Token::EOF, self.byte_offset..self.byte_offset);
         };
 
         if first.is_alphabetic() || first == '_' {
@@ -318,6 +361,21 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                         Token::Operator(Operator::Mul),
                         self.byte_offset - 1..self.byte_offset,
                     )
+                }
+                '/' => {
+                    self.advance();
+                    self.new_token(
+                        Token::Operator(Operator::Div),
+                        self.byte_offset - 1..self.byte_offset,
+                    )
+                }
+                '=' => {
+                    self.advance();
+                    if self.current_char().map(|c| c == '=').unwrap_or(false) {
+                        unimplemented!()
+                    } else {
+                        self.new_token(Token::Assignment, self.byte_offset - 1..self.byte_offset)
+                    }
                 }
                 _ => self.recover(self.byte_offset),
             }

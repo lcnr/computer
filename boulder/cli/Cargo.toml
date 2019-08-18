@@ -5,3 +5,5 @@ authors = ["lcnr/Bastian Kauschke <bastian_kauschke@hotmail.de>"]
 edition = "2018"
 
 [dependencies]
+parse = { path = "../parse"}
+hir = { path = "../hir" }

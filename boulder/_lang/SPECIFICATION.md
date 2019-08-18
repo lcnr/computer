@@ -1,5 +1,10 @@
 # Specification
 
+## Types
+
+Functions without an explicit return type return `struct Empty`, which is a type with size 0 and exactly 1 value: `Empty`.
+`;` changes the value of the previous expression to `Empty`, this means that multiple `;`.
+
 ## Side effects
 
 Side effects are only achievable by using the `read_volitile`, `write_volitile` and `halt` intrinsics.

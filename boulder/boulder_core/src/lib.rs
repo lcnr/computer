@@ -1,4 +1,32 @@
-use std::{fmt, ops::Range};
+use std::{fmt, ops::Range, ops::{Deref, DerefMut}};
+
+/// This has a private field to force people to use associated functions to create an object.
+#[derive(Debug)]
+pub struct CompileError(());
+
+impl CompileError {
+    pub fn new<T, R, D: fmt::Display>(meta: &Meta<T>, err: D) -> Result<R, Self> {
+        eprintln!("[ERROR]: {}", err);
+        let offset = meta.line_offset();
+        let pos = format!("({}:{}): ", meta.line, offset);
+        eprintln!("{}{}", pos, meta.line_str(),);
+        for _ in 0..(offset as usize + pos.len()) {
+            eprint!(" ");
+        }
+        for _ in 0..meta.span.len().max(1) {
+            eprint!("^");
+        }
+        eprintln!("");
+        Err(Self(()))
+    }
+
+    pub fn expected<T, R>(expected: &dyn fmt::Debug, meta: &Meta<T>) -> Result<R, Self> {
+        Self::new(
+            meta,
+            format_args!("Expected {:?} found `{}`", expected, meta.span_str()),
+        )
+    }
+}
 
 // A wrapper storing metadata
 #[derive(Clone)]
@@ -9,7 +37,70 @@ pub struct Meta<'a, T> {
     pub line: u32,
 }
 
-impl<T> Meta<'_, T> {
+impl<T> Deref for Meta<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.item
+    }
+}
+
+impl<T> DerefMut for Meta<'_, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.item
+    }
+}
+
+impl<T: Default> Default for Meta<'static, T> {
+    fn default() -> Self {
+        Self {
+            item: Default::default(),
+            span: 0..0,
+            source: "",
+            line: 0,
+        }
+    }
+}
+
+impl<'a> Meta<'a, ()> {
+    pub fn empty(src: &'a str, line: u32, span: Range<usize>) -> Self {
+        Meta {
+            item: (),
+            span,
+            source: src,
+            line: line,
+        }
+    }
+
+    pub fn append(self, other: Self) -> Self {
+        Meta {
+            item: (),
+            span: self.span.start..other.span.end,
+            source: self.source,
+            line: self.line,
+        }
+    }
+}
+
+impl<'a, T> Meta<'a, T> {
+    pub fn simplify(&self) -> Meta<'a, ()> {
+        Meta {
+            item: (),
+            span: self.span.clone(),
+            source: self.source,
+            line: self.line,
+        }
+    }
+
+    pub fn replace<U>(self, new: U) -> Meta<'a, U> {
+        Meta {
+            item: new,
+            span: self.span,
+            source: self.source,
+            line: self.line,
+        }
+    }
+
     pub fn line_offset(&self) -> u32 {
         let mut offset = 0;
         for c in self.source[..self.span.start].chars().rev() {
@@ -25,6 +116,13 @@ impl<T> Meta<'_, T> {
 
     pub fn span_str(&self) -> &str {
         &self.source[self.span.clone()]
+    }
+
+    pub fn line_str(&self) -> &str {
+        let line_start = self.source[..self.span.start]
+            .rfind('\n')
+            .map_or(0, |v| v + 1);
+        self.source[line_start..].split('\n').next().unwrap()
     }
 }
 
