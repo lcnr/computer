@@ -39,7 +39,10 @@ fn compile_fail() -> Result<(), std::io::Error> {
             let mut content = String::new();
             file.read_to_string(&mut content)?;
 
-            let expected = content.lines().take_while(|l| l.starts_with("# ")).map(|l| &l["# ".len()..]);
+            let expected = content
+                .lines()
+                .take_while(|l| l.starts_with("# "))
+                .map(|l| &l["# ".len()..]);
 
             let output = Arc::new(Mutex::new(String::new()));
             CompileError::set_output(Box::new(OutputShim {
@@ -49,7 +52,12 @@ fn compile_fail() -> Result<(), std::io::Error> {
             assert!(boulder::compile(&content).is_err());
             let output = output.lock().unwrap();
             for expected in expected {
-                assert!(output.contains(expected), "\n`{}` did not contain `{}`", output.trim(), expected);
+                assert!(
+                    output.contains(expected),
+                    "\n`{}` did not contain `{}`",
+                    output.trim(),
+                    expected
+                );
             }
         }
     }
