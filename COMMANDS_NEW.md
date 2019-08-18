@@ -146,36 +146,36 @@ Notes:
 | `0x69`     | ljmp D       | P2 = D; P1 = 0;                                                   |
 | `0x6a`     | ljmp mem     | P2 = mem[MR]; P1 = 0;                                             |
 | `0x6b$1`   | ljmp $1      | P2 = mem[PC + 1]; P1 = 0;                                         |
-| `0x6c`     | ret A B      | P1 = A; P2 = B;                                                   |
-| `0x6d`     | ret A C      | P1 = A; P2 = C;                                                   |
-| `0x6e`     | ret A D      | P1 = A; P2 = D;                                                   |
-| `0x6f`     | ret A mem    | P1 = A; P2 = mem[MR];                                             |
-| `0x70$1`   | ret A $1     | P1 = A; P2 = mem[PC + 1];                                         |
-| `0x71`     | ret B A      | P1 = B; P2 = A;                                                   |
-| `0x72`     | ret B C      | P1 = B; P2 = C;                                                   |
-| `0x73`     | ret B D      | P1 = B; P2 = D;                                                   |
-| `0x74`     | ret B mem    | P1 = B; P2 = mem[MR];                                             |
-| `0x75$1`   | ret B $1     | P1 = B; P2 = mem[PC + 1];                                         |
-| `0x76`     | ret C A      | P1 = C; P2 = A;                                                   |
-| `0x77`     | ret C B      | P1 = C; P2 = B;                                                   |
-| `0x78`     | ret C D      | P1 = C; P2 = D;                                                   |
-| `0x79`     | ret C mem    | P1 = C; P2 = mem[MR];                                             |
-| `0x7a$1`   | ret C $1     | P1 = C; P2 = mem[PC + 1];                                         |
-| `0x7b`     | ret D A      | P1 = D; P2 = A;                                                   |
-| `0x7c`     | ret D B      | P1 = D; P2 = B;                                                   |
-| `0x7d`     | ret D C      | P1 = D; P2 = C;                                                   |
-| `0x7e`     | ret D mem    | P1 = D; P2 = mem[MR];                                             |
-| `0x7f$1`   | ret D $1     | P1 = D; P2 = mem[PC + 1];                                         |
-| `0x80`     | ret mem A    | P1 = mem[MR]; P2 = A;                                             |
-| `0x81`     | ret mem B    | P1 = mem[MR]; P2 = B;                                             |
-| `0x82`     | ret mem C    | P1 = mem[MR]; P2 = C;                                             |
-| `0x83`     | ret mem D    | P1 = mem[MR]; P2 = D;                                       |
-| `0x84$1`   | ret mem $1   | P1 = mem[MR]; P2 = mem[PC + 1];                                   |
-| `0x85$1`   | ret $1 A     | P1 = mem[PC + 1]; P2 = A;                                         |
-| `0x86$1`   | ret $1 B     | P1 = mem[PC + 1]; P2 = B;                                         |
-| `0x87$1`   | ret $1 C     | P1 = mem[PC + 1]; P2 = C;                                         |
-| `0x88$1`   | ret $1 D     | P1 = mem[PC + 1]; P2 = D;                                         |
-| `0x89$1`   | ret $1 mem   | P1 = mem[PC + 1]; P2 = mem[MR];                                   |
+| `0x6c`     | ret A B      | P2 = A; P1 = B;                                                   |
+| `0x6d`     | ret A C      | P2 = A; P1 = C;                                                   |
+| `0x6e`     | ret A D      | P2 = A; P1 = D;                                                   |
+| `0x6f`     | ret A mem    | P2 = A; P1 = mem[MR];                                             |
+| `0x70$1`   | ret A $1     | P2 = A; P1 = mem[PC + 1];                                         |
+| `0x71`     | ret B A      | P2 = B; P1 = A;                                                   |
+| `0x72`     | ret B C      | P2 = B; P1 = C;                                                   |
+| `0x73`     | ret B D      | P2 = B; P1 = D;                                                   |
+| `0x74`     | ret B mem    | P2 = B; P1 = mem[MR];                                             |
+| `0x75$1`   | ret B $1     | P2 = B; P1 = mem[PC + 1];                                         |
+| `0x76`     | ret C A      | P2 = C; P1 = A;                                                   |
+| `0x77`     | ret C B      | P2 = C; P1 = B;                                                   |
+| `0x78`     | ret C D      | P2 = C; P1 = D;                                                   |
+| `0x79`     | ret C mem    | P2 = C; P1 = mem[MR];                                             |
+| `0x7a$1`   | ret C $1     | P2 = C; P1 = mem[PC + 1];                                         |
+| `0x7b`     | ret D A      | P2 = D; P1 = A;                                                   |
+| `0x7c`     | ret D B      | P2 = D; P1 = B;                                                   |
+| `0x7d`     | ret D C      | P2 = D; P1 = C;                                                   |
+| `0x7e`     | ret D mem    | P2 = D; P1 = mem[MR];                                             |
+| `0x7f$1`   | ret D $1     | P2 = D; P1 = mem[PC + 1];                                         |
+| `0x80`     | ret mem A    | P2 = mem[MR]; P1 = A;                                             |
+| `0x81`     | ret mem B    | P2 = mem[MR]; P1 = B;                                             |
+| `0x82`     | ret mem C    | P2 = mem[MR]; P1 = C;                                             |
+| `0x83`     | ret mem D    | P2 = mem[MR]; P1 = D;                                             |
+| `0x84$1`   | ret mem $1   | P2 = mem[MR]; P1 = mem[PC + 1];                                   |
+| `0x85$1`   | ret $1 A     | P2 = mem[PC + 1]; P1 = A;                                         |
+| `0x86$1`   | ret $1 B     | P2 = mem[PC + 1]; P1 = B;                                         |
+| `0x87$1`   | ret $1 C     | P2 = mem[PC + 1]; P1 = C;                                         |
+| `0x88$1`   | ret $1 D     | P2 = mem[PC + 1]; P1 = D;                                         |
+| `0x89$1`   | ret $1 mem   | P2 = mem[PC + 1]; P1 = mem[MR];                                   |
 | `0x8a`     | jmpz B       | if A == 0 { P1 = B; } else { P1 += 1; }                           |
 | `0x8b`     | jmpz C       | if A == 0 { P1 = C; } else { P1 += 1; }                           |
 | `0x8c`     | jmpz D       | if A == 0 { P1 = D; } else { P1 += 1; }                           |
