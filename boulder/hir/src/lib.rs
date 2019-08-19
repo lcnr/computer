@@ -198,7 +198,7 @@ impl<'a> Function<'a> {
 #[derive(Debug, Default, Clone)]
 pub struct Context<'a> {
     variables: HashMap<Box<str>, Box<str>>,
-    functions: HashMap<Box<str>, Vec<(Box<str>, Box<str>)>>,
+    functions: HashMap<Box<str>, Vec<Box<str>>>,
     _phantom: std::marker::PhantomData<&'a str>,
 }
 
@@ -238,7 +238,7 @@ impl<'a> Hir<'a> {
             func.name.item.clone(),
             func.arguments
                 .iter()
-                .map(|(a, b)| (a.item.clone(), b.item.clone()))
+                .map(|(_, b)| b.item.clone())
                 .collect(),
         ) {
             CompileError::new(

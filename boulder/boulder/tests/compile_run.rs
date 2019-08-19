@@ -50,8 +50,9 @@ fn compile_fail() -> Result<(), std::io::Error> {
                 inner: output.clone(),
             }));
 
-            assert!(boulder::compile(&content).is_ok(), "`{}` failed to compile", entry.path().display());
-            let _output = output.lock().unwrap();
+            let result = boulder::compile(&content);
+            let output = output.lock().unwrap();
+            assert!(result.is_ok(), "`{}` failed to compile: `{}`", entry.path().display(), output);
             // TODO: interpret the compilation result
         }
     }

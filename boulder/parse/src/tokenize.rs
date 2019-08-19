@@ -239,7 +239,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
     fn parse_num(&mut self) -> Meta<'a, Token> {
         // get num str
         let s = self.src[self.byte_offset..]
-            .split(|c: char| c.is_whitespace() || c == ':' || c == ';')
+            .split(|c: char| self.is_terminator(c))
             .next()
             .unwrap();
 
