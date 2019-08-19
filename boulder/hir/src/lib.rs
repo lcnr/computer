@@ -14,6 +14,14 @@ pub enum Binop {
     Div,
 }
 
+pub struct TypeId(usize);
+
+pub enum Type {
+    Named(Box<str>),
+    TypeId(TypeId),
+    Integer,
+}
+
 #[derive(Debug, Clone)]
 pub enum Literal {
     Integer(u128),
@@ -52,13 +60,13 @@ impl Expression<'_> {
         }
     }
 
-    pub fn ty<'a>(&self, ctx: &mut Vec<Context>) -> Result<Box<str>, CompileError> {
+    pub fn type_ck<'a>(&self, ctx: &mut Vec<Context>) -> Result<Box<str>, CompileError> {
         match self {
             Expression::Block(_meta, v) => {
                 if let Some((last, start)) = v.split_last() {
                     ctx.push(Context::new());
                     for stmt in start {
-                        let stmt_ty = stmt.ty(ctx)?;
+                        let stmt_ty = stmt.type_ck(ctx)?;
                         if &*stmt_ty != "Empty" {
                             return CompileError::new(
                                 &stmt.meta(),
@@ -70,7 +78,7 @@ impl Expression<'_> {
                         }
                     }
 
-                    let last_ty = last.ty(ctx);
+                    let last_ty = last.type_ck(ctx);
                     ctx.pop();
                     last_ty
                 } else {
@@ -89,8 +97,8 @@ impl Expression<'_> {
                 Literal::Integer(_) => Ok("u32".into()),
             },
             Expression::Binop(op, a, b) => {
-                let a_ty = a.ty(ctx)?;
-                let b_ty = b.ty(ctx)?;
+                let a_ty = a.type_ck(ctx)?;
+                let b_ty = b.type_ck(ctx)?;
                 if a_ty != b_ty {
                     CompileError::new(&op, format_args!("Mismatched types: {:?} is only implemented for identical types: {} != {}", op.item, a_ty, b_ty))
                 } else {
@@ -98,7 +106,7 @@ impl Expression<'_> {
                 }
             }
             Expression::VariableDecl(var, ty, expr) => {
-                let expr_ty = expr.ty(ctx)?;
+                let expr_ty = expr.type_ck(ctx)?;
                 if ty.item != expr_ty {
                     CompileError::new(
                         &var,
@@ -112,12 +120,12 @@ impl Expression<'_> {
                 }
             }
             Expression::Statement(_meta, expr) => {
-                let _check = expr.ty(ctx)?;
+                let _check = expr.type_ck(ctx)?;
                 Ok("Empty".into())
             }
             Expression::Assignment(var, expr) => {
                 if let Some(ty) = get_var_ty(ctx, var) {
-                    let expr_ty = expr.ty(ctx)?;
+                    let expr_ty = expr.type_ck(ctx)?;
                     if ty != expr_ty {
                         CompileError::new(
                             &var,
@@ -178,7 +186,7 @@ impl<'a> Function<'a> {
             _phantom: std::marker::PhantomData,
         };
         ctx.push(context);
-        let body_ty = self.body.ty(ctx)?;
+        let body_ty = self.body.type_ck(ctx)?;
         if body_ty != self.ret.item {
             CompileError::build(
                 &self.ret,
