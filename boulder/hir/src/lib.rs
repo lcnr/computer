@@ -23,7 +23,7 @@ pub enum Expression<'a> {
     Lit(Meta<'a, Literal>),
     Binop(Meta<'a, Binop>, Box<Expression<'a>>, Box<Expression<'a>>),
     VariableDecl(Meta<'a, Box<str>>, Meta<'a, Box<str>>, Box<Expression<'a>>),
-    Statement(Box<Expression<'a>>),
+    Statement(Meta<'a, ()>, Box<Expression<'a>>),
     Assignment(Meta<'a, Box<str>>, Box<Expression<'a>>),
 }
 
@@ -36,8 +36,15 @@ impl Expression<'_> {
             Expression::Lit(lit) => lit.simplify(),
             Expression::Binop(_op, a, b) => a.meta().append(b.meta()),
             Expression::VariableDecl(var, _ty, expr) => var.simplify().append(expr.meta()),
-            Expression::Statement(expr) => expr.meta(),
+            Expression::Statement(meta, expr) => expr.meta().append(meta.clone()),
             Expression::Assignment(var, expr) => var.simplify().append(expr.meta()),
+        }
+    }
+
+    pub fn ty_meta(&self) -> Meta<'_, ()> {
+        match self {
+            Expression::Block(meta, v) => v.last().map_or(meta.clone(), |v| v.ty_meta()),
+            e => e.meta(),
         }
     }
 
@@ -100,7 +107,7 @@ impl Expression<'_> {
                     Ok("Empty".into())
                 }
             }
-            Expression::Statement(expr) => {
+            Expression::Statement(_meta, expr) => {
                 let _check = expr.ty(ctx)?;
                 Ok("Empty".into())
             }
@@ -168,17 +175,18 @@ impl<'a> Function<'a> {
         };
         ctx.push(context);
         let body_ty = self.body.ty(ctx)?;
-        ctx.pop();
         if body_ty != self.ret.item {
-            CompileError::new(
+            CompileError::build(
                 &self.ret,
                 format_args!(
                     "Mismatched types: expected `{}`, found `{}`",
                     self.ret.item, body_ty
                 ),
-            )
+            ).with_location(&self.body.ty_meta()).build()
         } else {
+            ctx.pop();
             Ok(())
+            
         }
     }
 }

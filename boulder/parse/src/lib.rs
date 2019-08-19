@@ -115,7 +115,7 @@ fn parse_binop<'a>(mut lhs: hir::Expression<'a>, iter: &mut TokenIter<'a>) -> Re
     }
 
     if next.item == Token::SemiColon {
-        Ok(hir::Expression::Statement(Box::new(lhs)))
+        Ok(hir::Expression::Statement(next.simplify(), Box::new(lhs)))
     } else {
         iter.step_back(next);
         Ok(lhs)
@@ -139,7 +139,7 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Expression<'a>,
                     parse_binop(hir::Expression::Variable(start.replace(v)), iter)
                 }
                 Token::SemiColon => {
-                    Ok(hir::Expression::Statement(Box::new(hir::Expression::Variable(start.replace(v)))))
+                    Ok(hir::Expression::Statement(next.simplify(), Box::new(hir::Expression::Variable(start.replace(v)))))
                 }
                 Token::CloseBlock(BlockDelim::Brace) => {
                     iter.step_back(next);

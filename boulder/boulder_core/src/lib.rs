@@ -4,9 +4,11 @@ extern crate lazy_static;
 use std::{
     fmt,
     io::{stderr, Write},
+    mem,
     ops::Range,
     ops::{Deref, DerefMut},
     sync::Mutex,
+    marker::PhantomData
 };
 
 lazy_static! {
@@ -17,9 +19,16 @@ lazy_static! {
 #[derive(Debug)]
 pub struct CompileError(());
 
-impl CompileError {
-    pub fn new<T, R, D: fmt::Display>(meta: &Meta<T>, err: D) -> Result<R, Self> {
-        writeln!(OUTPUT.lock().unwrap(), "[ERROR]: {}", err).unwrap();
+pub struct CompileErrorBuilder<R = ()>(PhantomData<R>);
+
+impl<R> Drop for CompileErrorBuilder<R> {
+    fn drop(&mut self) {
+        panic!("`CompileErrorBuilder` must be used by calling `build`");
+    }
+}
+
+impl<R> CompileErrorBuilder<R> {
+    pub fn with_location<T>(self, meta: &Meta<T>) -> Self {
         let offset = meta.line_offset();
         let pos = format!("({}:{}): ", meta.line, offset);
         writeln!(OUTPUT.lock().unwrap(), "{}{}", pos, meta.line_str()).unwrap();
@@ -30,7 +39,28 @@ impl CompileError {
             write!(OUTPUT.lock().unwrap(), "^").unwrap();
         }
         writeln!(OUTPUT.lock().unwrap(), "").unwrap();
-        Err(Self(()))
+        self
+    }
+
+    pub fn with_help<D: fmt::Display>(self, help: D) -> Self {
+        writeln!(OUTPUT.lock().unwrap(), "  help: {}", help).unwrap();
+        self
+    }
+
+    pub fn build(self) -> Result<R, CompileError> {
+        mem::forget(self);
+        Err(CompileError(()))
+    }
+}
+
+impl CompileError {
+    pub fn new<T, R, D: fmt::Display>(meta: &Meta<T>, err: D) -> Result<R, Self> {
+        Self::build(meta, err).build()
+    }
+
+    pub fn build<T, R, D: fmt::Display>(meta: &Meta<T>, err: D) -> CompileErrorBuilder<R> {
+        writeln!(OUTPUT.lock().unwrap(), "[ERROR]: {}", err).unwrap();
+        CompileErrorBuilder(PhantomData).with_location(meta)
     }
 
     pub fn expected<T, R>(expected: &dyn fmt::Debug, meta: &Meta<T>) -> Result<R, Self> {

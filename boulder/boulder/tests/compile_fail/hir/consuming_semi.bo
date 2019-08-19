@@ -1,8 +1,12 @@
 # Mismatched types
 # expected `u32`
 # found `Empty`
-# (6:
+# (8:
+# (11:
+# ^^^^^^
 
 fn expected_expression(t: u32) -> u32 {
+    2 + 3;
+    2 - 1;
     t + 2;
 }

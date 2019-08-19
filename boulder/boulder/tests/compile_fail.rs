@@ -49,14 +49,15 @@ fn compile_fail() -> Result<(), std::io::Error> {
                 inner: output.clone(),
             }));
 
-            assert!(boulder::compile(&content).is_err());
+            assert!(boulder::compile(&content).is_err(), "`{}` did not fail to compile", entry.path().display());
             let output = output.lock().unwrap();
             for expected in expected {
                 assert!(
                     output.contains(expected),
-                    "\n`{}` did not contain `{}`",
+                    "`{}` did not contain `{}` ({})",
                     output.trim(),
-                    expected
+                    expected,
+                    entry.path().display(),
                 );
             }
         }
