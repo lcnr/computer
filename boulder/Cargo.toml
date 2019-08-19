@@ -4,5 +4,6 @@ members = [
     "boulder",
     "boulder_core",
     "parse",
-    "hir"
+    "hir",
+    "mir"
 ]

@@ -1,9 +1,9 @@
 [package]
-name = "hir"
+name = "mir"
 version = "0.1.0"
 authors = ["lcnr/Bastian Kauschke <bastian_kauschke@hotmail.de>"]
 edition = "2018"
 
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
 [dependencies]
-boulder_core = { path = "../boulder_core" }
-mir = { path = "../mir" }

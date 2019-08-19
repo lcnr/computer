@@ -1,7 +1,7 @@
 use boulder_core::CompileError;
-use hir::HIR;
+use hir::Hir;
 
-pub fn compile(src: &str) -> Result<HIR, CompileError> {
+pub fn compile(src: &str) -> Result<Hir, CompileError> {
     let hir = parse::parse(&src)?;
 
     hir.type_ck()?;

@@ -2,6 +2,10 @@ use boulder_core::{CompileError, Meta};
 
 use std::collections::HashMap;
 
+mod to_mir;
+
+use to_mir::MirBuilder;
+
 #[derive(Debug, Clone, Copy)]
 pub enum Binop {
     Add,
@@ -219,12 +223,12 @@ fn get_var_ty<'a, 'b: 'a>(global_ctx: &'b Vec<Context<'a>>, name: &str) -> Optio
 }
 
 #[derive(Debug, Default)]
-pub struct HIR<'a> {
+pub struct Hir<'a> {
     functions: Vec<Function<'a>>,
     ctx: Context<'a>,
 }
 
-impl<'a> HIR<'a> {
+impl<'a> Hir<'a> {
     pub fn new() -> Self {
         Default::default()
     }
@@ -269,5 +273,9 @@ impl<'a> HIR<'a> {
             );
         }
         Ok(())
+    }
+
+    pub fn finalize(self) -> Result<mir::Mir, CompileError> {
+        MirBuilder::new(self.functions).build()
     }
 }

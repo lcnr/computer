@@ -1,5 +1,5 @@
 Ok(
-    HIR {
+    Hir {
         functions: [
             Function {
                 meta: Meta {

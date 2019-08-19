@@ -1,5 +1,5 @@
 use boulder_core::{CompileError, Meta};
-use hir::HIR;
+use hir::Hir;
 
 use std::mem;
 
@@ -7,9 +7,9 @@ mod tokenize;
 
 use tokenize::{BlockDelim, Keyword, Token, Operator, TokenIter};
 
-pub fn parse(src: &str) -> Result<HIR, CompileError> {
+pub fn parse(src: &str) -> Result<Hir, CompileError> {
     let iter = &mut TokenIter::new(src);
-    let mut hir = HIR::new();
+    let mut hir = Hir::new();
     while let Some(mut token) = iter.next() {
         match mem::replace(&mut token.item, Token::Invalid) {
             Token::Keyword(Keyword::Function) => {
