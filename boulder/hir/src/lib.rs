@@ -30,7 +30,6 @@ pub enum Literal {
 #[derive(Debug, Clone)]
 pub enum Expression<'a> {
     Block(Meta<'a, ()>, Vec<Expression<'a>>),
-    Constant(Meta<'a, ()>, Box<str>, Box<str>),
     Variable(Meta<'a, Box<str>>),
     Lit(Meta<'a, Literal>),
     Binop(Meta<'a, Binop>, Box<Expression<'a>>, Box<Expression<'a>>),
@@ -43,7 +42,6 @@ impl Expression<'_> {
     pub fn meta(&self) -> Meta<'_, ()> {
         match self {
             Expression::Block(meta, _v) => meta.simplify(),
-            Expression::Constant(meta, _value, _ty) => meta.simplify(),
             Expression::Variable(var) => var.simplify(),
             Expression::Lit(lit) => lit.simplify(),
             Expression::Binop(_op, a, b) => a.meta().append(b.meta()),
@@ -85,7 +83,6 @@ impl Expression<'_> {
                     Ok("Empty".into())
                 }
             }
-            Expression::Constant(_meta, _value, ty) => Ok(ty.clone()),
             Expression::Variable(variable) => get_var_ty(ctx, variable).ok_or_else(|| {
                 CompileError::new::<_, (), _>(
                     &variable,
@@ -159,7 +156,7 @@ impl<'a> Function<'a> {
             name,
             arguments: Vec::new(),
             ret: <Meta<'static, ()>>::default().replace("Empty".into()),
-            body: Expression::Constant(Meta::default(), "Empty".into(), "Empty".into()),
+            body: Expression::Block(Meta::default(), Vec::new()),
         }
     }
 
