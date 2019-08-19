@@ -5,7 +5,7 @@ use std::mem;
 
 mod tokenize;
 
-use tokenize::{BlockDelim, Keyword, Token, TokenIter};
+use tokenize::{BlockDelim, Keyword, Token, Operator, TokenIter};
 
 pub fn parse(src: &str) -> Result<HIR, CompileError> {
     let iter = &mut TokenIter::new(src);
@@ -115,7 +115,7 @@ fn parse_binop<'a>(mut lhs: hir::Expression<'a>, iter: &mut TokenIter<'a>) -> Re
     }
 
     if next.item == Token::SemiColon {
-        Ok(lhs)
+        Ok(hir::Expression::Statement(Box::new(lhs)))
     } else {
         iter.step_back(next);
         Ok(lhs)
@@ -138,10 +138,14 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Expression<'a>,
                     iter.step_back(next);
                     parse_binop(hir::Expression::Variable(start.replace(v)), iter)
                 }
-                _ => {
+                Token::SemiColon => {
+                    Ok(hir::Expression::Statement(Box::new(hir::Expression::Variable(start.replace(v)))))
+                }
+                Token::CloseBlock(BlockDelim::Brace) => {
                     iter.step_back(next);
                     Ok(hir::Expression::Variable(start.replace(v)))
                 }
+                _ => CompileError::expected(&[Token::Assignment, Token::Operator(Operator::Add), Token::SemiColon, Token::CloseBlock(BlockDelim::Brace)], &next)
             }
         }
         Token::Integer(c) => {

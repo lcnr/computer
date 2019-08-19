@@ -23,6 +23,7 @@ pub enum Expression<'a> {
     Lit(Meta<'a, Literal>),
     Binop(Meta<'a, Binop>, Box<Expression<'a>>, Box<Expression<'a>>),
     VariableDecl(Meta<'a, Box<str>>, Meta<'a, Box<str>>, Box<Expression<'a>>),
+    Statement(Box<Expression<'a>>),
     Assignment(Meta<'a, Box<str>>, Box<Expression<'a>>),
 }
 
@@ -35,6 +36,7 @@ impl Expression<'_> {
             Expression::Lit(lit) => lit.simplify(),
             Expression::Binop(_op, a, b) => a.meta().append(b.meta()),
             Expression::VariableDecl(var, _ty, expr) => var.simplify().append(expr.meta()),
+            Expression::Statement(expr) => expr.meta(),
             Expression::Assignment(var, expr) => var.simplify().append(expr.meta()),
         }
     }
@@ -42,8 +44,8 @@ impl Expression<'_> {
     pub fn ty<'a>(&self, ctx: &mut Vec<Context>) -> Result<Box<str>, CompileError> {
         match self {
             Expression::Block(_meta, v) => {
-                ctx.push(Context::new());
                 if let Some((last, start)) = v.split_last() {
+                    ctx.push(Context::new());
                     for stmt in start {
                         let stmt_ty = stmt.ty(ctx)?;
                         if &*stmt_ty != "Empty" {
@@ -97,6 +99,10 @@ impl Expression<'_> {
                 } else {
                     Ok("Empty".into())
                 }
+            }
+            Expression::Statement(expr) => {
+                let _check = expr.ty(ctx)?;
+                Ok("Empty".into())
             }
             Expression::Assignment(var, expr) => {
                 if let Some(ty) = get_var_ty(ctx, var) {
@@ -167,7 +173,7 @@ impl<'a> Function<'a> {
             CompileError::new(
                 &self.ret,
                 format_args!(
-                    "mismatched types: expected `{}`, found `{}`",
+                    "Mismatched types: expected `{}`, found `{}`",
                     self.ret.item, body_ty
                 ),
             )
@@ -242,11 +248,11 @@ impl<'a> HIR<'a> {
             func.type_ck(&mut ctx)?;
         }
 
-        if let Some(_c) = ctx.pop() {
+        if let Some(c) = ctx.pop() {
             assert!(
                 ctx.is_empty(),
                 "Internal compiler error, more than 1 context after type check: {:?}",
-                ctx
+                c
             );
         } else {
             panic!(

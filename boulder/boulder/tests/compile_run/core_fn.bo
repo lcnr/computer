@@ -1,0 +1,6 @@
+fn empty() {}
+fn empty_explicit() -> Empty {}
+fn const() -> u32 { 12 }
+fn identity(a: u32) -> u32 { a }
+fn add(a: u32) -> u32 { a + 1 }
+fn add_rev(a: u32) -> u32 {1 + a}

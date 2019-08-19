@@ -1,0 +1,6 @@
+# Mismatched types
+# expected `u32`
+# found `Empty`
+fn variable_semi(a: u32) -> u32 {
+    a;
+}
