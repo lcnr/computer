@@ -54,21 +54,21 @@ impl Operator {
     pub fn as_hir_expr<'a, T>(
         self,
         meta: Meta<'a, T>,
-        a: hir::Expression<'a>,
-        b: hir::Expression<'a>,
-    ) -> hir::Expression<'a> {
+        a: crate::Expression<'a>,
+        b: crate::Expression<'a>,
+    ) -> crate::Expression<'a> {
         match self {
             Operator::Add => {
-                hir::Expression::Binop(meta.replace(hir::Binop::Add), a.into(), b.into())
+                crate::Expression::Binop((), meta.replace(hir::Binop::Add), a.into(), b.into())
             }
             Operator::Sub => {
-                hir::Expression::Binop(meta.replace(hir::Binop::Sub), a.into(), b.into())
+                crate::Expression::Binop((), meta.replace(hir::Binop::Sub), a.into(), b.into())
             }
             Operator::Mul => {
-                hir::Expression::Binop(meta.replace(hir::Binop::Mul), a.into(), b.into())
+                crate::Expression::Binop((), meta.replace(hir::Binop::Mul), a.into(), b.into())
             }
             Operator::Div => {
-                hir::Expression::Binop(meta.replace(hir::Binop::Div), a.into(), b.into())
+                crate::Expression::Binop((), meta.replace(hir::Binop::Div), a.into(), b.into())
             }
         }
     }

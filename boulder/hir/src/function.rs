@@ -14,22 +14,22 @@ pub struct Variable<'a, T> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Function<'a, V, T> {
+pub struct Function<'a, V, T, N> {
     pub name: Meta<'a, Box<str>>,
     pub arguments: Vec<VariableId>,
     pub variables: Vec<Variable<'a, T>>,
     pub ret: Meta<'a, T>,
-    pub body: Expression<'a, V>,
+    pub body: Expression<'a, V, N>,
 }
 
-impl<'a> Function<'a, UnresolvedVariable<'a>, UnresolvedType> {
+impl<'a> Function<'a, UnresolvedVariable<'a>, UnresolvedType, ()> {
     pub fn new(name: Meta<'a, Box<str>>) -> Self {
         Self {
             name,
             arguments: Vec::new(),
             ret: Meta::<()>::default().replace(UnresolvedType::Unknown),
             variables: Vec::new(),
-            body: Expression::Block(Meta::default(), Vec::new()),
+            body: Expression::Block((), Meta::default(), Vec::new()),
         }
     }
 
@@ -66,13 +66,13 @@ impl<'a> Function<'a, UnresolvedVariable<'a>, UnresolvedType> {
         self.ret = ret.map(|r| UnresolvedType::Named(r));
     }
 
-    pub fn set_body(&mut self, body: Expression<'a, UnresolvedVariable<'a>>) {
+    pub fn set_body(&mut self, body: Expression<'a, UnresolvedVariable<'a>, ()>) {
         self.body = body;
     }
 
     pub fn resolve_variables(
         mut self,
-    ) -> Result<Function<'a, Meta<'a, VariableId>, UnresolvedType>, CompileError> {
+    ) -> Result<Function<'a, Meta<'a, VariableId>, UnresolvedType, ()>, CompileError> {
         let mut variable_lookup = Vec::new();
         variable_lookup.push(
             self.variables
@@ -96,11 +96,11 @@ impl<'a> Function<'a, UnresolvedVariable<'a>, UnresolvedType> {
     }
 }
 
-impl<'a> Function<'a, Meta<'a, VariableId>, UnresolvedType> {
+impl<'a> Function<'a, Meta<'a, VariableId>, UnresolvedType, ()> {
     pub fn resolve_types(
         self,
         types: &[Type],
-    ) -> Result<Function<'a, Meta<'a, VariableId>, TypeId>, CompileError> {
+    ) -> Result<Function<'a, Meta<'a, VariableId>, TypeId, TypeId>, CompileError> {
         let mut constraints = ty::Constraints::new();
         let integers = constraints.add_group(
             types
@@ -160,7 +160,7 @@ impl<'a> Function<'a, Meta<'a, VariableId>, UnresolvedType> {
         constraints.add_equality(id, body);
 
         let entities = constraints.solve(types)?;
-        Ok(Function {
+        /*Ok(Function {
             name: self.name,
             arguments: self.arguments,
             ret: self.ret.replace(entities[self.variables.len()]),
@@ -174,11 +174,12 @@ impl<'a> Function<'a, Meta<'a, VariableId>, UnresolvedType> {
                 })
                 .collect(),
             body: self.body,
-        })
+        });*/
+        unimplemented!()
     }
 }
 
-impl<'a> Function<'a, Meta<'a, VariableId>, TypeId> {
+impl<'a> Function<'a, Meta<'a, VariableId>, TypeId, TypeId> {
     pub fn to_mir(self, types: &[mir::Type]) -> Result<mir::Function, CompileError> {
         let mut func = mir::Function::new();
         let mut start = mir::Block::new();

@@ -21,8 +21,6 @@ pub enum UnresolvedVariable<'a> {
     Typed(Meta<'a, Box<str>>, Meta<'a, Box<str>>),
 }
 
-pub type Expression<'a> = expression::Expression<'a, UnresolvedVariable<'a>>;
-
 #[derive(Debug, Clone, Copy)]
 pub enum Binop {
     Add,
@@ -37,12 +35,12 @@ pub enum Literal {
 }
 
 #[derive(Debug)]
-pub struct Hir<'a, V, T> {
-    functions: Vec<Function<'a, V, T>>,
+pub struct Hir<'a, V, T, N> {
+    functions: Vec<Function<'a, V, T, N>>,
     types: Vec<Type>,
 }
 
-impl<'a> Hir<'a, UnresolvedVariable<'a>, UnresolvedType> {
+impl<'a> Hir<'a, UnresolvedVariable<'a>, UnresolvedType, ()> {
     pub fn new() -> Self {
         Self {
             functions: Vec::new(),
@@ -69,7 +67,7 @@ impl<'a> Hir<'a, UnresolvedVariable<'a>, UnresolvedType> {
 
     pub fn add_function(
         &mut self,
-        func: Function<'a, UnresolvedVariable<'a>, UnresolvedType>,
+        func: Function<'a, UnresolvedVariable<'a>, UnresolvedType, ()>,
     ) -> Result<(), CompileError> {
         if self.functions.iter().any(|f| f.name.item == func.name.item) {
             CompileError::new(
@@ -87,7 +85,7 @@ impl<'a> Hir<'a, UnresolvedVariable<'a>, UnresolvedType> {
 
     pub fn resolve_variables(
         self,
-    ) -> Result<Hir<'a, Meta<'a, VariableId>, UnresolvedType>, CompileError> {
+    ) -> Result<Hir<'a, Meta<'a, VariableId>, UnresolvedType, ()>, CompileError> {
         Ok(Hir {
             functions: self
                 .functions
@@ -99,8 +97,8 @@ impl<'a> Hir<'a, UnresolvedVariable<'a>, UnresolvedType> {
     }
 }
 
-impl<'a> Hir<'a, Meta<'a, VariableId>, UnresolvedType> {
-    pub fn resolve_types(self) -> Result<Hir<'a, Meta<'a, VariableId>, TypeId>, CompileError> {
+impl<'a> Hir<'a, Meta<'a, VariableId>, UnresolvedType, ()> {
+    pub fn resolve_types(self) -> Result<Hir<'a, Meta<'a, VariableId>, TypeId, TypeId>, CompileError> {
         let types = self.types;
         let functions = self
             .functions
@@ -112,7 +110,7 @@ impl<'a> Hir<'a, Meta<'a, VariableId>, UnresolvedType> {
     }
 }
 
-impl<'a> Hir<'a, Meta<'a, VariableId>, TypeId> {
+impl<'a> Hir<'a, Meta<'a, VariableId>, TypeId, TypeId> {
     pub fn to_mir(self) -> Result<Mir, CompileError> {
         let types: Vec<_> = self.types.into_iter().map(|t| t.to_mir()).collect();
         let functions = self
