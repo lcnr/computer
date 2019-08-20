@@ -26,6 +26,16 @@ pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
     Ok(hir)
 }
 
+fn try_consume_token(expected: Token, iter: &mut TokenIter) -> bool {
+    let tok = iter.next().unwrap();
+    if expected == tok.item {
+        true
+    } else {
+        iter.step_back(tok);
+        false
+    }
+}
+
 fn consume_token(expected: Token, iter: &mut TokenIter) -> Result<(), CompileError> {
     let tok = iter.next().unwrap();
     if expected == tok.item {
@@ -69,13 +79,18 @@ fn parse_variable_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, C
     // TODO: allow for variables with inferred type
     consume_token(Token::Colon, iter)?;
     let ty = expect_ident(iter.next().unwrap())?;
-    consume_token(Token::Assignment, iter)?;
-    let input = parse_expression(iter)?;
-    Ok(Expression::Assignment(
-        (),
-        hir::UnresolvedVariable::Typed(name, ty),
-        Box::new(input),
-    ))
+    if try_consume_token(Token::Assignment, iter) {
+        let input = parse_expression(iter)?;
+        Ok(Expression::Assignment(
+            (),
+            hir::UnresolvedVariable::Typed(name, ty),
+            Box::new(input),
+        ))
+    } else {
+        let tok = iter.next().unwrap();
+        iter.step_back(check_expr_terminator(tok, &[Token::Assignment])?);
+        Ok(Expression::Variable((), hir::UnresolvedVariable::Typed(name, ty)))
+    }
 }
 
 /// parse the rhs of a binary operation, each binop must have a priority greater than `priority`.
