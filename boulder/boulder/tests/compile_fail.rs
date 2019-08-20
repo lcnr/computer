@@ -49,7 +49,11 @@ fn compile_fail() -> Result<(), std::io::Error> {
                 inner: output.clone(),
             }));
 
-            assert!(boulder::compile(&content).is_err(), "`{}` did not fail to compile", entry.path().display());
+            assert!(
+                boulder::compile(&content).is_err(),
+                "`{}` did not fail to compile",
+                entry.path().display()
+            );
             let output = output.lock().unwrap();
             for expected in expected {
                 assert!(

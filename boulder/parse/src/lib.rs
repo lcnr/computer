@@ -5,15 +5,15 @@ use std::mem;
 
 mod tokenize;
 
-use tokenize::{BlockDelim, Keyword, Token, Operator, TokenIter};
+use tokenize::{BlockDelim, Keyword, Operator, Token, TokenIter};
 
-pub fn parse(src: &str) -> Result<Hir, CompileError> {
+pub fn parse(src: &str) -> Result<Hir<hir::UnresolvedType>, CompileError> {
     let iter = &mut TokenIter::new(src);
     let mut hir = Hir::new();
     while let Some(mut token) = iter.next() {
         match mem::replace(&mut token.item, Token::Invalid) {
             Token::Keyword(Keyword::Function) => {
-                hir.add_function(parse_function(iter)?)?;
+                hir.add_function(parse_function(iter)?.build()?)?;
             }
             Token::EOF => break,
             _ => CompileError::expected(&[Token::Keyword(Keyword::Function), Token::EOF], &token)?,
@@ -54,7 +54,11 @@ fn parse_variable_decl<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Expression<'
     let ty = expect_ident(iter.next().unwrap())?;
     consume_token(Token::Assignment, iter)?;
     let input = parse_expression(iter)?;
-    Ok(hir::Expression::VariableDecl(name, ty, Box::new(input)))
+    Ok(hir::Expression::VariableDecl(
+        name,
+        ty.map(|t| hir::UnresolvedType::Named(t)),
+        Box::new(input),
+    ))
 }
 
 /// parse the rhs of a binary operation, each binop must have a priority greater than `priority`.
@@ -103,14 +107,13 @@ fn parse_binop_rhs<'a>(
     }
 }
 
-fn parse_binop<'a>(mut lhs: hir::Expression<'a>, iter: &mut TokenIter<'a>) -> Result<hir::Expression<'a>, CompileError> {
+fn parse_binop<'a>(
+    mut lhs: hir::Expression<'a>,
+    iter: &mut TokenIter<'a>,
+) -> Result<hir::Expression<'a>, CompileError> {
     let mut next = iter.next().unwrap();
     while let Token::Operator(op) = next.item {
-        lhs = op.as_hir_expr(
-            next.simplify(),
-            lhs,
-            parse_binop_rhs(op.priority(), iter)?,
-        );
+        lhs = op.as_hir_expr(next.simplify(), lhs, parse_binop_rhs(op.priority(), iter)?);
         next = iter.next().unwrap();
     }
 
@@ -138,14 +141,23 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Expression<'a>,
                     iter.step_back(next);
                     parse_binop(hir::Expression::Variable(start.replace(v)), iter)
                 }
-                Token::SemiColon => {
-                    Ok(hir::Expression::Statement(next.simplify(), Box::new(hir::Expression::Variable(start.replace(v)))))
-                }
+                Token::SemiColon => Ok(hir::Expression::Statement(
+                    next.simplify(),
+                    Box::new(hir::Expression::Variable(start.replace(v))),
+                )),
                 Token::CloseBlock(BlockDelim::Brace) => {
                     iter.step_back(next);
                     Ok(hir::Expression::Variable(start.replace(v)))
                 }
-                _ => CompileError::expected(&[Token::Assignment, Token::Operator(Operator::Add), Token::SemiColon, Token::CloseBlock(BlockDelim::Brace)], &next)
+                _ => CompileError::expected(
+                    &[
+                        Token::Assignment,
+                        Token::Operator(Operator::Add),
+                        Token::SemiColon,
+                        Token::CloseBlock(BlockDelim::Brace),
+                    ],
+                    &next,
+                ),
             }
         }
         Token::Integer(c) => {
@@ -153,7 +165,10 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Expression<'a>,
             match &next.item {
                 Token::Operator(_) => {
                     iter.step_back(next);
-                    parse_binop(hir::Expression::Lit(start.replace(hir::Literal::Integer(c))), iter)
+                    parse_binop(
+                        hir::Expression::Lit(start.replace(hir::Literal::Integer(c))),
+                        iter,
+                    )
                 }
                 _ => {
                     iter.step_back(next);
@@ -195,7 +210,9 @@ fn parse_block<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Expression<'a>, Comp
 }
 
 // parse a function, `fn` should already be consumed
-fn parse_function<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Function<'a>, CompileError> {
+fn parse_function<'a>(
+    iter: &mut TokenIter<'a>,
+) -> Result<hir::Function<'a, Box<str>, hir::UnresolvedType>, CompileError> {
     let mut func = hir::Function::new(expect_ident(iter.next().unwrap())?);
 
     consume_token(Token::OpenBlock(BlockDelim::Parenthesis), iter)?;
@@ -208,7 +225,7 @@ fn parse_function<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Function<'a>, Com
         let arg_name = expect_ident(tok)?;
         consume_token(Token::Colon, iter)?;
         let arg_type = expect_ident(iter.next().unwrap())?;
-        func.add_argument(arg_name, arg_type);
+        func.add_argument(arg_name, arg_type.map(|t| hir::UnresolvedType::Named(t)))?;
 
         let tok = iter.next().unwrap();
         if tok.item == Token::CloseBlock(BlockDelim::Parenthesis) {
@@ -223,7 +240,7 @@ fn parse_function<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Function<'a>, Com
 
     let tok = iter.next().unwrap();
     if tok.item == Token::Arrow {
-        func.set_ret(expect_ident(iter.next().unwrap())?);
+        func.set_return(expect_ident(iter.next().unwrap())?);
         consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
     } else if tok.item != Token::OpenBlock(BlockDelim::Brace) {
         CompileError::expected(&Token::OpenBlock(BlockDelim::Brace), &tok)?;

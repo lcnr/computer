@@ -2,9 +2,22 @@ use boulder_core::{CompileError, Meta};
 
 use std::collections::HashMap;
 
+pub mod expression;
+pub mod function;
 mod to_mir;
 
+pub use function::{Function, VariableId};
+
 use to_mir::MirBuilder;
+
+#[derive(Debug, Clone)]
+pub enum UnresolvedType {
+    Named(Box<str>),
+    Integer,
+    Unknown,
+}
+
+pub type Expression<'a> = expression::Expression<'a, Box<str>, UnresolvedType>;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Binop {
@@ -14,12 +27,15 @@ pub enum Binop {
     Div,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct TypeId(usize);
 
+#[derive(Debug, Clone)]
 pub enum Type {
-    Named(Box<str>),
     TypeId(TypeId),
+    Named(Box<str>),
     Integer,
+    Unknown,
 }
 
 #[derive(Debug, Clone)]
@@ -27,187 +43,14 @@ pub enum Literal {
     Integer(u128),
 }
 
-#[derive(Debug, Clone)]
-pub enum Expression<'a> {
-    Block(Meta<'a, ()>, Vec<Expression<'a>>),
-    Variable(Meta<'a, Box<str>>),
-    Lit(Meta<'a, Literal>),
-    Binop(Meta<'a, Binop>, Box<Expression<'a>>, Box<Expression<'a>>),
-    VariableDecl(Meta<'a, Box<str>>, Meta<'a, Box<str>>, Box<Expression<'a>>),
-    Statement(Meta<'a, ()>, Box<Expression<'a>>),
-    Assignment(Meta<'a, Box<str>>, Box<Expression<'a>>),
-}
-
-impl Expression<'_> {
-    pub fn meta(&self) -> Meta<'_, ()> {
-        match self {
-            Expression::Block(meta, _v) => meta.simplify(),
-            Expression::Variable(var) => var.simplify(),
-            Expression::Lit(lit) => lit.simplify(),
-            Expression::Binop(_op, a, b) => a.meta().append(b.meta()),
-            Expression::VariableDecl(var, _ty, expr) => var.simplify().append(expr.meta()),
-            Expression::Statement(meta, expr) => expr.meta().append(meta.clone()),
-            Expression::Assignment(var, expr) => var.simplify().append(expr.meta()),
-        }
-    }
-
-    pub fn ty_meta(&self) -> Meta<'_, ()> {
-        match self {
-            Expression::Block(meta, v) => v.last().map_or(meta.clone(), |v| v.ty_meta()),
-            e => e.meta(),
-        }
-    }
-
-    pub fn type_ck<'a>(&self, ctx: &mut Vec<Context>) -> Result<Box<str>, CompileError> {
-        match self {
-            Expression::Block(_meta, v) => {
-                if let Some((last, start)) = v.split_last() {
-                    ctx.push(Context::new());
-                    for stmt in start {
-                        let stmt_ty = stmt.type_ck(ctx)?;
-                        if &*stmt_ty != "Empty" {
-                            return CompileError::new(
-                                &stmt.meta(),
-                                format_args!(
-                                    "Invalid expression in block, expected `{}`, found `{}`",
-                                    "Empty", stmt_ty
-                                ),
-                            );
-                        }
-                    }
-
-                    let last_ty = last.type_ck(ctx);
-                    ctx.pop();
-                    last_ty
-                } else {
-                    Ok("Empty".into())
-                }
-            }
-            Expression::Variable(variable) => get_var_ty(ctx, variable).ok_or_else(|| {
-                CompileError::new::<_, (), _>(
-                    &variable,
-                    format_args!("Unknown variable: `{}`", variable.span_str()),
-                )
-                .unwrap_err()
-            }),
-            Expression::Lit(ty) => match ty.item {
-                Literal::Integer(_) => Ok("u32".into()),
-            },
-            Expression::Binop(op, a, b) => {
-                let a_ty = a.type_ck(ctx)?;
-                let b_ty = b.type_ck(ctx)?;
-                if a_ty != b_ty {
-                    CompileError::new(&op, format_args!("Mismatched types: {:?} is only implemented for identical types: {} != {}", op.item, a_ty, b_ty))
-                } else {
-                    Ok(a_ty)
-                }
-            }
-            Expression::VariableDecl(var, ty, expr) => {
-                let expr_ty = expr.type_ck(ctx)?;
-                if ty.item != expr_ty {
-                    CompileError::new(
-                        &var,
-                        format_args!(
-                            "Mismatched types: Tried to assign {} to a variable of type {}",
-                            ty.item, expr_ty
-                        ),
-                    )
-                } else {
-                    Ok("Empty".into())
-                }
-            }
-            Expression::Statement(_meta, expr) => {
-                let _check = expr.type_ck(ctx)?;
-                Ok("Empty".into())
-            }
-            Expression::Assignment(var, expr) => {
-                if let Some(ty) = get_var_ty(ctx, var) {
-                    let expr_ty = expr.type_ck(ctx)?;
-                    if ty != expr_ty {
-                        CompileError::new(
-                            &var,
-                            format_args!(
-                                "Mismatched types: Tried to assign {} to a variable of type {}",
-                                expr_ty, ty
-                            ),
-                        )
-                    } else {
-                        Ok("Empty".into())
-                    }
-                } else {
-                    CompileError::new(&var, format_args!("Unknown variable: `{}`", var.item))
-                }
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Function<'a> {
-    name: Meta<'a, Box<str>>,
-    arguments: Vec<(Meta<'a, Box<str>>, Meta<'a, Box<str>>)>,
-    ret: Meta<'a, Box<str>>,
-    body: Expression<'a>,
-}
-
-impl<'a> Function<'a> {
-    pub fn new(name: Meta<'a, Box<str>>) -> Self {
-        Self {
-            name,
-            arguments: Vec::new(),
-            ret: <Meta<'static, ()>>::default().replace("Empty".into()),
-            body: Expression::Block(Meta::default(), Vec::new()),
-        }
-    }
-
-    pub fn add_argument(&mut self, name: Meta<'a, Box<str>>, ty: Meta<'a, Box<str>>) {
-        self.arguments.push((name, ty));
-    }
-
-    pub fn set_ret(&mut self, ty: Meta<'a, Box<str>>) {
-        self.ret = ty;
-    }
-
-    pub fn set_body(&mut self, body: Expression<'a>) {
-        self.body = body;
-    }
-
-    pub fn type_ck(&self, ctx: &mut Vec<Context>) -> Result<(), CompileError> {
-        let context = Context {
-            variables: self
-                .arguments
-                .iter()
-                .map(|(a, b)| (a.item.clone(), b.item.clone()))
-                .collect(),
-            functions: HashMap::new(),
-            _phantom: std::marker::PhantomData,
-        };
-        ctx.push(context);
-        let body_ty = self.body.type_ck(ctx)?;
-        if body_ty != self.ret.item {
-            CompileError::build(
-                &self.ret,
-                format_args!(
-                    "Mismatched types: expected `{}`, found `{}`",
-                    self.ret.item, body_ty
-                ),
-            ).with_location(&self.body.ty_meta()).build()
-        } else {
-            ctx.pop();
-            Ok(())
-            
-        }
-    }
-}
-
 #[derive(Debug, Default, Clone)]
-pub struct Context<'a> {
+pub struct Context<'a, T> {
     variables: HashMap<Box<str>, Box<str>>,
-    functions: HashMap<Box<str>, Vec<Box<str>>>,
+    functions: HashMap<Box<str>, Vec<T>>,
     _phantom: std::marker::PhantomData<&'a str>,
 }
 
-impl Context<'_> {
+impl<T> Context<'_, T> {
     fn new() -> Self {
         Self {
             variables: HashMap::new(),
@@ -217,7 +60,7 @@ impl Context<'_> {
     }
 }
 
-fn get_var_ty<'a, 'b: 'a>(global_ctx: &'b Vec<Context<'a>>, name: &str) -> Option<Box<str>> {
+fn get_var_ty<'a, 'b: 'a, T>(global_ctx: &'b Vec<Context<'a, T>>, name: &str) -> Option<Box<str>> {
     for ctx in global_ctx.iter().rev() {
         let ty = ctx.variables.get(name);
         if ty.is_some() {
@@ -227,23 +70,29 @@ fn get_var_ty<'a, 'b: 'a>(global_ctx: &'b Vec<Context<'a>>, name: &str) -> Optio
     None
 }
 
-#[derive(Debug, Default)]
-pub struct Hir<'a> {
-    functions: Vec<Function<'a>>,
-    ctx: Context<'a>,
+#[derive(Debug)]
+pub struct Hir<'a, T> {
+    functions: Vec<Function<'a, VariableId, T>>,
+    ctx: Context<'a, T>,
 }
 
-impl<'a> Hir<'a> {
+impl<'a> Hir<'a, UnresolvedType> {
     pub fn new() -> Self {
-        Default::default()
+        Self {
+            functions: Vec::new(),
+            ctx: Context::new(),
+        }
     }
 
-    pub fn add_function(&mut self, func: Function<'a>) -> Result<(), CompileError> {
+    pub fn add_function(
+        &mut self,
+        func: Function<'a, VariableId, UnresolvedType>,
+    ) -> Result<(), CompileError> {
         if let Some(_old) = self.ctx.functions.insert(
             func.name.item.clone(),
             func.arguments
                 .iter()
-                .map(|(_, b)| b.item.clone())
+                .map(|a| func.variables[a.0].ty.item.clone())
                 .collect(),
         ) {
             CompileError::new(
@@ -259,7 +108,7 @@ impl<'a> Hir<'a> {
         }
     }
 
-    pub fn type_ck(&self) -> Result<(), CompileError> {
+    /*pub fn type_ck(&self) -> Result<(), CompileError> {
         let mut ctx = vec![self.ctx.clone()];
         for func in self.functions.iter() {
             func.type_ck(&mut ctx)?;
@@ -278,9 +127,9 @@ impl<'a> Hir<'a> {
             );
         }
         Ok(())
-    }
+    }*/
 
-    pub fn finalize(self) -> Result<mir::Mir, CompileError> {
-        MirBuilder::new(self.functions).build()
-    }
+    //pub fn finalize(self) -> Result<mir::Mir, CompileError> {
+    //   MirBuilder::new(self.functions).build()
+    //}
 }

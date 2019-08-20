@@ -52,7 +52,12 @@ fn compile_fail() -> Result<(), std::io::Error> {
 
             let result = boulder::compile(&content);
             let output = output.lock().unwrap();
-            assert!(result.is_ok(), "`{}` failed to compile: `{}`", entry.path().display(), output);
+            assert!(
+                result.is_ok(),
+                "`{}` failed to compile: `{}`",
+                entry.path().display(),
+                output
+            );
             // TODO: interpret the compilation result
         }
     }

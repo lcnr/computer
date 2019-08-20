@@ -4,11 +4,11 @@ extern crate lazy_static;
 use std::{
     fmt,
     io::{stderr, Write},
+    marker::PhantomData,
     mem,
     ops::Range,
     ops::{Deref, DerefMut},
     sync::Mutex,
-    marker::PhantomData
 };
 
 lazy_static! {
@@ -158,6 +158,18 @@ impl<'a, T> Meta<'a, T> {
             source: self.source,
             line: self.line,
         }
+    }
+
+    pub fn try_map<F, U>(self, f: F) -> Result<Meta<'a, U>, CompileError>
+    where
+        F: FnOnce(T) -> Result<U, CompileError>,
+    {
+        Ok(Meta {
+            item: f(self.item)?,
+            span: self.span,
+            source: self.source,
+            line: self.line,
+        })
     }
 
     pub fn line_offset(&self) -> u32 {

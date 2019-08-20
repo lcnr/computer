@@ -1,0 +1,7 @@
+# Identifier `a`
+# more than once
+# (5:
+
+fn err(a: u32, b: u32, a: u16) -> u32 {
+    b
+}

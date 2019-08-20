@@ -8,10 +8,7 @@ pub struct TypeId(usize);
 pub struct ValueId(usize);
 pub struct BlockId(usize);
 
-
-pub enum Action {
-    
-}
+pub enum Action {}
 
 pub struct Block {
     pub inputs: usize,
