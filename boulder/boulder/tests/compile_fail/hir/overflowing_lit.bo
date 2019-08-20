@@ -1,0 +1,7 @@
+# Literal out of range
+# `u8`
+# 256
+# (6:
+fn a(a: u8) -> u8 {
+    a + 256
+}

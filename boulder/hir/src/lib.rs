@@ -9,6 +9,8 @@ pub use ty::{Type, TypeId};
 
 use mir::Mir;
 
+use std::convert::TryFrom;
+
 #[derive(Debug, Clone)]
 pub enum UnresolvedType {
     Named(Box<str>),
@@ -48,6 +50,10 @@ impl<'a> Hir<'a, UnresolvedVariable<'a>, UnresolvedType, ()> {
                 Type {
                     name: "Empty".into(),
                     kind: ty::Kind::Empty,
+                },
+                Type {
+                    name: "Never".into(),
+                    kind: ty::Kind::Never,
                 },
                 Type {
                     name: "u8".into(),

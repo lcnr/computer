@@ -192,8 +192,11 @@ impl<'a> Function<'a, Meta<'a, VariableId>, TypeId, TypeId> {
             variables[i] = Some(id);
         }
 
-        func.content.push(start);
+        let id = func.add_block(start);
 
+        let ret = self.body.to_mir(types, &mut variables, id, &mut func)?;
+        func.block(id).add_step(mir::Step::new(ty::NEVER_ID.to_mir(), mir::Action::Return(ret)));
+        
         Ok(dbg!(func))
     }
 }

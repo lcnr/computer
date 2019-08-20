@@ -69,8 +69,9 @@ fn compile_fail() -> Result<(), std::io::Error> {
             assert_ne!(
                 count,
                 0,
-                "`{}` did not check any error messages",
-                entry.path().display()
+                "`{}` did not check any error messages, actual output:\n{}",
+                entry.path().display(),
+                output.trim(),
             );
         }
     }

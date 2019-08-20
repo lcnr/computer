@@ -12,6 +12,7 @@ impl TypeId {
 }
 
 pub const EMPTY_ID: TypeId = TypeId(0);
+pub const NEVER_ID: TypeId = TypeId(0);
 pub const INTEGER_GROUP_ID: GroupId = GroupId(0);
 
 #[derive(Debug, Clone)]
@@ -24,6 +25,7 @@ impl Type {
     pub fn to_mir(self) -> mir::Type {
         match self.kind {
             Kind::Empty => mir::Type::Empty,
+            Kind::Never => mir::Type::Never,
             Kind::U8 => mir::Type::U8,
             Kind::U16 => mir::Type::U16,
             Kind::U32 => mir::Type::U32,
@@ -34,6 +36,7 @@ impl Type {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Kind {
     Empty,
+    Never,
     U8,
     U16,
     U32,

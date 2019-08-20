@@ -72,6 +72,8 @@ impl<'a> Expression<'a, UnresolvedVariable<'a>, ()> {
                 Box::new(lhs.resolve_variables(variables, lookup)?),
             ),
             Expression::Assignment((), var, expr) => {
+                let expr = expr.resolve_variables(variables, lookup)?;
+
                 let id = match var {
                     UnresolvedVariable::Simple(name) => get_id(name, lookup)?,
                     UnresolvedVariable::Typed(name, type_name) => {
@@ -86,7 +88,7 @@ impl<'a> Expression<'a, UnresolvedVariable<'a>, ()> {
                     }
                 };
 
-                Expression::Assignment((), id, Box::new(expr.resolve_variables(variables, lookup)?))
+                Expression::Assignment((), id, Box::new(expr))
             }
             Expression::Statement((), meta, expr) => Expression::Statement(
                 (),
@@ -212,51 +214,80 @@ impl<'a> Expression<'a, Meta<'a, VariableId>, TypeId> {
     pub fn to_mir(
         self,
         types: &[mir::Type],
-        variables: &[TypeId],
         var_lookup: &mut [Option<mir::StepId>],
-        curr: &mut mir::Block,
+        curr: mir::BlockId,
         func: &mut mir::Function,
-    ) -> mir::StepId {
+    ) -> Result<mir::StepId, CompileError> {
+        use mir::{Action, Object, Step};
         match self {
-            Expression::Block(ty, meta, v) => {
-                /*if let Some((last, start)) = v.split_last() {
-                    for e in start {
-                        let _stmt = e.type_constraints(constraints);
+            Expression::Block(ty, _, mut v) => {
+                // we do not start a new block for an expression block
+                // as only control flow requires new blocks
+                Ok(if let Some(last) = v.pop() {
+                    for e in v {
+                        e.to_mir(types, var_lookup, curr, func)?;
                     }
+
+                    last.to_mir(types, var_lookup, curr, func)?
                 } else {
-                    constraints.add_entity(meta.clone(), ty::State::Solved(ty::EMPTY_ID))
-                }*/
-                mir::StepId(0)
+                    assert_eq!(ty, ty::EMPTY_ID);
+                    func.block(curr).add_step(Step::new(ty.to_mir(), Action::LoadConstant(Object::Empty)))
+                })
             }
-            /*Expression::Variable((), var) => constraints.convert_variable_id(var.clone()),
-            Expression::Lit((), lit) => match &lit.item {
-                Literal::Integer(_) => {
-                    let id = constraints.add_entity(lit.simplify(), ty::State::Open);
-                    constraints.add_membership(id, ty::INTEGER_GROUP_ID);
-                    id
+            Expression::Variable(ty, var) => {
+                if let Some(step) = var_lookup[var.0] {
+                    assert_eq!(ty.to_mir(), func.block(curr).get_step(step).ty);
+                    Ok(step)
+                } else {
+                    CompileError::new(
+                        &var,
+                        format_args!(
+                            "Use of possibly uninitialized variable: `{}`",
+                            var.span_str()
+                        ),
+                    )
                 }
-            },
-            Expression::Binop((), op, a, b) => match op.item {
-                Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
-                    let a = a.type_constraints(constraints);
-                    constraints.add_membership(a, ty::INTEGER_GROUP_ID);
-                    let b = b.type_constraints(constraints);
-                    constraints.add_membership(b, ty::INTEGER_GROUP_ID);
-                    constraints.add_equality(a, b);
-                    a
-                }
-            },
-            Expression::Statement((), _meta, expr) => {
-                let _expr = expr.type_constraints(constraints);
-                constraints.add_entity(self.span(), ty::State::Solved(ty::EMPTY_ID))
             }
-            Expression::Assignment((), var, expr) => {
-                let expr = expr.type_constraints(constraints);
-                let var_id = constraints.convert_variable_id(var.clone());
-                constraints.add_equality(expr, var_id);
-                constraints.add_entity(self.span(), ty::State::Solved(ty::EMPTY_ID))
-            }*/
-            _ => unimplemented!(),
+            Expression::Lit(ty, lit) => {
+                let ty = ty.to_mir();
+                let obj = match (&types[ty.0], &lit.item) {
+                    (mir::Type::U8, &Literal::Integer(i)) => u8::try_from(i)
+                        .map(|i| Object::U8(i))
+                        .or_else(|_| CompileError::new(&lit, "Literal out of range for `u8`")),
+                    (mir::Type::U16, &Literal::Integer(i)) => u16::try_from(i)
+                        .map(|i| Object::U16(i))
+                        .or_else(|_| CompileError::new(&lit, "Literal out of range for `u16`")),
+                    (mir::Type::U32, &Literal::Integer(i)) => u32::try_from(i)
+                        .map(|i| Object::U32(i))
+                        .or_else(|_| CompileError::new(&lit, "Literal out of range for `u32`")),
+                    _ => unreachable!("Unknown literal type: `{:?}`", lit),
+                }?;
+                Ok(func.block(curr).add_step(Step::new(ty, Action::LoadConstant(obj))))
+            }
+            Expression::Binop(ty, op, a, b) => {
+                let a = a.to_mir(types, var_lookup, curr, func)?;
+                let b = b.to_mir(types, var_lookup, curr, func)?;
+                Ok(func.block(curr).add_step(Step::new(
+                    ty.to_mir(),
+                    match op.item {
+                        Binop::Add => Action::Add(a, b),
+                        Binop::Sub => Action::Sub(a, b),
+                        Binop::Mul => Action::Mul(a, b),
+                        Binop::Div => Action::Div(a, b),
+                    },
+                )))
+            }
+            Expression::Statement(ty, _meta, expr) => {
+                assert_eq!(ty, ty::EMPTY_ID);
+                expr.to_mir(types, var_lookup, curr, func)?;
+                Ok(func.block(curr).add_step(Step::new(ty.to_mir(), Action::LoadConstant(Object::Empty))))
+            }
+            Expression::Assignment(ty, var, expr) => {
+                let expr = expr.to_mir(types, var_lookup, curr, func)?;
+                var_lookup[var.0] = Some(expr);
+                assert_eq!(ty, ty::EMPTY_ID);
+                Ok(func.block(curr).add_step(Step::new(ty.to_mir(), Action::LoadConstant(Object::Empty))))
+            }
         }
     }
 }
