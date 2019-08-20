@@ -91,6 +91,52 @@ impl<'a> Expression<'a, UnresolvedVariable<'a>> {
     }
 }
 
+impl<'a> Expression<'a, Meta<'a, VariableId>> {
+    pub fn type_constraints(&self, constraints: &mut ty::Constraints<'a>) -> ty::EntityId {
+        match self {
+            Expression::Block(meta, v) => {
+                if let Some((last, start)) = v.split_last() {
+                    for e in start {
+                        let _stmt = e.type_constraints(constraints);
+                    }
+
+                    last.type_constraints(constraints)
+                } else {
+                    constraints.add_entity(meta.clone(), ty::State::Solved(ty::EMPTY_ID))
+                }
+            }
+            Expression::Variable(var) => constraints.convert_variable_id(var.clone()),
+            Expression::Lit(lit) => match &lit.item {
+                Literal::Integer(_) => {
+                    let id = constraints.add_entity(lit.simplify(), ty::State::Open);
+                    constraints.add_membership(id, ty::INTEGER_GROUP_ID);
+                    id
+                }
+            },
+            Expression::Binop(op, a, b) => match op.item {
+                Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
+                    let a = a.type_constraints(constraints);
+                    constraints.add_membership(a, ty::INTEGER_GROUP_ID);
+                    let b = b.type_constraints(constraints);
+                    constraints.add_membership(b, ty::INTEGER_GROUP_ID);
+                    constraints.add_equality(a, b);
+                    a
+                }
+            },
+            Expression::Statement(_meta, expr) => {
+                let _expr = expr.type_constraints(constraints);
+                constraints.add_entity(self.span(), ty::State::Solved(ty::EMPTY_ID))
+            }
+            Expression::Assignment(var, expr) => {
+                let expr = expr.type_constraints(constraints);
+                let var_id = constraints.convert_variable_id(var.clone());
+                constraints.add_equality(expr, var_id);
+                constraints.add_entity(self.span(), ty::State::Solved(ty::EMPTY_ID))
+            }
+        }
+    }
+}
+
 impl<'a, T: diagnostics::Span<'a>> diagnostics::Span<'a> for Expression<'a, T> {
     fn span(&self) -> Meta<'a, ()> {
         match self {
