@@ -70,9 +70,17 @@ impl<'a> Function<'a, UnresolvedVariable<'a>, UnresolvedType> {
         self.body = body;
     }
 
-    pub fn resolve_variables(mut self) -> Result<Function<'a, Meta<'a, VariableId>, UnresolvedType>, CompileError> {
+    pub fn resolve_variables(
+        mut self,
+    ) -> Result<Function<'a, Meta<'a, VariableId>, UnresolvedType>, CompileError> {
         let mut variable_lookup = Vec::new();
-        variable_lookup.push(self.variables.iter().enumerate().map(|(i, v)| (v.name.item.clone(), VariableId(i))).collect());
+        variable_lookup.push(
+            self.variables
+                .iter()
+                .enumerate()
+                .map(|(i, v)| (v.name.item.clone(), VariableId(i)))
+                .collect(),
+        );
 
         let body = self
             .body

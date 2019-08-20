@@ -48,20 +48,19 @@ impl<'a> Expression<'a, UnresolvedVariable<'a>> {
                 lookup.pop();
                 Expression::Block(meta, new)
             }
-            Expression::Variable(var) =>
-                match var {
-                    UnresolvedVariable::Simple(name) => Expression::Variable(get_id(name, lookup)?),
-                    UnresolvedVariable::Typed(name, type_name) => {
-                        let id = VariableId(variables.len());
-                        let meta = name.simplify();
-                        lookup.last_mut().unwrap().push((name.item.clone(), id));
-                        variables.push(function::Variable {
-                            name,
-                            ty: type_name.map(|name| UnresolvedType::Named(name)),
-                        });
-                        Expression::Variable(meta.replace(id))
-                    }
+            Expression::Variable(var) => match var {
+                UnresolvedVariable::Simple(name) => Expression::Variable(get_id(name, lookup)?),
+                UnresolvedVariable::Typed(name, type_name) => {
+                    let id = VariableId(variables.len());
+                    let meta = name.simplify();
+                    lookup.last_mut().unwrap().push((name.item.clone(), id));
+                    variables.push(function::Variable {
+                        name,
+                        ty: type_name.map(|name| UnresolvedType::Named(name)),
+                    });
+                    Expression::Variable(meta.replace(id))
                 }
+            },
             Expression::Lit(lit) => Expression::Lit(lit),
             Expression::Binop(op, rhs, lhs) => Expression::Binop(
                 op,

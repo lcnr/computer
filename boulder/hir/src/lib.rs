@@ -4,9 +4,12 @@ use std::collections::HashMap;
 
 pub mod expression;
 pub mod function;
+pub mod ty;
 //mod to_mir;
 
 pub use function::{Function, VariableId};
+
+use ty::Type;
 
 #[derive(Debug, Clone)]
 pub enum UnresolvedType {
@@ -34,14 +37,6 @@ pub enum Binop {
 pub struct TypeId(usize);
 
 #[derive(Debug, Clone)]
-pub enum Type {
-    TypeId(TypeId),
-    Named(Box<str>),
-    Integer,
-    Unknown,
-}
-
-#[derive(Debug, Clone)]
 pub enum Literal {
     Integer(u128),
 }
@@ -49,12 +44,19 @@ pub enum Literal {
 #[derive(Debug)]
 pub struct Hir<'a, V, T> {
     functions: Vec<Function<'a, V, T>>,
+    types: Vec<Type>,
 }
 
 impl<'a> Hir<'a, UnresolvedVariable<'a>, UnresolvedType> {
     pub fn new() -> Self {
         Self {
             functions: Vec::new(),
+            types: vec![
+                Type { name: "Empty".into(), kind: ty::Kind::Empty },
+                Type { name: "u8".into(), kind: ty::Kind::U8 },
+                Type { name: "u16".into(), kind: ty::Kind::U16 },
+                Type { name: "u32".into(), kind: ty::Kind::U32 },
+            ]
         }
     }
 
@@ -76,9 +78,16 @@ impl<'a> Hir<'a, UnresolvedVariable<'a>, UnresolvedType> {
         }
     }
 
-    pub fn resolve_variables(self) -> Result<Hir<'a, Meta<'a, VariableId>, UnresolvedType>, CompileError> {
+    pub fn resolve_variables(
+        self,
+    ) -> Result<Hir<'a, Meta<'a, VariableId>, UnresolvedType>, CompileError> {
         Ok(Hir {
-            functions: self.functions.into_iter().map(|f| f.resolve_variables()).collect::<Result<Vec<_>, CompileError>>()?,
+            functions: self
+                .functions
+                .into_iter()
+                .map(|f| f.resolve_variables())
+                .collect::<Result<Vec<_>, CompileError>>()?,
+            types: self.types,
         })
     }
 }

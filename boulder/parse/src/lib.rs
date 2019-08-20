@@ -7,7 +7,9 @@ mod tokenize;
 
 use tokenize::{BlockDelim, Keyword, Operator, Token, TokenIter};
 
-pub fn parse<'a>(src: &'a str) -> Result<Hir<Meta<'a,hir::VariableId>, hir::UnresolvedType>, CompileError> {
+pub fn parse<'a>(
+    src: &'a str,
+) -> Result<Hir<Meta<'a, hir::VariableId>, hir::UnresolvedType>, CompileError> {
     let iter = &mut TokenIter::new(src);
     let mut hir = Hir::new();
     while let Some(mut token) = iter.next() {
@@ -67,7 +69,9 @@ fn parse_binop_rhs<'a>(
 ) -> Result<hir::Expression<'a>, CompileError> {
     let mut start = iter.next().unwrap();
     let mut expr = match mem::replace(&mut start.item, Token::Invalid) {
-        Token::Ident(v) => hir::Expression::Variable(hir::UnresolvedVariable::Simple(start.replace(v))),
+        Token::Ident(v) => {
+            hir::Expression::Variable(hir::UnresolvedVariable::Simple(start.replace(v)))
+        }
         Token::Integer(c) => hir::Expression::Lit(start.replace(hir::Literal::Integer(c))),
         Token::OpenBlock(BlockDelim::Parenthesis) => {
             let expr = parse_expression(iter)?;
@@ -138,15 +142,24 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Expression<'a>,
                 )),
                 Token::Operator(_) => {
                     iter.step_back(next);
-                    parse_binop(hir::Expression::Variable(hir::UnresolvedVariable::Simple(start.replace(v))), iter)
+                    parse_binop(
+                        hir::Expression::Variable(hir::UnresolvedVariable::Simple(
+                            start.replace(v),
+                        )),
+                        iter,
+                    )
                 }
                 Token::SemiColon => Ok(hir::Expression::Statement(
                     next.simplify(),
-                    Box::new(hir::Expression::Variable(hir::UnresolvedVariable::Simple(start.replace(v)))),
+                    Box::new(hir::Expression::Variable(hir::UnresolvedVariable::Simple(
+                        start.replace(v),
+                    ))),
                 )),
                 Token::CloseBlock(BlockDelim::Brace) => {
                     iter.step_back(next);
-                    Ok(hir::Expression::Variable(hir::UnresolvedVariable::Simple(start.replace(v))))
+                    Ok(hir::Expression::Variable(hir::UnresolvedVariable::Simple(
+                        start.replace(v),
+                    )))
                 }
                 _ => CompileError::expected(
                     &[
