@@ -183,7 +183,8 @@ impl<'a> Function<'a, Meta<'a, VariableId>, TypeId> {
         let mut func = mir::Function::new();
         let mut start = mir::Block::new();
 
-        let mut variables: Vec<Option<mir::StepId>> = std::iter::repeat(None).take(self.variables.len()).collect();
+        let mut variables: Vec<Option<mir::StepId>> =
+            std::iter::repeat(None).take(self.variables.len()).collect();
         for (i, arg) in self.arguments.iter().enumerate() {
             let id = start.add_input(self.variables[arg.0].ty.to_mir());
             variables[i] = Some(id);

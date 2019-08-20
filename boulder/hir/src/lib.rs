@@ -116,14 +116,11 @@ impl<'a> Hir<'a, Meta<'a, VariableId>, TypeId> {
     pub fn to_mir(self) -> Result<Mir, CompileError> {
         let types: Vec<_> = self.types.into_iter().map(|t| t.to_mir()).collect();
         let functions = self
-                .functions
-                .into_iter()
-                .map(|f| f.to_mir(&types))
-                .collect::<Result<Vec<_>, CompileError>>()?;
+            .functions
+            .into_iter()
+            .map(|f| f.to_mir(&types))
+            .collect::<Result<Vec<_>, CompileError>>()?;
 
-        Ok(Mir {
-            types,
-            functions,
-        })
+        Ok(Mir { types, functions })
     }
 }
