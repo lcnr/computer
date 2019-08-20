@@ -88,7 +88,6 @@ impl<'a> Expression<'a, UnresolvedVariable<'a>> {
             Expression::Statement(meta, expr) => {
                 Expression::Statement(meta, Box::new(expr.resolve_variables(variables, lookup)?))
             }
-            _ => unimplemented!(),
         })
     }
 }
