@@ -1,3 +1,4 @@
+# Cannot find value `ab`
 fn a(a: u32) -> u32 {
     ab
 }

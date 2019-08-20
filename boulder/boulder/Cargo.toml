@@ -7,7 +7,7 @@ edition = "2018"
 [dependencies]
 diagnostics = { path = "../diagnostics" }
 parse = { path = "../parse"}
-hir = { path = "../hir" }
+mir = { path = "../mir" }
 
 [dev-dependencies]
 walkdir = "2.2.9"

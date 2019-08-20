@@ -9,7 +9,7 @@ use tokenize::{BlockDelim, Keyword, Operator, Token, TokenIter};
 
 pub fn parse<'a>(
     src: &'a str,
-) -> Result<Hir<Meta<'a, hir::VariableId>, hir::UnresolvedType>, CompileError> {
+) -> Result<Hir<hir::UnresolvedVariable, hir::UnresolvedType>, CompileError> {
     let iter = &mut TokenIter::new(src);
     let mut hir = Hir::new();
     while let Some(mut token) = iter.next() {
@@ -22,7 +22,7 @@ pub fn parse<'a>(
         }
     }
 
-    Ok(hir.resolve_variables()?)
+    Ok(hir)
 }
 
 fn consume_token(expected: Token, iter: &mut TokenIter) -> Result<(), CompileError> {
@@ -46,6 +46,20 @@ fn expect_ident<'a>(tok: Meta<'a, Token>) -> Result<Meta<'a, Box<str>>, CompileE
         CompileError::expected(&"Ident", &tok)
     } else {
         Ok(tok)
+    }
+}
+
+fn check_expr_terminator<'a>(
+    tok: Meta<'a, Token>,
+    prev_checked: &[Token],
+) -> Result<Meta<'a, Token>, CompileError> {
+    match tok.item {
+        Token::SemiColon | Token::CloseBlock(_) => Ok(tok),
+        _ => {
+            let mut expected = vec![Token::SemiColon, Token::CloseBlock(BlockDelim::Brace)];
+            expected.extend_from_slice(prev_checked);
+            CompileError::expected(&expected, &tok)
+        }
     }
 }
 
@@ -120,11 +134,14 @@ fn parse_binop<'a>(
         next = iter.next().unwrap();
     }
 
-    if next.item == Token::SemiColon {
-        Ok(hir::Expression::Statement(next.simplify(), Box::new(lhs)))
-    } else {
-        iter.step_back(next);
-        Ok(lhs)
+    match &next.item {
+        _ => {
+            iter.step_back(check_expr_terminator(
+                next,
+                &[Token::Operator(Operator::Add)],
+            )?);
+            Ok(lhs)
+        }
     }
 }
 
@@ -149,27 +166,15 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Expression<'a>,
                         iter,
                     )
                 }
-                Token::SemiColon => Ok(hir::Expression::Statement(
-                    next.simplify(),
-                    Box::new(hir::Expression::Variable(hir::UnresolvedVariable::Simple(
-                        start.replace(v),
-                    ))),
-                )),
-                Token::CloseBlock(BlockDelim::Brace) => {
-                    iter.step_back(next);
+                _ => {
+                    iter.step_back(check_expr_terminator(
+                        next,
+                        &[Token::Assignment, Token::Operator(Operator::Add)],
+                    )?);
                     Ok(hir::Expression::Variable(hir::UnresolvedVariable::Simple(
                         start.replace(v),
                     )))
                 }
-                _ => CompileError::expected(
-                    &[
-                        Token::Assignment,
-                        Token::Operator(Operator::Add),
-                        Token::SemiColon,
-                        Token::CloseBlock(BlockDelim::Brace),
-                    ],
-                    &next,
-                ),
             }
         }
         Token::Integer(c) => {
@@ -183,7 +188,10 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Expression<'a>,
                     )
                 }
                 _ => {
-                    iter.step_back(next);
+                    iter.step_back(check_expr_terminator(
+                        next,
+                        &[Token::Assignment, Token::Operator(Operator::Add)],
+                    )?);
                     Ok(hir::Expression::Lit(
                         start.replace(hir::Literal::Integer(c)),
                     ))
@@ -207,7 +215,15 @@ fn parse_block<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Expression<'a>, Comp
     let start = iter.current_offset();
     let line = iter.current_line();
     loop {
-        let tok = iter.next().unwrap();
+        let mut tok = iter.next().unwrap();
+
+        while tok.item == Token::SemiColon {
+            tok = iter.next().unwrap();
+            if let Some(expr) = block.pop() {
+                block.push(hir::Expression::Statement(tok.simplify(), Box::new(expr)));
+            }
+        }
+
         if tok.item == Token::CloseBlock(BlockDelim::Brace) {
             let end = iter.current_offset();
             return Ok(hir::Expression::Block(
@@ -261,45 +277,4 @@ fn parse_function<'a>(
     func.set_body(parse_block(iter)?);
 
     Ok(func)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn identity() {
-        parse("fn identity(t: u32) -> u32 { t }").unwrap();
-    }
-
-    #[test]
-    fn variables() {
-        parse(
-            "fn var(t: u32) -> u32 { 
-                let a: u32 = t + 1;
-                a
-            }",
-        )
-        .unwrap();
-    }
-
-    #[test]
-    fn add_one() {
-        parse("fn add_one(t: u32) -> u32 { t + 1 }").unwrap();
-        parse("fn add_one(t: u32) -> u32 { 1 + t }").unwrap();
-    }
-    #[test]
-    fn binop_chain() {
-        parse("fn a(t: u32) -> u32 { t + t / t - (t - t * t) + t }").unwrap();
-    }
-
-    #[test]
-    fn function() {
-        parse(
-            "fn added(a: u32, b: u32) -> u32 {
-                a + basti
-            }",
-        )
-        .unwrap();
-    }
 }

@@ -55,15 +55,23 @@ fn compile_fail() -> Result<(), std::io::Error> {
                 entry.path().display()
             );
             let output = output.lock().unwrap();
+            let mut count = 0;
             for expected in expected {
+                count += 1;
                 assert!(
                     output.contains(expected),
-                    "`{}` did not contain `{}` ({})",
+                    "{}: `{}` did not contain `{}`",
+                    entry.path().display(),
                     output.trim(),
                     expected,
-                    entry.path().display(),
                 );
             }
+            assert_ne!(
+                count,
+                0,
+                "`{}` did not check any error messages",
+                entry.path().display()
+            );
         }
     }
 

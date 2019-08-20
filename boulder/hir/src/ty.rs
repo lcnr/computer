@@ -5,6 +5,12 @@ use std::collections::HashSet;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TypeId(pub usize);
 
+impl TypeId {
+    pub fn to_mir(self) -> mir::TypeId {
+        mir::TypeId(self.0)
+    }
+}
+
 pub const EMPTY_ID: TypeId = TypeId(0);
 pub const INTEGER_GROUP_ID: GroupId = GroupId(0);
 
@@ -12,6 +18,17 @@ pub const INTEGER_GROUP_ID: GroupId = GroupId(0);
 pub struct Type {
     pub name: Box<str>,
     pub kind: Kind,
+}
+
+impl Type {
+    pub fn to_mir(self) -> mir::Type {
+        match self.kind {
+            Kind::Empty => mir::Type::Empty,
+            Kind::U8 => mir::Type::U8,
+            Kind::U16 => mir::Type::U16,
+            Kind::U32 => mir::Type::U32,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

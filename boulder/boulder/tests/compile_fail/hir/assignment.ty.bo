@@ -1,0 +1,8 @@
+# Mismatched types
+# `u32`
+# `u16`
+# (6:
+fn assignment(a: u32) -> u32 {
+    let b: u16 = a + 1;
+    a
+}

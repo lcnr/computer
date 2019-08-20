@@ -1,6 +1,7 @@
-# expected `Empty`
-# found `u32`
-# (6:
+# Expected
+# SemiColon
+# found `a`
+# (8:
 
 fn semi(a: u32) -> u32 {
     a + 3
