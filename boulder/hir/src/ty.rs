@@ -71,7 +71,7 @@ impl Group {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct EntityId(usize);
+pub struct EntityId(pub usize);
 
 #[derive(Debug, Clone)]
 pub struct Entity<'a> {

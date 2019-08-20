@@ -98,7 +98,9 @@ impl<'a> Hir<'a, UnresolvedVariable<'a>, UnresolvedType, ()> {
 }
 
 impl<'a> Hir<'a, Meta<'a, VariableId>, UnresolvedType, ()> {
-    pub fn resolve_types(self) -> Result<Hir<'a, Meta<'a, VariableId>, TypeId, TypeId>, CompileError> {
+    pub fn resolve_types(
+        self,
+    ) -> Result<Hir<'a, Meta<'a, VariableId>, TypeId, TypeId>, CompileError> {
         let types = self.types;
         let functions = self
             .functions

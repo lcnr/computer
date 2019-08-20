@@ -1,5 +1,7 @@
 use crate::*;
 
+use crate::ty::EntityId;
+
 #[derive(Debug, Clone)]
 pub enum Expression<'a, V, N> {
     Block(N, Meta<'a, ()>, Vec<Expression<'a, V, N>>),
@@ -63,7 +65,8 @@ impl<'a> Expression<'a, UnresolvedVariable<'a>, ()> {
                 }
             },
             Expression::Lit((), lit) => Expression::Lit((), lit),
-            Expression::Binop((), op, rhs, lhs) => Expression::Binop((), 
+            Expression::Binop((), op, rhs, lhs) => Expression::Binop(
+                (),
                 op,
                 Box::new(rhs.resolve_variables(variables, lookup)?),
                 Box::new(lhs.resolve_variables(variables, lookup)?),
@@ -85,58 +88,127 @@ impl<'a> Expression<'a, UnresolvedVariable<'a>, ()> {
 
                 Expression::Assignment((), id, Box::new(expr.resolve_variables(variables, lookup)?))
             }
-            Expression::Statement((), meta, expr) => {
-                Expression::Statement((), meta, Box::new(expr.resolve_variables(variables, lookup)?))
-            }
+            Expression::Statement((), meta, expr) => Expression::Statement(
+                (),
+                meta,
+                Box::new(expr.resolve_variables(variables, lookup)?),
+            ),
         })
     }
 }
 
 impl<'a> Expression<'a, Meta<'a, VariableId>, ()> {
-    pub fn type_constraints(&self, constraints: &mut ty::Constraints<'a>) -> ty::EntityId {
+    pub fn type_constraints(
+        self,
+        constraints: &mut ty::Constraints<'a>,
+    ) -> Expression<'a, Meta<'a, VariableId>, EntityId> {
         match self {
             Expression::Block((), meta, v) => {
-                if let Some((last, start)) = v.split_last() {
-                    for e in start {
-                        let _stmt = e.type_constraints(constraints);
-                    }
-
-                    last.type_constraints(constraints)
+                let (id, content) = if v.is_empty() {
+                    (
+                        constraints.add_entity(meta.simplify(), ty::State::Solved(ty::EMPTY_ID)),
+                        Vec::new(),
+                    )
                 } else {
-                    constraints.add_entity(meta.clone(), ty::State::Solved(ty::EMPTY_ID))
-                }
+                    let content = v
+                        .into_iter()
+                        .map(|expr| expr.type_constraints(constraints))
+                        .collect::<Vec<_>>();
+                    let id = content.last().unwrap().id();
+                    (id, content)
+                };
+                Expression::Block(id, meta, content)
             }
-            Expression::Variable((), var) => constraints.convert_variable_id(var.clone()),
+            Expression::Variable((), var) => {
+                Expression::Variable(constraints.convert_variable_id(var.clone()), var)
+            }
             Expression::Lit((), lit) => match &lit.item {
                 Literal::Integer(_) => {
                     let id = constraints.add_entity(lit.simplify(), ty::State::Open);
                     constraints.add_membership(id, ty::INTEGER_GROUP_ID);
-                    id
+                    Expression::Lit(id, lit)
                 }
             },
             Expression::Binop((), op, a, b) => match op.item {
                 Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
                     let a = a.type_constraints(constraints);
-                    constraints.add_membership(a, ty::INTEGER_GROUP_ID);
+                    constraints.add_membership(a.id(), ty::INTEGER_GROUP_ID);
                     let b = b.type_constraints(constraints);
-                    constraints.add_membership(b, ty::INTEGER_GROUP_ID);
-                    constraints.add_equality(a, b);
-                    a
+                    constraints.add_membership(b.id(), ty::INTEGER_GROUP_ID);
+                    constraints.add_equality(a.id(), b.id());
+                    Expression::Binop(a.id(), op, Box::new(a), Box::new(b))
                 }
             },
-            Expression::Statement((), _meta, expr) => {
-                let _expr = expr.type_constraints(constraints);
-                constraints.add_entity(self.span(), ty::State::Solved(ty::EMPTY_ID))
+            Expression::Statement((), meta, expr) => {
+                let span = expr.span().simplify().append(meta.clone());
+                let expr = expr.type_constraints(constraints);
+                Expression::Statement(
+                    constraints.add_entity(span, ty::State::Solved(ty::EMPTY_ID)),
+                    meta,
+                    Box::new(expr),
+                )
             }
             Expression::Assignment((), var, expr) => {
+                let span = var.span().simplify().append(expr.span());
                 let expr = expr.type_constraints(constraints);
                 let var_id = constraints.convert_variable_id(var.clone());
-                constraints.add_equality(expr, var_id);
-                constraints.add_entity(self.span(), ty::State::Solved(ty::EMPTY_ID))
+                constraints.add_equality(expr.id(), var_id);
+                Expression::Assignment(
+                    constraints.add_entity(span, ty::State::Solved(ty::EMPTY_ID)),
+                    var,
+                    Box::new(expr),
+                )
             }
         }
     }
+}
 
+impl<'a> Expression<'a, Meta<'a, VariableId>, EntityId> {
+    pub fn id(&self) -> EntityId {
+        match self {
+            &Expression::Block(id, _, _)
+            | &Expression::Variable(id, _)
+            | &Expression::Lit(id, _)
+            | &Expression::Binop(id, _, _, _)
+            | &Expression::Statement(id, _, _)
+            | &Expression::Assignment(id, _, _) => id,
+        }
+    }
+
+    pub fn insert_types(self, types: &[TypeId]) -> Expression<'a, Meta<'a, VariableId>, TypeId> {
+        match self {
+            Expression::Block(id, meta, v) => {
+                let ty = types[id.0];
+                let content = v
+                    .into_iter()
+                    .map(|expr| expr.insert_types(types))
+                    .collect::<Vec<_>>();
+                Expression::Block(ty, meta, content)
+            }
+            Expression::Variable(id, var) => Expression::Variable(types[id.0], var),
+            Expression::Lit(id, lit) => match &lit.item {
+                Literal::Integer(_) => Expression::Lit(types[id.0], lit),
+            },
+            Expression::Binop(id, op, a, b) => match op.item {
+                Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
+                    let a = a.insert_types(types);
+                    let b = b.insert_types(types);
+                    Expression::Binop(types[id.0], op, Box::new(a), Box::new(b))
+                }
+            },
+            Expression::Statement(id, meta, expr) => {
+                let expr = expr.insert_types(types);
+                Expression::Statement(types[id.0], meta, Box::new(expr))
+            }
+            Expression::Assignment(id, var, expr) => {
+                let expr = expr.insert_types(types);
+                Expression::Assignment(types[id.0], var, Box::new(expr))
+            }
+        }
+    }
+}
+
+impl<'a> Expression<'a, Meta<'a, VariableId>, TypeId> {
     pub fn to_mir(
         self,
         types: &[mir::Type],
@@ -146,7 +218,7 @@ impl<'a> Expression<'a, Meta<'a, VariableId>, ()> {
         func: &mut mir::Function,
     ) -> mir::StepId {
         match self {
-            Expression::Block((), meta, v) => {
+            Expression::Block(ty, meta, v) => {
                 /*if let Some((last, start)) = v.split_last() {
                     for e in start {
                         let _stmt = e.type_constraints(constraints);

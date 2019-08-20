@@ -10,9 +10,7 @@ type Expression<'a> = hir::expression::Expression<'a, hir::UnresolvedVariable<'a
 type Function<'a> = hir::Function<'a, hir::UnresolvedVariable<'a>, hir::UnresolvedType, ()>;
 type Hir<'a> = hir::Hir<'a, hir::UnresolvedVariable<'a>, hir::UnresolvedType, ()>;
 
-pub fn parse<'a>(
-    src: &'a str,
-) -> Result<Hir, CompileError> {
+pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
     let iter = &mut TokenIter::new(src);
     let mut hir = Hir::new();
     while let Some(mut token) = iter.next() {
@@ -73,7 +71,8 @@ fn parse_variable_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, C
     let ty = expect_ident(iter.next().unwrap())?;
     consume_token(Token::Assignment, iter)?;
     let input = parse_expression(iter)?;
-    Ok(Expression::Assignment((), 
+    Ok(Expression::Assignment(
+        (),
         hir::UnresolvedVariable::Typed(name, ty),
         Box::new(input),
     ))
@@ -156,16 +155,15 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
         Token::Ident(v) => {
             let next = iter.next().unwrap();
             match &next.item {
-                Token::Assignment => Ok(Expression::Assignment((), 
+                Token::Assignment => Ok(Expression::Assignment(
+                    (),
                     hir::UnresolvedVariable::Simple(next.replace(v.into())),
                     Box::new(parse_expression(iter)?),
                 )),
                 Token::Operator(_) => {
                     iter.step_back(next);
                     parse_binop(
-                        Expression::Variable((), hir::UnresolvedVariable::Simple(
-                            start.replace(v),
-                        )),
+                        Expression::Variable((), hir::UnresolvedVariable::Simple(start.replace(v))),
                         iter,
                     )
                 }
@@ -174,9 +172,10 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
                         next,
                         &[Token::Assignment, Token::Operator(Operator::Add)],
                     )?);
-                    Ok(Expression::Variable((), hir::UnresolvedVariable::Simple(
-                        start.replace(v),
-                    )))
+                    Ok(Expression::Variable(
+                        (),
+                        hir::UnresolvedVariable::Simple(start.replace(v)),
+                    ))
                 }
             }
         }
@@ -195,9 +194,7 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
                         next,
                         &[Token::Assignment, Token::Operator(Operator::Add)],
                     )?);
-                    Ok(Expression::Lit((), 
-                        start.replace(hir::Literal::Integer(c)),
-                    ))
+                    Ok(Expression::Lit((), start.replace(hir::Literal::Integer(c))))
                 }
             }
         }
@@ -229,7 +226,8 @@ fn parse_block<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, CompileEr
 
         if tok.item == Token::CloseBlock(BlockDelim::Brace) {
             let end = iter.current_offset();
-            return Ok(Expression::Block((), 
+            return Ok(Expression::Block(
+                (),
                 Meta::empty(iter.source(), line, start..end),
                 block,
             ));
@@ -241,9 +239,7 @@ fn parse_block<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, CompileEr
 }
 
 // parse a function, `fn` should already be consumed
-fn parse_function<'a>(
-    iter: &mut TokenIter<'a>,
-) -> Result<Function<'a>, CompileError> {
+fn parse_function<'a>(iter: &mut TokenIter<'a>) -> Result<Function<'a>, CompileError> {
     let mut func = Function::new(expect_ident(iter.next().unwrap())?);
 
     consume_token(Token::OpenBlock(BlockDelim::Parenthesis), iter)?;

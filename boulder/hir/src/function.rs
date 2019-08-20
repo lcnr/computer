@@ -157,10 +157,12 @@ impl<'a> Function<'a, Meta<'a, VariableId>, UnresolvedType, ()> {
             UnresolvedType::Unknown => (),
         }
         let body = self.body.type_constraints(&mut constraints);
-        constraints.add_equality(id, body);
+        constraints.add_equality(id, body.id());
 
         let entities = constraints.solve(types)?;
-        /*Ok(Function {
+
+        let body = body.insert_types(&entities);
+        Ok(Function {
             name: self.name,
             arguments: self.arguments,
             ret: self.ret.replace(entities[self.variables.len()]),
@@ -173,9 +175,8 @@ impl<'a> Function<'a, Meta<'a, VariableId>, UnresolvedType, ()> {
                     ty: v.ty.replace(t),
                 })
                 .collect(),
-            body: self.body,
-        });*/
-        unimplemented!()
+            body: body,
+        })
     }
 }
 
