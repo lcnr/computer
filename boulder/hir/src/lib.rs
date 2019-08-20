@@ -1,14 +1,12 @@
-use boulder_core::{CompileError, Meta};
+use diagnostics::{CompileError, Meta};
 
 use std::collections::HashMap;
 
 pub mod expression;
 pub mod function;
-mod to_mir;
+//mod to_mir;
 
 pub use function::{Function, VariableId};
-
-use to_mir::MirBuilder;
 
 #[derive(Debug, Clone)]
 pub enum UnresolvedType {
@@ -17,7 +15,12 @@ pub enum UnresolvedType {
     Unknown,
 }
 
-pub type Expression<'a> = expression::Expression<'a, Box<str>, UnresolvedType>;
+pub enum UnresolvedVariable<'a> {
+    Simple(Meta<'a, Box<str>>),
+    Typed(Meta<'a, Box<str>>, Meta<'a, Box<str>>),
+}
+
+pub type Expression<'a> = expression::Expression<'a, UnresolvedVariable<'a>>;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Binop {
@@ -43,58 +46,23 @@ pub enum Literal {
     Integer(u128),
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct Context<'a, T> {
-    variables: HashMap<Box<str>, Box<str>>,
-    functions: HashMap<Box<str>, Vec<T>>,
-    _phantom: std::marker::PhantomData<&'a str>,
-}
-
-impl<T> Context<'_, T> {
-    fn new() -> Self {
-        Self {
-            variables: HashMap::new(),
-            functions: HashMap::new(),
-            _phantom: std::marker::PhantomData,
-        }
-    }
-}
-
-fn get_var_ty<'a, 'b: 'a, T>(global_ctx: &'b Vec<Context<'a, T>>, name: &str) -> Option<Box<str>> {
-    for ctx in global_ctx.iter().rev() {
-        let ty = ctx.variables.get(name);
-        if ty.is_some() {
-            return ty.cloned();
-        }
-    }
-    None
-}
-
 #[derive(Debug)]
-pub struct Hir<'a, T> {
-    functions: Vec<Function<'a, VariableId, T>>,
-    ctx: Context<'a, T>,
+pub struct Hir<'a, V, T> {
+    functions: Vec<Function<'a, V, T>>,
 }
 
-impl<'a> Hir<'a, UnresolvedType> {
+impl<'a> Hir<'a, UnresolvedVariable<'a>, UnresolvedType> {
     pub fn new() -> Self {
         Self {
             functions: Vec::new(),
-            ctx: Context::new(),
         }
     }
 
     pub fn add_function(
         &mut self,
-        func: Function<'a, VariableId, UnresolvedType>,
+        func: Function<'a, UnresolvedVariable<'a>, UnresolvedType>,
     ) -> Result<(), CompileError> {
-        if let Some(_old) = self.ctx.functions.insert(
-            func.name.item.clone(),
-            func.arguments
-                .iter()
-                .map(|a| func.variables[a.0].ty.item.clone())
-                .collect(),
-        ) {
+        if self.functions.iter().any(|f| f.name.item == func.name.item) {
             CompileError::new(
                 &func.name,
                 format_args!(
@@ -108,28 +76,15 @@ impl<'a> Hir<'a, UnresolvedType> {
         }
     }
 
-    /*pub fn type_ck(&self) -> Result<(), CompileError> {
-        let mut ctx = vec![self.ctx.clone()];
-        for func in self.functions.iter() {
-            func.type_ck(&mut ctx)?;
-        }
+    pub fn resolve_variables(self) -> Result<Hir<'a, Meta<'a, VariableId>, UnresolvedType>, CompileError> {
+        Ok(Hir {
+            functions: self.functions.into_iter().map(|f| f.resolve_variables()).collect::<Result<Vec<_>, CompileError>>()?,
+        })
+    }
+}
 
-        if let Some(c) = ctx.pop() {
-            assert!(
-                ctx.is_empty(),
-                "Internal compiler error, more than 1 context after type check: {:?}",
-                c
-            );
-        } else {
-            panic!(
-                "Internal compiler error, empty context after type check: {:?}",
-                ctx
-            );
-        }
-        Ok(())
-    }*/
-
-    //pub fn finalize(self) -> Result<mir::Mir, CompileError> {
-    //   MirBuilder::new(self.functions).build()
-    //}
+impl<'a> Hir<'a, VariableId, UnresolvedType> {
+    pub fn type_ck(mut self) -> Hir<'a, VariableId, TypeId> {
+        unimplemented!()
+    }
 }

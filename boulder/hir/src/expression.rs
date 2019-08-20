@@ -1,26 +1,25 @@
 use crate::*;
 
 #[derive(Debug, Clone)]
-pub enum Expression<'a, V, T> {
-    Block(Meta<'a, ()>, Vec<Expression<'a, V, T>>),
-    Variable(Meta<'a, V>),
+pub enum Expression<'a, V> {
+    Block(Meta<'a, ()>, Vec<Expression<'a, V>>),
+    Variable(V),
     Lit(Meta<'a, Literal>),
     Binop(
         Meta<'a, Binop>,
-        Box<Expression<'a, V, T>>,
-        Box<Expression<'a, V, T>>,
+        Box<Expression<'a, V>>,
+        Box<Expression<'a, V>>,
     ),
-    VariableDecl(Meta<'a, V>, Meta<'a, T>, Box<Expression<'a, V, T>>),
-    Statement(Meta<'a, ()>, Box<Expression<'a, V, T>>),
-    Assignment(Meta<'a, Box<str>>, Box<Expression<'a, V, T>>),
+    Statement(Meta<'a, ()>, Box<Expression<'a, V>>),
+    Assignment(V, Box<Expression<'a, V>>),
 }
 
-impl<'a, T> Expression<'a, Box<str>, T> {
+impl<'a> Expression<'a, UnresolvedVariable<'a>> {
     pub fn resolve_variables(
         self,
-        variables: &mut std::vec::Vec<function::Variable<'a, T>>,
+        variables: &mut std::vec::Vec<function::Variable<'a, UnresolvedType>>,
         lookup: &mut Vec<Vec<(Box<str>, VariableId)>>,
-    ) -> Result<Expression<'a, VariableId, T>, CompileError> {
+    ) -> Result<Expression<'a, Meta<'a, VariableId>>, CompileError> {
         fn get_id<'b>(
             name: Meta<'b, Box<str>>,
             lookup: &mut Vec<Vec<(Box<str>, VariableId)>>,
@@ -49,18 +48,43 @@ impl<'a, T> Expression<'a, Box<str>, T> {
                 lookup.pop();
                 Expression::Block(meta, new)
             }
-            Expression::Variable(name) => Expression::Variable(get_id(name, lookup)?),
+            Expression::Variable(var) =>
+                match var {
+                    UnresolvedVariable::Simple(name) => Expression::Variable(get_id(name, lookup)?),
+                    UnresolvedVariable::Typed(name, type_name) => {
+                        let id = VariableId(variables.len());
+                        let meta = name.simplify();
+                        lookup.last_mut().unwrap().push((name.item.clone(), id));
+                        variables.push(function::Variable {
+                            name,
+                            ty: type_name.map(|name| UnresolvedType::Named(name)),
+                        });
+                        Expression::Variable(meta.replace(id))
+                    }
+                }
             Expression::Lit(lit) => Expression::Lit(lit),
             Expression::Binop(op, rhs, lhs) => Expression::Binop(
                 op,
                 Box::new(rhs.resolve_variables(variables, lookup)?),
                 Box::new(lhs.resolve_variables(variables, lookup)?),
             ),
-            Expression::VariableDecl(name, ty, expr) => Expression::VariableDecl(
-                get_id(name, lookup)?,
-                ty,
-                Box::new(expr.resolve_variables(variables, lookup)?),
-            ),
+            Expression::Assignment(var, expr) => {
+                let id = match var {
+                    UnresolvedVariable::Simple(name) => get_id(name, lookup)?,
+                    UnresolvedVariable::Typed(name, type_name) => {
+                        let id = VariableId(variables.len());
+                        let meta = name.simplify();
+                        lookup.last_mut().unwrap().push((name.item.clone(), id));
+                        variables.push(function::Variable {
+                            name,
+                            ty: type_name.map(|name| UnresolvedType::Named(name)),
+                        });
+                        meta.replace(id)
+                    }
+                };
+
+                Expression::Assignment(id, Box::new(expr.resolve_variables(variables, lookup)?))
+            }
             Expression::Statement(meta, expr) => {
                 Expression::Statement(meta, Box::new(expr.resolve_variables(variables, lookup)?))
             }
@@ -69,109 +93,15 @@ impl<'a, T> Expression<'a, Box<str>, T> {
     }
 }
 
-impl Expression<'_, Box<str>, Box<str>> {
-    pub fn meta(&self) -> Meta<'_, ()> {
+impl<'a, T: diagnostics::Span<'a>> diagnostics::Span<'a> for Expression<'a, T> {
+    fn span(&self) -> Meta<'a, ()> {
         match self {
             Expression::Block(meta, _v) => meta.simplify(),
-            Expression::Variable(var) => var.simplify(),
+            Expression::Variable(var) => var.span(),
             Expression::Lit(lit) => lit.simplify(),
-            Expression::Binop(_op, a, b) => a.meta().append(b.meta()),
-            Expression::VariableDecl(var, _ty, expr) => var.simplify().append(expr.meta()),
-            Expression::Statement(meta, expr) => expr.meta().append(meta.clone()),
-            Expression::Assignment(var, expr) => var.simplify().append(expr.meta()),
-        }
-    }
-
-    pub fn ty_meta(&self) -> Meta<'_, ()> {
-        match self {
-            Expression::Block(meta, v) => v.last().map_or(meta.clone(), |v| v.ty_meta()),
-            e => e.meta(),
-        }
-    }
-
-    pub fn type_ck<'a>(
-        &self,
-        ctx: &mut Vec<Context<UnresolvedType>>,
-    ) -> Result<Box<str>, CompileError> {
-        match self {
-            Expression::Block(_meta, v) => {
-                if let Some((last, start)) = v.split_last() {
-                    ctx.push(Context::new());
-                    for stmt in start {
-                        let stmt_ty = stmt.type_ck(ctx)?;
-                        if &*stmt_ty != "Empty" {
-                            return CompileError::new(
-                                &stmt.meta(),
-                                format_args!(
-                                    "Invalid expression in block, expected `{}`, found `{}`",
-                                    "Empty", stmt_ty
-                                ),
-                            );
-                        }
-                    }
-
-                    let last_ty = last.type_ck(ctx);
-                    ctx.pop();
-                    last_ty
-                } else {
-                    Ok("Empty".into())
-                }
-            }
-            Expression::Variable(variable) => get_var_ty(ctx, variable).ok_or_else(|| {
-                CompileError::new::<_, (), _>(
-                    &variable,
-                    format_args!("Unknown variable: `{}`", variable.span_str()),
-                )
-                .unwrap_err()
-            }),
-            Expression::Lit(ty) => match ty.item {
-                Literal::Integer(_) => Ok("u32".into()),
-            },
-            Expression::Binop(op, a, b) => {
-                let a_ty = a.type_ck(ctx)?;
-                let b_ty = b.type_ck(ctx)?;
-                if a_ty != b_ty {
-                    CompileError::new(&op, format_args!("Mismatched types: {:?} is only implemented for identical types: {} != {}", op.item, a_ty, b_ty))
-                } else {
-                    Ok(a_ty)
-                }
-            }
-            Expression::VariableDecl(var, ty, expr) => {
-                let expr_ty = expr.type_ck(ctx)?;
-                if ty.item != expr_ty {
-                    CompileError::new(
-                        &var,
-                        format_args!(
-                            "Mismatched types: Tried to assign {} to a variable of type {}",
-                            ty.item, expr_ty
-                        ),
-                    )
-                } else {
-                    Ok("Empty".into())
-                }
-            }
-            Expression::Statement(_meta, expr) => {
-                let _check = expr.type_ck(ctx)?;
-                Ok("Empty".into())
-            }
-            Expression::Assignment(var, expr) => {
-                if let Some(ty) = get_var_ty(ctx, var) {
-                    let expr_ty = expr.type_ck(ctx)?;
-                    if ty != expr_ty {
-                        CompileError::new(
-                            &var,
-                            format_args!(
-                                "Mismatched types: Tried to assign {} to a variable of type {}",
-                                expr_ty, ty
-                            ),
-                        )
-                    } else {
-                        Ok("Empty".into())
-                    }
-                } else {
-                    CompileError::new(&var, format_args!("Unknown variable: `{}`", var.item))
-                }
-            }
+            Expression::Binop(_op, a, b) => a.span().append(b.span()),
+            Expression::Statement(meta, expr) => expr.span().append(meta.clone()),
+            Expression::Assignment(var, expr) => var.span().simplify().append(expr.span()),
         }
     }
 }

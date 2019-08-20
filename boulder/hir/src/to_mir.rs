@@ -1,4 +1,4 @@
-use boulder_core::CompileError;
+use diagnostics::CompileError;
 
 use crate::{Function, TypeId, VariableId};
 

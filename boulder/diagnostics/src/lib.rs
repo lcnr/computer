@@ -206,3 +206,13 @@ impl<'a, T: fmt::Debug> fmt::Debug for Meta<'a, T> {
             .finish()
     }
 }
+
+pub trait Span<'a> {
+    fn span(&self) -> Meta<'a, ()>;
+}
+
+impl<'a, T> Span<'a> for Meta<'a, T> {
+    fn span(&self) -> Meta<'a, ()> {
+        self.simplify()
+    }
+}

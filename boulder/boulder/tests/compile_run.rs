@@ -2,7 +2,7 @@ extern crate boulder;
 
 use walkdir::WalkDir;
 
-use boulder_core::CompileError;
+use diagnostics::CompileError;
 use std::{
     fs::File,
     io::{Error, ErrorKind, Read, Write},

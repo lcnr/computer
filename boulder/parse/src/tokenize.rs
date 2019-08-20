@@ -1,4 +1,4 @@
-use boulder_core::Meta;
+use diagnostics::Meta;
 
 use std::{fmt, ops::Range};
 

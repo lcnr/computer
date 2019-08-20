@@ -7,3 +7,11 @@ fn add_rev(a: u32) -> u32 { 1 + a }
 fn parenthesis(a: u32, b: u32) -> u32 {
     a + b + 1*(a- b * b) - b
 }
+fn assignment(a: u32) -> u32 {
+    let b: u32 = a + 1;
+    b + a
+}
+fn variable_shadow(a: u32) -> u32 {
+    let a: u32 = a + 1;
+    a
+}

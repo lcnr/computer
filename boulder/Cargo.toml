@@ -2,7 +2,7 @@
 
 members = [
     "boulder",
-    "boulder_core",
+    "diagnostics",
     "parse",
     "hir",
     "mir"

@@ -1,4 +1,4 @@
-use boulder_core::{CompileError, Meta};
+use diagnostics::{CompileError, Meta};
 use hir::Hir;
 
 use std::mem;
@@ -7,20 +7,20 @@ mod tokenize;
 
 use tokenize::{BlockDelim, Keyword, Operator, Token, TokenIter};
 
-pub fn parse(src: &str) -> Result<Hir<hir::UnresolvedType>, CompileError> {
+pub fn parse<'a>(src: &'a str) -> Result<Hir<Meta<'a,hir::VariableId>, hir::UnresolvedType>, CompileError> {
     let iter = &mut TokenIter::new(src);
     let mut hir = Hir::new();
     while let Some(mut token) = iter.next() {
         match mem::replace(&mut token.item, Token::Invalid) {
             Token::Keyword(Keyword::Function) => {
-                hir.add_function(parse_function(iter)?.build()?)?;
+                hir.add_function(parse_function(iter)?)?;
             }
             Token::EOF => break,
             _ => CompileError::expected(&[Token::Keyword(Keyword::Function), Token::EOF], &token)?,
         }
     }
 
-    Ok(hir)
+    Ok(hir.resolve_variables()?)
 }
 
 fn consume_token(expected: Token, iter: &mut TokenIter) -> Result<(), CompileError> {
@@ -54,9 +54,8 @@ fn parse_variable_decl<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Expression<'
     let ty = expect_ident(iter.next().unwrap())?;
     consume_token(Token::Assignment, iter)?;
     let input = parse_expression(iter)?;
-    Ok(hir::Expression::VariableDecl(
-        name,
-        ty.map(|t| hir::UnresolvedType::Named(t)),
+    Ok(hir::Expression::Assignment(
+        hir::UnresolvedVariable::Typed(name, ty),
         Box::new(input),
     ))
 }
@@ -68,7 +67,7 @@ fn parse_binop_rhs<'a>(
 ) -> Result<hir::Expression<'a>, CompileError> {
     let mut start = iter.next().unwrap();
     let mut expr = match mem::replace(&mut start.item, Token::Invalid) {
-        Token::Ident(v) => hir::Expression::Variable(start.replace(v)),
+        Token::Ident(v) => hir::Expression::Variable(hir::UnresolvedVariable::Simple(start.replace(v))),
         Token::Integer(c) => hir::Expression::Lit(start.replace(hir::Literal::Integer(c))),
         Token::OpenBlock(BlockDelim::Parenthesis) => {
             let expr = parse_expression(iter)?;
@@ -134,20 +133,20 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Expression<'a>,
             let next = iter.next().unwrap();
             match &next.item {
                 Token::Assignment => Ok(hir::Expression::Assignment(
-                    next.replace(v.into()),
+                    hir::UnresolvedVariable::Simple(next.replace(v.into())),
                     Box::new(parse_expression(iter)?),
                 )),
                 Token::Operator(_) => {
                     iter.step_back(next);
-                    parse_binop(hir::Expression::Variable(start.replace(v)), iter)
+                    parse_binop(hir::Expression::Variable(hir::UnresolvedVariable::Simple(start.replace(v))), iter)
                 }
                 Token::SemiColon => Ok(hir::Expression::Statement(
                     next.simplify(),
-                    Box::new(hir::Expression::Variable(start.replace(v))),
+                    Box::new(hir::Expression::Variable(hir::UnresolvedVariable::Simple(start.replace(v)))),
                 )),
                 Token::CloseBlock(BlockDelim::Brace) => {
                     iter.step_back(next);
-                    Ok(hir::Expression::Variable(start.replace(v)))
+                    Ok(hir::Expression::Variable(hir::UnresolvedVariable::Simple(start.replace(v))))
                 }
                 _ => CompileError::expected(
                     &[
@@ -212,7 +211,7 @@ fn parse_block<'a>(iter: &mut TokenIter<'a>) -> Result<hir::Expression<'a>, Comp
 // parse a function, `fn` should already be consumed
 fn parse_function<'a>(
     iter: &mut TokenIter<'a>,
-) -> Result<hir::Function<'a, Box<str>, hir::UnresolvedType>, CompileError> {
+) -> Result<hir::Function<'a, hir::UnresolvedVariable<'a>, hir::UnresolvedType>, CompileError> {
     let mut func = hir::Function::new(expect_ident(iter.next().unwrap())?);
 
     consume_token(Token::OpenBlock(BlockDelim::Parenthesis), iter)?;

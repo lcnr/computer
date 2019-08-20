@@ -1,7 +1,7 @@
-use boulder_core::CompileError;
+use diagnostics::{Meta, CompileError};
 use hir::Hir;
 
-pub fn compile(src: &str) -> Result<Hir<hir::UnresolvedType>, CompileError> {
+pub fn compile(src: &str) -> Result<Hir<Meta<'_, hir::VariableId>, hir::UnresolvedType>, CompileError> {
     let hir = parse::parse(&src)?;
 
     //hir.type_ck()?;

@@ -1,8 +1,8 @@
-use boulder_core::{CompileError, Meta};
+use diagnostics::{CompileError, Meta};
 
 use std::collections::HashMap;
 
-use crate::{expression::Expression, Context, Type, UnresolvedType};
+use crate::{expression::Expression, Type, UnresolvedType, UnresolvedVariable};
 
 #[derive(Debug, Clone, Copy)]
 pub struct VariableId(pub usize);
@@ -19,10 +19,10 @@ pub struct Function<'a, V, T> {
     pub arguments: Vec<VariableId>,
     pub variables: Vec<Variable<'a, T>>,
     pub ret: Meta<'a, T>,
-    pub body: Expression<'a, V, T>,
+    pub body: Expression<'a, V>,
 }
 
-impl<'a> Function<'a, Box<str>, UnresolvedType> {
+impl<'a> Function<'a, UnresolvedVariable<'a>, UnresolvedType> {
     pub fn new(name: Meta<'a, Box<str>>) -> Self {
         Self {
             name,
@@ -33,7 +33,7 @@ impl<'a> Function<'a, Box<str>, UnresolvedType> {
         }
     }
 
-    fn add_variable(
+    pub fn add_variable(
         &mut self,
         name: Meta<'a, Box<str>>,
         ty: Meta<'a, UnresolvedType>,
@@ -48,7 +48,7 @@ impl<'a> Function<'a, Box<str>, UnresolvedType> {
         name: Meta<'a, Box<str>>,
         ty: Meta<'a, UnresolvedType>,
     ) -> Result<(), CompileError> {
-        if let Some(arg) = self.variables.iter().find(|v| v.name.item == name.item) {
+        if self.variables.iter().any(|v| v.name.item == name.item) {
             CompileError::new(
                 &name,
                 format_args!(
@@ -66,11 +66,11 @@ impl<'a> Function<'a, Box<str>, UnresolvedType> {
         self.ret = ret.map(|r| UnresolvedType::Named(r));
     }
 
-    pub fn set_body(&mut self, body: Expression<'a, Box<str>, UnresolvedType>) {
+    pub fn set_body(&mut self, body: Expression<'a, UnresolvedVariable<'a>>) {
         self.body = body;
     }
 
-    pub fn build(mut self) -> Result<Function<'a, VariableId, UnresolvedType>, CompileError> {
+    pub fn resolve_variables(mut self) -> Result<Function<'a, Meta<'a, VariableId>, UnresolvedType>, CompileError> {
         let mut variable_lookup = Vec::new();
         variable_lookup.push(self.variables.iter().enumerate().map(|(i, v)| (v.name.item.clone(), VariableId(i))).collect());
 
