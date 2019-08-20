@@ -1,6 +1,4 @@
-use diagnostics::{CompileError, Meta};
-
-use std::collections::HashMap;
+use diagnostics::{CompileError, Meta, Span};
 
 pub mod expression;
 pub mod function;
@@ -9,7 +7,7 @@ pub mod ty;
 
 pub use function::{Function, VariableId};
 
-use ty::Type;
+pub use ty::{Type, TypeId};
 
 #[derive(Debug, Clone)]
 pub enum UnresolvedType {
@@ -33,9 +31,6 @@ pub enum Binop {
     Div,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct TypeId(usize);
-
 #[derive(Debug, Clone)]
 pub enum Literal {
     Integer(u128),
@@ -52,11 +47,23 @@ impl<'a> Hir<'a, UnresolvedVariable<'a>, UnresolvedType> {
         Self {
             functions: Vec::new(),
             types: vec![
-                Type { name: "Empty".into(), kind: ty::Kind::Empty },
-                Type { name: "u8".into(), kind: ty::Kind::U8 },
-                Type { name: "u16".into(), kind: ty::Kind::U16 },
-                Type { name: "u32".into(), kind: ty::Kind::U32 },
-            ]
+                Type {
+                    name: "Empty".into(),
+                    kind: ty::Kind::Empty,
+                },
+                Type {
+                    name: "u8".into(),
+                    kind: ty::Kind::U8,
+                },
+                Type {
+                    name: "u16".into(),
+                    kind: ty::Kind::U16,
+                },
+                Type {
+                    name: "u32".into(),
+                    kind: ty::Kind::U32,
+                },
+            ],
         }
     }
 
@@ -92,8 +99,15 @@ impl<'a> Hir<'a, UnresolvedVariable<'a>, UnresolvedType> {
     }
 }
 
-impl<'a> Hir<'a, VariableId, UnresolvedType> {
-    pub fn type_ck(mut self) -> Hir<'a, VariableId, TypeId> {
-        unimplemented!()
+impl<'a> Hir<'a, Meta<'a, VariableId>, UnresolvedType> {
+    pub fn resolve_types(self) -> Result<Hir<'a, Meta<'a, VariableId>, TypeId>, CompileError> {
+        let types = self.types;
+        let functions = self
+            .functions
+            .into_iter()
+            .map(|f| f.resolve_types(&types))
+            .collect::<Result<Vec<_>, CompileError>>()?;
+
+        Ok(Hir { functions, types })
     }
 }

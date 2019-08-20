@@ -2,7 +2,7 @@ use diagnostics::{CompileError, Meta};
 
 use std::collections::HashMap;
 
-use crate::{expression::Expression, Type, UnresolvedType, UnresolvedVariable};
+use crate::{expression::Expression, ty, Type, TypeId, UnresolvedType, UnresolvedVariable};
 
 #[derive(Debug, Clone, Copy)]
 pub struct VariableId(pub usize);
@@ -94,8 +94,86 @@ impl<'a> Function<'a, UnresolvedVariable<'a>, UnresolvedType> {
             body,
         })
     }
+}
 
-    //pub fn type_ck(&self, ctx: &mut Vec<Context>) -> Result<(), CompileError> {
-    //    unimplemented!()
-    //}
+impl<'a> Function<'a, Meta<'a, VariableId>, UnresolvedType> {
+    pub fn resolve_types(
+        self,
+        types: &[Type],
+    ) -> Result<Function<'a, Meta<'a, VariableId>, TypeId>, CompileError> {
+        let mut constraints = ty::Constraints::new();
+        let integers = constraints.add_group(
+            types
+                .iter()
+                .enumerate()
+                .filter(|(_, t)| [ty::Kind::U8, ty::Kind::U16, ty::Kind::U32].contains(&t.kind))
+                .fold(ty::Group::new("Integers".into()), |g, (i, _)| {
+                    g.with_member(TypeId(i))
+                }),
+        );
+
+        assert_eq!(integers, ty::INTEGER_GROUP_ID);
+
+        let lookup = types
+            .iter()
+            .enumerate()
+            .map(|(i, t)| (&t.name, i))
+            .collect::<HashMap<_, _>>();
+
+        // constraints must not contain any entities right now,
+        // as we want `VariableId`s to be equal to `EntityId`s
+        assert_eq!(constraints.entity_count(), 0);
+        for variable in self.variables.iter() {
+            let id = constraints.add_entity(variable.name.simplify(), ty::State::Open);
+            match variable.ty.item {
+                UnresolvedType::Integer => constraints.add_membership(id, integers),
+                UnresolvedType::Named(ref name) => {
+                    if let Some(&i) = lookup.get(&name) {
+                        constraints.set_state(id, ty::State::Solved(TypeId(i)));
+                    } else {
+                        CompileError::new(
+                            &variable.ty,
+                            format_args!("Cannot find type `{}` in this scope", name),
+                        )?;
+                    }
+                }
+                UnresolvedType::Unknown => (),
+            }
+        }
+
+        let id = constraints.add_entity(self.ret.simplify(), ty::State::Open);
+        match &self.ret.item {
+            UnresolvedType::Integer => constraints.add_membership(id, integers),
+            UnresolvedType::Named(ref name) => {
+                if let Some(&i) = lookup.get(&name) {
+                    constraints.set_state(id, ty::State::Solved(TypeId(i)));
+                } else {
+                    CompileError::new(
+                        &self.ret,
+                        format_args!("Cannot find type `{}` in this scope", name),
+                    )?;
+                }
+            }
+            UnresolvedType::Unknown => (),
+        }
+        let body = self.body.type_constraints(&mut constraints);
+        constraints.add_equality(id, body);
+
+        let entities = constraints.solve(types)?;
+        Ok(Function {
+            name: self.name,
+            arguments: self.arguments,
+            ret: self.ret.replace(entities[self.variables.len()]),
+            variables: self
+                .variables
+                .into_iter()
+                .zip(entities)
+                .map(|(v, t)| Variable {
+                    name: v.name,
+                    ty: v.ty.replace(t),
+                })
+                .collect(),
+            body: self.body,
+        })
+    }
 }
