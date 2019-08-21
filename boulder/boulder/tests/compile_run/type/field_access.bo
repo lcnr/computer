@@ -1,0 +1,8 @@
+struct A {
+    a: u32,
+    b: u32,
+}
+
+fn test(c: A) -> u32 {
+    c.a + c.b
+}

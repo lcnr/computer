@@ -257,7 +257,12 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     constraints.add_entity(name.simplify(), ty::State::Solved(definition.ty.item));
                 Expression::FunctionCall(ret, name, args)
             }
-            Expression::FieldAccess((), obj, field) => unimplemented!(),
+            Expression::FieldAccess((), obj, field) => {
+                let obj = obj.type_constraints(functions, constraints)?;
+                let access = constraints.add_entity(field.simplify(), ty::State::Open);
+                constraints.add_field_access(obj.id(), access, field.item.clone());
+                Expression::FieldAccess(access, Box::new(obj), field)
+            },
         })
     }
 }
@@ -278,48 +283,52 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
 
     pub fn insert_types(
         self,
-        types: &[TypeId],
+        types: &[Type<'a, TypeId>],
+        type_result: &[TypeId],
     ) -> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
         match self {
             Expression::Block(id, meta, v) => {
-                let ty = types[id.0];
+                let ty = type_result[id.0];
                 let content = v
                     .into_iter()
-                    .map(|expr| expr.insert_types(types))
+                    .map(|expr| expr.insert_types(types, type_result))
                     .collect::<Vec<_>>();
                 Expression::Block(ty, meta, content)
             }
-            Expression::Variable(id, var) => Expression::Variable(types[id.0], var),
+            Expression::Variable(id, var) => Expression::Variable(type_result[id.0], var),
             Expression::Lit(id, lit) => match &lit.item {
-                Literal::Integer(_) => Expression::Lit(types[id.0], lit),
+                Literal::Integer(_) => Expression::Lit(type_result[id.0], lit),
             },
             Expression::Binop(id, op, a, b) => match op.item {
                 Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
-                    let a = a.insert_types(types);
-                    let b = b.insert_types(types);
-                    Expression::Binop(types[id.0], op, Box::new(a), Box::new(b))
+                    let a = a.insert_types(types, type_result);
+                    let b = b.insert_types(types, type_result);
+                    Expression::Binop(type_result[id.0], op, Box::new(a), Box::new(b))
                 }
             },
             Expression::Statement(id, meta, expr) => {
-                let expr = expr.insert_types(types);
-                Expression::Statement(types[id.0], meta, Box::new(expr))
+                let expr = expr.insert_types(types, type_result);
+                Expression::Statement(type_result[id.0], meta, Box::new(expr))
             }
             Expression::Assignment(id, var, expr) => {
-                let expr = expr.insert_types(types);
-                Expression::Assignment(types[id.0], var, Box::new(expr))
+                let expr = expr.insert_types(types, type_result);
+                Expression::Assignment(type_result[id.0], var, Box::new(expr))
             }
             Expression::FunctionCall(id, name, args) => {
                 let args = args
                     .into_iter()
-                    .map(|expr| expr.insert_types(types))
+                    .map(|expr| expr.insert_types(types, type_result))
                     .collect::<Vec<_>>();
-                Expression::FunctionCall(types[id.0], name, args)
+                Expression::FunctionCall(type_result[id.0], name, args)
             }
-            Expression::FieldAccess(id, obj, field) => Expression::FieldAccess(
-                types[id.0],
-                Box::new(obj.insert_types(types)),
-                unimplemented!(),
-            ),
+            Expression::FieldAccess(id, obj, field) => {
+                let obj_ty = type_result[obj.id().0];
+                Expression::FieldAccess(
+                    type_result[id.0],
+                    Box::new(obj.insert_types(types, type_result)),
+                    field.map(|field| types[obj_ty.0].get_field(&field)),
+                )
+            }
         }
     }
 }

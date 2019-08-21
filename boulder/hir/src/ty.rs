@@ -75,6 +75,14 @@ impl<'a> Type<'a, Box<str>> {
 }
 
 impl<'a> Type<'a, TypeId> {
+    pub fn get_field(&self, name: &Box<str>) -> FieldId {
+        if let Kind::Struct(v) = &self.kind {
+            FieldId(v.binary_search_by(|probe| probe.name.cmp(name)).expect("`ty.get_field` did not contain `name`"))
+        } else {
+            unreachable!("Called `ty.get_field` with `{}` on a type which was not a struct.", name);
+        }
+    }
+
     pub fn to_mir(self) -> mir::Type {
         match self.kind {
             Kind::Unit => mir::Type::Unit,
@@ -165,11 +173,15 @@ pub enum State {
 struct Equality(EntityId, EntityId);
 
 #[derive(Debug, Clone)]
+struct FieldAccess(EntityId, EntityId, Box<str>);
+
+#[derive(Debug, Clone)]
 struct Membership(EntityId, GroupId);
 
 #[derive(Debug, Clone)]
 pub struct Constraints<'a> {
     equalities: Vec<Equality>,
+    fields: Vec<FieldAccess>,
     groups: Vec<Group>,
     entities: Vec<Entity<'a>>,
 }
@@ -178,6 +190,7 @@ impl<'a> Constraints<'a> {
     pub fn new() -> Self {
         Self {
             equalities: Vec::new(),
+            fields: Vec::new(),
             groups: Vec::new(),
             entities: Vec::new(),
         }
@@ -191,6 +204,10 @@ impl<'a> Constraints<'a> {
 
     pub fn add_equality(&mut self, a: EntityId, b: EntityId) {
         self.equalities.push(Equality(a, b));
+    }
+
+    pub fn add_field_access(&mut self, obj: EntityId, field: EntityId, name: Box<str>) {
+        self.fields.push(FieldAccess(obj, field, name));
     }
 
     pub fn add_membership(&mut self, e: EntityId, g: GroupId) {

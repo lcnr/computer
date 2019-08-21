@@ -232,8 +232,8 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedTy
         constraints.add_equality(id, body.id());
 
         let entities = constraints.solve(types)?;
-
-        let body = body.insert_types(&entities);
+        dbg!(constraints, types);
+        let body = body.insert_types(types, &entities);
         Ok(Function {
             name: self.name,
             arguments: self.arguments,
