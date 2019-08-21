@@ -324,7 +324,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, TypeId> {
                 } else {
                     assert_eq!(ty, ty::EMPTY_ID);
                     func.block(curr)
-                        .add_step(Step::new(ty.to_mir(), Action::LoadConstant(Object::Empty)))
+                        .add_step(Step::new(ty.to_mir(), Action::LoadConstant(Object::Unit)))
                 })
             }
             Expression::Variable(ty, var) => {
@@ -375,7 +375,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, TypeId> {
                 expr.to_mir(types, var_lookup, curr, func)?;
                 Ok(func
                     .block(curr)
-                    .add_step(Step::new(ty.to_mir(), Action::LoadConstant(Object::Empty))))
+                    .add_step(Step::new(ty.to_mir(), Action::LoadConstant(Object::Unit))))
             }
             Expression::Assignment(ty, var, expr) => {
                 let expr = expr.to_mir(types, var_lookup, curr, func)?;
@@ -383,7 +383,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, TypeId> {
                 assert_eq!(ty, ty::EMPTY_ID);
                 Ok(func
                     .block(curr)
-                    .add_step(Step::new(ty.to_mir(), Action::LoadConstant(Object::Empty))))
+                    .add_step(Step::new(ty.to_mir(), Action::LoadConstant(Object::Unit))))
             }
             Expression::FunctionCall(ty, id, args) => {
                 let args = args

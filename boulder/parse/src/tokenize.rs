@@ -8,6 +8,8 @@ pub enum Keyword {
     Function,
     /// `let`
     Let,
+    /// `struct`
+    Struct,
 }
 
 impl fmt::Display for Keyword {
@@ -15,6 +17,7 @@ impl fmt::Display for Keyword {
         match self {
             Keyword::Function => write!(f, "fn"),
             Keyword::Let => write!(f, "let"),
+            Keyword::Struct => write!(f, "struct"),
         }
     }
 }
@@ -228,10 +231,12 @@ impl<'a, 'b: 'a> TokenIter<'b> {
             self.advance();
         }
 
+        let origin = start..self.byte_offset;
         match &self.src[start..self.byte_offset] {
-            "fn" => self.new_token(Token::Keyword(Keyword::Function), start..self.byte_offset),
-            "let" => self.new_token(Token::Keyword(Keyword::Let), start..self.byte_offset),
-            v => self.new_token(Token::Ident(v.into()), start..self.byte_offset),
+            "fn" => self.new_token(Token::Keyword(Keyword::Function), origin),
+            "let" => self.new_token(Token::Keyword(Keyword::Let), origin),
+            "struct" => self.new_token(Token::Keyword(Keyword::Struct), origin),
+            v => self.new_token(Token::Ident(v.into()), origin),
         }
     }
 

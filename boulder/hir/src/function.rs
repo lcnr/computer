@@ -161,10 +161,10 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedType, ()> {
         })
     }
 
-    pub fn resolve_types(
+    pub fn resolve_expr_types(
         self,
         function_lookup: &[FunctionDefinition<'a, TypeId>],
-        types: &[Type],
+        types: &[Type<'a, TypeId>],
         type_lookup: &HashMap<&Box<str>, TypeId>,
     ) -> Result<Function<'a, ResolvedIdentifiers<'a>, TypeId, TypeId>, CompileError> {
         let mut constraints = ty::Constraints::new();
@@ -172,7 +172,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedType, ()> {
             types
                 .iter()
                 .enumerate()
-                .filter(|(_, t)| [ty::Kind::U8, ty::Kind::U16, ty::Kind::U32].contains(&t.kind))
+                .filter(|(_, t)| match &t.kind {ty::Kind::U8 | ty::Kind::U16 | ty::Kind::U32 => true, _ => false })
                 .fold(ty::Group::new("Integers".into()), |g, (i, _)| {
                     g.with_member(TypeId(i))
                 }),

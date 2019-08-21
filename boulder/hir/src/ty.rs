@@ -16,30 +16,38 @@ pub const NEVER_ID: TypeId = TypeId(1);
 pub const INTEGER_GROUP_ID: GroupId = GroupId(0);
 
 #[derive(Debug, Clone)]
-pub struct Type {
-    pub name: Box<str>,
-    pub kind: Kind,
+pub struct Type<'a, T> {
+    pub name: Meta<'a, Box<str>>,
+    pub kind: Kind<'a, T>,
 }
 
-impl Type {
+impl<'a> Type<'a, TypeId> {
     pub fn to_mir(self) -> mir::Type {
         match self.kind {
-            Kind::Empty => mir::Type::Empty,
-            Kind::Never => mir::Type::Never,
+            Kind::Unit => mir::Type::Unit,
+            Kind::Uninhabited => mir::Type::Uninhabited,
             Kind::U8 => mir::Type::U8,
             Kind::U16 => mir::Type::U16,
             Kind::U32 => mir::Type::U32,
+            Kind::Struct(_) => unimplemented!(),
         }
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Kind {
-    Empty,
-    Never,
+#[derive(Debug, Clone)]
+pub struct Member<'a, T> {
+    name: Meta<'a, Box<str>>,
+    ty: T,
+}
+
+#[derive(Debug, Clone)]
+pub enum Kind<'a, T> {
+    Uninhabited,
+    Unit,
     U8,
     U16,
     U32,
+    Struct(Vec<Member<'a, T>>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -169,7 +177,7 @@ impl<'a> Constraints<'a> {
         }
     }
 
-    fn step(&mut self, types: &[Type]) -> Result<bool, CompileError> {
+    fn step(&mut self, types: &[Type<TypeId>]) -> Result<bool, CompileError> {
         let mut modified = false;
 
         let equalities = mem::replace(&mut self.equalities, Vec::new());
@@ -182,7 +190,7 @@ impl<'a> Constraints<'a> {
                             &self.entities[b.0].origin,
                             format_args!(
                                 "Mismatched types, expected `{}`, found group `{}`",
-                                types[ty.0].name, self.groups[g.0].name
+                                types[ty.0].name.item, self.groups[g.0].name
                             ),
                         )
                         .with_location(&self.entities[a.0].origin)
@@ -196,7 +204,7 @@ impl<'a> Constraints<'a> {
                             &self.entities[b.0].origin,
                             format_args!(
                                 "Mismatched types, expected group `{}`, found type `{}`",
-                                self.groups[g.0].name, types[ty.0].name,
+                                self.groups[g.0].name, types[ty.0].name.item,
                             ),
                         )
                         .with_location(&self.entities[a.0].origin)
@@ -210,7 +218,7 @@ impl<'a> Constraints<'a> {
                             &self.entities[b.0].origin,
                             format_args!(
                                 "Mismatched types, expected `{}`, found `{}`",
-                                types[a_ty.0].name, types[b_ty.0].name
+                                types[a_ty.0].name.item, types[b_ty.0].name.item
                             ),
                         )
                         .with_location(&self.entities[a.0].origin)
@@ -224,7 +232,7 @@ impl<'a> Constraints<'a> {
         Ok(modified)
     }
 
-    pub fn solve(&mut self, types: &[Type]) -> Result<Vec<TypeId>, CompileError> {
+    pub fn solve(&mut self, types: &[Type<TypeId>]) -> Result<Vec<TypeId>, CompileError> {
         while self.step(types)? {}
 
         if let Some(e) = self.entities.iter().find(|e| e.state == State::Open) {

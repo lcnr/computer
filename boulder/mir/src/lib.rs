@@ -2,8 +2,8 @@ mod display;
 
 #[derive(Debug, Clone)]
 pub enum Type {
-    Empty,
-    Never,
+    Uninhabited,
+    Unit,
     U8,
     U16,
     U32,
@@ -11,8 +11,8 @@ pub enum Type {
 
 #[derive(Debug, Clone)]
 pub enum Object {
-    Empty,
-    Never,
+    Uninhabited,
+    Unit,
     U8(u8),
     U16(u16),
     U32(u32),
@@ -21,8 +21,8 @@ pub enum Object {
 impl Object {
     pub fn ty(&self) -> Type {
         match self {
-            Object::Empty => Type::Empty,
-            Object::Never => Type::Never,
+            Object::Uninhabited => Type::Uninhabited,
+            Object::Unit => Type::Unit,
             Object::U8(_) => Type::U8,
             Object::U16(_) => Type::U16,
             Object::U32(_) => Type::U32,

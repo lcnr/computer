@@ -8,7 +8,9 @@ use tokenize::{BlockDelim, Keyword, Operator, Token, TokenIter};
 
 type Expression<'a> = hir::expression::Expression<'a, hir::UnresolvedIdentifiers<'a>, ()>;
 type Function<'a> = hir::Function<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedType, ()>;
-type Hir<'a> = hir::Hir<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedType, ()>;
+type Hir<'a> = hir::Hir<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedType, (), Box<str>>;
+type Type<'a> = hir::Type<'a, Box<str>>;
+type Kind<'a> = hir::ty::Kind<'a, Box<str>>;
 
 pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
     let iter = &mut TokenIter::new(src);
@@ -17,6 +19,9 @@ pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
         match mem::replace(&mut token.item, Token::Invalid) {
             Token::Keyword(Keyword::Function) => {
                 hir.add_function(parse_function(iter)?)?;
+            }
+            Token::Keyword(Keyword::Struct) => {
+                hir.add_type(parse_struct_decl(iter)?)?;
             }
             Token::EOF => break,
             _ => CompileError::expected(&[Token::Keyword(Keyword::Function), Token::EOF], &token)?,
@@ -291,6 +296,20 @@ fn parse_block<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, CompileEr
 
         iter.step_back(tok);
         block.push(parse_expression(iter)?);
+    }
+}
+
+fn parse_struct_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Type<'a>, CompileError> {
+    let name = expect_ident(iter.next().unwrap())?;
+    let next = iter.next().unwrap();
+    match &next.item {
+        Token::SemiColon => {
+            Ok(Type {
+                name,
+                kind: Kind::Unit,
+            })
+        }
+        _ => unimplemented!()
     }
 }
 

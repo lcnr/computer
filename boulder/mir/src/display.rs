@@ -5,8 +5,8 @@ use std::fmt::{Display, Formatter, Result};
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            Type::Empty => write!(f, "Empty"),
-            Type::Never => write!(f, "Never"),
+            Type::Unit => write!(f, "Unit"),
+            Type::Uninhabited => write!(f, "Uninhabited"),
             Type::U8 => write!(f, "u8"),
             Type::U16 => write!(f, "u16"),
             Type::U32 => write!(f, "u32"),
@@ -17,8 +17,8 @@ impl Display for Type {
 impl Display for Object {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            Object::Empty => write!(f, "Empty"),
-            Object::Never => write!(f, "Never"),
+            Object::Unit => write!(f, "Unit"),
+            Object::Uninhabited => write!(f, "Uninhabited"),
             Object::U8(v) => write!(f, "{}u8", v),
             Object::U16(v) => write!(f, "{}u16", v),
             Object::U32(v) => write!(f, "{}u32", v),
