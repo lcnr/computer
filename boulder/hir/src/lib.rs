@@ -41,8 +41,8 @@ pub enum UnresolvedType {
 
 #[derive(Debug, Clone)]
 pub enum UnresolvedVariable<'a> {
-    Simple(Meta<'a, Box<str>>),
-    Typed(Meta<'a, Box<str>>, Meta<'a, Box<str>>),
+    Existing(Meta<'a, Box<str>>),
+    New(Meta<'a, Box<str>>, Option<Meta<'a, Box<str>>>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -57,7 +57,6 @@ pub enum Binop {
 pub enum Literal {
     Integer(u128),
 }
-
 
 #[derive(Debug)]
 pub struct Hir<'a, V: IdentifierState, T, N, MV> {
@@ -128,9 +127,23 @@ impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedType, (), Box<str>> {
     }
 
     pub fn resolve_types(
-        self
+        self,
     ) -> Result<Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedType, (), TypeId>, CompileError> {
-        unimplemented!();
+        let lookup = self
+            .types
+            .iter()
+            .enumerate()
+            .map(|(i, ty)| (ty.name.item.clone(), TypeId(i)))
+            .collect::<HashMap<_, _>>();
+
+        Ok(Hir {
+            functions: self.functions,
+            types: self
+                .types
+                .into_iter()
+                .map(|ty| ty.resolve(&lookup))
+                .collect::<Result<_, _>>()?,
+        })
     }
 }
 

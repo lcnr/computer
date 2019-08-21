@@ -172,7 +172,10 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedType, ()> {
             types
                 .iter()
                 .enumerate()
-                .filter(|(_, t)| match &t.kind {ty::Kind::U8 | ty::Kind::U16 | ty::Kind::U32 => true, _ => false })
+                .filter(|(_, t)| match &t.kind {
+                    ty::Kind::U8 | ty::Kind::U16 | ty::Kind::U32 => true,
+                    _ => false,
+                })
                 .fold(ty::Group::new("Integers".into()), |g, (i, _)| {
                     g.with_member(TypeId(i))
                 }),

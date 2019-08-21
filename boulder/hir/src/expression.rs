@@ -60,10 +60,10 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, ()> {
                 Expression::Block((), meta, new)
             }
             Expression::Variable((), var) => match var {
-                UnresolvedVariable::Simple(name) => {
+                UnresolvedVariable::Existing(name) => {
                     Expression::Variable((), get_id(name, variable_lookup)?)
                 }
-                UnresolvedVariable::Typed(name, type_name) => {
+                UnresolvedVariable::New(name, type_name) => {
                     let id = VariableId(variables.len());
                     let meta = name.simplify();
                     variable_lookup
@@ -72,7 +72,10 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, ()> {
                         .push((name.item.clone(), id));
                     variables.push(function::Variable {
                         name,
-                        ty: type_name.map(|name| UnresolvedType::Named(name)),
+                        ty: type_name.map_or_else(
+                            || meta.clone().replace(UnresolvedType::Unknown),
+                            |name| name.map(|n| UnresolvedType::Named(n)),
+                        ),
                     });
                     Expression::Variable((), meta.replace(id))
                 }
@@ -88,8 +91,8 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, ()> {
                 let expr = expr.resolve_identifiers(variables, variable_lookup, function_lookup)?;
 
                 let id = match var {
-                    UnresolvedVariable::Simple(name) => get_id(name, variable_lookup)?,
-                    UnresolvedVariable::Typed(name, type_name) => {
+                    UnresolvedVariable::Existing(name) => get_id(name, variable_lookup)?,
+                    UnresolvedVariable::New(name, type_name) => {
                         let id = VariableId(variables.len());
                         let meta = name.simplify();
                         variable_lookup
@@ -98,7 +101,10 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, ()> {
                             .push((name.item.clone(), id));
                         variables.push(function::Variable {
                             name,
-                            ty: type_name.map(|name| UnresolvedType::Named(name)),
+                            ty: type_name.map_or_else(
+                                || meta.clone().replace(UnresolvedType::Unknown),
+                                |name| name.map(|n| UnresolvedType::Named(n)),
+                            ),
                         });
                         meta.replace(id)
                     }

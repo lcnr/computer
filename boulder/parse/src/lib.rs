@@ -114,21 +114,25 @@ fn parse_variable_or_func_call<'a>(
         }
         _ => {
             iter.step_back(next);
-            Expression::Variable((), hir::UnresolvedVariable::Simple(ident))
+            Expression::Variable((), hir::UnresolvedVariable::Existing(ident))
         }
     })
 }
 
 fn parse_variable_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, CompileError> {
     let name = expect_ident(iter.next().unwrap())?;
-    // TODO: allow for variables with inferred type
-    consume_token(Token::Colon, iter)?;
-    let ty = expect_ident(iter.next().unwrap())?;
+
+    let ty = if try_consume_token(Token::Colon, iter) {
+        Some(expect_ident(iter.next().unwrap())?)
+    } else {
+        None
+    };
+
     if try_consume_token(Token::Assignment, iter) {
         let input = parse_expression(iter)?;
         Ok(Expression::Assignment(
             (),
-            hir::UnresolvedVariable::Typed(name, ty),
+            hir::UnresolvedVariable::New(name, ty),
             Box::new(input),
         ))
     } else {
@@ -136,7 +140,7 @@ fn parse_variable_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, C
         iter.step_back(check_expr_terminator(tok, &[Token::Assignment])?);
         Ok(Expression::Variable(
             (),
-            hir::UnresolvedVariable::Typed(name, ty),
+            hir::UnresolvedVariable::New(name, ty),
         ))
     }
 }
@@ -303,13 +307,11 @@ fn parse_struct_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Type<'a>, CompileEr
     let name = expect_ident(iter.next().unwrap())?;
     let next = iter.next().unwrap();
     match &next.item {
-        Token::SemiColon => {
-            Ok(Type {
-                name,
-                kind: Kind::Unit,
-            })
-        }
-        _ => unimplemented!()
+        Token::SemiColon => Ok(Type {
+            name,
+            kind: Kind::Unit,
+        }),
+        _ => unimplemented!(),
     }
 }
 

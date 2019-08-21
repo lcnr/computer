@@ -1,0 +1,9 @@
+fn shadow(a: u32, b: u32) -> u32 {
+    let a = 7;
+    b = {
+        let b = a + b;
+        let a = a + b;
+        a + b
+    }
+    a + b
+}

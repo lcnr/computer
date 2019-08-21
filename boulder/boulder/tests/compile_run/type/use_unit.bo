@@ -1,0 +1,6 @@
+struct Unit;
+
+fn test(a: Unit) -> Unit {
+    let b = a;
+    a
+}

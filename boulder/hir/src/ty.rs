@@ -21,6 +21,42 @@ pub struct Type<'a, T> {
     pub kind: Kind<'a, T>,
 }
 
+impl<'a> Type<'a, Box<str>> {
+    pub fn resolve(
+        self,
+        lookup: &HashMap<Box<str>, TypeId>,
+    ) -> Result<Type<'a, TypeId>, CompileError> {
+        Ok(Type {
+            name: self.name,
+            kind: match self.kind {
+                Kind::Unit => Kind::Unit,
+                Kind::Uninhabited => Kind::Uninhabited,
+                Kind::U8 => Kind::U8,
+                Kind::U16 => Kind::U16,
+                Kind::U32 => Kind::U32,
+                Kind::Struct(members) => Kind::Struct(
+                    members
+                        .into_iter()
+                        .map(|m| {
+                            if let Some(&id) = lookup.get(&m.ty.item) {
+                                Ok(Member {
+                                    name: m.name,
+                                    ty: m.ty.replace(id),
+                                })
+                            } else {
+                                CompileError::new(
+                                    &m.ty,
+                                    format_args!("Cannot find type `{}` in this scope", &m.ty.item),
+                                )?
+                            }
+                        })
+                        .collect::<Result<_, _>>()?,
+                ),
+            },
+        })
+    }
+}
+
 impl<'a> Type<'a, TypeId> {
     pub fn to_mir(self) -> mir::Type {
         match self.kind {
@@ -37,7 +73,7 @@ impl<'a> Type<'a, TypeId> {
 #[derive(Debug, Clone)]
 pub struct Member<'a, T> {
     name: Meta<'a, Box<str>>,
-    ty: T,
+    ty: Meta<'a, T>,
 }
 
 #[derive(Debug, Clone)]
