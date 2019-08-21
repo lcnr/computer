@@ -168,13 +168,16 @@ impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType,
             .map(|(i, ty)| (ty.name.item.clone(), TypeId(i)))
             .collect::<HashMap<_, _>>();
 
-        Ok(Hir {
-            functions: self.functions,
-            types: self
+        let types = self
                 .types
                 .into_iter()
                 .map(|ty| ty.resolve(&lookup))
-                .collect::<Result<_, _>>()?,
+                .collect::<Result<Vec<_>, _>>()?;
+
+        ty::check_recursive_ty(&types)?;
+        Ok(Hir {
+            functions: self.functions,
+            types,
         })
     }
 }

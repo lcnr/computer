@@ -1,0 +1,16 @@
+# Recursive type `B`
+# Recursive type `C`
+# (10:
+# (14:
+
+struct A {
+    b: B,
+}
+
+struct B {
+    c: C
+}
+
+struct C {
+    b: B,
+}

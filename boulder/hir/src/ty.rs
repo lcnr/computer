@@ -74,7 +74,44 @@ impl<'a> Type<'a, Box<str>> {
     }
 }
 
+pub fn check_recursive_ty(types: &[Type<TypeId>]) -> Result<(), CompileError> {
+    let mut result = Ok(());
+    for (id, t) in types.iter().enumerate() {
+        if t.contains(TypeId(id), types, &mut HashSet::new()) {
+            result = CompileError::new(&t.name, format_args!("Recursive type `{}` has infinite size", t.name.item));
+        }
+    }
+
+    result
+}
+
 impl<'a> Type<'a, TypeId> {
+    // check if this type contains `ty`
+    pub fn contains(&self, ty: TypeId, types: &[Type<'a, TypeId>], visited: &mut HashSet<TypeId>) -> bool {
+        match &self.kind {
+            Kind::Unit |
+            Kind::Uninhabited |
+            Kind::U8|
+            Kind::U16 |
+            Kind::U32 => false,
+            Kind::Struct(fields) => {
+                for field in fields {
+                    let field_id = field.ty.item;
+                    if field_id == ty {
+                        return true
+                    }
+                          
+                    if visited.insert(field_id) {
+                        if types[field_id.0].contains(ty, types, visited) {
+                            return true
+                        }
+                    }
+                }
+                false
+            }
+        }
+    }
+
     pub fn get_field(&self, name: &Box<str>) -> FieldId {
         if let Kind::Struct(v) = &self.kind {
             FieldId(v.binary_search_by(|probe| probe.name.cmp(name)).expect("`ty.get_field` did not contain `name`"))
