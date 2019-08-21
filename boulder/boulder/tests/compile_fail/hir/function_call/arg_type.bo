@@ -1,0 +1,13 @@
+# Mismatched types
+# expected `u32`
+# found `u16`
+# (7:
+# (11:
+
+fn callee(a: u32) -> u32 {
+    a
+}
+
+fn caller(b: u16) -> u32 {
+    callee(b)
+}

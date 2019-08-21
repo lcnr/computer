@@ -1,0 +1,10 @@
+# 2 parameters 
+# received 1
+# (6:
+# (9:
+
+fn callee(a: u32, b: u32) { }
+
+fn caller(a: u32) {
+    callee(a)
+}

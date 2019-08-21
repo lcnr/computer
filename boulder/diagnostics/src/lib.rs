@@ -139,6 +139,22 @@ impl<'a, T> Meta<'a, T> {
         }
     }
 
+    pub fn extend_left(self, to: char) -> Self {
+        let target = self.source[..self.span.start].rfind(to).unwrap();
+        Self {
+            span: target..self.span.end,
+            ..self
+        }
+    }
+
+    pub fn extend_right(self, to: char) -> Self {
+        let target = self.source[self.span.end..].find(to).unwrap();
+        Self {
+            span: self.span.start..self.span.end + target + to.len_utf8(),
+            ..self
+        }
+    }
+
     pub fn replace<U>(self, new: U) -> Meta<'a, U> {
         Meta {
             item: new,

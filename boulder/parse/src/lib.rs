@@ -6,9 +6,9 @@ mod tokenize;
 
 use tokenize::{BlockDelim, Keyword, Operator, Token, TokenIter};
 
-type Expression<'a> = hir::expression::Expression<'a, hir::UnresolvedVariable<'a>, ()>;
-type Function<'a> = hir::Function<'a, hir::UnresolvedVariable<'a>, hir::UnresolvedType, ()>;
-type Hir<'a> = hir::Hir<'a, hir::UnresolvedVariable<'a>, hir::UnresolvedType, ()>;
+type Expression<'a> = hir::expression::Expression<'a, hir::UnresolvedIdentifiers<'a>, ()>;
+type Function<'a> = hir::Function<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedType, ()>;
+type Hir<'a> = hir::Hir<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedType, ()>;
 
 pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
     let iter = &mut TokenIter::new(src);
@@ -24,6 +24,17 @@ pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
     }
 
     Ok(hir)
+}
+
+fn peek_token(expected: Token, iter: &mut TokenIter) -> bool {
+    let tok = iter.next().unwrap();
+    if expected == tok.item {
+        iter.step_back(tok);
+        true
+    } else {
+        iter.step_back(tok);
+        false
+    }
 }
 
 fn try_consume_token(expected: Token, iter: &mut TokenIter) -> bool {
@@ -65,13 +76,42 @@ fn check_expr_terminator<'a>(
     prev_checked: &[Token],
 ) -> Result<Meta<'a, Token>, CompileError> {
     match tok.item {
-        Token::SemiColon | Token::CloseBlock(_) => Ok(tok),
+        Token::Comma | Token::SemiColon | Token::CloseBlock(_) => Ok(tok),
         _ => {
             let mut expected = vec![Token::SemiColon, Token::CloseBlock(BlockDelim::Brace)];
             expected.extend_from_slice(prev_checked);
             CompileError::expected(&expected, &tok)
         }
     }
+}
+
+fn parse_variable_or_func_call<'a>(
+    ident: Meta<'a, Box<str>>,
+    iter: &mut TokenIter<'a>,
+) -> Result<Expression<'a>, CompileError> {
+    let next = iter.next().unwrap();
+    Ok(match next.item {
+        Token::OpenBlock(BlockDelim::Parenthesis) => {
+            let mut args = Vec::new();
+            while !try_consume_token(Token::CloseBlock(BlockDelim::Parenthesis), iter) {
+                args.push(parse_expression(iter)?);
+
+                if !try_consume_token(Token::Comma, iter)
+                    && !peek_token(Token::CloseBlock(BlockDelim::Parenthesis), iter)
+                {
+                    CompileError::expected(
+                        &[Token::Comma, Token::CloseBlock(BlockDelim::Parenthesis)],
+                        &iter.next().unwrap(),
+                    )?;
+                }
+            }
+            Expression::FunctionCall((), ident, args)
+        }
+        _ => {
+            iter.step_back(next);
+            Expression::Variable((), hir::UnresolvedVariable::Simple(ident))
+        }
+    })
 }
 
 fn parse_variable_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, CompileError> {
@@ -89,7 +129,10 @@ fn parse_variable_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, C
     } else {
         let tok = iter.next().unwrap();
         iter.step_back(check_expr_terminator(tok, &[Token::Assignment])?);
-        Ok(Expression::Variable((), hir::UnresolvedVariable::Typed(name, ty)))
+        Ok(Expression::Variable(
+            (),
+            hir::UnresolvedVariable::Typed(name, ty),
+        ))
     }
 }
 
@@ -100,9 +143,7 @@ fn parse_binop_rhs<'a>(
 ) -> Result<Expression<'a>, CompileError> {
     let mut start = iter.next().unwrap();
     let mut expr = match mem::replace(&mut start.item, Token::Invalid) {
-        Token::Ident(v) => {
-            Expression::Variable((), hir::UnresolvedVariable::Simple(start.replace(v)))
-        }
+        Token::Ident(v) => parse_variable_or_func_call(start.replace(v), iter)?,
         Token::Integer(c) => Expression::Lit((), start.replace(hir::Literal::Integer(c))),
         Token::OpenBlock(BlockDelim::Parenthesis) => {
             let expr = parse_expression(iter)?;
@@ -168,31 +209,31 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
         Token::OpenBlock(BlockDelim::Brace) => parse_block(iter),
         Token::Keyword(Keyword::Let) => parse_variable_decl(iter),
         Token::Ident(v) => {
+            let expr = parse_variable_or_func_call(start.replace(v), iter)?;
             let next = iter.next().unwrap();
-            match &next.item {
-                Token::Assignment => Ok(Expression::Assignment(
-                    (),
-                    hir::UnresolvedVariable::Simple(next.replace(v.into())),
-                    Box::new(parse_expression(iter)?),
-                )),
+            Ok(match &next.item {
+                Token::Assignment => {
+                    if let Expression::Variable((), var) = expr {
+                        Expression::Assignment((), var, Box::new(parse_expression(iter)?))
+                    } else {
+                        Err(
+                            check_expr_terminator(next, &[Token::Operator(Operator::Add)])
+                                .unwrap_err(),
+                        )?
+                    }
+                }
                 Token::Operator(_) => {
                     iter.step_back(next);
-                    parse_binop(
-                        Expression::Variable((), hir::UnresolvedVariable::Simple(start.replace(v))),
-                        iter,
-                    )
+                    parse_binop(expr, iter)?
                 }
                 _ => {
                     iter.step_back(check_expr_terminator(
                         next,
                         &[Token::Assignment, Token::Operator(Operator::Add)],
                     )?);
-                    Ok(Expression::Variable(
-                        (),
-                        hir::UnresolvedVariable::Simple(start.replace(v)),
-                    ))
+                    expr
                 }
-            }
+            })
         }
         Token::Integer(c) => {
             let next = iter.next().unwrap();
@@ -243,7 +284,7 @@ fn parse_block<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, CompileEr
             let end = iter.current_offset();
             return Ok(Expression::Block(
                 (),
-                Meta::empty(iter.source(), line, start..end),
+                Meta::empty(iter.source(), line, start..end).extend_left('{'),
                 block,
             ));
         }

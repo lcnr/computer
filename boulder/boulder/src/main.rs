@@ -22,12 +22,12 @@ pub fn main() {
                 eprintln!("Error while reading {}: {:?}", input, err);
             }
 
-            let res = boulder::compile(&src);
-
-            if let Ok(mut file) = File::create(output) {
-                write!(file, "{:#?}", res).unwrap();
-            } else {
-                eprintln!("unable to create file: {}", output);
+            if let Ok(res) = boulder::compile(&src) {
+                if let Ok(mut file) = File::create(output) {
+                    write!(file, "{}", res).unwrap();
+                } else {
+                    eprintln!("unable to create file: {}", output);
+                }
             }
         } else {
             eprintln!("unable to open file: {}", input);

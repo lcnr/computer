@@ -186,7 +186,6 @@ impl<'a, 'b: 'a> TokenIter<'b> {
     fn recover(&mut self, tok_start: usize) -> Meta<'a, Token> {
         while let Some(c) = self.current_char() {
             if self.is_terminator(c) {
-                println!("{}", c);
                 break;
             }
             self.advance();

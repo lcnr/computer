@@ -1,3 +1,5 @@
+mod display;
+
 #[derive(Debug, Clone)]
 pub enum Type {
     Empty,
@@ -34,12 +36,15 @@ pub struct TypeId(pub usize);
 pub struct StepId(pub usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BlockId(pub usize);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FunctionId(pub usize);
 
 #[derive(Debug, Clone)]
 pub enum Action {
     LoadInput(usize),
     LoadConstant(Object),
     Return(StepId),
+    CallFunction(FunctionId, Vec<StepId>),
     Add(StepId, StepId),
     Sub(StepId, StepId),
     Mul(StepId, StepId),
@@ -78,6 +83,14 @@ impl Function {
 
     pub fn block(&mut self, id: BlockId) -> &mut Block {
         &mut self.content[id.0]
+    }
+
+    pub fn args(&self) -> &[TypeId] {
+        if let Some(first) = self.content.first() {
+            &first.input
+        } else {
+            &[]
+        }
     }
 }
 

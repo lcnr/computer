@@ -1,6 +1,6 @@
 use super::*;
 
-use std::collections::HashSet;
+use std::{collections::HashSet, mem};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TypeId(pub usize);
@@ -12,7 +12,7 @@ impl TypeId {
 }
 
 pub const EMPTY_ID: TypeId = TypeId(0);
-pub const NEVER_ID: TypeId = TypeId(0);
+pub const NEVER_ID: TypeId = TypeId(1);
 pub const INTEGER_GROUP_ID: GroupId = GroupId(0);
 
 #[derive(Debug, Clone)]
@@ -150,47 +150,58 @@ impl<'a> Constraints<'a> {
         self.entities[entity.0].state
     }
 
-    pub fn set_state(&mut self, entity: EntityId, state: State) {
-        self.entities[entity.0].state = state;
+    pub fn set_state(&mut self, entity: EntityId, state: State) -> Result<(), GroupId> {
+        let entity = &mut self.entities[entity.0];
+        match state {
+            State::Solved(ty) => {
+                entity.state = state;
+                let groups = &self.groups;
+                entity
+                    .groups
+                    .iter()
+                    .find(|g| !groups[g.0].members.contains(&ty))
+                    .map_or(Ok(()), |&g| Err(g))
+            }
+            State::Open => {
+                entity.state = state;
+                Ok(())
+            }
+        }
     }
 
     fn step(&mut self, types: &[Type]) -> Result<bool, CompileError> {
         let mut modified = false;
-        for &Equality(a, b) in self.equalities.iter() {
+
+        let equalities = mem::replace(&mut self.equalities, Vec::new());
+        for &Equality(a, b) in equalities.iter() {
             match (self.get_state(a), self.get_state(b)) {
                 (State::Open, State::Open) => (),
                 (State::Solved(ty), State::Open) => {
-                    for g in self.entities[b.0].groups.iter() {
-                        if !self.groups[g.0].members.contains(&ty) {
-                            CompileError::build(
-                                &self.entities[b.0].origin,
-                                format_args!(
-                                    "Mismatched types, expected `{}`, found group `{}`",
-                                    types[ty.0].name, self.groups[g.0].name
-                                ),
-                            )
-                            .with_location(&self.entities[a.0].origin)
-                            .build()?;
-                        }
-                    }
-                    self.entities[b.0].state = State::Solved(ty);
+                    self.set_state(b, State::Solved(ty)).or_else(|g| {
+                        CompileError::build(
+                            &self.entities[b.0].origin,
+                            format_args!(
+                                "Mismatched types, expected `{}`, found group `{}`",
+                                types[ty.0].name, self.groups[g.0].name
+                            ),
+                        )
+                        .with_location(&self.entities[a.0].origin)
+                        .build()
+                    })?;
                     modified = true;
                 }
                 (State::Open, State::Solved(ty)) => {
-                    for g in self.entities[a.0].groups.iter() {
-                        if !self.groups[g.0].members.contains(&ty) {
-                            CompileError::build(
-                                &self.entities[b.0].origin,
-                                format_args!(
-                                    "Mismatched types, expected group `{}`, found type `{}`",
-                                    self.groups[g.0].name, types[ty.0].name,
-                                ),
-                            )
-                            .with_location(&self.entities[a.0].origin)
-                            .build()?;
-                        }
-                    }
-                    self.entities[a.0].state = State::Solved(ty);
+                    self.set_state(a, State::Solved(ty)).or_else(|g| {
+                        CompileError::build(
+                            &self.entities[b.0].origin,
+                            format_args!(
+                                "Mismatched types, expected group `{}`, found type `{}`",
+                                self.groups[g.0].name, types[ty.0].name,
+                            ),
+                        )
+                        .with_location(&self.entities[a.0].origin)
+                        .build()
+                    })?;
                     modified = true;
                 }
                 (State::Solved(a_ty), State::Solved(b_ty)) => {
@@ -208,6 +219,7 @@ impl<'a> Constraints<'a> {
                 }
             }
         }
+        mem::replace(&mut self.equalities, equalities);
 
         Ok(modified)
     }
