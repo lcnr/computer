@@ -197,9 +197,11 @@ fn parse_binop_rhs<'a>(
             iter.step_back(next);
             Ok(expr)
         }
-        Token::Dot => {
-            Ok(Expression::FieldAccess((), Box::new(expr), expect_ident(iter.next().unwrap())?))
-        }
+        Token::Dot => Ok(Expression::FieldAccess(
+            (),
+            Box::new(expr),
+            expect_ident(iter.next().unwrap())?,
+        )),
         _ => {
             iter.step_back(next);
             Ok(expr)
@@ -219,7 +221,8 @@ fn parse_binop<'a>(
                 next = iter.next().unwrap();
             }
             Token::Dot => {
-                lhs = Expression::FieldAccess((), Box::new(lhs), expect_ident(iter.next().unwrap())?);
+                lhs =
+                    Expression::FieldAccess((), Box::new(lhs), expect_ident(iter.next().unwrap())?);
                 next = iter.next().unwrap();
             }
             _ => break,

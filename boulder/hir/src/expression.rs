@@ -1,7 +1,5 @@
 use crate::*;
 
-use crate::ty::EntityId;
-
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
@@ -152,13 +150,15 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
     pub fn type_constraints(
         self,
         functions: &[FunctionDefinition<'a, TypeId>],
-        constraints: &mut ty::Constraints<'a>,
+        constraints: &mut ty::solver::Constraints<'_, 'a>,
     ) -> Result<Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>>, CompileError> {
+        use ty::solver;
         Ok(match self {
             Expression::Block((), meta, v) => {
                 let (id, content) = if v.is_empty() {
                     (
-                        constraints.add_entity(meta.simplify(), ty::State::Solved(ty::EMPTY_ID)),
+                        constraints
+                            .add_entity(meta.simplify(), solver::State::Solved(ty::EMPTY_ID)),
                         Vec::new(),
                     )
                 } else {
@@ -176,17 +176,17 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             }
             Expression::Lit((), lit) => match &lit.item {
                 Literal::Integer(_) => {
-                    let id = constraints.add_entity(lit.simplify(), ty::State::Open);
-                    constraints.add_membership(id, ty::INTEGER_GROUP_ID);
+                    let id = constraints.add_entity(lit.simplify(), solver::State::Open);
+                    constraints.add_membership(id, solver::INTEGER_GROUP_ID);
                     Expression::Lit(id, lit)
                 }
             },
             Expression::Binop((), op, a, b) => match op.item {
                 Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
                     let a = a.type_constraints(functions, constraints)?;
-                    constraints.add_membership(a.id(), ty::INTEGER_GROUP_ID);
+                    constraints.add_membership(a.id(), solver::INTEGER_GROUP_ID);
                     let b = b.type_constraints(functions, constraints)?;
-                    constraints.add_membership(b.id(), ty::INTEGER_GROUP_ID);
+                    constraints.add_membership(b.id(), solver::INTEGER_GROUP_ID);
                     constraints.add_equality(a.id(), b.id());
                     Expression::Binop(a.id(), op, Box::new(a), Box::new(b))
                 }
@@ -195,7 +195,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 let span = expr.span().simplify().append(meta.clone());
                 let expr = expr.type_constraints(functions, constraints)?;
                 Expression::Statement(
-                    constraints.add_entity(span, ty::State::Solved(ty::EMPTY_ID)),
+                    constraints.add_entity(span, solver::State::Solved(ty::EMPTY_ID)),
                     meta,
                     Box::new(expr),
                 )
@@ -206,7 +206,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 let var_id = constraints.convert_variable_id(var.clone());
                 constraints.add_equality(expr.id(), var_id);
                 Expression::Assignment(
-                    constraints.add_entity(span, ty::State::Solved(ty::EMPTY_ID)),
+                    constraints.add_entity(span, solver::State::Solved(ty::EMPTY_ID)),
                     var,
                     Box::new(expr),
                 )
@@ -249,26 +249,26 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
 
                 for (actual, expected) in args.iter().zip(&definition.args) {
                     let expected = constraints
-                        .add_entity(expected.simplify(), ty::State::Solved(expected.item));
+                        .add_entity(expected.simplify(), solver::State::Solved(expected.item));
                     constraints.add_equality(expected, actual.id());
                 }
 
-                let ret =
-                    constraints.add_entity(name.simplify(), ty::State::Solved(definition.ty.item));
+                let ret = constraints
+                    .add_entity(name.simplify(), solver::State::Solved(definition.ty.item));
                 Expression::FunctionCall(ret, name, args)
             }
             Expression::FieldAccess((), obj, field) => {
                 let obj = obj.type_constraints(functions, constraints)?;
-                let access = constraints.add_entity(field.simplify(), ty::State::Open);
+                let access = constraints.add_entity(field.simplify(), solver::State::Open);
                 constraints.add_field_access(obj.id(), access, field.item.clone());
                 Expression::FieldAccess(access, Box::new(obj), field)
-            },
+            }
         })
     }
 }
 
 impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
-    pub fn id(&self) -> EntityId {
+    pub fn id(&self) -> ty::solver::EntityId {
         match self {
             &Expression::Block(id, _, _)
             | &Expression::Variable(id, _)
@@ -326,7 +326,11 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
                 Expression::FieldAccess(
                     type_result[id.0],
                     Box::new(obj.insert_types(types, type_result)),
-                    field.map(|field| types[obj_ty.0].get_field(&field)),
+                    field.map(|field| {
+                        types[obj_ty.0]
+                            .get_field(&field)
+                            .expect("type check: invalid field")
+                    }),
                 )
             }
         }

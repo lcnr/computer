@@ -167,14 +167,15 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedTy
         })
     }
 
-    pub fn resolve_expr_types(
+    pub fn resolve_expr_types<'b>(
         self,
         function_lookup: &[FunctionDefinition<'a, TypeId>],
-        types: &[Type<'a, TypeId>],
+        types: &'b [Type<'a, TypeId>],
         type_lookup: &HashMap<&Box<str>, TypeId>,
     ) -> Result<Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId>, CompileError>
     {
-        let mut constraints = ty::Constraints::new();
+        use ty::solver;
+        let mut constraints = solver::Constraints::new(types);
         let integers = constraints.add_group(
             types
                 .iter()
@@ -183,23 +184,23 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedTy
                     ty::Kind::U8 | ty::Kind::U16 | ty::Kind::U32 => true,
                     _ => false,
                 })
-                .fold(ty::Group::new("Integers".into()), |g, (i, _)| {
+                .fold(solver::Group::new("Integers".into()), |g, (i, _)| {
                     g.with_member(TypeId(i))
                 }),
         );
 
-        assert_eq!(integers, ty::INTEGER_GROUP_ID);
+        assert_eq!(integers, ty::solver::INTEGER_GROUP_ID);
 
         // constraints must not contain any entities right now,
         // as we want `VariableId`s to be equal to `EntityId`s
         assert_eq!(constraints.entity_count(), 0);
         for variable in self.variables.iter() {
-            let id = constraints.add_entity(variable.name.simplify(), ty::State::Open);
+            let id = constraints.add_entity(variable.name.simplify(), solver::State::Open);
             match variable.ty.item {
                 UnresolvedType::Integer => constraints.add_membership(id, integers),
                 UnresolvedType::Named(ref name) => {
                     if let Some(&i) = type_lookup.get(&name) {
-                        constraints.set_state(id, ty::State::Solved(i)).unwrap();
+                        constraints.set_ty(id, i).unwrap();
                     } else {
                         CompileError::new(
                             &variable.ty,
@@ -211,12 +212,12 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedTy
             }
         }
 
-        let id = constraints.add_entity(self.ret.simplify(), ty::State::Open);
+        let id = constraints.add_entity(self.ret.simplify(), solver::State::Open);
         match &self.ret.item {
             UnresolvedType::Integer => constraints.add_membership(id, integers),
             UnresolvedType::Named(ref name) => {
                 if let Some(&i) = type_lookup.get(&name) {
-                    constraints.set_state(id, ty::State::Solved(i)).unwrap();
+                    constraints.set_ty(id, i).unwrap();
                 } else {
                     CompileError::new(
                         &self.ret,
@@ -231,7 +232,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedTy
             .type_constraints(function_lookup, &mut constraints)?;
         constraints.add_equality(id, body.id());
 
-        let entities = constraints.solve(types)?;
+        let entities = constraints.solve()?;
         let body = body.insert_types(types, &entities);
         Ok(Function {
             name: self.name,

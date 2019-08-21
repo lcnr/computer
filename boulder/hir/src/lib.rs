@@ -5,7 +5,7 @@ pub mod function;
 pub mod ty;
 
 pub use function::{Function, FunctionDefinition, FunctionId, VariableId};
-pub use ty::{EntityId, FieldId, Type, TypeId};
+pub use ty::{FieldId, Type, TypeId};
 
 use mir::Mir;
 
@@ -39,7 +39,7 @@ impl<'a> TypeState for UnresolvedTypes<'a> {
 pub struct ResolvingTypes<'a>(PhantomData<&'a str>);
 
 impl<'a> TypeState for ResolvingTypes<'a> {
-    type Type = EntityId;
+    type Type = ty::solver::EntityId;
     type Field = Meta<'a, Box<str>>;
 }
 
@@ -169,10 +169,10 @@ impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType,
             .collect::<HashMap<_, _>>();
 
         let types = self
-                .types
-                .into_iter()
-                .map(|ty| ty.resolve(&lookup))
-                .collect::<Result<Vec<_>, _>>()?;
+            .types
+            .into_iter()
+            .map(|ty| ty.resolve(&lookup))
+            .collect::<Result<Vec<_>, _>>()?;
 
         ty::check_recursive_ty(&types)?;
         Ok(Hir {
