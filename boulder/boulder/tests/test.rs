@@ -1,3 +1,5 @@
+#[macro_use]
+extern crate serial_test_derive;
 extern crate boulder;
 
 use walkdir::WalkDir;
@@ -28,6 +30,7 @@ impl Write for OutputShim {
 }
 
 #[test]
+#[serial]
 fn compile_fail() -> Result<(), std::io::Error> {
     let mut count = 0;
 
@@ -35,9 +38,9 @@ fn compile_fail() -> Result<(), std::io::Error> {
         let entry = entry.unwrap();
         if entry.metadata().unwrap().is_file() {
             count += 1;
-            let mut file = File::open(entry.path())?;
+            let mut file = File::open(entry.path()).unwrap();
             let mut content = String::new();
-            file.read_to_string(&mut content)?;
+            file.read_to_string(&mut content).unwrap();
 
             let expected = content
                 .lines()
@@ -77,5 +80,43 @@ fn compile_fail() -> Result<(), std::io::Error> {
     }
 
     assert_ne!(count, 0);
-    Ok(())
+}
+
+#[test]
+#[serial]
+fn compile_run() {
+    let mut count = 0;
+
+    for entry in WalkDir::new("tests/compile_run") {
+        let entry = entry.unwrap();
+        if entry.metadata().unwrap().is_file() {
+            count += 1;
+            let mut file = File::open(entry.path()).unwrap();
+            let mut content = String::new();
+            file.read_to_string(&mut content).unwrap();
+
+            // TODO: check the interpretation result
+            let _expected = content
+                .lines()
+                .take_while(|l| l.starts_with("# "))
+                .map(|l| &l["# ".len()..]);
+
+            let output = Arc::new(Mutex::new(String::new()));
+            CompileError::set_output(Box::new(OutputShim {
+                inner: output.clone(),
+            }));
+
+            let result = boulder::compile(&content);
+            let output = output.lock().unwrap();
+            assert!(
+                result.is_ok(),
+                "`{}` failed to compile: `{}`",
+                entry.path().display(),
+                output
+            );
+            // TODO: interpret the compilation result
+        }
+    }
+
+    assert_ne!(count, 0);
 }
