@@ -23,6 +23,8 @@ pub enum Object {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TypeId(pub usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FieldId(pub usize);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct StepId(pub usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BlockId(pub usize);
@@ -35,6 +37,7 @@ pub enum Action {
     LoadConstant(Object),
     Return(StepId),
     CallFunction(FunctionId, Vec<StepId>),
+    FieldAccess(StepId, FieldId),
     Add(StepId, StepId),
     Sub(StepId, StepId),
     Mul(StepId, StepId),

@@ -10,9 +10,9 @@ impl Display for Type {
             Type::U8 => write!(f, "u8"),
             Type::U16 => write!(f, "u16"),
             Type::U32 => write!(f, "u32"),
-            Type::Struct(members) => {
+            Type::Struct(fields) => {
                 write!(f, "struct(")?;
-                if let Some((last, start)) = members.split_last() {
+                if let Some((last, start)) = fields.split_last() {
                     for arg in start.iter() {
                         write!(f, "%{}, ", arg.0)?;
                     }
@@ -32,9 +32,9 @@ impl Display for Object {
             Object::U8(v) => write!(f, "{}u8", v),
             Object::U16(v) => write!(f, "{}u16", v),
             Object::U32(v) => write!(f, "{}u32", v),
-            Object::Struct(members) => {
+            Object::Struct(fields) => {
                 write!(f, "struct(")?;
-                if let Some((last, start)) = members.split_last() {
+                if let Some((last, start)) = fields.split_last() {
                     for arg in start.iter() {
                         write!(f, "{}, ", arg)?;
                     }
@@ -80,6 +80,7 @@ impl Display for Mir {
                             writeln!(f, ")")
                         }
                         Action::Return(v) => writeln!(f, "return ${}", v.0),
+                        Action::FieldAccess(s, a) => writeln!(f, "${}.{}", s.0, a.0),
                         Action::Add(a, b) => writeln!(f, "add ${} ${}", a.0, b.0),
                         Action::Sub(a, b) => writeln!(f, "sub ${} ${}", a.0, b.0),
                         Action::Mul(a, b) => writeln!(f, "mul ${} ${}", a.0, b.0),

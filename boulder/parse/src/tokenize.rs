@@ -100,6 +100,7 @@ pub enum Token {
     SemiColon,
     Colon,
     Comma,
+    Dot,
     Arrow,
     Invalid,
     EOF,
@@ -122,6 +123,7 @@ impl fmt::Display for Token {
             Token::SemiColon => write!(f, ";"),
             Token::Colon => write!(f, ":"),
             Token::Comma => write!(f, ","),
+            Token::Dot => write!(f, "."),
             Token::Arrow => write!(f, "->"),
             Token::Invalid => write!(f, "<invalid token>"),
             Token::EOF => write!(f, "<EOF>"),
@@ -174,7 +176,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
     fn is_terminator(&self, c: char) -> bool {
         c.is_whitespace()
             || match c {
-                ';' | ':' | '(' | ')' | '{' | '}' | '[' | ']' | '.' | ',' | '=' | '+' | '-'
+                ';' | ':' | '(' | ')' | '{' | '}' | '[' | ']' | ',' | '.' | '=' | '+' | '-'
                 | '*' | '/' => true,
                 _ => false,
             }
@@ -316,6 +318,10 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                 ',' => {
                     self.advance();
                     self.new_token(Token::Comma, self.byte_offset - 1..self.byte_offset)
+                }
+                '.' => {
+                    self.advance();
+                    self.new_token(Token::Dot, self.byte_offset - 1..self.byte_offset)
                 }
                 '(' => {
                     self.advance();

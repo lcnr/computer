@@ -34,9 +34,9 @@ impl<'a> Type<'a, Box<str>> {
                 Kind::U8 => Kind::U8,
                 Kind::U16 => Kind::U16,
                 Kind::U32 => Kind::U32,
-                Kind::Struct(mut members) => {
-                    members.sort_by(|a, b| a.name.item.cmp(&b.name.item));
-                    for window in members.windows(2) {
+                Kind::Struct(mut fields) => {
+                    fields.sort_by(|a, b| a.name.item.cmp(&b.name.item));
+                    for window in fields.windows(2) {
                         if window[0].name.item == window[1].name.item {
                             CompileError::build(
                                 &window[1].name,
@@ -48,11 +48,11 @@ impl<'a> Type<'a, Box<str>> {
                         }
                     }
                     Kind::Struct(
-                        members
+                        fields
                             .into_iter()
                             .map(|m| {
                                 if let Some(&id) = lookup.get(&m.ty.item) {
-                                    Ok(Member {
+                                    Ok(Field {
                                         name: m.name,
                                         ty: m.ty.replace(id),
                                     })
@@ -82,15 +82,24 @@ impl<'a> Type<'a, TypeId> {
             Kind::U8 => mir::Type::U8,
             Kind::U16 => mir::Type::U16,
             Kind::U32 => mir::Type::U32,
-            Kind::Struct(members) => {
-                mir::Type::Struct(members.into_iter().map(|m| m.ty.item.to_mir()).collect())
+            Kind::Struct(fields) => {
+                mir::Type::Struct(fields.into_iter().map(|m| m.ty.item.to_mir()).collect())
             }
         }
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FieldId(pub usize);
+
+impl FieldId {
+    pub fn to_mir(self) -> mir::FieldId {
+        mir::FieldId(self.0)
+    }
+}
+
 #[derive(Debug, Clone)]
-pub struct Member<'a, T> {
+pub struct Field<'a, T> {
     pub name: Meta<'a, Box<str>>,
     pub ty: Meta<'a, T>,
 }
@@ -102,7 +111,7 @@ pub enum Kind<'a, T> {
     U8,
     U16,
     U32,
-    Struct(Vec<Member<'a, T>>),
+    Struct(Vec<Field<'a, T>>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

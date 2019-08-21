@@ -5,7 +5,7 @@ pub mod function;
 pub mod ty;
 
 pub use function::{Function, FunctionDefinition, FunctionId, VariableId};
-pub use ty::{Type, TypeId};
+pub use ty::{EntityId, FieldId, Type, TypeId};
 
 use mir::Mir;
 
@@ -25,6 +25,35 @@ pub struct ResolvedIdentifiers<'a>(PhantomData<&'a str>);
 impl<'a> IdentifierState for ResolvedIdentifiers<'a> {
     type Variable = Meta<'a, VariableId>;
     type Function = Meta<'a, FunctionId>;
+}
+
+#[derive(Debug, Clone)]
+pub struct UnresolvedTypes<'a>(PhantomData<&'a str>);
+
+impl<'a> TypeState for UnresolvedTypes<'a> {
+    type Type = ();
+    type Field = Meta<'a, Box<str>>;
+}
+
+#[derive(Debug, Clone)]
+pub struct ResolvingTypes<'a>(PhantomData<&'a str>);
+
+impl<'a> TypeState for ResolvingTypes<'a> {
+    type Type = EntityId;
+    type Field = Meta<'a, Box<str>>;
+}
+
+#[derive(Debug, Clone)]
+pub struct ResolvedTypes<'a>(PhantomData<&'a str>);
+
+impl<'a> TypeState for ResolvedTypes<'a> {
+    type Type = TypeId;
+    type Field = Meta<'a, FieldId>;
+}
+
+pub trait TypeState: fmt::Debug + Clone {
+    type Type: fmt::Debug + Clone;
+    type Field: fmt::Debug + Clone;
 }
 
 pub trait IdentifierState: fmt::Debug + Clone {
@@ -59,12 +88,12 @@ pub enum Literal {
 }
 
 #[derive(Debug)]
-pub struct Hir<'a, V: IdentifierState, T, N, MV> {
-    functions: Vec<Function<'a, V, T, N>>,
+pub struct Hir<'a, V: IdentifierState, N: TypeState, T, MV> {
+    functions: Vec<Function<'a, V, N, T>>,
     types: Vec<Type<'a, MV>>,
 }
 
-impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedType, (), Box<str>> {
+impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType, Box<str>> {
     pub fn new() -> Self {
         Self {
             functions: Vec::new(),
@@ -95,7 +124,7 @@ impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedType, (), Box<str>> {
 
     pub fn add_function(
         &mut self,
-        func: Function<'a, UnresolvedIdentifiers<'a>, UnresolvedType, ()>,
+        func: Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType>,
     ) -> Result<(), CompileError> {
         if self.functions.iter().any(|f| f.name.item == func.name.item) {
             CompileError::new(
@@ -128,7 +157,10 @@ impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedType, (), Box<str>> {
 
     pub fn resolve_types(
         self,
-    ) -> Result<Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedType, (), TypeId>, CompileError> {
+    ) -> Result<
+        Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType, TypeId>,
+        CompileError,
+    > {
         let lookup = self
             .types
             .iter()
@@ -147,10 +179,13 @@ impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedType, (), Box<str>> {
     }
 }
 
-impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedType, (), TypeId> {
+impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType, TypeId> {
     pub fn resolve_identifiers(
         self,
-    ) -> Result<Hir<'a, ResolvedIdentifiers<'a>, UnresolvedType, (), TypeId>, CompileError> {
+    ) -> Result<
+        Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType, TypeId>,
+        CompileError,
+    > {
         let known_functions = self
             .functions
             .iter()
@@ -174,10 +209,11 @@ impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedType, (), TypeId> {
     }
 }
 
-impl<'a> Hir<'a, ResolvedIdentifiers<'a>, UnresolvedType, (), TypeId> {
+impl<'a> Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType, TypeId> {
     pub fn resolve_expr_types(
         self,
-    ) -> Result<Hir<'a, ResolvedIdentifiers<'a>, TypeId, TypeId, TypeId>, CompileError> {
+    ) -> Result<Hir<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId, TypeId>, CompileError>
+    {
         let types = self.types;
         let type_lookup = types
             .iter()
@@ -201,7 +237,7 @@ impl<'a> Hir<'a, ResolvedIdentifiers<'a>, UnresolvedType, (), TypeId> {
     }
 }
 
-impl<'a> Hir<'a, ResolvedIdentifiers<'a>, TypeId, TypeId, TypeId> {
+impl<'a> Hir<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId, TypeId> {
     pub fn to_mir(self) -> Result<Mir, CompileError> {
         let types: Vec<_> = self.types.into_iter().map(|t| t.to_mir()).collect();
         let functions = self

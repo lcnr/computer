@@ -3,8 +3,8 @@ use diagnostics::{CompileError, Meta};
 use std::collections::HashMap;
 
 use crate::{
-    expression::Expression, ty, IdentifierState, ResolvedIdentifiers, Type, TypeId,
-    UnresolvedIdentifiers, UnresolvedType,
+    expression::Expression, ty, IdentifierState, ResolvedIdentifiers, ResolvedTypes, Type, TypeId,
+    TypeState, UnresolvedIdentifiers, UnresolvedType, UnresolvedTypes,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -33,7 +33,7 @@ pub struct FunctionDefinition<'a, T> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Function<'a, V: IdentifierState, T, N> {
+pub struct Function<'a, V: IdentifierState, N: TypeState, T> {
     pub name: Meta<'a, Box<str>>,
     pub arguments: Vec<VariableId>,
     pub variables: Vec<Variable<'a, T>>,
@@ -41,7 +41,7 @@ pub struct Function<'a, V: IdentifierState, T, N> {
     pub body: Expression<'a, V, N>,
 }
 
-impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedType, ()> {
+impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType> {
     pub fn new(name: Meta<'a, Box<str>>) -> Self {
         Self {
             name,
@@ -85,14 +85,20 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedType, ()> {
         self.ret = ret.map(|r| UnresolvedType::Named(r));
     }
 
-    pub fn set_body(&mut self, body: Expression<'a, UnresolvedIdentifiers<'a>, ()>) {
+    pub fn set_body(
+        &mut self,
+        body: Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>>,
+    ) {
         self.body = body;
     }
 
     pub fn resolve_identifiers(
         mut self,
         function_lookup: &HashMap<Box<str>, Meta<'a, FunctionId>>,
-    ) -> Result<Function<'a, ResolvedIdentifiers<'a>, UnresolvedType, ()>, CompileError> {
+    ) -> Result<
+        Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType>,
+        CompileError,
+    > {
         let mut variable_lookup = Vec::new();
         variable_lookup.push(
             self.variables
@@ -118,7 +124,7 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedType, ()> {
     }
 }
 
-impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedType, ()> {
+impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType> {
     pub fn definition(
         &self,
         type_lookup: &HashMap<&Box<str>, TypeId>,
@@ -166,7 +172,8 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedType, ()> {
         function_lookup: &[FunctionDefinition<'a, TypeId>],
         types: &[Type<'a, TypeId>],
         type_lookup: &HashMap<&Box<str>, TypeId>,
-    ) -> Result<Function<'a, ResolvedIdentifiers<'a>, TypeId, TypeId>, CompileError> {
+    ) -> Result<Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId>, CompileError>
+    {
         let mut constraints = ty::Constraints::new();
         let integers = constraints.add_group(
             types
@@ -245,7 +252,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedType, ()> {
     }
 }
 
-impl<'a> Function<'a, ResolvedIdentifiers<'a>, TypeId, TypeId> {
+impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
     pub fn to_mir(self, types: &[mir::Type]) -> Result<mir::Function, CompileError> {
         let mut func = mir::Function::new();
         let mut start = mir::Block::new();

@@ -6,12 +6,24 @@ mod tokenize;
 
 use tokenize::{BlockDelim, Keyword, Operator, Token, TokenIter};
 
-type Expression<'a> = hir::expression::Expression<'a, hir::UnresolvedIdentifiers<'a>, ()>;
-type Function<'a> = hir::Function<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedType, ()>;
-type Hir<'a> = hir::Hir<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedType, (), Box<str>>;
+type Expression<'a> =
+    hir::expression::Expression<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedTypes<'a>>;
+type Function<'a> = hir::Function<
+    'a,
+    hir::UnresolvedIdentifiers<'a>,
+    hir::UnresolvedTypes<'a>,
+    hir::UnresolvedType,
+>;
+type Hir<'a> = hir::Hir<
+    'a,
+    hir::UnresolvedIdentifiers<'a>,
+    hir::UnresolvedTypes<'a>,
+    hir::UnresolvedType,
+    Box<str>,
+>;
 type Type<'a> = hir::Type<'a, Box<str>>;
 type Kind<'a> = hir::ty::Kind<'a, Box<str>>;
-type Member<'a> = hir::ty::Member<'a, Box<str>>;
+type Field<'a> = hir::ty::Field<'a, Box<str>>;
 
 pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
     let iter = &mut TokenIter::new(src);
@@ -91,7 +103,7 @@ fn check_expr_terminator<'a>(
     }
 }
 
-fn parse_variable_or_func_call<'a>(
+fn parse_ident_expr<'a>(
     ident: Meta<'a, Box<str>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Expression<'a>, CompileError> {
@@ -153,7 +165,7 @@ fn parse_binop_rhs<'a>(
 ) -> Result<Expression<'a>, CompileError> {
     let mut start = iter.next().unwrap();
     let mut expr = match mem::replace(&mut start.item, Token::Invalid) {
-        Token::Ident(v) => parse_variable_or_func_call(start.replace(v), iter)?,
+        Token::Ident(v) => parse_ident_expr(start.replace(v), iter)?,
         Token::Integer(c) => Expression::Lit((), start.replace(hir::Literal::Integer(c))),
         Token::OpenBlock(BlockDelim::Parenthesis) => {
             let expr = parse_expression(iter)?;
@@ -197,9 +209,14 @@ fn parse_binop<'a>(
     iter: &mut TokenIter<'a>,
 ) -> Result<Expression<'a>, CompileError> {
     let mut next = iter.next().unwrap();
-    while let Token::Operator(op) = next.item {
-        lhs = op.as_hir_expr(next.simplify(), lhs, parse_binop_rhs(op.priority(), iter)?);
-        next = iter.next().unwrap();
+    loop {
+        match next.item {
+            Token::Operator(op) => {
+                lhs = op.as_hir_expr(next.simplify(), lhs, parse_binop_rhs(op.priority(), iter)?);
+                next = iter.next().unwrap();
+            }
+            _ => break,
+        }
     }
 
     match &next.item {
@@ -219,7 +236,7 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
         Token::OpenBlock(BlockDelim::Brace) => parse_block(iter),
         Token::Keyword(Keyword::Let) => parse_variable_decl(iter),
         Token::Ident(v) => {
-            let expr = parse_variable_or_func_call(start.replace(v), iter)?;
+            let expr = parse_ident_expr(start.replace(v), iter)?;
             let next = iter.next().unwrap();
             Ok(match &next.item {
                 Token::Assignment => {
@@ -232,14 +249,18 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
                         )?
                     }
                 }
-                Token::Operator(_) => {
+                Token::Operator(_) | Token::Dot => {
                     iter.step_back(next);
                     parse_binop(expr, iter)?
                 }
                 _ => {
                     iter.step_back(check_expr_terminator(
                         next,
-                        &[Token::Assignment, Token::Operator(Operator::Add)],
+                        &[
+                            Token::Assignment,
+                            Token::Operator(Operator::Add),
+                            Token::Dot,
+                        ],
                     )?);
                     expr
                 }
@@ -313,7 +334,7 @@ fn parse_struct_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Type<'a>, CompileEr
             kind: Kind::Unit,
         }),
         Token::OpenBlock(BlockDelim::Brace) => {
-            let mut members = Vec::new();
+            let mut fields = Vec::new();
             loop {
                 if try_consume_token(Token::CloseBlock(BlockDelim::Brace), iter) {
                     break;
@@ -322,7 +343,7 @@ fn parse_struct_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Type<'a>, CompileEr
                 let name = expect_ident(iter.next().unwrap())?;
                 consume_token(Token::Colon, iter)?;
                 let ty = expect_ident(iter.next().unwrap())?;
-                members.push(Member { name, ty });
+                fields.push(Field { name, ty });
 
                 let tok = iter.next().unwrap();
                 if tok.item == Token::CloseBlock(BlockDelim::Brace) {
@@ -336,7 +357,7 @@ fn parse_struct_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Type<'a>, CompileEr
             }
             Ok(Type {
                 name,
-                kind: Kind::Struct(members),
+                kind: Kind::Struct(fields),
             })
         }
         _ => CompileError::expected(

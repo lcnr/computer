@@ -5,28 +5,29 @@ use crate::ty::EntityId;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
-pub enum Expression<'a, V: IdentifierState, N> {
-    Block(N, Meta<'a, ()>, Vec<Expression<'a, V, N>>),
-    Variable(N, V::Variable),
-    Lit(N, Meta<'a, Literal>),
+pub enum Expression<'a, V: IdentifierState, N: TypeState> {
+    Block(N::Type, Meta<'a, ()>, Vec<Expression<'a, V, N>>),
+    Variable(N::Type, V::Variable),
+    Lit(N::Type, Meta<'a, Literal>),
     Binop(
-        N,
+        N::Type,
         Meta<'a, Binop>,
         Box<Expression<'a, V, N>>,
         Box<Expression<'a, V, N>>,
     ),
-    Statement(N, Meta<'a, ()>, Box<Expression<'a, V, N>>),
-    Assignment(N, V::Variable, Box<Expression<'a, V, N>>),
-    FunctionCall(N, V::Function, Vec<Expression<'a, V, N>>),
+    Statement(N::Type, Meta<'a, ()>, Box<Expression<'a, V, N>>),
+    Assignment(N::Type, V::Variable, Box<Expression<'a, V, N>>),
+    FunctionCall(N::Type, V::Function, Vec<Expression<'a, V, N>>),
+    FieldAccess(N::Type, Box<Expression<'a, V, N>>, N::Field),
 }
 
-impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, ()> {
+impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
     pub fn resolve_identifiers(
         self,
         variables: &mut Vec<function::Variable<'a, UnresolvedType>>,
         variable_lookup: &mut Vec<Vec<(Box<str>, VariableId)>>,
         function_lookup: &HashMap<Box<str>, Meta<'a, FunctionId>>,
-    ) -> Result<Expression<'a, ResolvedIdentifiers<'a>, ()>, CompileError> {
+    ) -> Result<Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>>, CompileError> {
         fn get_id<'b>(
             name: Meta<'b, Box<str>>,
             variable_lookup: &mut Vec<Vec<(Box<str>, VariableId)>>,
@@ -138,16 +139,21 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, ()> {
                     )?
                 }
             }
+            Expression::FieldAccess((), obj, field) => Expression::FieldAccess(
+                (),
+                Box::new(obj.resolve_identifiers(variables, variable_lookup, function_lookup)?),
+                field,
+            ),
         })
     }
 }
 
-impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ()> {
+impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
     pub fn type_constraints(
         self,
         functions: &[FunctionDefinition<'a, TypeId>],
         constraints: &mut ty::Constraints<'a>,
-    ) -> Result<Expression<'a, ResolvedIdentifiers<'a>, EntityId>, CompileError> {
+    ) -> Result<Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>>, CompileError> {
         Ok(match self {
             Expression::Block((), meta, v) => {
                 let (id, content) = if v.is_empty() {
@@ -251,11 +257,12 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ()> {
                     constraints.add_entity(name.simplify(), ty::State::Solved(definition.ty.item));
                 Expression::FunctionCall(ret, name, args)
             }
+            Expression::FieldAccess((), obj, field) => unimplemented!(),
         })
     }
 }
 
-impl<'a> Expression<'a, ResolvedIdentifiers<'a>, EntityId> {
+impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
     pub fn id(&self) -> EntityId {
         match self {
             &Expression::Block(id, _, _)
@@ -264,11 +271,15 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, EntityId> {
             | &Expression::Binop(id, _, _, _)
             | &Expression::Statement(id, _, _)
             | &Expression::Assignment(id, _, _)
-            | &Expression::FunctionCall(id, _, _) => id,
+            | &Expression::FunctionCall(id, _, _)
+            | &Expression::FieldAccess(id, _, _) => id,
         }
     }
 
-    pub fn insert_types(self, types: &[TypeId]) -> Expression<'a, ResolvedIdentifiers<'a>, TypeId> {
+    pub fn insert_types(
+        self,
+        types: &[TypeId],
+    ) -> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
         match self {
             Expression::Block(id, meta, v) => {
                 let ty = types[id.0];
@@ -304,11 +315,16 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, EntityId> {
                     .collect::<Vec<_>>();
                 Expression::FunctionCall(types[id.0], name, args)
             }
+            Expression::FieldAccess(id, obj, field) => Expression::FieldAccess(
+                types[id.0],
+                Box::new(obj.insert_types(types)),
+                unimplemented!(),
+            ),
         }
     }
 }
 
-impl<'a> Expression<'a, ResolvedIdentifiers<'a>, TypeId> {
+impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
     pub fn to_mir(
         self,
         types: &[mir::Type],
@@ -401,14 +417,22 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, TypeId> {
                     Action::CallFunction(id.item.to_mir(), args),
                 )))
             }
+            Expression::FieldAccess(ty, obj, field) => {
+                let obj = obj.to_mir(types, var_lookup, curr, func)?;
+                Ok(func.block(curr).add_step(Step::new(
+                    ty.to_mir(),
+                    Action::FieldAccess(obj, field.to_mir()),
+                )))
+            }
         }
     }
 }
 
-impl<'a, T: IdentifierState, N> diagnostics::Span<'a> for Expression<'a, T, N>
+impl<'a, T: IdentifierState, N: TypeState> diagnostics::Span<'a> for Expression<'a, T, N>
 where
     T::Variable: diagnostics::Span<'a>,
     T::Function: diagnostics::Span<'a>,
+    N::Field: diagnostics::Span<'a>,
 {
     fn span(&self) -> Meta<'a, ()> {
         match self {
@@ -419,6 +443,7 @@ where
             Expression::Statement(_, meta, expr) => expr.span().append(meta.clone()),
             Expression::Assignment(_, var, expr) => var.span().simplify().append(expr.span()),
             Expression::FunctionCall(_, name, _args) => name.span(),
+            Expression::FieldAccess(_, _, field) => field.span().extend_left('.'),
         }
     }
 }
