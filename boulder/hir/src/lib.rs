@@ -116,7 +116,7 @@ impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedType, (), Box<str>> {
             CompileError::new(
                 &ty.name,
                 format_args!(
-                    "Another type with the name {} is already defined",
+                    "Another type with the name `{}` is already defined",
                     ty.name.item
                 ),
             )

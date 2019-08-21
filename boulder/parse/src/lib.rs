@@ -11,6 +11,7 @@ type Function<'a> = hir::Function<'a, hir::UnresolvedIdentifiers<'a>, hir::Unres
 type Hir<'a> = hir::Hir<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedType, (), Box<str>>;
 type Type<'a> = hir::Type<'a, Box<str>>;
 type Kind<'a> = hir::ty::Kind<'a, Box<str>>;
+type Member<'a> = hir::ty::Member<'a, Box<str>>;
 
 pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
     let iter = &mut TokenIter::new(src);
@@ -311,7 +312,37 @@ fn parse_struct_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Type<'a>, CompileEr
             name,
             kind: Kind::Unit,
         }),
-        _ => unimplemented!(),
+        Token::OpenBlock(BlockDelim::Brace) => {
+            let mut members = Vec::new();
+            loop {
+                if try_consume_token(Token::CloseBlock(BlockDelim::Brace), iter) {
+                    break;
+                }
+
+                let name = expect_ident(iter.next().unwrap())?;
+                consume_token(Token::Colon, iter)?;
+                let ty = expect_ident(iter.next().unwrap())?;
+                members.push(Member { name, ty });
+
+                let tok = iter.next().unwrap();
+                if tok.item == Token::CloseBlock(BlockDelim::Brace) {
+                    break;
+                } else if tok.item != Token::Comma {
+                    CompileError::expected(
+                        &[Token::Comma, Token::CloseBlock(BlockDelim::Brace)],
+                        &tok,
+                    )?;
+                }
+            }
+            Ok(Type {
+                name,
+                kind: Kind::Struct(members),
+            })
+        }
+        _ => CompileError::expected(
+            &[Token::SemiColon, Token::OpenBlock(BlockDelim::Brace)],
+            &next,
+        ),
     }
 }
 

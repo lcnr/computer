@@ -1,0 +1,7 @@
+# `a` is bound more than once
+# (5:
+# (6:
+struct A {
+    a: u32,
+    a: u8,
+}

@@ -10,6 +10,16 @@ impl Display for Type {
             Type::U8 => write!(f, "u8"),
             Type::U16 => write!(f, "u16"),
             Type::U32 => write!(f, "u32"),
+            Type::Struct(members) => {
+                write!(f, "struct(")?;
+                if let Some((last, start)) = members.split_last() {
+                    for arg in start.iter() {
+                        write!(f, "%{}, ", arg.0)?;
+                    }
+                    write!(f, "%{}", last.0)?;
+                }
+                write!(f, ")")
+            }
         }
     }
 }
@@ -22,6 +32,16 @@ impl Display for Object {
             Object::U8(v) => write!(f, "{}u8", v),
             Object::U16(v) => write!(f, "{}u16", v),
             Object::U32(v) => write!(f, "{}u32", v),
+            Object::Struct(members) => {
+                write!(f, "struct(")?;
+                if let Some((last, start)) = members.split_last() {
+                    for arg in start.iter() {
+                        write!(f, "{}, ", arg)?;
+                    }
+                    write!(f, "{}", last)?;
+                }
+                write!(f, ")")
+            }
         }
     }
 }

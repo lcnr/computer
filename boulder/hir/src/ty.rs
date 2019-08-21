@@ -34,24 +34,41 @@ impl<'a> Type<'a, Box<str>> {
                 Kind::U8 => Kind::U8,
                 Kind::U16 => Kind::U16,
                 Kind::U32 => Kind::U32,
-                Kind::Struct(members) => Kind::Struct(
-                    members
-                        .into_iter()
-                        .map(|m| {
-                            if let Some(&id) = lookup.get(&m.ty.item) {
-                                Ok(Member {
-                                    name: m.name,
-                                    ty: m.ty.replace(id),
-                                })
-                            } else {
-                                CompileError::new(
-                                    &m.ty,
-                                    format_args!("Cannot find type `{}` in this scope", &m.ty.item),
-                                )?
-                            }
-                        })
-                        .collect::<Result<_, _>>()?,
-                ),
+                Kind::Struct(mut members) => {
+                    members.sort_by(|a, b| a.name.item.cmp(&b.name.item));
+                    for window in members.windows(2) {
+                        if window[0].name.item == window[1].name.item {
+                            CompileError::build(
+                                &window[1].name,
+                                format_args!(
+                                    "Identifier `{}` is bound more than once in this parameter list",
+                                    &window[1].name.item,
+                                ),
+                            ).with_location(&window[0].name).build()?;
+                        }
+                    }
+                    Kind::Struct(
+                        members
+                            .into_iter()
+                            .map(|m| {
+                                if let Some(&id) = lookup.get(&m.ty.item) {
+                                    Ok(Member {
+                                        name: m.name,
+                                        ty: m.ty.replace(id),
+                                    })
+                                } else {
+                                    CompileError::new(
+                                        &m.ty,
+                                        format_args!(
+                                            "Cannot find type `{}` in this scope",
+                                            &m.ty.item
+                                        ),
+                                    )?
+                                }
+                            })
+                            .collect::<Result<_, _>>()?,
+                    )
+                }
             },
         })
     }
@@ -65,15 +82,17 @@ impl<'a> Type<'a, TypeId> {
             Kind::U8 => mir::Type::U8,
             Kind::U16 => mir::Type::U16,
             Kind::U32 => mir::Type::U32,
-            Kind::Struct(_) => unimplemented!(),
+            Kind::Struct(members) => {
+                mir::Type::Struct(members.into_iter().map(|m| m.ty.item.to_mir()).collect())
+            }
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Member<'a, T> {
-    name: Meta<'a, Box<str>>,
-    ty: Meta<'a, T>,
+    pub name: Meta<'a, Box<str>>,
+    pub ty: Meta<'a, T>,
 }
 
 #[derive(Debug, Clone)]

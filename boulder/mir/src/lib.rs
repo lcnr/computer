@@ -7,6 +7,7 @@ pub enum Type {
     U8,
     U16,
     U32,
+    Struct(Vec<TypeId>),
 }
 
 #[derive(Debug, Clone)]
@@ -16,18 +17,7 @@ pub enum Object {
     U8(u8),
     U16(u16),
     U32(u32),
-}
-
-impl Object {
-    pub fn ty(&self) -> Type {
-        match self {
-            Object::Uninhabited => Type::Uninhabited,
-            Object::Unit => Type::Unit,
-            Object::U8(_) => Type::U8,
-            Object::U16(_) => Type::U16,
-            Object::U32(_) => Type::U32,
-        }
-    }
+    Struct(Vec<Object>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

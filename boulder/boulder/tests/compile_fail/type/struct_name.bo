@@ -1,0 +1,8 @@
+# Another type with the name `A`
+# (6:
+
+struct A;
+
+struct A {
+    a: u32
+}
