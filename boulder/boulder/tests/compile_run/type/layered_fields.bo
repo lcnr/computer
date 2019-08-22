@@ -1,0 +1,16 @@
+struct A {
+    b: B,
+}
+
+struct B {
+    b: u32,
+    c: C,
+}
+
+struct C {
+    b: u32,
+}
+
+fn access(a: A) -> u32 {
+    a.b.c.b
+}

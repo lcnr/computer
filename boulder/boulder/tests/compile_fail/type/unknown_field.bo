@@ -1,3 +1,7 @@
+# unknown field
+# `d`
+# (11:
+
 struct A {
     a: u32,
     b: u32,

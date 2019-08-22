@@ -3,8 +3,8 @@ use diagnostics::{CompileError, Meta};
 use std::collections::HashMap;
 
 use crate::{
-    expression::Expression, ty, IdentifierState, ResolvedIdentifiers, ResolvedTypes, Type, TypeId,
-    TypeState, UnresolvedIdentifiers, UnresolvedType, UnresolvedTypes, ty::solver::TypeSolver,
+    expression::Expression, ty, ty::solver::TypeSolver, IdentifierState, ResolvedIdentifiers,
+    ResolvedTypes, Type, TypeId, TypeState, UnresolvedIdentifiers, UnresolvedType, UnresolvedTypes,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -177,28 +177,32 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedTy
         let mut solver = TypeSolver::new(types);
         // constraints must not contain any entities right now,
         // as we want `VariableId`s to be equal to `EntityId`s
-        let variables = self.variables.iter().map(|variable| {
-            Ok(match variable.ty.item {
-                UnresolvedType::Integer => solver.add_integer(),
-                UnresolvedType::Named(ref name) => {
-                    if let Some(&i) = type_lookup.get(&name) {
-                        solver.add_typed(i)
-                    } else {
-                        CompileError::new(
-                            &variable.ty,
-                            format_args!("Cannot find type `{}` in this scope", name),
-                        )?
+        let variables = self
+            .variables
+            .iter()
+            .map(|variable| {
+                Ok(match variable.ty.item {
+                    UnresolvedType::Integer => solver.add_integer(variable.ty.simplify()),
+                    UnresolvedType::Named(ref name) => {
+                        if let Some(&i) = type_lookup.get(&name) {
+                            solver.add_typed(i, variable.ty.simplify())
+                        } else {
+                            CompileError::new(
+                                &variable.ty,
+                                format_args!("Cannot find type `{}` in this scope", name),
+                            )?
+                        }
                     }
-                }
-                UnresolvedType::Unknown => solver.add_unconstrained(),
+                    UnresolvedType::Unknown => solver.add_unconstrained(variable.ty.simplify()),
+                })
             })
-        }).collect::<Result<Vec<_>, _>>()?;
+            .collect::<Result<Vec<_>, _>>()?;
 
         let ret = match &self.ret.item {
-            UnresolvedType::Integer => solver.add_integer(),
+            UnresolvedType::Integer => solver.add_integer(self.ret.simplify()),
             UnresolvedType::Named(ref name) => {
                 if let Some(&i) = type_lookup.get(&name) {
-                    solver.add_typed(i)
+                    solver.add_typed(i, self.ret.simplify())
                 } else {
                     CompileError::new(
                         &self.ret,
@@ -206,18 +210,21 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedTy
                     )?
                 }
             }
-            UnresolvedType::Unknown => solver.add_unconstrained(),
+            UnresolvedType::Unknown => solver.add_unconstrained(self.ret.simplify()),
         };
 
         let body = self
             .body
             .type_constraints(function_lookup, &variables, &mut solver)?;
-        
-        solver.add_equality(ret, body.id());
+
+        solver.add_equality(ret, body.id())?;
 
         let solution = match solver.solve() {
             Ok(solution) => solution,
-            Err(e) => CompileError::new(&self.name, format_args!("Type error in function `{}`", &self.name.item))?,
+            Err(e) => CompileError::new(
+                &self.name,
+                format_args!("Type error in function `{}`", &self.name.item),
+            )?,
         };
 
         let body = body.insert_types(types, &solution);
@@ -225,11 +232,14 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedTy
             name: self.name,
             arguments: self.arguments,
             ret: self.ret.replace(solution[ret]),
-            variables: self.variables
-                .into_iter().zip(variables)
+            variables: self
+                .variables
+                .into_iter()
+                .zip(variables)
                 .map(|(v, id)| Variable {
                     name: v.name,
-                    ty: v.ty.replace(solution[id])})
+                    ty: v.ty.replace(solution[id]),
+                })
                 .collect(),
             body: body,
         })
