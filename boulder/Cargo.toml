@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+    "solver",
     "boulder",
     "diagnostics",
     "parse",
