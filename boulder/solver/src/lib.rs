@@ -86,73 +86,70 @@ impl<T: Eq + Hash + Clone + std::fmt::Debug> ConstraintSolver<T> {
         id
     }
 
-    fn arrange_ids(&self, ids: &mut [usize]) {
+    fn get_id<'a>(&self, ids: &'a mut [usize]) -> (usize, &'a mut [usize]) {
         if let Some((i, _)) = ids
             .iter().copied().enumerate()
             .min_by_key(|&(_, id)| self.entities[id].len())
         {
             ids.swap(0, i);
         }
+
+        (ids[0], &mut ids[1..])
+    }
+
+    fn last_equal_entity(&self, id: usize) -> EntityId {
+        EntityId(self.all_entities.iter().enumerate().rev().find(|&(_, &entity)| id == entity).unwrap().0)
     }
 
     fn solve_partial(&mut self, ids: &mut [usize]) -> Result<Vec<T>, SolveError<T>> {
-        let id = ids[0];
-        debug_assert_eq!(self.entities[id].len(), 1);
-        let value = &self.entities[id].last().cloned().unwrap();
-        for rule in self.rules[id].iter() {
-            match rule {
-                &Rule::Production(prod, target_id) => {
-                    if let Some(values) = self.productions[prod.0].get(&value) {
-                        let target = &mut self.entities[target_id.0];
-                        target.retain(|v| values.contains(v));
-                        if target.is_empty() {
-                            return Err(SolveError::EmptyValue(target_id));
+        let (id , ids) = self.get_id(ids);
+        let mut old_result: Option<Vec<T>> = None;
+        for value in mem::replace(&mut self.entities[id], Vec::new()) {
+            let clone = self.entities.clone();
+            self.entities[id].push(value);
+            for rule in self.rules[id].iter() {
+                match rule {
+                    &Rule::Production(prod, target_id) => {
+                        if let Some(values) = self.productions[prod.0].get(&self.entities[id][0]) {
+                            let target = &mut self.entities[target_id.0];
+                            target.retain(|v| values.contains(v));
+                            if target.is_empty() {
+                                self.entities = clone;
+                                return Err(SolveError::EmptyValue(target_id));
+                            }
+                        } else {
+                            self.entities = clone;
+                            return Err(SolveError::EmptyValue(EntityId(id)));
                         }
-                    } else {
-                        return Err(SolveError::EmptyValue(EntityId(id)));
                     }
+                }
+            }
+
+            if ids.is_empty() {
+                old_result = Some(mem::replace(&mut self.entities, clone).into_iter().map(|mut e| {
+                    let t = e.pop().unwrap();
+                    debug_assert_eq!(e.len(), 0);
+                    t
+                }).collect())
+            } else {
+                let result = self.solve_partial(ids);
+                self.entities = clone;
+                match result {
+                    Ok(result) => if let Some(old) = old_result {
+                        return Err(SolveError::DuplicateValues(self.last_equal_entity(id), old[id].clone(), result[id].clone()));
+                    } else {
+                        old_result = Some(result);
+                    }
+                    Err(SolveError::EmptyValue(_)) => (),
+                    err @Err(SolveError::DuplicateValues(_, _, _)) => return err,
                 }
             }
         }
 
-        if ids.len() > 1 {
-            let ids = &mut ids[1..];
-            self.arrange_ids(ids);
-            let id = ids[0];
-            let mut result = None;
-            for v in mem::replace(&mut self.entities[id], Vec::new()) {
-                let clone = self.entities.clone();
-                self.entities[id].push(v);
-                match self.solve_partial(ids) {
-                    Ok(mut res) => match result {
-                        None => result = Some(res),
-                        Some(mut old) => {
-                            debug_assert_eq!(id, ids[0]);
-                            return Err(SolveError::DuplicateValues(
-                                EntityId(ids[0]),
-                                old.swap_remove(id),
-                                res.swap_remove(id),
-                            ));
-                        }
-                    },
-                    Err(SolveError::EmptyValue(_)) => (),
-                    err @ Err(SolveError::DuplicateValues(_, _, _)) => return err,
-                }
-                self.entities = clone;
-            }
-
-            match result {
-                None => Err(SolveError::EmptyValue(EntityId(ids[0]))),
-                Some(res) => Ok(res),
-            }
+        if let Some(res) = old_result {
+            Ok(res)
         } else {
-            Ok(mem::replace(&mut self.entities, Vec::new())
-                .into_iter()
-                .map(|mut e| {
-                    debug_assert_eq!(e.len(), 1);
-                    e.pop().unwrap()
-                })
-                .collect())
+            Err(SolveError::EmptyValue(self.last_equal_entity(id)))
         }
     }
 
@@ -165,40 +162,15 @@ impl<T: Eq + Hash + Clone + std::fmt::Debug> ConstraintSolver<T> {
         }
 
         let mut ids: Vec<usize> = (0..self.entities.len()).map(|v| v).collect();
-        self.arrange_ids(&mut ids);
-        let id = ids[0];
-        let mut result = None;
-        for v in mem::replace(&mut self.entities[id], Vec::new()) {
-            let clone = self.entities.clone();
-            self.entities[id].push(v);
-            match self.solve_partial(&mut ids) {
-                Ok(mut res) => match result {
-                    None => result = Some(res),
-                    Some(mut old) => {
-                        debug_assert_eq!(id, ids[0]);
-                        return Err(SolveError::DuplicateValues(
-                            EntityId(ids[0]),
-                            old.swap_remove(id),
-                            res.swap_remove(id),
-                        ));
-                    }
-                },
-                Err(SolveError::EmptyValue(_)) => (),
-                Err(err @ SolveError::DuplicateValues(_, _, _)) => return Err(err),
-            }
-            self.entities = clone;
-        }
+        let result = self.solve_partial(&mut ids)?;
 
-        match result {
-            None => Err(SolveError::EmptyValue(EntityId(ids[0]))),
-            Some(res) => Ok(Solution {
-                inner: self
+        Ok(Solution {
+            inner: self
                     .all_entities
                     .into_iter()
-                    .map(|e| res[e].clone())
+                    .map(|e| result[e].clone())
                     .collect(),
-            }),
-        }
+        })
     }
 }
 
