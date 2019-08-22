@@ -5,5 +5,6 @@ authors = ["lcnr/Bastian Kauschke <bastian_kauschke@hotmail.de>"]
 edition = "2018"
 
 [dependencies]
+solver = { path = "../solver" }
 diagnostics = { path = "../diagnostics" }
 mir = { path = "../mir" }

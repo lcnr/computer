@@ -39,7 +39,7 @@ impl<'a> TypeState for UnresolvedTypes<'a> {
 pub struct ResolvingTypes<'a>(PhantomData<&'a str>);
 
 impl<'a> TypeState for ResolvingTypes<'a> {
-    type Type = ty::solver::EntityId;
+    type Type = solver::EntityId;
     type Field = Meta<'a, Box<str>>;
 }
 

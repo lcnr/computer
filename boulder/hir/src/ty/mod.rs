@@ -117,6 +117,14 @@ impl<'a> Type<'a, TypeId> {
         }
     }
 
+    pub fn fields(&self) -> &[Field<'a, TypeId>] {
+        if let Kind::Struct(v) = &self.kind {
+            &v
+        } else {
+            &[]
+        }
+    }
+
     pub fn get_field(&self, name: &Box<str>) -> Option<FieldId> {
         if let Kind::Struct(v) = &self.kind {
             Some(FieldId(

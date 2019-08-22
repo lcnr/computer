@@ -86,6 +86,14 @@ impl<T: Eq + Hash + Clone + std::fmt::Debug> ConstraintSolver<T> {
         id
     }
 
+    pub fn add_rule(&mut self, entity: EntityId, rule: Rule) {
+        self.rules[entity.0].push(rule);
+    }
+
+    pub fn extend_production(&mut self, production: ProductionId, orig: T, mut res: Vec<T>) {
+        self.productions[production.0].entry(orig).or_default().append(&mut res);
+    }
+
     fn get_id<'a>(&self, ids: &'a mut [usize]) -> (usize, &'a mut [usize]) {
         if let Some((i, _)) = ids
             .iter().copied().enumerate()
@@ -111,7 +119,7 @@ impl<T: Eq + Hash + Clone + std::fmt::Debug> ConstraintSolver<T> {
                 match rule {
                     &Rule::Production(prod, target_id) => {
                         if let Some(values) = self.productions[prod.0].get(&self.entities[id][0]) {
-                            let target = &mut self.entities[target_id.0];
+                            let target = &mut self.entities[self.all_entities[target_id.0]];
                             target.retain(|v| values.contains(v));
                             if target.is_empty() {
                                 self.entities = clone;

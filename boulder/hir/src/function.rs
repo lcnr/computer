@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::{
     expression::Expression, ty, IdentifierState, ResolvedIdentifiers, ResolvedTypes, Type, TypeId,
-    TypeState, UnresolvedIdentifiers, UnresolvedType, UnresolvedTypes,
+    TypeState, UnresolvedIdentifiers, UnresolvedType, UnresolvedTypes, ty::solver::TypeSolver,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -174,78 +174,62 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedTy
         type_lookup: &HashMap<&Box<str>, TypeId>,
     ) -> Result<Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId>, CompileError>
     {
-        use ty::solver;
-        let mut constraints = solver::Constraints::new(types);
-        let integers = constraints.add_group(
-            types
-                .iter()
-                .enumerate()
-                .filter(|(_, t)| match &t.kind {
-                    ty::Kind::U8 | ty::Kind::U16 | ty::Kind::U32 => true,
-                    _ => false,
-                })
-                .fold(solver::Group::new("Integers".into()), |g, (i, _)| {
-                    g.with_member(TypeId(i))
-                }),
-        );
-
-        assert_eq!(integers, ty::solver::INTEGER_GROUP_ID);
-
+        let mut solver = TypeSolver::new(types);
         // constraints must not contain any entities right now,
         // as we want `VariableId`s to be equal to `EntityId`s
-        assert_eq!(constraints.entity_count(), 0);
-        for variable in self.variables.iter() {
-            let id = constraints.add_entity(variable.name.simplify(), solver::State::Open);
-            match variable.ty.item {
-                UnresolvedType::Integer => constraints.add_membership(id, integers),
+        let variables = self.variables.iter().map(|variable| {
+            Ok(match variable.ty.item {
+                UnresolvedType::Integer => solver.add_integer(),
                 UnresolvedType::Named(ref name) => {
                     if let Some(&i) = type_lookup.get(&name) {
-                        constraints.set_ty(id, i).unwrap();
+                        solver.add_typed(i)
                     } else {
                         CompileError::new(
                             &variable.ty,
                             format_args!("Cannot find type `{}` in this scope", name),
-                        )?;
+                        )?
                     }
                 }
-                UnresolvedType::Unknown => (),
-            }
-        }
+                UnresolvedType::Unknown => solver.add_unconstrained(),
+            })
+        }).collect::<Result<Vec<_>, _>>()?;
 
-        let id = constraints.add_entity(self.ret.simplify(), solver::State::Open);
-        match &self.ret.item {
-            UnresolvedType::Integer => constraints.add_membership(id, integers),
+        let ret = match &self.ret.item {
+            UnresolvedType::Integer => solver.add_integer(),
             UnresolvedType::Named(ref name) => {
                 if let Some(&i) = type_lookup.get(&name) {
-                    constraints.set_ty(id, i).unwrap();
+                    solver.add_typed(i)
                 } else {
                     CompileError::new(
                         &self.ret,
                         format_args!("Cannot find type `{}` in this scope", name),
-                    )?;
+                    )?
                 }
             }
-            UnresolvedType::Unknown => (),
-        }
+            UnresolvedType::Unknown => solver.add_unconstrained(),
+        };
+
         let body = self
             .body
-            .type_constraints(function_lookup, &mut constraints)?;
-        constraints.add_equality(id, body.id());
+            .type_constraints(function_lookup, &variables, &mut solver)?;
+        
+        solver.add_equality(ret, body.id());
 
-        let entities = constraints.solve()?;
-        let body = body.insert_types(types, &entities);
+        let solution = match solver.solve() {
+            Ok(solution) => solution,
+            Err(e) => CompileError::new(&self.name, format_args!("Type error in function `{}`", &self.name.item))?,
+        };
+
+        let body = body.insert_types(types, &solution);
         Ok(Function {
             name: self.name,
             arguments: self.arguments,
-            ret: self.ret.replace(entities[self.variables.len()]),
-            variables: self
-                .variables
-                .into_iter()
-                .zip(entities)
-                .map(|(v, t)| Variable {
+            ret: self.ret.replace(solution[ret]),
+            variables: self.variables
+                .into_iter().zip(variables)
+                .map(|(v, id)| Variable {
                     name: v.name,
-                    ty: v.ty.replace(t),
-                })
+                    ty: v.ty.replace(solution[id])})
                 .collect(),
             body: body,
         })
