@@ -1,0 +1,11 @@
+# Mismatched types
+# `u16`
+# `u32`
+
+struct A {
+    b: u16,
+}
+
+fn test(a: A) -> u32 {
+    a.b
+}

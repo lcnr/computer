@@ -23,11 +23,14 @@ pub fn main() {
             }
 
             if let Ok(res) = boulder::compile(&src) {
+                println!("Successfully compiled `{}`", input);
                 if let Ok(mut file) = File::create(output) {
                     write!(file, "{}", res).unwrap();
                 } else {
                     eprintln!("unable to create file: {}", output);
                 }
+            } else {
+                println!("Unable to compile `{}`", input);
             }
         } else {
             eprintln!("unable to open file: {}", input);

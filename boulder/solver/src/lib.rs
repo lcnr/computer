@@ -6,7 +6,7 @@ pub struct EntityId(usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ProductionId(usize);
 
-type Production<T> = HashMap<T, Vec<T>>;
+type Production<T> = HashMap<T, T>;
 
 #[derive(Debug, Clone)]
 pub enum Rule {
@@ -42,8 +42,16 @@ pub struct ExpectedFound<T> {
 
 #[derive(Debug)]
 pub enum SolveError<T> {
-    EmptyValue(EntityId),
-    DuplicateValues(EntityId, T, T),
+    UnsolvedEntities(Vec<(EntityId, Vec<T>)>),
+    ApplyRuleError(ApplyRuleError<T>),
+}
+
+#[derive(Debug)]
+pub enum ApplyRuleError<T> {
+    /// production, object, object_type, field_id
+    InvalidProduction(ProductionId, EntityId, T, EntityId),
+    /// production, field_id, production_type, possible_field_types
+    InvalidProductionResult(ProductionId, EntityId, T, Vec<T>),
 }
 
 impl<T: Eq + Hash + Clone + std::fmt::Debug> ConstraintSolver<T> {
@@ -56,7 +64,14 @@ impl<T: Eq + Hash + Clone + std::fmt::Debug> ConstraintSolver<T> {
         }
     }
 
+    /// # Panic
+    ///
+    /// This function panics if `values` is empty.
     pub fn add_entity(&mut self, values: Vec<T>) -> EntityId {
+        assert!(
+            !values.is_empty(),
+            "Tried adding an entity without any valid values"
+        );
         let id = EntityId(self.all_entities.len());
         let actual = self.entities.len();
         self.all_entities.push(actual);
@@ -108,51 +123,37 @@ impl<T: Eq + Hash + Clone + std::fmt::Debug> ConstraintSolver<T> {
         self.rules[entity.0].push(rule);
     }
 
-    pub fn extend_production(&mut self, production: ProductionId, orig: T, mut res: Vec<T>) {
-        self.productions[production.0]
-            .entry(orig)
-            .or_default()
-            .append(&mut res);
+    pub fn extend_production(&mut self, production: ProductionId, orig: T, res: T) {
+        assert!(
+            self.productions[production.0].insert(orig, res).is_none(),
+            "Tried to overwrite an existing production rule"
+        );
     }
 
-    fn get_id<'a>(&self, ids: &'a mut [usize]) -> Option<(usize, &'a mut [usize])> {
-        if let Some((i, _)) = ids
-            .iter()
-            .copied()
-            .enumerate()
-            .min_by_key(|&(_, id)| self.entities[id].len())
-        {
-            ids.swap(0, i);
-            Some((ids[0], &mut ids[1..]))
-        } else {
-            None
-        }
-    }
-
-    fn last_equal_entity(&self, id: usize) -> EntityId {
-        EntityId(
-            self.all_entities
-                .iter()
-                .enumerate()
-                .rev()
-                .find(|&(_, &entity)| id == entity)
-                .unwrap()
-                .0,
-        )
-    }
-
-    fn apply_entity(&mut self, id: usize) -> Result<(), SolveError<T>> {
+    fn apply_entity(&mut self, id: usize) -> Result<(), ApplyRuleError<T>> {
         for rule in self.rules[id].iter() {
             match rule {
                 &Rule::Production(prod, target_id) => {
-                    if let Some(values) = self.productions[prod.0].get(&self.entities[id][0]) {
+                    if let Some(value) = self.productions[prod.0].get(&self.entities[id][0]) {
                         let target = &mut self.entities[self.all_entities[target_id.0]];
-                        target.retain(|v| values.contains(v));
-                        if target.is_empty() {
-                            Err(SolveError::EmptyValue(target_id))?;
+                        if target.contains(value) {
+                            target.clear();
+                            target.push(value.clone());
+                        } else {
+                            return Err(ApplyRuleError::InvalidProductionResult(
+                                prod,
+                                target_id,
+                                value.clone(),
+                                mem::replace(target, Vec::new()),
+                            ));
                         }
                     } else {
-                        Err(SolveError::EmptyValue(EntityId(id)))?;
+                        return Err(ApplyRuleError::InvalidProduction(
+                            prod,
+                            EntityId(id),
+                            self.entities[id].pop().unwrap(),
+                            target_id,
+                        ));
                     }
                 }
             }
@@ -161,91 +162,37 @@ impl<T: Eq + Hash + Clone + std::fmt::Debug> ConstraintSolver<T> {
         Ok(())
     }
 
-    fn solve_forced<'a>(
-        &mut self,
-        mut ids: &'a mut [usize],
-    ) -> Result<&'a mut [usize], SolveError<T>> {
-        while let Some(pos) = ids.iter().position(|&id| self.entities[id].len() == 1) {
-            ids.swap(0, pos);
-            self.apply_entity(ids[0])?;
-            ids = &mut ids[1..];
-        }
-        Ok(ids)
-    }
-
-    fn solve_partial(&mut self, ids: &mut [usize]) -> Result<Vec<T>, SolveError<T>> {
-        if let Some((id, ids)) = self.get_id(ids) {
-            let mut old_result: Option<Vec<T>> = None;
-            for value in mem::replace(&mut self.entities[id], Vec::new()) {
-                let clone = self.entities.clone();
-                self.entities[id].push(value);
-                if let Err(err) = self.apply_entity(id) {
-                    self.entities = clone;
-                    return Err(err);
-                }
-
-                let result = self.solve_partial(ids);
-                self.entities = clone;
-                match result {
-                    Ok(result) => {
-                        if let Some(old) = old_result {
-                            return Err(SolveError::DuplicateValues(
-                                self.last_equal_entity(id),
-                                old[id].clone(),
-                                result[id].clone(),
-                            ));
-                        } else {
-                            old_result = Some(result);
-                        }
-                    }
-                    Err(SolveError::EmptyValue(_)) => (),
-                    err @ Err(SolveError::DuplicateValues(_, _, _)) => return err,
-                }
-            }
-
-            if let Some(res) = old_result {
-                Ok(res)
-            } else {
-                Err(SolveError::EmptyValue(self.last_equal_entity(id)))
-            }
-        } else {
-            Ok(self
-                .entities
-                .iter()
-                .map(|e| e.last().cloned().unwrap())
-                .collect())
-        }
-    }
-
     /// finds a solution for the current set of constraints,
     /// returning an error in case there are either multiple or none.
     pub fn solve(mut self) -> Result<Solution<T>, SolveError<T>> {
         if let Some((i, _)) = self.entities.iter().enumerate().find(|(_, e)| e.is_empty()) {
-            return Err(SolveError::EmptyValue(EntityId(i)));
+            panic!("Entity without possible state: {}", i);
         }
 
-        let mut ids: Vec<usize> = (0..self.entities.len()).map(|v| v).collect();
-        println!(
-            "hi: {:?}, {:?}, {:?}",
-            &self.entities, &self.productions, &self.rules
-        );
-        let mut ids = self.solve_forced(&mut ids)?;
-        println!(
-            "hey: {:?}, {:?}, {:?}",
-            &self.entities, &self.productions, &self.rules
-        );
-        let result = self.solve_partial(&mut ids)?;
-        println!(
-            "ho: {:?}, {:?}, {:?}",
-            &self.entities, &self.productions, &self.rules
-        );
-        Ok(Solution {
-            inner: self
-                .all_entities
-                .into_iter()
-                .map(|e| result[e].clone())
-                .collect(),
-        })
+        let mut ids: &mut [usize] = &mut (0..self.entities.len()).map(|v| v).collect::<Box<_>>();
+        while let Some(pos) = ids.iter().position(|&id| self.entities[id].len() == 1) {
+            ids.swap(0, pos);
+            self.apply_entity(ids[0])
+                .map_err(|e| SolveError::ApplyRuleError(e))?;
+            ids = &mut ids[1..];
+        }
+
+        if ids.is_empty() {
+            let entities = self.entities;
+            Ok(Solution {
+                inner: self
+                    .all_entities
+                    .into_iter()
+                    .map(|e| entities[e].last().unwrap().clone())
+                    .collect(),
+            })
+        } else {
+            Err(SolveError::UnsolvedEntities(
+                ids.iter()
+                    .map(|&id| (EntityId(id), self.entities[id].clone()))
+                    .collect(),
+            ))
+        }
     }
 }
 
@@ -260,9 +207,9 @@ mod tests {
         let b = solver.add_entity(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
         let c = solver.add_entity(vec![0, 1, 2, 3, 4]);
         let d = solver.add_entity(vec![3]);
-        solver.add_equality(a, b);
-        solver.add_equality(b, c);
-        solver.add_equality(d, b);
+        solver.add_equality(a, b).unwrap();
+        solver.add_equality(b, c).unwrap();
+        solver.add_equality(d, b).unwrap();
         let solution = solver.solve().unwrap();
         assert_eq!(solution[a], 3);
         assert_eq!(solution[b], 3);
@@ -280,12 +227,12 @@ mod tests {
 
         solver.add_production({
             let mut production = HashMap::new();
-            production.insert(0, vec![7]);
-            production.insert(3, vec![7]);
+            production.insert(0, 7);
+            production.insert(3, 7);
             production
         });
-        solver.add_equality(b, c);
-        solver.add_equality(b, d);
+        solver.add_equality(b, c).unwrap();
+        solver.add_equality(b, d).unwrap();
         let solution = solver.solve().unwrap();
         assert_eq!(solution[a], 0);
         assert_eq!(solution[b], 7);

@@ -155,7 +155,6 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
         variables: &[solver::EntityId],
         solver: &mut TypeSolver<'a, 'b>,
     ) -> Result<Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>>, CompileError> {
-        use ty::solver;
         Ok(match self {
             Expression::Block((), meta, v) => {
                 let (id, content) = if v.is_empty() {

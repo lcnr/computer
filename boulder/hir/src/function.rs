@@ -219,13 +219,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedTy
 
         solver.add_equality(ret, body.id())?;
 
-        let solution = match solver.solve() {
-            Ok(solution) => solution,
-            Err(e) => CompileError::new(
-                &self.name,
-                format_args!("Type error in function `{}`", &self.name.item),
-            )?,
-        };
+        let solution = solver.solve()?;
 
         let body = body.insert_types(types, &solution);
         Ok(Function {

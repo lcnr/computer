@@ -1,0 +1,14 @@
+# No field `b` on type `A`
+# (13:
+
+struct A {
+    a: u32,
+}
+
+struct B {
+    b: u32,
+}
+
+fn test(a: A) -> u32 {
+    a.b
+}

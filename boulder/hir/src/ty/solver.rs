@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use diagnostics::{CompileError, Meta};
 
-use solver::{ConstraintSolver, EntityId, ExpectedFound, ProductionId, Rule, Solution, SolveError};
+use solver::{
+    ApplyRuleError, ConstraintSolver, EntityId, ExpectedFound, ProductionId, Rule, Solution,
+    SolveError,
+};
 
 use crate::ty::{Type, TypeId};
 
@@ -12,6 +15,7 @@ pub struct TypeSolver<'a, 'b> {
     all: Vec<TypeId>,
     integers: Vec<TypeId>,
     fields: HashMap<Box<str>, ProductionId>,
+    fields_rev: HashMap<ProductionId, Box<str>>,
     meta: HashMap<EntityId, Meta<'a, ()>>,
     types: &'b [Type<'a, TypeId>],
 }
@@ -35,12 +39,15 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
             .collect();
 
         let mut fields = HashMap::new();
+        let mut fields_rev = HashMap::new();
         for (i, ty) in types.iter().enumerate() {
             for field in ty.fields() {
-                let id = fields
-                    .entry(field.name.item.clone())
-                    .or_insert_with(|| solver.add_production(HashMap::new()));
-                solver.extend_production(*id, TypeId(i), vec![field.ty.item]);
+                let id = fields.entry(field.name.item.clone()).or_insert_with(|| {
+                    let id = solver.add_production(HashMap::new());
+                    fields_rev.insert(id, field.name.item.clone());
+                    id
+                });
+                solver.extend_production(*id, TypeId(i), field.ty.item);
             }
         }
 
@@ -50,8 +57,30 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
             all,
             integers,
             fields,
+            fields_rev,
             meta: HashMap::new(),
-            types
+            types,
+        }
+    }
+
+    fn ty_error_str(types: &[Type<'a, TypeId>], expected: &[TypeId]) -> String {
+        match expected {
+            [] => unreachable!("expected no types"),
+            [one] => format!("`{}`", types[one.0].name.item),
+            [one, two] => format!(
+                "either `{}` or `{}`",
+                types[one.0].name.item, types[two.0].name.item
+            ),
+            [one, two, three] => format!(
+                "one of `{}`, `{}` or `{}`",
+                types[one.0].name.item, types[two.0].name.item, types[three.0].name.item
+            ),
+            _ => format!(
+                "one of `{}`, `{}` or {} more",
+                types[expected[0].0].name.item,
+                types[expected[1].0].name.item,
+                expected.len() - 2
+            ),
         }
     }
 
@@ -79,20 +108,16 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
 
     pub fn add_equality(&mut self, a: EntityId, b: EntityId) -> Result<(), CompileError> {
         if let Err(ExpectedFound { expected, found }) = self.solver.add_equality(a, b) {
-            let expected_meta = self.meta.get(&found.0).unwrap();
-            let found_meta = self.meta.get(&expected.0).unwrap();
-
-            match (&*expected.1, &*found.1) {
-                ([expected], [found]) => {
-                    CompileError::build(found_meta, format_args!(
-                        "Mismatched types: expected `{}`, found `{}`",
-                        self.types[expected.0].name.item, self.types[found.0].name.item
-                    )).with_location(expected_meta)
-                    .build()
-                },
-                _ => unimplemented!(),
-            }
-            
+            CompileError::build(
+                self.meta.get(&found.0).unwrap(),
+                format_args!(
+                    "Mismatched types: found {}, expected {}",
+                    Self::ty_error_str(self.types, &found.1),
+                    Self::ty_error_str(self.types, &expected.1),
+                ),
+            )
+            .with_location(self.meta.get(&expected.0).unwrap())
+            .build()
         } else {
             Ok(())
         }
@@ -110,12 +135,70 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         } else {
             CompileError::new(
                 &name,
-                format_args!("Access of unknown field `{}`, no viable struct found", name.item),
+                format_args!(
+                    "Access of unknown field `{}`, no viable struct found",
+                    name.item
+                ),
             )
         }
     }
 
-    pub fn solve(self) -> Result<Solution<TypeId>, SolveError<TypeId>> {
-        self.solver.solve()
+    pub fn solve(self) -> Result<Solution<TypeId>, CompileError> {
+        match self.solver.solve() {
+            Ok(solution) => Ok(solution),
+            Err(SolveError::UnsolvedEntities(entities)) => {
+                let types = self.types;
+                let meta = self.meta;
+                let ((start_id, start_types), rest) = entities.split_first().unwrap();
+
+                let msg = if rest.is_empty() {
+                    "Value with multiple possible types found:"
+                } else {
+                    "Values with multiple possible types found:"
+                };
+                rest.into_iter()
+                    .fold(
+                        CompileError::build(meta.get(&start_id).unwrap(), msg).with_help(
+                            format_args!("could be {}", Self::ty_error_str(types, start_types)),
+                        ),
+                        |err, (id, ty)| {
+                            err.with_location(meta.get(&id).unwrap())
+                                .with_help(format_args!(
+                                    "could be {}",
+                                    Self::ty_error_str(types, &ty)
+                                ))
+                        },
+                    )
+                    .build()
+            }
+            Err(SolveError::ApplyRuleError(ApplyRuleError::InvalidProduction(
+                prod,
+                _obj,
+                obj_ty,
+                target,
+            ))) => CompileError::new(
+                self.meta.get(&target).unwrap(),
+                format_args!(
+                    "No field `{}` on type `{}`",
+                    self.fields_rev.get(&prod).unwrap(),
+                    self.types[obj_ty.0].name.item
+                ),
+            ),
+            Err(SolveError::ApplyRuleError(ApplyRuleError::InvalidProductionResult(
+                _prod,
+                target,
+                ty,
+                expected,
+            ))) => {
+                let expected_str = Self::ty_error_str(self.types, &expected);
+                CompileError::new(
+                    self.meta.get(&target).unwrap(),
+                    format_args!(
+                        "Mismatched types: found `{}`, expected {}",
+                        self.types[ty.0].name.item, expected_str
+                    ),
+                )
+            }
+        }
     }
 }
