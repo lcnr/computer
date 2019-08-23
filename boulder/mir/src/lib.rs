@@ -42,6 +42,7 @@ pub enum Action {
     Sub(StepId, StepId),
     Mul(StepId, StepId),
     Div(StepId, StepId),
+    BitOr(StepId, StepId),
 }
 
 #[derive(Debug, Clone)]

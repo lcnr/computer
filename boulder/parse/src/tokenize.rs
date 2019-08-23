@@ -42,11 +42,14 @@ pub enum Operator {
     Mul,
     /// `/`
     Div,
+    /// `|`
+    BitOr,
 }
 
 impl Operator {
     pub fn priority(self) -> u32 {
         match self {
+            Operator::BitOr => 5,
             Operator::Add => 10,
             Operator::Sub => 10,
             Operator::Mul => 20,
@@ -73,6 +76,9 @@ impl Operator {
             Operator::Div => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::Div), a.into(), b.into())
             }
+            Operator::BitOr => {
+                crate::Expression::Binop((), meta.replace(hir::Binop::BitOr), a.into(), b.into())
+            }
         }
     }
 }
@@ -84,6 +90,7 @@ impl fmt::Display for Operator {
             Operator::Sub => write!(f, "-"),
             Operator::Mul => write!(f, "*"),
             Operator::Div => write!(f, "/"),
+            Operator::BitOr => write!(f, "|"),
         }
     }
 }

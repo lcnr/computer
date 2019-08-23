@@ -80,6 +80,7 @@ pub enum Binop {
     Sub,
     Mul,
     Div,
+    BitOr,
 }
 
 #[derive(Debug, Clone)]

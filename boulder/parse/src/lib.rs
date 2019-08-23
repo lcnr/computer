@@ -103,6 +103,21 @@ fn check_expr_terminator<'a>(
     }
 }
 
+fn parse_type<'a>(iter: &mut TokenIter<'a>) -> Result<Meta<'a, hir::UnresolvedType>, CompileError> {
+    let first = expect_ident(iter.next().unwrap())?;
+    let next = iter.next().unwrap();
+    match &next.item {
+        Token::Operator(Operator::BitOr) => {
+            unimplemented!("sum type")
+        }
+        _ => {
+            iter.step_back(next);
+            Ok(first.map(|f| hir::UnresolvedType::Named(f)))
+        }
+
+    }
+}
+
 fn parse_ident_expr<'a>(
     ident: Meta<'a, Box<str>>,
     iter: &mut TokenIter<'a>,

@@ -85,6 +85,7 @@ impl Display for Mir {
                         Action::Sub(a, b) => writeln!(f, "sub ${} ${}", a.0, b.0),
                         Action::Mul(a, b) => writeln!(f, "mul ${} ${}", a.0, b.0),
                         Action::Div(a, b) => writeln!(f, "div ${} ${}", a.0, b.0),
+                        Action::BitOr(a, b) => writeln!(f, "bitor ${} $ {}", a.0, b.0),
                     }?;
                 }
             }

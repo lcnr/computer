@@ -177,7 +177,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 }
             },
             Expression::Binop((), op, a, b) => match op.item {
-                Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
+                Binop::Add | Binop::Sub | Binop::Mul | Binop::Div | Binop::BitOr => {
                     let a = a.type_constraints(functions, variables, solver)?;
                     let b = b.type_constraints(functions, variables, solver)?;
                     let integer = solver.add_integer(op.simplify());
@@ -284,12 +284,10 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             Expression::Lit(id, lit) => match &lit.item {
                 Literal::Integer(_) => Expression::Lit(type_result[id], lit),
             },
-            Expression::Binop(id, op, a, b) => match op.item {
-                Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
-                    let a = a.insert_types(types, type_result);
-                    let b = b.insert_types(types, type_result);
-                    Expression::Binop(type_result[id], op, Box::new(a), Box::new(b))
-                }
+            Expression::Binop(id, op, a, b) => {
+                let a = a.insert_types(types, type_result);
+                let b = b.insert_types(types, type_result);
+                Expression::Binop(type_result[id], op, Box::new(a), Box::new(b))
             },
             Expression::Statement(id, meta, expr) => {
                 let expr = expr.insert_types(types, type_result);
@@ -387,6 +385,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                         Binop::Sub => Action::Sub(a, b),
                         Binop::Mul => Action::Mul(a, b),
                         Binop::Div => Action::Div(a, b),
+                        Binop::BitOr => Action::BitOr(a, b),
                     },
                 )))
             }

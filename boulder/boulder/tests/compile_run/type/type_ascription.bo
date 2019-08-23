@@ -1,0 +1,7 @@
+struct A {
+    field: u32
+}
+
+fn test(a: A, b: u32) -> u32 {
+    a.field: u32 + b
+}

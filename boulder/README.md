@@ -2,6 +2,12 @@
 
 WIP: A high level programming language
 
+## Features
+
+- inferred types: for example `let a: u32 = 7u32` can be rewritten as `let a = 7u32`
+- type ascriptions: the type of expressions and statements can always be directly ascribed
+    without having to resort to temporary variables, for example `let a: u32 = (7: u32 + 8): u32`
+
 ## Goals
 
 Learn about type theory, optimizations and other interesting subjects.
