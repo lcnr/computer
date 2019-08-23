@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::Hash, mem, ops::Index};
+use std::{hash::Hash, mem, ops::Index, fmt};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct EntityId(usize);
@@ -6,19 +6,10 @@ pub struct EntityId(usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ProductionId(usize);
 
-type Production<T> = HashMap<T, T>;
-
 #[derive(Debug, Clone)]
-pub enum Rule {
-    Production(ProductionId, EntityId),
-}
-
-#[derive(Debug)]
-pub struct ConstraintSolver<T: Eq + Hash> {
-    all_entities: Vec<usize>,
-    entities: Vec<Vec<T>>,
-    rules: Vec<Vec<Rule>>,
-    productions: Vec<Production<T>>,
+enum Rule {
+    ForwardProduction(ProductionId, EntityId, EntityId),
+    BackwardsProduction(ProductionId, EntityId, EntityId),
 }
 
 #[derive(Debug)]
@@ -41,27 +32,51 @@ pub struct ExpectedFound<T> {
 }
 
 #[derive(Debug)]
-pub enum SolveError<T> {
+pub enum SolveError<T, E> {
     UnsolvedEntities(Vec<(EntityId, Vec<T>)>),
-    ApplyRuleError(ApplyRuleError<T>),
+    ProductionError(E),
 }
 
-#[derive(Debug)]
-pub enum ApplyRuleError<T> {
-    /// production, object, object_type, field_id
-    InvalidProduction(ProductionId, EntityId, T, EntityId),
-    /// production, field_id, production_type, possible_field_types
-    InvalidProductionResult(ProductionId, EntityId, T, Vec<T>),
+pub struct Entity<'a, T> {
+    pub id: EntityId,
+    pub content: &'a mut Vec<T>
 }
 
-impl<T: Eq + Hash + Clone + std::fmt::Debug> ConstraintSolver<T> {
-    pub fn new() -> Self {
+pub type Production<C, T, E> = Box<dyn FnMut(&mut C, Entity<T>, Entity<T>) -> Result<(), E>>;
+
+pub struct ConstraintSolver<C, T, E> {
+    all_entities: Vec<usize>,
+    entities: Vec<Vec<T>>,
+    rules: Vec<Vec<Rule>>,
+    productions: Vec<Production<C, T, E>>,
+    context: C,
+}
+
+impl<'ctx, C: fmt::Debug, T: fmt::Debug, E> fmt::Debug for ConstraintSolver<C, T, E> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ConstraintSolver")
+        .field("all_entities", &self.all_entities)
+        .field("entities", &self.entities)
+        .field("rules", &self.rules)
+        .field("context", &self.context)
+        .field("productions", &"_")
+        .finish()
+    }
+}
+
+impl<C, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
+    pub fn new(context: C) -> Self {
         Self {
             all_entities: Vec::new(),
             entities: Vec::new(),
             rules: Vec::new(),
             productions: Vec::new(),
+            context,
         }
+    }
+
+    pub fn context(&mut self) -> &mut C {
+        &mut self.context
     }
 
     /// # Panic
@@ -113,48 +128,58 @@ impl<T: Eq + Hash + Clone + std::fmt::Debug> ConstraintSolver<T> {
         Ok(())
     }
 
-    pub fn add_production(&mut self, production: Production<T>) -> ProductionId {
+    pub fn define_production(&mut self, production: Production<C, T, E>) -> ProductionId {
         let id = ProductionId(self.productions.len());
         self.productions.push(production);
         id
     }
 
-    pub fn add_rule(&mut self, entity: EntityId, rule: Rule) {
-        self.rules[entity.0].push(rule);
+    pub fn add_production(&mut self, production: ProductionId, origin: EntityId, target: EntityId) {
+        assert_ne!(self.all_entities[origin.0], self.all_entities[target.0], "invalid production");
+        self.rules[self.all_entities[origin.0]].push(Rule::ForwardProduction(production, origin, target));
+        self.rules[self.all_entities[target.0]].push(Rule::BackwardsProduction(production, origin, target));
     }
 
-    pub fn extend_production(&mut self, production: ProductionId, orig: T, res: T) {
-        assert!(
-            self.productions[production.0].insert(orig, res).is_none(),
-            "Tried to overwrite an existing production rule"
-        );
-    }
-
-    fn apply_entity(&mut self, id: usize) -> Result<(), ApplyRuleError<T>> {
+    fn apply_entity(&mut self, id: usize) -> Result<(), E> {
         for rule in self.rules[id].iter() {
             match rule {
-                &Rule::Production(prod, target_id) => {
-                    if let Some(value) = self.productions[prod.0].get(&self.entities[id][0]) {
-                        let target = &mut self.entities[self.all_entities[target_id.0]];
-                        if target.contains(value) {
-                            target.clear();
-                            target.push(value.clone());
-                        } else {
-                            return Err(ApplyRuleError::InvalidProductionResult(
-                                prod,
-                                target_id,
-                                value.clone(),
-                                mem::replace(target, Vec::new()),
-                            ));
-                        }
+                &Rule::ForwardProduction(prod, actual_origin, actual_target) => {
+                    let target_id = self.all_entities[actual_target.0];
+
+                    let (begin, end) = dbg!(self.entities.split_at_mut(id.max(target_id)));
+                    let (origin, target) = if target_id > id {
+                        (&mut begin[id], &mut end[0])
                     } else {
-                        return Err(ApplyRuleError::InvalidProduction(
-                            prod,
-                            EntityId(id),
-                            self.entities[id].pop().unwrap(),
-                            target_id,
-                        ));
-                    }
+                        (&mut end[0], &mut begin[target_id])
+                    };
+                    let production = &mut self.productions[prod.0];
+                    production(&mut self.context, Entity {
+                        id: actual_origin,
+                        content: origin,
+                    },
+                    Entity {
+                        id: actual_target,
+                        content: target,
+                    })?;
+                }
+                &Rule::BackwardsProduction(prod, actual_origin, actual_target) => {
+                    let origin_id = self.all_entities[actual_origin.0];
+                    let (begin, end) = self.entities.split_at_mut(id.max(origin_id));
+                    let (origin, target) = if id > origin_id {
+                        (&mut begin[origin_id], &mut end[0])
+                    } else {
+                        (&mut end[0], &mut begin[id])
+                    };
+
+                    let production = &mut self.productions[prod.0];
+                    production(&mut self.context, Entity {
+                        id: actual_origin,
+                        content: origin,
+                    },
+                    Entity {
+                        id: actual_target,
+                        content: target,
+                    })?;
                 }
             }
         }
@@ -164,7 +189,7 @@ impl<T: Eq + Hash + Clone + std::fmt::Debug> ConstraintSolver<T> {
 
     /// finds a solution for the current set of constraints,
     /// returning an error in case there are either multiple or none.
-    pub fn solve(mut self) -> Result<Solution<T>, SolveError<T>> {
+    pub fn solve(&mut self) -> Result<Solution<T>, SolveError<T, E>> {
         if let Some((i, _)) = self.entities.iter().enumerate().find(|(_, e)| e.is_empty()) {
             panic!("Entity without possible state: {}", i);
         }
@@ -173,17 +198,16 @@ impl<T: Eq + Hash + Clone + std::fmt::Debug> ConstraintSolver<T> {
         while let Some(pos) = ids.iter().position(|&id| self.entities[id].len() == 1) {
             ids.swap(0, pos);
             self.apply_entity(ids[0])
-                .map_err(|e| SolveError::ApplyRuleError(e))?;
+                .map_err(|e| SolveError::ProductionError(e))?;
             ids = &mut ids[1..];
         }
 
         if ids.is_empty() {
-            let entities = self.entities;
             Ok(Solution {
                 inner: self
                     .all_entities
-                    .into_iter()
-                    .map(|e| entities[e].last().unwrap().clone())
+                    .iter()
+                    .map(|&e| self.entities[e].last().unwrap().clone())
                     .collect(),
             })
         } else {
@@ -193,50 +217,5 @@ impl<T: Eq + Hash + Clone + std::fmt::Debug> ConstraintSolver<T> {
                     .collect(),
             ))
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn equality() {
-        let mut solver = ConstraintSolver::new();
-        let a = solver.add_entity(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-        let b = solver.add_entity(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-        let c = solver.add_entity(vec![0, 1, 2, 3, 4]);
-        let d = solver.add_entity(vec![3]);
-        solver.add_equality(a, b).unwrap();
-        solver.add_equality(b, c).unwrap();
-        solver.add_equality(d, b).unwrap();
-        let solution = solver.solve().unwrap();
-        assert_eq!(solution[a], 3);
-        assert_eq!(solution[b], 3);
-        assert_eq!(solution[c], 3);
-        assert_eq!(solution[d], 3);
-    }
-
-    #[test]
-    fn production() {
-        let mut solver = ConstraintSolver::new();
-        let a = solver.add_entity(vec![0]);
-        let b = solver.add_entity(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-        let c = solver.add_entity(vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
-        let d = solver.add_entity(vec![7]);
-
-        solver.add_production({
-            let mut production = HashMap::new();
-            production.insert(0, 7);
-            production.insert(3, 7);
-            production
-        });
-        solver.add_equality(b, c).unwrap();
-        solver.add_equality(b, d).unwrap();
-        let solution = solver.solve().unwrap();
-        assert_eq!(solution[a], 0);
-        assert_eq!(solution[b], 7);
-        assert_eq!(solution[c], 7);
-        assert_eq!(solution[d], 7);
     }
 }

@@ -3,27 +3,22 @@ use std::collections::HashMap;
 use diagnostics::{CompileError, Meta};
 
 use solver::{
-    ApplyRuleError, ConstraintSolver, EntityId, ExpectedFound, ProductionId, Rule, Solution,
-    SolveError,
+    ConstraintSolver, EntityId, ExpectedFound, ProductionId, Solution,
+    SolveError, Entity
 };
 
 use crate::ty::{Type, TypeId};
 
 pub struct TypeSolver<'a, 'b> {
-    solver: ConstraintSolver<TypeId>,
+    solver: ConstraintSolver<(&'b mut Vec<Type<'a, TypeId>>, HashMap<EntityId, Meta<'a, ()>>), TypeId, CompileError>,
     empty: TypeId,
     all: Vec<TypeId>,
     integers: Vec<TypeId>,
     fields: HashMap<Box<str>, ProductionId>,
-    fields_rev: HashMap<ProductionId, Box<str>>,
-    meta: HashMap<EntityId, Meta<'a, ()>>,
-    types: &'b mut Vec<Type<'a, TypeId>>,
 }
 
 impl<'a, 'b> TypeSolver<'a, 'b> {
     pub fn new(types: &'b mut Vec<Type<'a, TypeId>>) -> Self {
-        let mut solver = ConstraintSolver::new();
-
         let all = (0..types.len()).map(|t| TypeId(t)).collect();
         let empty = TypeId(types.iter().position(|t| &*t.name.item == "Empty").unwrap());
         let integers = types
@@ -38,18 +33,62 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
             })
             .collect();
 
-        let mut fields = HashMap::new();
-        let mut fields_rev = HashMap::new();
+        
+
+        let mut fields = HashMap::<Box<str>, Vec<(TypeId, TypeId)>>::new();
         for (i, ty) in types.iter().enumerate() {
             for field in ty.fields() {
-                let id = fields.entry(field.name.item.clone()).or_insert_with(|| {
-                    let id = solver.add_production(HashMap::new());
-                    fields_rev.insert(id, field.name.item.clone());
-                    id
-                });
-                solver.extend_production(*id, TypeId(i), field.ty.item);
+                fields.entry(field.name.item.clone()).or_default().push((TypeId(i), field.ty.item))
             }
         }
+
+        let mut solver = ConstraintSolver::new((types, HashMap::new()));
+        let fields = fields.into_iter().map(|(name, field_types)| {
+            let field_name = name.clone();
+            let field_access = move |(types, ref meta): &mut (&'b mut Vec<Type<'a, TypeId>>, HashMap<EntityId, Meta<'a, ()>>), Entity {
+                id: obj_id,
+                content: obj }: Entity<TypeId>, 
+                Entity {
+                    id: field_id,
+                    content: field,
+                    }: Entity<TypeId>| {
+                dbg!(&types, &meta, &obj_id, &obj, &field_id, &field);
+                if obj.len() == 1 {
+                    let obj = obj[0];
+                    if let Some(pos) = field_types.iter().position(|&(o, _)| obj == o) {
+                        let ty = field_types[pos].1;
+                        if field.contains(&ty) {
+                            field.clear();
+                            field.push(ty);
+                            Ok(())
+                        } else {
+                            let field_str = Self::ty_error_str(types, &field);
+                            let expected_str = Self::ty_error_str(types, &[ty]);
+                            CompileError::new(
+                                meta.get(&field_id).unwrap(),
+                                format_args!(
+                                    "Mismatched types: found {}, expected {}",
+                                    field_str, expected_str
+                                ),
+                            )
+                        }
+                    } else {
+                        CompileError::new(
+                        meta.get(&field_id).unwrap(),
+                        format_args!(
+                            "No field `{}` on type `{}`",
+                            field_name,
+                            types[obj.0].name.item,
+                        ))
+                    }
+                } else {
+                    Ok(())
+                }
+            };
+
+            let id = solver.define_production(Box::new(field_access));
+            (name, id)
+        }).collect();
 
         Self {
             solver,
@@ -57,9 +96,6 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
             all,
             integers,
             fields,
-            fields_rev,
-            meta: HashMap::new(),
-            types,
         }
     }
 
@@ -86,7 +122,8 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
 
     fn add_entity(&mut self, types: Vec<TypeId>, meta: Meta<'a, ()>) -> EntityId {
         let id = self.solver.add_entity(types);
-        self.meta.insert(id, meta);
+        let (types, ref mut solver_meta) = self.solver.context();
+        solver_meta.insert(id, meta);
         id
     }
 
@@ -108,15 +145,16 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
 
     pub fn add_equality(&mut self, a: EntityId, b: EntityId) -> Result<(), CompileError> {
         if let Err(ExpectedFound { expected, found }) = self.solver.add_equality(a, b) {
+            let &mut (ref types, ref meta) = self.solver.context();
             CompileError::build(
-                self.meta.get(&found.0).unwrap(),
+                meta.get(&found.0).unwrap(),
                 format_args!(
                     "Mismatched types: found {}, expected {}",
-                    Self::ty_error_str(self.types, &found.1),
-                    Self::ty_error_str(self.types, &expected.1),
+                    Self::ty_error_str(types, &found.1),
+                    Self::ty_error_str(types, &expected.1),
                 ),
             )
-            .with_location(self.meta.get(&expected.0).unwrap())
+            .with_location(meta.get(&expected.0).unwrap())
             .build()
         } else {
             Ok(())
@@ -124,7 +162,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
     }
 
     pub fn types(&mut self) -> &mut Vec<Type<'a, TypeId>> {
-        self.types
+        self.solver.context().0
     }
 
     pub fn add_field_access(
@@ -134,7 +172,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         name: &Meta<'_, Box<str>>,
     ) -> Result<(), CompileError> {
         if let Some(&e) = self.fields.get(&name.item) {
-            self.solver.add_rule(obj, Rule::Production(e, field));
+            self.solver.add_production(e, obj, field);
             Ok(())
         } else {
             CompileError::new(
@@ -147,12 +185,11 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         }
     }
 
-    pub fn solve(self) -> Result<Solution<TypeId>, CompileError> {
+    pub fn solve(mut self) -> Result<Solution<TypeId>, CompileError> {
         match self.solver.solve() {
             Ok(solution) => Ok(solution),
             Err(SolveError::UnsolvedEntities(entities)) => {
-                let types = self.types;
-                let meta = self.meta;
+                let &mut (ref types, ref meta) = self.solver.context();
                 let ((start_id, start_types), rest) = entities.split_first().unwrap();
 
                 let msg = if rest.is_empty() {
@@ -175,34 +212,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
                     )
                     .build()
             }
-            Err(SolveError::ApplyRuleError(ApplyRuleError::InvalidProduction(
-                prod,
-                _obj,
-                obj_ty,
-                target,
-            ))) => CompileError::new(
-                self.meta.get(&target).unwrap(),
-                format_args!(
-                    "No field `{}` on type `{}`",
-                    self.fields_rev.get(&prod).unwrap(),
-                    self.types[obj_ty.0].name.item
-                ),
-            ),
-            Err(SolveError::ApplyRuleError(ApplyRuleError::InvalidProductionResult(
-                _prod,
-                target,
-                ty,
-                expected,
-            ))) => {
-                let expected_str = Self::ty_error_str(self.types, &expected);
-                CompileError::new(
-                    self.meta.get(&target).unwrap(),
-                    format_args!(
-                        "Mismatched types: found `{}`, expected {}",
-                        self.types[ty.0].name.item, expected_str
-                    ),
-                )
-            }
+            Err(SolveError::ProductionError(c)) => Err(c),
         }
     }
 }
