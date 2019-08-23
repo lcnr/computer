@@ -65,6 +65,9 @@ Notes:
 
 *steps are stored in RAM with the order 1, 2, 4, 3 to prevent timing errors. (Huffman code 00 01 11 10)*
 
+- `%n`: a unconditional command `n`, excluding constant access
+- `$q`: a useable constant `q`. `%n $q` calls the command `n` with the constant `q`
+
 | Opcode     | Name         | Function                                                          |
 | ---------- | ------------ | ----------------------------------------------------------------- |
 | `0x00`     | idle         | do nothing/simply increment PC by 1                               |
@@ -202,23 +205,19 @@ Notes:
 | `0x87$1`   | ret $1 C     | P2 = mem[PC + 1]; P1 = C;                                         |
 | `0x88$1`   | ret $1 D     | P2 = mem[PC + 1]; P1 = D;                                         |
 | `0x89$1`   | ret $1 mem   | P2 = mem[PC + 1]; P1 = mem[MR];                                   |
-| `0x8a`     | jmpz B       | if A == 0 { P1 = B; } else { P1 += 1; }                           |
-| `0x8b`     | jmpz C       | if A == 0 { P1 = C; } else { P1 += 1; }                           |
-| `0x8c`     | jmpz D       | if A == 0 { P1 = D; } else { P1 += 1; }                           |
-| `0x8d`     | jmpz mem     | if A == 0 { P1 = mem[MR]; } else { P1 += 1; }                     |
-| `0x8e$1`   | jmpz $1      | if A == 0 { P1 = mem[PC + 1]; } else { P1 += 2; }                 |
-| `0x8f`     | ljmpz B      | if A == 0 { P2 = B; P1 = 0; } else { P1 += 1; }                   |
-| `0x90`     | ljmpz C      | if A == 0 { P2 = C; P1 = 0; } else { P1 += 1; }                   |
-| `0x91`     | ljmpz D      | if A == 0 { P2 = D; P1 = 0; } else { P1 += 1; }                   |
-| `0x92`     | ljmpz mem    | if A == 0 { P2 = mem[MR]; P1 = 0; } else { P1 += 1; }             |
-| `0x93$1`   | ljmpz $1     | if A == 0 { P2 = mem[PC + 1]; P1 = 0; } else { P1 += 2; }         |
-| `0x94`     | jmpnz B      | if A != 0 { P1 = B; } else { P1 += 1; }                           |
-| `0x95`     | jmpnz C      | if A != 0 { P1 = C; } else { P1 += 1; }                           |
-| `0x96`     | jmpnz D      | if A != 0 { P1 = D; } else { P1 += 1; }                           |
-| `0x97`     | jmpnz mem    | if A != 0 { P1 = mem[MR]; } else { P1 += 1; }                     |
-| `0x98$1`   | jmpnz $1     | if A != 0 { P1 = mem[PC + 1]; } else { P1 += 2; }                 |
-| `0x99`     | ljmpnz B     | if A != 0 { P2 = B; P1 = 0; } else { P1 += 1; }                   |
-| `0x9a`     | ljmpnz C     | if A != 0 { P2 = C; P1 = 0; } else { P1 += 1; }                   |
-| `0x9b`     | ljmpnz D     | if A != 0 { P2 = D; P1 = 0; } else { P1 += 1; }                   |
-| `0x9c`     | ljmpnz mem   | if A != 0 { P2 = mem[MR]; P1 = 0; } else { P1 += 1; }             |
-| `0x9d$1`   | ljmpnz $1    | if A != 0 { P2 = mem[PC + 1]; P1 = 0; } else { P1 += 2; }         |
+| `0xc0%1`   | if z %1      | if A == 0 { execute command %1 } else { PC += 2; }                |
+| `0xc1%1`   | if n %1      | if A != 0 { execute command %1 } else { PC += 2; }                |
+| `0xc2%1`   | if gt %1     | if A > B { execute command %1 } else { PC += 2; }                 |
+| `0xc3%1`   | if gte %1    | if A >= B { execute command %1 } else { PC += 2; }                |
+| `0xc4%1`   | if eq %1     | if A == B { execute command %1 } else { PC += 2; }                |
+| `0xc5%1`   | if neq %1    | if A != B { execute command %1 } else { PC += 2; }                |
+| `0xc6%1`   | if lte %1    | if A <= B { execute command %1 } else { PC += 2; }                |
+| `0xc7%1$2` | if lt %1 $2  | if A < B { execute command %1 } else { PC += 2; }                 |
+| `0xc8%1$2` | if z %1 $2   | if A == 0 { execute command %1 $2 } else { PC += 3; }             |
+| `0xc9%1$2` | if nz %1 $2  | if A != 0 { execute command %1 $2 } else { PC += 3; }             |
+| `0xca%1$2` | if gt %1 $2  | if A > B { execute command %1 $2 } else { PC += 3; }              |
+| `0xcb%1$2` | if gte %1 $2 | if A >= B { execute command %1 $2 } else { PC += 3; }             |
+| `0xcc%1$2` | if eq %1 $2  | if A == B { execute command %1 $2 } else { PC += 3; }             |
+| `0xcd%1$2` | if neq %1 $2 | if A != B { execute command %1 $2 } else { PC += 3; }             |
+| `0xce%1$2` | if lte %1 $2 | if A <= B { execute command %1 $2 } else { PC += 3; }             |
+| `0xcf%1$2` | if lt %1 $2  | if A < B { execute command %1 $2 } else { PC += 3; }              |
