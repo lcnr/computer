@@ -25,7 +25,7 @@ pub enum Expression<'a, V: IdentifierState, N: TypeState> {
 impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
     pub fn resolve_identifiers(
         self,
-        variables: &mut Vec<function::Variable<'a, Option<UnresolvedType>>>,
+        variables: &mut Vec<function::Variable<'a, Option<UnresolvedType<'a>>>>,
         variable_lookup: &mut Vec<Vec<(Box<str>, VariableId)>>,
         function_lookup: &HashMap<Box<str>, Meta<'a, FunctionId>>,
     ) -> Result<Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>>, CompileError> {
@@ -148,7 +148,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
     pub fn type_constraints<'b>(
         self,
         functions: &[FunctionDefinition<'a, TypeId>],
-        type_lookup: &HashMap<&Box<str>, TypeId>,
+        type_lookup: &mut HashMap<Box<str>, TypeId>,
         variables: &[solver::EntityId],
         solver: &mut TypeSolver<'a, 'b>,
     ) -> Result<Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>>, CompileError> {
@@ -250,9 +250,10 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             Expression::TypeRestriction(expr, ty) => {
                 let expr = expr.type_constraints(functions, type_lookup, variables, solver)?;
                 let expected = match ty.item {
+                    UnresolvedType::Sum(_) => unimplemented!(),
                     UnresolvedType::Integer => solver.add_integer(ty.simplify()),
                     UnresolvedType::Named(ref name) => {
-                        if let Some(&i) = type_lookup.get(&name) {
+                        if let Some(&i) = type_lookup.get(name) {
                             solver.add_typed(i, ty.simplify())
                         } else {
                             CompileError::new(

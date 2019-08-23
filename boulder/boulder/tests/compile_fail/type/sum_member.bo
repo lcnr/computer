@@ -1,0 +1,4 @@
+# Cannot find type `u17`
+# (4:
+
+fn test(a: u32 | u17) { }

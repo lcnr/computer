@@ -4,7 +4,7 @@ pub mod solver;
 
 use std::collections::HashSet;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TypeId(pub usize);
 
 impl TypeId {
@@ -70,8 +70,91 @@ impl<'a> Type<'a, Box<str>> {
                             .collect::<Result<_, _>>()?,
                     )
                 }
+                Kind::Sum(cases) => unimplemented!("{:?}", cases),
             },
         })
+    }
+}
+
+pub fn resolve<'a>(
+    unresolved: Meta<'a, UnresolvedType<'a>>,
+    types: &mut Vec<Type<'a, TypeId>>,
+    lookup: &mut HashMap<Box<str>, TypeId>,
+) -> Result<Meta<'a, TypeId>, CompileError> {
+    Ok(match &unresolved.item {
+        UnresolvedType::Sum(cases) => {
+            let visited = &mut HashSet::new();
+            let mut values = Vec::with_capacity(cases.len());
+            for case in cases {
+                if let Some(&i) = lookup.get(&case.item) {
+                    values.append(&mut flatten_sum_ty(types, i, visited));
+                    values.sort();
+                    values.dedup();
+                } else {
+                    CompileError::new(
+                        &case,
+                        format_args!("Cannot find type `{}` in this scope", case.item),
+                    )?
+                }
+            }
+            let (first, rest) = values.split_first().expect("empty sum in unresolved type");
+            let (type_name, resolved_type_name) = rest.iter().fold(
+                (
+                    format!("{}", first.0),
+                    format!("{}", types[first.0].name.item),
+                ),
+                |(s, r), ty| {
+                    (
+                        format!("{} | {}", s, ty.0),
+                        format!("{} | {}", r, types[ty.0].name.item),
+                    )
+                },
+            );
+            let id = *lookup.entry(type_name.into()).or_insert_with(|| {
+                let id = TypeId(types.len());
+                types.push(Type {
+                    name: unresolved.clone().replace(resolved_type_name.into()),
+                    kind: Kind::Sum(values),
+                });
+                id
+            });
+            dbg!(&lookup, &types);
+            unresolved.replace(id)
+        }
+        UnresolvedType::Named(ref name) => {
+            if let Some(&i) = lookup.get(&*name) {
+                unresolved.replace(i)
+            } else {
+                CompileError::new(
+                    &unresolved,
+                    format_args!("Cannot find type `{}` in this scope", name),
+                )?
+            }
+        }
+        _ => unimplemented!("unresolvable type: {:?}", unresolved),
+    })
+}
+
+/// returns all possible types, removing duplicates
+pub fn flatten_sum_ty(
+    types: &[Type<TypeId>],
+    ty: TypeId,
+    visited: &mut HashSet<TypeId>,
+) -> Vec<TypeId> {
+    if visited.insert(ty) {
+        if let Kind::Sum(cases) = &types[ty.0].kind {
+            let mut cases = cases
+                .iter()
+                .flat_map(|&t| flatten_sum_ty(types, t, visited))
+                .collect::<Vec<TypeId>>();
+            cases.sort();
+            cases.dedup();
+            cases
+        } else {
+            vec![ty]
+        }
+    } else {
+        Vec::new()
     }
 }
 
@@ -114,6 +197,20 @@ impl<'a> Type<'a, TypeId> {
                 }
                 false
             }
+            Kind::Sum(cases) => {
+                for &case in cases {
+                    if case == ty {
+                        return true;
+                    }
+
+                    if visited.insert(case) {
+                        if types[case.0].contains(ty, types, visited) {
+                            return true;
+                        }
+                    }
+                }
+                false
+            }
         }
     }
 
@@ -145,6 +242,7 @@ impl<'a> Type<'a, TypeId> {
             Kind::Struct(fields) => {
                 mir::Type::Struct(fields.into_iter().map(|m| m.ty.item.to_mir()).collect())
             }
+            Kind::Sum(cases) => unimplemented!("{:?}", cases),
         }
     }
 }
@@ -172,4 +270,5 @@ pub enum Kind<'a, T> {
     U16,
     U32,
     Struct(Vec<Field<'a, T>>),
+    Sum(Vec<TypeId>),
 }

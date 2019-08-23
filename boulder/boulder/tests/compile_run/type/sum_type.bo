@@ -1,0 +1,3 @@
+fn extend(a: u32) -> u32 | u16 {
+    a
+}

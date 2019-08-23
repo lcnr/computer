@@ -17,11 +17,11 @@ pub struct TypeSolver<'a, 'b> {
     fields: HashMap<Box<str>, ProductionId>,
     fields_rev: HashMap<ProductionId, Box<str>>,
     meta: HashMap<EntityId, Meta<'a, ()>>,
-    types: &'b [Type<'a, TypeId>],
+    types: &'b mut Vec<Type<'a, TypeId>>,
 }
 
 impl<'a, 'b> TypeSolver<'a, 'b> {
-    pub fn new(types: &'b [Type<'a, TypeId>]) -> Self {
+    pub fn new(types: &'b mut Vec<Type<'a, TypeId>>) -> Self {
         let mut solver = ConstraintSolver::new();
 
         let all = (0..types.len()).map(|t| TypeId(t)).collect();
@@ -121,6 +121,10 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         } else {
             Ok(())
         }
+    }
+
+    pub fn types(&mut self) -> &mut Vec<Type<'a, TypeId>> {
+        self.types
     }
 
     pub fn add_field_access(

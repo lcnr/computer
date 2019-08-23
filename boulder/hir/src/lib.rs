@@ -33,7 +33,7 @@ pub struct UnresolvedTypes<'a>(PhantomData<&'a str>);
 impl<'a> TypeState for UnresolvedTypes<'a> {
     type Type = ();
     type Field = Meta<'a, Box<str>>;
-    type Restriction = Meta<'a, UnresolvedType>;
+    type Restriction = Meta<'a, UnresolvedType<'a>>;
 }
 
 #[derive(Debug, Clone)]
@@ -66,7 +66,9 @@ pub trait IdentifierState: fmt::Debug + Clone {
 }
 
 #[derive(Debug, Clone)]
-pub enum UnresolvedType {
+pub enum UnresolvedType<'a> {
+    /// `A | B | C`
+    Sum(Vec<Meta<'a, Box<str>>>),
     Named(Box<str>),
     Integer,
 }
@@ -74,7 +76,7 @@ pub enum UnresolvedType {
 #[derive(Debug, Clone)]
 pub enum UnresolvedVariable<'a> {
     Existing(Meta<'a, Box<str>>),
-    New(Meta<'a, Box<str>>, Meta<'a, Option<UnresolvedType>>),
+    New(Meta<'a, Box<str>>, Meta<'a, Option<UnresolvedType<'a>>>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -97,7 +99,9 @@ pub struct Hir<'a, V: IdentifierState, N: TypeState, T, MV> {
     types: Vec<Type<'a, MV>>,
 }
 
-impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType>, Box<str>> {
+impl<'a>
+    Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType<'a>>, Box<str>>
+{
     pub fn new() -> Self {
         Self {
             functions: Vec::new(),
@@ -128,7 +132,12 @@ impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unresolv
 
     pub fn add_function(
         &mut self,
-        func: Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType>>,
+        func: Function<
+            'a,
+            UnresolvedIdentifiers<'a>,
+            UnresolvedTypes<'a>,
+            Option<UnresolvedType<'a>>,
+        >,
     ) -> Result<(), CompileError> {
         if self.functions.iter().any(|f| f.name.item == func.name.item) {
             CompileError::new(
@@ -162,7 +171,7 @@ impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unresolv
     pub fn resolve_types(
         self,
     ) -> Result<
-        Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType>, TypeId>,
+        Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType<'a>>, TypeId>,
         CompileError,
     > {
         let lookup = self
@@ -186,11 +195,13 @@ impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unresolv
     }
 }
 
-impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType>, TypeId> {
+impl<'a>
+    Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType<'a>>, TypeId>
+{
     pub fn resolve_identifiers(
         self,
     ) -> Result<
-        Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType>, TypeId>,
+        Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType<'a>>, TypeId>,
         CompileError,
     > {
         let known_functions = self
@@ -216,28 +227,28 @@ impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unresolv
     }
 }
 
-impl<'a> Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType>, TypeId> {
+impl<'a> Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType<'a>>, TypeId> {
     pub fn resolve_expr_types(
         self,
     ) -> Result<Hir<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId, TypeId>, CompileError>
     {
-        let types = self.types;
-        let type_lookup = types
+        let mut types = self.types;
+        let mut type_lookup = types
             .iter()
             .enumerate()
-            .map(|(i, t)| (&t.name.item, ty::TypeId(i)))
+            .map(|(i, t)| (t.name.item.clone(), ty::TypeId(i)))
             .collect::<HashMap<_, _>>();
 
         let functions = self
             .functions
             .iter()
-            .map(|f| f.definition(&type_lookup))
+            .map(|f| f.definition(&mut types, &mut type_lookup))
             .collect::<Result<Vec<_>, CompileError>>()?;
 
         let functions = self
             .functions
             .into_iter()
-            .map(|f| f.resolve_expr_types(&functions, &types, &type_lookup))
+            .map(|f| f.resolve_expr_types(&functions, &mut types, &mut type_lookup))
             .collect::<Result<Vec<_>, CompileError>>()?;
 
         Ok(Hir { functions, types })

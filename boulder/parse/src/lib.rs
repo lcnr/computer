@@ -12,13 +12,13 @@ type Function<'a> = hir::Function<
     'a,
     hir::UnresolvedIdentifiers<'a>,
     hir::UnresolvedTypes<'a>,
-    Option<hir::UnresolvedType>,
+    Option<hir::UnresolvedType<'a>>,
 >;
 type Hir<'a> = hir::Hir<
     'a,
     hir::UnresolvedIdentifiers<'a>,
     hir::UnresolvedTypes<'a>,
-    Option<hir::UnresolvedType>,
+    Option<hir::UnresolvedType<'a>>,
     Box<str>,
 >;
 type Type<'a> = hir::Type<'a, Box<str>>;
@@ -103,15 +103,29 @@ fn check_expr_terminator<'a>(
     }
 }
 
-fn parse_type<'a>(iter: &mut TokenIter<'a>) -> Result<Meta<'a, hir::UnresolvedType>, CompileError> {
+fn parse_type<'a>(
+    iter: &mut TokenIter<'a>,
+) -> Result<Meta<'a, hir::UnresolvedType<'a>>, CompileError> {
     let first = expect_ident(iter.next().unwrap())?;
     let next = iter.next().unwrap();
-    match &next.item {
-        Token::Operator(Operator::BitOr) => unimplemented!("sum type"),
-        _ => {
-            iter.step_back(next);
-            Ok(first.map(|f| hir::UnresolvedType::Named(f)))
+    if let Token::Operator(Operator::BitOr) = &next.item {
+        let mut parts = vec![first];
+        let mut next = next;
+        while let Token::Operator(Operator::BitOr) = &next.item {
+            let component = expect_ident(iter.next().unwrap())?;
+            parts.push(component);
+            next = iter.next().unwrap();
         }
+        iter.step_back(next);
+        let meta = parts
+            .first()
+            .unwrap()
+            .simplify()
+            .append(parts.last().unwrap().simplify());
+        Ok(meta.replace(hir::UnresolvedType::Sum(parts)))
+    } else {
+        iter.step_back(next);
+        Ok(first.map(|f| hir::UnresolvedType::Named(f)))
     }
 }
 
@@ -214,11 +228,9 @@ fn parse_binop_rhs<'a>(
             iter.step_back(next);
             expr
         }
-        Token::Dot => Expression::FieldAccess(
-            (),
-            Box::new(expr),
-            expect_ident(iter.next().unwrap())?,
-        ),
+        Token::Dot => {
+            Expression::FieldAccess((), Box::new(expr), expect_ident(iter.next().unwrap())?)
+        }
         Token::Colon => Expression::TypeRestriction(Box::new(expr), parse_type(iter)?),
         _ => {
             iter.step_back(next);
