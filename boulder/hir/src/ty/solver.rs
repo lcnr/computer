@@ -3,14 +3,20 @@ use std::collections::HashMap;
 use diagnostics::{CompileError, Meta};
 
 use solver::{
-    ConstraintSolver, EntityId, ExpectedFound, ProductionId, Solution,
-    SolveError, Entity
+    ConstraintSolver, Entity, EntityId, ExpectedFound, ProductionId, Solution, SolveError,
 };
 
 use crate::ty::{Type, TypeId};
 
 pub struct TypeSolver<'a, 'b> {
-    solver: ConstraintSolver<(&'b mut Vec<Type<'a, TypeId>>, HashMap<EntityId, Meta<'a, ()>>), TypeId, CompileError>,
+    solver: ConstraintSolver<
+        (
+            &'b mut Vec<Type<'a, TypeId>>,
+            HashMap<EntityId, Meta<'a, ()>>,
+        ),
+        TypeId,
+        CompileError,
+    >,
     empty: TypeId,
     all: Vec<TypeId>,
     integers: Vec<TypeId>,
@@ -33,62 +39,104 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
             })
             .collect();
 
-        
-
         let mut fields = HashMap::<Box<str>, Vec<(TypeId, TypeId)>>::new();
         for (i, ty) in types.iter().enumerate() {
             for field in ty.fields() {
-                fields.entry(field.name.item.clone()).or_default().push((TypeId(i), field.ty.item))
+                fields
+                    .entry(field.name.item.clone())
+                    .or_default()
+                    .push((TypeId(i), field.ty.item))
             }
         }
 
         let mut solver = ConstraintSolver::new((types, HashMap::new()));
-        let fields = fields.into_iter().map(|(name, field_types)| {
-            let field_name = name.clone();
-            let field_access = move |(types, ref meta): &mut (&'b mut Vec<Type<'a, TypeId>>, HashMap<EntityId, Meta<'a, ()>>), Entity {
-                id: obj_id,
-                content: obj }: Entity<TypeId>, 
-                Entity {
-                    id: field_id,
-                    content: field,
-                    }: Entity<TypeId>| {
-                dbg!(&types, &meta, &obj_id, &obj, &field_id, &field);
-                if obj.len() == 1 {
-                    let obj = obj[0];
-                    if let Some(pos) = field_types.iter().position(|&(o, _)| obj == o) {
-                        let ty = field_types[pos].1;
-                        if field.contains(&ty) {
-                            field.clear();
-                            field.push(ty);
-                            Ok(())
+        let fields = fields
+            .into_iter()
+            .map(|(name, field_types)| {
+                let field_name = name.clone();
+                let field_access =
+                    move |(types, ref meta): &mut (
+                        &'b mut Vec<Type<'a, TypeId>>,
+                        HashMap<EntityId, Meta<'a, ()>>,
+                    ),
+                          Entity {
+                              id: _obj_id,
+                              content: obj,
+                          }: Entity<TypeId>,
+                          Entity {
+                              id: field_id,
+                              content: field,
+                          }: Entity<TypeId>| {
+                        if obj.len() == 1 {
+                            let obj = obj[0];
+                            if let Some(pos) = field_types.iter().position(|&(o, _)| obj == o) {
+                                let ty = field_types[pos].1;
+                                if field.contains(&ty) {
+                                    field.clear();
+                                    field.push(ty);
+                                    Ok(())
+                                } else {
+                                    let field_str = Self::ty_error_str(types, &field);
+                                    let expected_str = Self::ty_error_str(types, &[ty]);
+                                    CompileError::new(
+                                        meta.get(&field_id).unwrap(),
+                                        format_args!(
+                                            "Mismatched types: found {}, expected {}",
+                                            field_str, expected_str
+                                        ),
+                                    )
+                                }
+                            } else {
+                                CompileError::new(
+                                    meta.get(&field_id).unwrap(),
+                                    format_args!(
+                                        "No field `{}` on type `{}`",
+                                        field_name, types[obj.0].name.item,
+                                    ),
+                                )
+                            }
                         } else {
-                            let field_str = Self::ty_error_str(types, &field);
-                            let expected_str = Self::ty_error_str(types, &[ty]);
-                            CompileError::new(
-                                meta.get(&field_id).unwrap(),
-                                format_args!(
-                                    "Mismatched types: found {}, expected {}",
-                                    field_str, expected_str
-                                ),
-                            )
+                            let field = field[0];
+                            let possible_structs: Vec<_> = field_types
+                                .iter()
+                                .filter(|&&(_, f)| f == field)
+                                .map(|&(o, _)| o)
+                                .collect();
+                            if !possible_structs.is_empty() {
+                                let object: Vec<_> = possible_structs
+                                    .into_iter()
+                                    .filter(|t| obj.contains(t))
+                                    .collect();
+                                if !object.is_empty() {
+                                    *obj = object;
+                                    Ok(())
+                                } else {
+                                    let found_str = Self::ty_error_str(types, obj);
+                                    let expected_str = Self::ty_error_str(types, &object);
+                                    CompileError::new(
+                                        meta.get(&field_id).unwrap(),
+                                        format_args!(
+                                            "Mismatched types: found {}, expected {}",
+                                            found_str, expected_str
+                                        ),
+                                    )
+                                }
+                            } else {
+                                CompileError::new(
+                                    meta.get(&field_id).unwrap(),
+                                    format_args!(
+                                        "No field `{}` with type `{}`",
+                                        field_name, types[field.0].name.item,
+                                    ),
+                                )
+                            }
                         }
-                    } else {
-                        CompileError::new(
-                        meta.get(&field_id).unwrap(),
-                        format_args!(
-                            "No field `{}` on type `{}`",
-                            field_name,
-                            types[obj.0].name.item,
-                        ))
-                    }
-                } else {
-                    Ok(())
-                }
-            };
+                    };
 
-            let id = solver.define_production(Box::new(field_access));
-            (name, id)
-        }).collect();
+                let id = solver.define_production(Box::new(field_access));
+                (name, id)
+            })
+            .collect();
 
         Self {
             solver,
@@ -122,7 +170,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
 
     fn add_entity(&mut self, types: Vec<TypeId>, meta: Meta<'a, ()>) -> EntityId {
         let id = self.solver.add_entity(types);
-        let (types, ref mut solver_meta) = self.solver.context();
+        let (_, ref mut solver_meta) = self.solver.context();
         solver_meta.insert(id, meta);
         id
     }

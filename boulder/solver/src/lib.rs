@@ -1,4 +1,4 @@
-use std::{hash::Hash, mem, ops::Index, fmt};
+use std::{fmt, hash::Hash, mem, ops::Index};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct EntityId(usize);
@@ -39,7 +39,7 @@ pub enum SolveError<T, E> {
 
 pub struct Entity<'a, T> {
     pub id: EntityId,
-    pub content: &'a mut Vec<T>
+    pub content: &'a mut Vec<T>,
 }
 
 pub type Production<C, T, E> = Box<dyn FnMut(&mut C, Entity<T>, Entity<T>) -> Result<(), E>>;
@@ -55,12 +55,12 @@ pub struct ConstraintSolver<C, T, E> {
 impl<'ctx, C: fmt::Debug, T: fmt::Debug, E> fmt::Debug for ConstraintSolver<C, T, E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ConstraintSolver")
-        .field("all_entities", &self.all_entities)
-        .field("entities", &self.entities)
-        .field("rules", &self.rules)
-        .field("context", &self.context)
-        .field("productions", &"_")
-        .finish()
+            .field("all_entities", &self.all_entities)
+            .field("entities", &self.entities)
+            .field("rules", &self.rules)
+            .field("context", &self.context)
+            .field("productions", &"_")
+            .finish()
     }
 }
 
@@ -135,9 +135,14 @@ impl<C, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
     }
 
     pub fn add_production(&mut self, production: ProductionId, origin: EntityId, target: EntityId) {
-        assert_ne!(self.all_entities[origin.0], self.all_entities[target.0], "invalid production");
-        self.rules[self.all_entities[origin.0]].push(Rule::ForwardProduction(production, origin, target));
-        self.rules[self.all_entities[target.0]].push(Rule::BackwardsProduction(production, origin, target));
+        assert_ne!(
+            self.all_entities[origin.0], self.all_entities[target.0],
+            "invalid production"
+        );
+        self.rules[self.all_entities[origin.0]]
+            .push(Rule::ForwardProduction(production, origin, target));
+        self.rules[self.all_entities[target.0]]
+            .push(Rule::BackwardsProduction(production, origin, target));
     }
 
     fn apply_entity(&mut self, id: usize) -> Result<(), E> {
@@ -146,21 +151,24 @@ impl<C, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
                 &Rule::ForwardProduction(prod, actual_origin, actual_target) => {
                     let target_id = self.all_entities[actual_target.0];
 
-                    let (begin, end) = dbg!(self.entities.split_at_mut(id.max(target_id)));
+                    let (begin, end) = self.entities.split_at_mut(id.max(target_id));
                     let (origin, target) = if target_id > id {
                         (&mut begin[id], &mut end[0])
                     } else {
                         (&mut end[0], &mut begin[target_id])
                     };
                     let production = &mut self.productions[prod.0];
-                    production(&mut self.context, Entity {
-                        id: actual_origin,
-                        content: origin,
-                    },
-                    Entity {
-                        id: actual_target,
-                        content: target,
-                    })?;
+                    production(
+                        &mut self.context,
+                        Entity {
+                            id: actual_origin,
+                            content: origin,
+                        },
+                        Entity {
+                            id: actual_target,
+                            content: target,
+                        },
+                    )?;
                 }
                 &Rule::BackwardsProduction(prod, actual_origin, actual_target) => {
                     let origin_id = self.all_entities[actual_origin.0];
@@ -172,14 +180,17 @@ impl<C, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
                     };
 
                     let production = &mut self.productions[prod.0];
-                    production(&mut self.context, Entity {
-                        id: actual_origin,
-                        content: origin,
-                    },
-                    Entity {
-                        id: actual_target,
-                        content: target,
-                    })?;
+                    production(
+                        &mut self.context,
+                        Entity {
+                            id: actual_origin,
+                            content: origin,
+                        },
+                        Entity {
+                            id: actual_target,
+                            content: target,
+                        },
+                    )?;
                 }
             }
         }

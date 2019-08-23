@@ -118,7 +118,6 @@ pub fn resolve<'a>(
                 });
                 id
             });
-            dbg!(&lookup, &types);
             unresolved.replace(id)
         }
         UnresolvedType::Named(ref name) => {

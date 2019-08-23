@@ -1,6 +1,7 @@
 # Mismatched types
 # `u16`
 # `u32`
+# (11:
 
 struct A {
     b: u16,
