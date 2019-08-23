@@ -65,13 +65,12 @@ pub trait IdentifierState: fmt::Debug + Clone {
 pub enum UnresolvedType {
     Named(Box<str>),
     Integer,
-    Unknown,
 }
 
 #[derive(Debug, Clone)]
 pub enum UnresolvedVariable<'a> {
     Existing(Meta<'a, Box<str>>),
-    New(Meta<'a, Box<str>>, Option<Meta<'a, Box<str>>>),
+    New(Meta<'a, Box<str>>, Meta<'a, Option<UnresolvedType>>),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -94,7 +93,7 @@ pub struct Hir<'a, V: IdentifierState, N: TypeState, T, MV> {
     types: Vec<Type<'a, MV>>,
 }
 
-impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType, Box<str>> {
+impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType>, Box<str>> {
     pub fn new() -> Self {
         Self {
             functions: Vec::new(),
@@ -125,7 +124,7 @@ impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType,
 
     pub fn add_function(
         &mut self,
-        func: Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType>,
+        func: Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType>>,
     ) -> Result<(), CompileError> {
         if self.functions.iter().any(|f| f.name.item == func.name.item) {
             CompileError::new(
@@ -159,7 +158,7 @@ impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType,
     pub fn resolve_types(
         self,
     ) -> Result<
-        Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType, TypeId>,
+        Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType>, TypeId>,
         CompileError,
     > {
         let lookup = self
@@ -183,11 +182,11 @@ impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType,
     }
 }
 
-impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType, TypeId> {
+impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType>, TypeId> {
     pub fn resolve_identifiers(
         self,
     ) -> Result<
-        Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType, TypeId>,
+        Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType>, TypeId>,
         CompileError,
     > {
         let known_functions = self
@@ -213,7 +212,7 @@ impl<'a> Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType,
     }
 }
 
-impl<'a> Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType, TypeId> {
+impl<'a> Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType>, TypeId> {
     pub fn resolve_expr_types(
         self,
     ) -> Result<Hir<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId, TypeId>, CompileError>

@@ -41,12 +41,12 @@ pub struct Function<'a, V: IdentifierState, N: TypeState, T> {
     pub body: Expression<'a, V, N>,
 }
 
-impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType> {
+impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType>> {
     pub fn new(name: Meta<'a, Box<str>>) -> Self {
         Self {
             name,
             arguments: Vec::new(),
-            ret: Meta::<()>::default().replace(UnresolvedType::Named("Empty".into())),
+            ret: Meta::<()>::default().replace(Some(UnresolvedType::Named("Empty".into()))),
             variables: Vec::new(),
             body: Expression::Block((), Meta::default(), Vec::new()),
         }
@@ -55,7 +55,7 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Unresolved
     pub fn add_variable(
         &mut self,
         name: Meta<'a, Box<str>>,
-        ty: Meta<'a, UnresolvedType>,
+        ty: Meta<'a, Option<UnresolvedType>>,
     ) -> VariableId {
         let id = VariableId(self.variables.len());
         self.variables.push(Variable { name, ty });
@@ -65,7 +65,7 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Unresolved
     pub fn add_argument(
         &mut self,
         name: Meta<'a, Box<str>>,
-        ty: Meta<'a, UnresolvedType>,
+        ty: Meta<'a, Option<UnresolvedType>>,
     ) -> Result<(), CompileError> {
         if self.variables.iter().any(|v| v.name.item == name.item) {
             CompileError::new(
@@ -81,8 +81,8 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Unresolved
         Ok(())
     }
 
-    pub fn set_return(&mut self, ret: Meta<'a, Box<str>>) {
-        self.ret = ret.map(|r| UnresolvedType::Named(r));
+    pub fn set_return(&mut self, ret: Meta<'a, UnresolvedType>) {
+        self.ret = ret.map(|r| Some(r));
     }
 
     pub fn set_body(
@@ -96,7 +96,7 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Unresolved
         mut self,
         function_lookup: &HashMap<Box<str>, Meta<'a, FunctionId>>,
     ) -> Result<
-        Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType>,
+        Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType>>,
         CompileError,
     > {
         let mut variable_lookup = Vec::new();
@@ -124,7 +124,7 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Unresolved
     }
 }
 
-impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedType> {
+impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType>> {
     pub fn definition(
         &self,
         type_lookup: &HashMap<&Box<str>, TypeId>,
@@ -132,7 +132,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedTy
         Ok(FunctionDefinition {
             name: self.name.simplify(),
             ty: match &self.ret.item {
-                UnresolvedType::Named(ref name) => {
+                Some(UnresolvedType::Named(ref name)) => {
                     if let Some(&i) = type_lookup.get(&*name) {
                         self.ret.simplify().replace(i)
                     } else {
@@ -150,7 +150,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedTy
                 .map(|arg| {
                     let variable = &self.variables[arg.0];
                     match variable.ty.item {
-                        UnresolvedType::Named(ref name) => {
+                        Some(UnresolvedType::Named(ref name)) => {
                             if let Some(&i) = type_lookup.get(&*name) {
                                 Ok(variable.ty.simplify().replace(i))
                             } else {
@@ -182,8 +182,8 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedTy
             .iter()
             .map(|variable| {
                 Ok(match variable.ty.item {
-                    UnresolvedType::Integer => solver.add_integer(variable.ty.simplify()),
-                    UnresolvedType::Named(ref name) => {
+                    Some(UnresolvedType::Integer) => solver.add_integer(variable.ty.simplify()),
+                    Some(UnresolvedType::Named(ref name)) => {
                         if let Some(&i) = type_lookup.get(&name) {
                             solver.add_typed(i, variable.ty.simplify())
                         } else {
@@ -193,14 +193,13 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedTy
                             )?
                         }
                     }
-                    UnresolvedType::Unknown => solver.add_unconstrained(variable.ty.simplify()),
+                    None => solver.add_unconstrained(variable.name.simplify()),
                 })
             })
             .collect::<Result<Vec<_>, _>>()?;
 
         let ret = match &self.ret.item {
-            UnresolvedType::Integer => solver.add_integer(self.ret.simplify()),
-            UnresolvedType::Named(ref name) => {
+            Some(UnresolvedType::Named(ref name)) => {
                 if let Some(&i) = type_lookup.get(&name) {
                     solver.add_typed(i, self.ret.simplify())
                 } else {
@@ -210,7 +209,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, UnresolvedTy
                     )?
                 }
             }
-            UnresolvedType::Unknown => solver.add_unconstrained(self.ret.simplify()),
+            err => unreachable!("invalid function return type: {:?}", err),
         };
 
         let body = self

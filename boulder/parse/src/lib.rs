@@ -12,13 +12,13 @@ type Function<'a> = hir::Function<
     'a,
     hir::UnresolvedIdentifiers<'a>,
     hir::UnresolvedTypes<'a>,
-    hir::UnresolvedType,
+    Option<hir::UnresolvedType>,
 >;
 type Hir<'a> = hir::Hir<
     'a,
     hir::UnresolvedIdentifiers<'a>,
     hir::UnresolvedTypes<'a>,
-    hir::UnresolvedType,
+    Option<hir::UnresolvedType>,
     Box<str>,
 >;
 type Type<'a> = hir::Type<'a, Box<str>>;
@@ -151,10 +151,10 @@ fn parse_variable_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, C
     let name = expect_ident(iter.next().unwrap())?;
 
     let ty = if try_consume_token(Token::Colon, iter) {
-        Some(expect_ident(iter.next().unwrap())?)
+        Some(parse_type(iter)?)
     } else {
         None
-    };
+    }.map_or_else(|| name.simplify().replace(None), |v| v.map(|t| Some(t)));
 
     if try_consume_token(Token::Assignment, iter) {
         let input = parse_expression(iter)?;
@@ -405,8 +405,7 @@ fn parse_function<'a>(iter: &mut TokenIter<'a>) -> Result<Function<'a>, CompileE
 
         let arg_name = expect_ident(tok)?;
         consume_token(Token::Colon, iter)?;
-        let arg_type = expect_ident(iter.next().unwrap())?;
-        func.add_argument(arg_name, arg_type.map(|t| hir::UnresolvedType::Named(t)))?;
+        func.add_argument(arg_name, parse_type(iter)?.map(|t| Some(t)))?;
 
         let tok = iter.next().unwrap();
         if tok.item == Token::CloseBlock(BlockDelim::Parenthesis) {
@@ -421,7 +420,7 @@ fn parse_function<'a>(iter: &mut TokenIter<'a>) -> Result<Function<'a>, CompileE
 
     let tok = iter.next().unwrap();
     if tok.item == Token::Arrow {
-        func.set_return(expect_ident(iter.next().unwrap())?);
+        func.set_return(parse_type(iter)?);
         consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
     } else if tok.item != Token::OpenBlock(BlockDelim::Brace) {
         CompileError::expected(&Token::OpenBlock(BlockDelim::Brace), &tok)?;

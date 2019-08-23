@@ -24,7 +24,7 @@ pub enum Expression<'a, V: IdentifierState, N: TypeState> {
 impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
     pub fn resolve_identifiers(
         self,
-        variables: &mut Vec<function::Variable<'a, UnresolvedType>>,
+        variables: &mut Vec<function::Variable<'a, Option<UnresolvedType>>>,
         variable_lookup: &mut Vec<Vec<(Box<str>, VariableId)>>,
         function_lookup: &HashMap<Box<str>, Meta<'a, FunctionId>>,
     ) -> Result<Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>>, CompileError> {
@@ -73,10 +73,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                         .push((name.item.clone(), id));
                     variables.push(function::Variable {
                         name,
-                        ty: type_name.map_or_else(
-                            || meta.clone().replace(UnresolvedType::Unknown),
-                            |name| name.map(|n| UnresolvedType::Named(n)),
-                        ),
+                        ty: type_name,
                     });
                     Expression::Variable((), meta.replace(id))
                 }
@@ -102,10 +99,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                             .push((name.item.clone(), id));
                         variables.push(function::Variable {
                             name,
-                            ty: type_name.map_or_else(
-                                || meta.clone().replace(UnresolvedType::Unknown),
-                                |name| name.map(|n| UnresolvedType::Named(n)),
-                            ),
+                            ty: type_name,
                         });
                         meta.replace(id)
                     }
