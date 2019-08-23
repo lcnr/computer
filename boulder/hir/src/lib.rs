@@ -33,6 +33,7 @@ pub struct UnresolvedTypes<'a>(PhantomData<&'a str>);
 impl<'a> TypeState for UnresolvedTypes<'a> {
     type Type = ();
     type Field = Meta<'a, Box<str>>;
+    type Restriction = Meta<'a, UnresolvedType>;
 }
 
 #[derive(Debug, Clone)]
@@ -41,6 +42,7 @@ pub struct ResolvingTypes<'a>(PhantomData<&'a str>);
 impl<'a> TypeState for ResolvingTypes<'a> {
     type Type = solver::EntityId;
     type Field = Meta<'a, Box<str>>;
+    type Restriction = ();
 }
 
 #[derive(Debug, Clone)]
@@ -49,11 +51,13 @@ pub struct ResolvedTypes<'a>(PhantomData<&'a str>);
 impl<'a> TypeState for ResolvedTypes<'a> {
     type Type = TypeId;
     type Field = Meta<'a, FieldId>;
+    type Restriction = ();
 }
 
 pub trait TypeState: fmt::Debug + Clone {
     type Type: fmt::Debug + Clone;
     type Field: fmt::Debug + Clone;
+    type Restriction: fmt::Debug + Clone;
 }
 
 pub trait IdentifierState: fmt::Debug + Clone {

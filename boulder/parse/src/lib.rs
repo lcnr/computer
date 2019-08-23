@@ -107,14 +107,11 @@ fn parse_type<'a>(iter: &mut TokenIter<'a>) -> Result<Meta<'a, hir::UnresolvedTy
     let first = expect_ident(iter.next().unwrap())?;
     let next = iter.next().unwrap();
     match &next.item {
-        Token::Operator(Operator::BitOr) => {
-            unimplemented!("sum type")
-        }
+        Token::Operator(Operator::BitOr) => unimplemented!("sum type"),
         _ => {
             iter.step_back(next);
             Ok(first.map(|f| hir::UnresolvedType::Named(f)))
         }
-
     }
 }
 
@@ -140,6 +137,10 @@ fn parse_ident_expr<'a>(
             }
             Expression::FunctionCall((), ident, args)
         }
+        Token::Colon => {
+            let var = Expression::Variable((), hir::UnresolvedVariable::Existing(ident));
+            Expression::TypeRestriction(Box::new(var), parse_type(iter)?)
+        }
         _ => {
             iter.step_back(next);
             Expression::Variable((), hir::UnresolvedVariable::Existing(ident))
@@ -154,7 +155,8 @@ fn parse_variable_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, C
         Some(parse_type(iter)?)
     } else {
         None
-    }.map_or_else(|| name.simplify().replace(None), |v| v.map(|t| Some(t)));
+    }
+    .map_or_else(|| name.simplify().replace(None), |v| v.map(|t| Some(t)));
 
     if try_consume_token(Token::Assignment, iter) {
         let input = parse_expression(iter)?;
@@ -198,7 +200,7 @@ fn parse_binop_rhs<'a>(
     };
 
     let next = iter.next().unwrap();
-    match &next.item {
+    Ok(match &next.item {
         Token::Operator(_) => {
             let mut next = next;
             while let Token::Operator(op) = next.item {
@@ -210,18 +212,19 @@ fn parse_binop_rhs<'a>(
                 next = iter.next().unwrap();
             }
             iter.step_back(next);
-            Ok(expr)
+            expr
         }
-        Token::Dot => Ok(Expression::FieldAccess(
+        Token::Dot => Expression::FieldAccess(
             (),
             Box::new(expr),
             expect_ident(iter.next().unwrap())?,
-        )),
+        ),
+        Token::Colon => Expression::TypeRestriction(Box::new(expr), parse_type(iter)?),
         _ => {
             iter.step_back(next);
-            Ok(expr)
+            expr
         }
-    }
+    })
 }
 
 fn parse_binop<'a>(
@@ -240,6 +243,10 @@ fn parse_binop<'a>(
                     Expression::FieldAccess((), Box::new(lhs), expect_ident(iter.next().unwrap())?);
                 next = iter.next().unwrap();
             }
+            Token::Colon => {
+                lhs = Expression::TypeRestriction(Box::new(lhs), parse_type(iter)?);
+                next = iter.next().unwrap();
+            }
             _ => break,
         }
     }
@@ -248,7 +255,7 @@ fn parse_binop<'a>(
         _ => {
             iter.step_back(check_expr_terminator(
                 next,
-                &[Token::Operator(Operator::Add)],
+                &[Token::Operator(Operator::Add), Token::Dot, Token::Colon],
             )?);
             Ok(lhs)
         }
@@ -258,7 +265,15 @@ fn parse_binop<'a>(
 fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, CompileError> {
     let mut start = iter.next().unwrap();
     match mem::replace(&mut start.item, Token::Invalid) {
-        Token::OpenBlock(BlockDelim::Brace) => parse_block(iter),
+        Token::OpenBlock(BlockDelim::Brace) => {
+            let block = parse_block(iter)?;
+            parse_binop(block, iter)
+        }
+        Token::OpenBlock(BlockDelim::Parenthesis) => {
+            let expr = parse_expression(iter)?;
+            consume_token(Token::CloseBlock(BlockDelim::Parenthesis), iter)?;
+            parse_binop(expr, iter)
+        }
         Token::Keyword(Keyword::Let) => parse_variable_decl(iter),
         Token::Ident(v) => {
             let expr = parse_ident_expr(start.replace(v), iter)?;
@@ -274,20 +289,9 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
                         )?
                     }
                 }
-                Token::Operator(_) | Token::Dot => {
+                _ => {
                     iter.step_back(next);
                     parse_binop(expr, iter)?
-                }
-                _ => {
-                    iter.step_back(check_expr_terminator(
-                        next,
-                        &[
-                            Token::Assignment,
-                            Token::Operator(Operator::Add),
-                            Token::Dot,
-                        ],
-                    )?);
-                    expr
                 }
             })
         }

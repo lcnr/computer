@@ -212,9 +212,9 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
             err => unreachable!("invalid function return type: {:?}", err),
         };
 
-        let body = self
-            .body
-            .type_constraints(function_lookup, &variables, &mut solver)?;
+        let body =
+            self.body
+                .type_constraints(function_lookup, type_lookup, &variables, &mut solver)?;
 
         solver.add_equality(ret, body.id())?;
 

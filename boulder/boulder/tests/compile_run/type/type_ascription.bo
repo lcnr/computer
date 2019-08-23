@@ -3,5 +3,5 @@ struct A {
 }
 
 fn test(a: A, b: u32) -> u32 {
-    a.field: u32 + b
+    (a:A:A:A.field: u32 + b: u32):u32:u32:u32
 }

@@ -4,6 +4,6 @@ fn shadow(a: u32, b: u32) -> u32 {
         let b = a + b;
         let a = a + b;
         a + b
-    }
+    };
     a + b
 }

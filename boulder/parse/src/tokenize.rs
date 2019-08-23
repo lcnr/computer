@@ -184,7 +184,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
         c.is_whitespace()
             || match c {
                 ';' | ':' | '(' | ')' | '{' | '}' | '[' | ']' | ',' | '.' | '=' | '+' | '-'
-                | '*' | '/' => true,
+                | '*' | '/' | '|' => true,
                 _ => false,
             }
     }
@@ -404,6 +404,17 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                         Token::Operator(Operator::Div),
                         self.byte_offset - 1..self.byte_offset,
                     )
+                }
+                '|' => {
+                    self.advance();
+                    if self.current_char().map(|c| c == '|').unwrap_or(false) {
+                        unimplemented!()
+                    } else {
+                        self.new_token(
+                            Token::Operator(Operator::BitOr),
+                            self.byte_offset - 1..self.byte_offset,
+                        )
+                    }
                 }
                 '=' => {
                     self.advance();
