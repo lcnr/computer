@@ -17,23 +17,49 @@ Notes:
 8. ALU
 9. ALU
 10. ALU
-11. 
+11. ALU
 ---
 12. Update RAM
 13. RAM select M (default P)
 14. Update IR
 15. Update IR
 
-|          | ALU           | Bus Input | Update IR     | Update Register   |
-| -------- | ------------- | --------- | ------------- | ----------------- |
-| `0b000`  | A & B         | RAM       | don't         | A                 |
-| `0b001`  | A \| B        | ALU       | UPDATE REG    | B                 |
-| `0b010`  | A ^ B         | -         | if Carry == 1 | C                 |
-| `0b011`  | A + B         | -         | if ALU == 0   | D                 |
-| `0b100`  | A - B         | A         | -             | M1                |
-| `0b101`  | A << B        | B         | -             | M2                |
-| `0b110`  | A >> B        | C         | -             | P1                |
-| `0b111`  | !A            | D         | -             | P2                |
+|          | Bus Input | Update IR     | Update Register   |
+| -------- | --------- | ------------- | ----------------- |
+| `0b000`  | RAM       | don't         | A                 |
+| `0b001`  | ALU       | UPDATE REG    | B                 |
+| `0b010`  | -         | if Carry == 1 | C                 |
+| `0b011`  | -         | if ALU == 0   | D                 |
+| `0b100`  | A         | -             | M1                |
+| `0b101`  | B         | -             | M2                |
+| `0b110`  | C         | -             | P1                |
+| `0b111`  | D         | -             | P2                |
+
+## ALU
+
+|          | Output     | Carry | Zero   |          | Output     | Carry  | Zero   |
+| -------- | ---------- | ----- | ------ | -------- | ---------- | -----  | ------ |
+| `0b0000` | A + B      | -     | -      | `0b1000` | -          | -      | -      |
+| `0b0001` | A - B      | A < B | A == B | `0b1001` | -          | A >= B | A != B |
+| `0b0010` | A and B    | A > B | -      | `0b1010` | -          | A <= B | -      |
+| `0b0011` | A or B     | -     | -      | `0b1011` | -          | -      | -      |
+| `0b0100` | A xor B    | -     | -      | `0b1100` | -          | -      | -      |
+| `0b0101` | A shl B    | -     | -      | `0b1101` | -          | -      | -      |
+| `0b0110` | A shr B    | -     | -      | `0b1110` | -          | -      | -      |
+| `0b0111` | A          | -     | A == 0 | `0b1111` | inverted A | -      | A != 0 |
+
+## Update IR
+
+| Command | ALU      | Z/C |
+| ------- | -------- | --- |
+| A == 0  | `0b0111` | Z   |
+| A != B  | `0b1111` | Z   |
+| A > B   | `0b0010` | C   |
+| A >= B  | `0b1001` | C   |
+| A == B  | `0b0001` | Z   |
+| A != B  | `0b1001` | Z   |
+| A <= B  | `0b1010` | C   |
+| A < B   | `0b0001` | C   |
 
 # Commands
 
