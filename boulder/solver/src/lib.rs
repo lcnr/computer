@@ -1,4 +1,4 @@
-use std::{fmt, hash::Hash, mem, ops::Index};
+use std::{fmt, hash::Hash, ops::Index};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct EntityId(usize);
@@ -26,12 +26,6 @@ impl<T> Index<EntityId> for Solution<T> {
 }
 
 #[derive(Debug)]
-pub struct ExpectedFound<T> {
-    pub expected: (EntityId, Vec<T>),
-    pub found: (EntityId, Vec<T>),
-}
-
-#[derive(Debug)]
 pub enum SolveError<T, E> {
     UnsolvedEntities(Vec<(EntityId, Vec<T>)>),
     ProductionError(E),
@@ -42,13 +36,8 @@ pub struct Entity<'a, T> {
     pub content: &'a mut Vec<T>,
 }
 
-pub trait Production<C, T, E> {
-    fn resolve(
-        &mut self,
-        ctx: &mut C,
-        origin: Entity<T>,
-        target: Entity<T>,
-    ) -> Result<(), E>;
+pub trait Production<C, T, E>: fmt::Debug {
+    fn resolve(&mut self, ctx: &mut C, origin: Entity<T>, target: Entity<T>) -> Result<(), E>;
 
     fn resolve_backwards(
         &mut self,
@@ -59,7 +48,6 @@ pub trait Production<C, T, E> {
 }
 
 pub struct ConstraintSolver<C, T, E> {
-    all_entities: Vec<usize>,
     entities: Vec<Vec<T>>,
     rules: Vec<Vec<Rule>>,
     productions: Vec<Box<dyn Production<C, T, E>>>,
@@ -69,19 +57,17 @@ pub struct ConstraintSolver<C, T, E> {
 impl<'ctx, C: fmt::Debug, T: fmt::Debug, E> fmt::Debug for ConstraintSolver<C, T, E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ConstraintSolver")
-            .field("all_entities", &self.all_entities)
             .field("entities", &self.entities)
             .field("rules", &self.rules)
             .field("context", &self.context)
-            .field("productions", &"_")
+            .field("productions", &self.productions)
             .finish()
     }
 }
 
-impl<C, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
+impl<C: fmt::Debug, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
     pub fn new(context: C) -> Self {
         Self {
-            all_entities: Vec::new(),
             entities: Vec::new(),
             rules: Vec::new(),
             productions: Vec::new(),
@@ -101,45 +87,10 @@ impl<C, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
             !values.is_empty(),
             "Tried adding an entity without any valid values"
         );
-        let id = EntityId(self.all_entities.len());
-        let actual = self.entities.len();
-        self.all_entities.push(actual);
+        let id = EntityId(self.entities.len());
         self.entities.push(values);
         self.rules.push(Vec::new());
         id
-    }
-
-    pub fn add_equality(&mut self, a: EntityId, b: EntityId) -> Result<(), ExpectedFound<T>> {
-        let a_id = self.all_entities[a.0];
-        let b_id = self.all_entities[b.0];
-        if !self.entities[a_id]
-            .iter()
-            .any(|v| self.entities[b_id].contains(v))
-        {
-            return Err(ExpectedFound {
-                expected: (a, mem::replace(&mut self.entities[a_id], Vec::new())),
-                found: (b, mem::replace(&mut self.entities[b_id], Vec::new())),
-            })?;
-        }
-
-        if a_id != b_id {
-            let upper = a_id.max(b_id);
-            let lower = a_id.min(b_id);
-            for entity in self.all_entities.iter_mut() {
-                if *entity > upper {
-                    *entity -= 1;
-                } else if *entity == upper {
-                    *entity = lower;
-                }
-            }
-
-            let values = self.entities.remove(upper);
-            let mut rules = self.rules.remove(upper);
-            self.entities[lower].retain(|v| values.contains(v));
-            self.rules[lower].append(&mut rules);
-        }
-
-        Ok(())
     }
 
     pub fn define_production(&mut self, production: Box<dyn Production<C, T, E>>) -> ProductionId {
@@ -149,27 +100,20 @@ impl<C, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
     }
 
     pub fn add_production(&mut self, production: ProductionId, origin: EntityId, target: EntityId) {
-        assert_ne!(
-            self.all_entities[origin.0], self.all_entities[target.0],
-            "invalid production"
-        );
-        self.rules[self.all_entities[origin.0]]
-            .push(Rule::ForwardProduction(production, origin, target));
-        self.rules[self.all_entities[target.0]]
-            .push(Rule::BackwardsProduction(production, origin, target));
+        assert_ne!(origin.0, target.0, "invalid production");
+        self.rules[origin.0].push(Rule::ForwardProduction(production, origin, target));
+        self.rules[target.0].push(Rule::BackwardsProduction(production, origin, target));
     }
 
     fn apply_entity(&mut self, id: usize) -> Result<(), E> {
         for rule in self.rules[id].iter() {
             match rule {
-                &Rule::ForwardProduction(prod, actual_origin, actual_target) => {
-                    let target_id = self.all_entities[actual_target.0];
-
-                    let (begin, end) = self.entities.split_at_mut(id.max(target_id));
-                    let (origin, target) = if target_id > id {
+                &Rule::ForwardProduction(prod, actual_origin, target_id) => {
+                    let (begin, end) = self.entities.split_at_mut(id.max(target_id.0));
+                    let (origin, target) = if target_id.0 > id {
                         (&mut begin[id], &mut end[0])
                     } else {
-                        (&mut end[0], &mut begin[target_id])
+                        (&mut end[0], &mut begin[target_id.0])
                     };
                     self.productions[prod.0].resolve(
                         &mut self.context,
@@ -178,24 +122,22 @@ impl<C, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
                             content: origin,
                         },
                         Entity {
-                            id: actual_target,
+                            id: target_id,
                             content: target,
                         },
                     )?;
                 }
-                &Rule::BackwardsProduction(prod, actual_origin, actual_target) => {
-                    let origin_id = self.all_entities[actual_origin.0];
-                    let (begin, end) = self.entities.split_at_mut(id.max(origin_id));
-                    let (origin, target) = if id > origin_id {
-                        (&mut begin[origin_id], &mut end[0])
+                &Rule::BackwardsProduction(prod, origin_id, actual_target) => {
+                    let (begin, end) = self.entities.split_at_mut(id.max(origin_id.0));
+                    let (origin, target) = if id > origin_id.0 {
+                        (&mut begin[origin_id.0], &mut end[0])
                     } else {
                         (&mut end[0], &mut begin[id])
                     };
-
                     self.productions[prod.0].resolve_backwards(
                         &mut self.context,
                         Entity {
-                            id: actual_origin,
+                            id: origin_id,
                             content: origin,
                         },
                         Entity {
@@ -204,6 +146,10 @@ impl<C, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
                         },
                     )?;
                 }
+            }
+
+            if self.entities[id].len() != 1 {
+                break;
             }
         }
 
@@ -217,31 +163,40 @@ impl<C, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
             panic!("Entity without possible state: {}", i);
         }
 
-        let mut ids: &mut [usize] = &mut (0..self.entities.len()).map(|v| v).collect::<Box<_>>();
-        while let Some(pos) = ids.iter().position(|&id| self.entities[id].len() == 1) {
-            ids.swap(0, pos);
-            self.apply_entity(ids[0])
-                .map_err(|e| SolveError::ProductionError(e))?;
+        let mut all_ids: Box<[usize]> = (0..self.entities.len()).map(|v| v).collect::<Box<_>>();
+        let mut step_count = 0;
+        let mut first = true;
+        while first || all_ids.iter().any(|&id| self.entities[id].len() != 1) {
+            first = false;
+            let mut ids: &mut [usize] = &mut all_ids;
+            while let Some(pos) = ids.iter().position(|&id| self.entities[id].len() == 1) {
+                ids.swap(0, pos);
+                self.apply_entity(ids[0])
+                    .map_err(|e| SolveError::ProductionError(e))?;
 
-            if self.entities[ids[0]].len() == 1 {
-                ids = &mut ids[1..];
+                if self.entities[ids[0]].len() == 1 {
+                    ids = &mut ids[1..];
+                }
+                step_count += 1;
+
+                if step_count > 10000 {
+                    return Err(SolveError::UnsolvedEntities(
+                        all_ids
+                            .iter()
+                            .filter(|&&id| self.entities[id].len() != 1)
+                            .map(|&id| (EntityId(id), self.entities[id].clone()))
+                            .collect(),
+                    ));
+                }
             }
         }
 
-        if ids.is_empty() {
-            Ok(Solution {
-                inner: self
-                    .all_entities
-                    .iter()
-                    .map(|&e| self.entities[e].last().unwrap().clone())
-                    .collect(),
-            })
-        } else {
-            Err(SolveError::UnsolvedEntities(
-                ids.iter()
-                    .map(|&id| (EntityId(id), self.entities[id].clone()))
-                    .collect(),
-            ))
-        }
+        Ok(Solution {
+            inner: self
+                .entities
+                .iter()
+                .map(|e| e.last().unwrap().clone())
+                .collect(),
+        })
     }
 }

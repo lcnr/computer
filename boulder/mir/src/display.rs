@@ -20,6 +20,16 @@ impl Display for Type {
                 }
                 write!(f, ")")
             }
+            Type::Sum(cases) => {
+                write!(f, "sum(")?;
+                if let Some((last, start)) = cases.split_last() {
+                    for arg in start.iter() {
+                        write!(f, "%{} | ", arg.0)?;
+                    }
+                    write!(f, "%{}", last.0)?;
+                }
+                write!(f, ")")
+            }
         }
     }
 }

@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use diagnostics::{CompileError, Meta};
 
-use solver::{ConstraintSolver, EntityId, ExpectedFound, ProductionId, Solution, SolveError};
+use solver::{ConstraintSolver, EntityId, ProductionId, Solution, SolveError};
 
 mod productions;
 
@@ -10,6 +10,7 @@ use crate::ty::{Type, TypeId};
 
 use productions::*;
 
+#[derive(Debug)]
 struct Context<'a, 'b> {
     types: &'b mut Vec<Type<'a, TypeId>>,
     type_lookup: &'b mut HashMap<Box<str>, TypeId>,
@@ -17,16 +18,22 @@ struct Context<'a, 'b> {
     bound: HashSet<EntityId>,
 }
 
+#[derive(Debug)]
 pub struct TypeSolver<'a, 'b> {
     solver: ConstraintSolver<Context<'a, 'b>, TypeId, CompileError>,
     empty: TypeId,
     all: Vec<TypeId>,
     integers: Vec<TypeId>,
     fields: HashMap<Box<str>, ProductionId>,
+    equality: ProductionId,
+    extension: ProductionId,
 }
 
 impl<'a, 'b> TypeSolver<'a, 'b> {
-    pub fn new(types: &'b mut Vec<Type<'a, TypeId>>, type_lookup: &'b mut HashMap<Box<str>, TypeId>) -> Self {
+    pub fn new(
+        types: &'b mut Vec<Type<'a, TypeId>>,
+        type_lookup: &'b mut HashMap<Box<str>, TypeId>,
+    ) -> Self {
         let all = (0..types.len()).map(|t| TypeId(t)).collect();
         let empty = TypeId(types.iter().position(|t| &*t.name.item == "Empty").unwrap());
         let integers = types
@@ -68,12 +75,17 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
             })
             .collect();
 
+        let equality = solver.define_production(Box::new(Equality));
+        let extension = solver.define_production(Box::new(Extension));
+
         Self {
             solver,
             empty,
             all,
             integers,
             fields,
+            equality,
+            extension,
         }
     }
 
@@ -106,7 +118,9 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
     }
 
     pub fn add_integer(&mut self, meta: Meta<'a, ()>) -> EntityId {
-        self.add_entity(self.integers.clone(), meta)
+        let id = self.add_entity(self.integers.clone(), meta);
+        self.solver.context().bound.insert(id);
+        id
     }
 
     pub fn add_empty(&mut self, meta: Meta<'a, ()>) -> EntityId {
@@ -118,33 +132,17 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
     }
 
     pub fn add_typed(&mut self, ty: TypeId, meta: Meta<'a, ()>) -> EntityId {
-        self.add_entity(vec![ty], meta)
+        let id = self.add_entity(vec![ty], meta);
+        self.solver.context().bound.insert(id);
+        id
     }
 
-    pub fn add_equality(&mut self, a: EntityId, b: EntityId) -> Result<(), CompileError> {
-        if let Err(ExpectedFound { expected, found }) = self.solver.add_equality(a, b) {
-            let ctx = self.solver.context();
-            CompileError::build(
-                ctx.meta.get(&found.0).unwrap(),
-                format_args!(
-                    "Mismatched types: found {}, expected {}",
-                    Self::ty_error_str(ctx.types, &found.1),
-                    Self::ty_error_str(ctx.types, &expected.1),
-                ),
-            )
-            .with_location(ctx.meta.get(&expected.0).unwrap())
-            .build()
-        } else {
-            Ok(())
-        }
+    pub fn add_equality(&mut self, origin: EntityId, target: EntityId) {
+        self.solver.add_production(self.equality, origin, target);
     }
 
-    pub fn types(&mut self) -> &mut Vec<Type<'a, TypeId>> {
-        self.solver.context().types
-    }
-
-    pub fn type_lookup(&mut self) -> &mut HashMap<Box<str>, TypeId> {
-        self.solver.context().type_lookup
+    pub fn add_extension(&mut self, origin: EntityId, target: EntityId) {
+        self.solver.add_production(self.extension, origin, target);
     }
 
     pub fn add_field_access(
@@ -155,6 +153,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
     ) -> Result<(), CompileError> {
         if let Some(&e) = self.fields.get(&name.item) {
             self.solver.add_production(e, obj, field);
+            self.solver.context().bound.insert(obj);
             Ok(())
         } else {
             CompileError::new(
@@ -165,6 +164,14 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
                 ),
             )
         }
+    }
+
+    pub fn types(&mut self) -> &mut Vec<Type<'a, TypeId>> {
+        self.solver.context().types
+    }
+
+    pub fn type_lookup(&mut self) -> &mut HashMap<Box<str>, TypeId> {
+        self.solver.context().type_lookup
     }
 
     pub fn solve(mut self) -> Result<Solution<TypeId>, CompileError> {

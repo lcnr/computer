@@ -1,7 +1,7 @@
 # Mismatched types
 # u16
 # u32
-# (6:
+# (7:
 
 fn add_heterogenous(a: u32, b: u16) {
     a + b;

@@ -158,16 +158,18 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 } else {
                     let content = v
                         .into_iter()
-                        .map(|expr| {
-                            expr.type_constraints(functions, variables, solver)
-                        })
+                        .map(|expr| expr.type_constraints(functions, variables, solver))
                         .collect::<Result<Vec<_>, CompileError>>()?;
                     let id = content.last().unwrap().id();
                     (id, content)
                 };
                 Expression::Block(id, meta, content)
             }
-            Expression::Variable((), var) => Expression::Variable(variables[var.0], var),
+            Expression::Variable((), var) => {
+                let id = solver.add_unconstrained(var.simplify());
+                solver.add_equality(variables[var.0], id);
+                Expression::Variable(id, var)
+            }
             Expression::Lit((), lit) => match &lit.item {
                 Literal::Integer(_) => {
                     let id = solver.add_integer(lit.simplify());
@@ -179,8 +181,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     let a = a.type_constraints(functions, variables, solver)?;
                     let b = b.type_constraints(functions, variables, solver)?;
                     let integer = solver.add_integer(op.simplify());
-                    solver.add_equality(a.id(), b.id())?;
-                    solver.add_equality(a.id(), integer)?;
+                    solver.add_equality(a.id(), b.id());
+                    solver.add_equality(a.id(), integer);
                     Expression::Binop(a.id(), op, Box::new(a), Box::new(b))
                 }
             },
@@ -193,7 +195,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 let span = var.span().simplify().append(expr.span());
                 let expr = expr.type_constraints(functions, variables, solver)?;
                 let var_id = variables[var.0];
-                solver.add_equality(expr.id(), var_id)?;
+                solver.add_equality(expr.id(), var_id);
                 Expression::Assignment(solver.add_empty(span), var, Box::new(expr))
             }
             Expression::FunctionCall((), name, args) => {
@@ -234,7 +236,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
 
                 for (actual, expected) in args.iter().zip(&definition.args) {
                     let expected = solver.add_typed(expected.item, expected.simplify());
-                    solver.add_equality(expected, actual.id())?;
+                    solver.add_equality(expected, actual.id());
                 }
 
                 let ret = solver.add_typed(definition.ty.item, definition.ty.simplify());
@@ -262,7 +264,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                         }
                     }
                 };
-                solver.add_equality(expected, expr.id())?;
+                solver.add_equality(expected, expr.id());
                 expr
             }
         })

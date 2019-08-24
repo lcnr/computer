@@ -135,7 +135,7 @@ impl<'a, T> Meta<'a, T> {
             item,
             span: 0..11,
             source: &"<fake meta>",
-            line: 0
+            line: 0,
         }
     }
 

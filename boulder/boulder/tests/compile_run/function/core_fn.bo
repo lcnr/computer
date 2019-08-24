@@ -5,6 +5,7 @@ fn identity(a: u32) -> u32 { a }
 fn identity_comma(a: u32,) -> u32 { a }
 fn add(a: u32) -> u32 { a + 1 }
 fn add_rev(a: u32) -> u32 { 1 + a }
+fn add_identical(a: u32) -> u32 { a + a }
 fn parenthesis_a(a: u32, b: u32) -> u32 {
     a + b + 1*(a- b * b) - b
 }

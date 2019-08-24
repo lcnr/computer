@@ -8,6 +8,7 @@ use diagnostics::CompileError;
 use std::{
     fs::File,
     io::{Error, ErrorKind, Read, Write},
+    panic,
     sync::{Arc, Mutex},
 };
 
@@ -52,8 +53,16 @@ fn compile_fail() -> Result<(), std::io::Error> {
                 inner: output.clone(),
             }));
 
+            let content = match panic::catch_unwind(|| boulder::compile(&content)) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("panic in {}", entry.path().display());
+                    panic::resume_unwind(e)
+                }
+            };
+
             assert!(
-                boulder::compile(&content).is_err(),
+                content.is_err(),
                 "`{}` did not fail to compile",
                 entry.path().display()
             );
@@ -106,7 +115,13 @@ fn compile_run() {
                 inner: output.clone(),
             }));
 
-            let result = boulder::compile(&content);
+            let result = match panic::catch_unwind(|| boulder::compile(&content)) {
+                Ok(c) => c,
+                Err(e) => {
+                    eprintln!("panic in {}", entry.path().display());
+                    panic::resume_unwind(e)
+                }
+            };
             let output = output.lock().unwrap();
             assert!(
                 result.is_ok(),

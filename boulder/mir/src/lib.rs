@@ -8,6 +8,7 @@ pub enum Type {
     U16,
     U32,
     Struct(Vec<TypeId>),
+    Sum(Vec<TypeId>),
 }
 
 #[derive(Debug, Clone)]

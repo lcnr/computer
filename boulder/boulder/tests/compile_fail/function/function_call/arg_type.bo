@@ -2,7 +2,7 @@
 # expected `u32`
 # found `u16`
 # (7:
-# (11:
+# (12:
 
 fn callee(a: u32) -> u32 {
     a

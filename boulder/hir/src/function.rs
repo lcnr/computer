@@ -180,12 +180,11 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
 
         let ret = solver.add_typed(ret_ty.item, ret_ty.simplify());
 
-        let body =
-            self.body
-                .type_constraints(function_lookup, &variables, &mut solver)?;
+        let body = self
+            .body
+            .type_constraints(function_lookup, &variables, &mut solver)?;
 
-        solver.add_equality(ret, body.id())?;
-
+        solver.add_equality(ret, body.id());
         let solution = solver.solve()?;
 
         let body = body.insert_types(types, &solution);

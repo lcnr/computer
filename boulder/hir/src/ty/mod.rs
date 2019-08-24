@@ -83,16 +83,21 @@ pub fn resolve<'a>(
 ) -> Result<Meta<'a, TypeId>, CompileError> {
     Ok(match &unresolved.item {
         UnresolvedType::Sum(cases) => {
-            let type_ids = cases.into_iter().map(|c| if let Some(&i) = lookup.get(&c.item) {
-                    Ok(i)
-                } else {
-                    CompileError::new(
-                        &c,
-                        format_args!("Cannot find type `{}` in this scope", c.item),
-                    )
-                }).collect::<Result<Vec<_>, _>>()?;
+            let type_ids = cases
+                .into_iter()
+                .map(|c| {
+                    if let Some(&i) = lookup.get(&c.item) {
+                        Ok(i)
+                    } else {
+                        CompileError::new(
+                            &c,
+                            format_args!("Cannot find type `{}` in this scope", c.item),
+                        )
+                    }
+                })
+                .collect::<Result<Vec<_>, _>>()?;
 
-            unresolved.replace(build_sum_ty(types, lookup, type_ids)?)
+            unresolved.replace(build_sum_ty(types, lookup, &type_ids)?)
         }
         UnresolvedType::Named(ref name) => {
             if let Some(&i) = lookup.get(&*name) {
@@ -108,37 +113,47 @@ pub fn resolve<'a>(
     })
 }
 
-pub fn build_sum_ty<'a>(types: &mut Vec<Type<'a, TypeId>>, lookup: &mut HashMap<Box<str>, TypeId>, cases: Vec<TypeId>) -> Result<TypeId, CompileError> {
+pub fn build_sum_ty<'a>(
+    types: &mut Vec<Type<'a, TypeId>>,
+    lookup: &mut HashMap<Box<str>, TypeId>,
+    cases: &[TypeId],
+) -> Result<TypeId, CompileError> {
     let mut values = Vec::with_capacity(cases.len());
     let visited = &mut HashSet::new();
-    for case in cases {
+    for &case in cases {
         values.append(&mut flatten_sum_ty(types, case, visited));
         values.sort();
         values.dedup();
     }
 
-    let (first, rest) = values.split_first().expect("trying to build an empty sum type");
-    let (type_name, resolved_type_name) = rest.iter().fold(
-        (
-            format!("{}", first.0),
-            format!("{}", types[first.0].name.item),
-        ),
-        |(s, r), ty| {
+    if values.len() == 1 {
+        Ok(values[0])
+    } else {
+        let (first, rest) = values
+            .split_first()
+            .expect("trying to build an empty sum type");
+        let (type_name, resolved_type_name) = rest.iter().fold(
             (
-                format!("{} | {}", s, ty.0),
-                format!("{} | {}", r, types[ty.0].name.item),
-            )
-        },
-    );
+                format!("{}", first.0),
+                format!("{}", types[first.0].name.item),
+            ),
+            |(s, r), ty| {
+                (
+                    format!("{} | {}", s, ty.0),
+                    format!("{} | {}", r, types[ty.0].name.item),
+                )
+            },
+        );
 
-    Ok(*lookup.entry(type_name.into()).or_insert_with(|| {
-        let id = TypeId(types.len());
-        types.push(Type {
-            name: Meta::fake(resolved_type_name.into()),
-            kind: Kind::Sum(values),
-        });
-        id
-    }))
+        Ok(*lookup.entry(type_name.into()).or_insert_with(|| {
+            let id = TypeId(types.len());
+            types.push(Type {
+                name: Meta::fake(resolved_type_name.into()),
+                kind: Kind::Sum(values),
+            });
+            id
+        }))
+    }
 }
 
 /// returns all possible types, removing duplicates
@@ -248,7 +263,7 @@ impl<'a> Type<'a, TypeId> {
             Kind::Struct(fields) => {
                 mir::Type::Struct(fields.into_iter().map(|m| m.ty.item.to_mir()).collect())
             }
-            Kind::Sum(cases) => unimplemented!("{:?}", cases),
+            Kind::Sum(cases) => mir::Type::Sum(cases.into_iter().map(|t| t.to_mir()).collect()),
         }
     }
 }
