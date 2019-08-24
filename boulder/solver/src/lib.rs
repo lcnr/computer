@@ -42,13 +42,15 @@ pub struct Entity<'a, T> {
     pub content: &'a mut Vec<T>,
 }
 
-pub type Production<C, T, E> = Box<dyn FnMut(&mut C, Entity<T>, Entity<T>) -> Result<(), E>>;
+pub trait Production<C, T, E> {
+    fn resolve(&mut self, ctx: &mut C, origin: Entity<T>, target: Entity<T>) -> Result<(), E>;
+}
 
 pub struct ConstraintSolver<C, T, E> {
     all_entities: Vec<usize>,
     entities: Vec<Vec<T>>,
     rules: Vec<Vec<Rule>>,
-    productions: Vec<Production<C, T, E>>,
+    productions: Vec<Box<dyn Production<C, T, E>>>,
     context: C,
 }
 
@@ -128,7 +130,7 @@ impl<C, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
         Ok(())
     }
 
-    pub fn define_production(&mut self, production: Production<C, T, E>) -> ProductionId {
+    pub fn define_production(&mut self, production: Box<dyn Production<C, T, E>>) -> ProductionId {
         let id = ProductionId(self.productions.len());
         self.productions.push(production);
         id
@@ -157,8 +159,7 @@ impl<C, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
                     } else {
                         (&mut end[0], &mut begin[target_id])
                     };
-                    let production = &mut self.productions[prod.0];
-                    production(
+                    self.productions[prod.0].resolve(
                         &mut self.context,
                         Entity {
                             id: actual_origin,
@@ -179,8 +180,7 @@ impl<C, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
                         (&mut end[0], &mut begin[id])
                     };
 
-                    let production = &mut self.productions[prod.0];
-                    production(
+                    self.productions[prod.0].resolve(
                         &mut self.context,
                         Entity {
                             id: actual_origin,
