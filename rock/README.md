@@ -35,6 +35,4 @@ start:
 - [ ] include files
 - [ ] use content of other blocks: `data_block.mem`
 
-
 [commands]: ../COMMANDS.md
-
