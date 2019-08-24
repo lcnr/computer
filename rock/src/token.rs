@@ -1,8 +1,17 @@
+use std::ops::Range;
+
 #[derive(Debug, Clone, Copy)]
 pub enum TokenType {
     Byte(u8),
     Ident,
     Section,
+    A,
+    B,
+    C,
+    D,
+    Mem,
+    BlockAddr,
+    SectionAddr,
     Colon,
     SemiColon,
     Invalid,
@@ -16,46 +25,6 @@ pub struct Token<'a> {
 }
 
 impl<'a> Token<'a> {
-    fn byte(line: usize, origin: &'a str, value: u8) -> Self {
-        Self {
-            line,
-            origin,
-            ty: TokenType::Byte(value),
-        }
-    }
-
-    fn ident(line: usize, origin: &'a str) -> Self {
-        Self {
-            line,
-            origin,
-            ty: TokenType::Ident,
-        }
-    }
-
-    fn colon(line: usize, origin: &'a str) -> Self {
-        Self {
-            line,
-            origin,
-            ty: TokenType::Colon,
-        }
-    }
-
-    fn semi_colon(line: usize, origin: &'a str) -> Self {
-        Self {
-            line,
-            origin,
-            ty: TokenType::SemiColon,
-        }
-    }
-
-    fn invalid(line: usize, origin: &'a str) -> Self {
-        Self {
-            line,
-            origin,
-            ty: TokenType::Invalid,
-        }
-    }
-
     pub fn origin(&self) -> &'a str {
         self.origin
     }
@@ -134,6 +103,14 @@ impl<'a, 'b: 'a> TokenIter<'b> {
         }
     }
 
+    fn tok(&self, ty: TokenType, origin: Range<usize>) -> Token<'a> {
+        Token {
+            line: self.line,
+            origin: &self.src[origin],
+            ty,
+        }
+    }
+
     fn current_char(&self) -> Option<char> {
         self.src[self.byte_offset..].chars().next()
     }
@@ -147,7 +124,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
             }
             self.advance();
         }
-        Token::invalid(self.line, &self.src[tok_start..self.byte_offset])
+        self.tok(TokenType::Invalid, tok_start..self.byte_offset)
     }
 
     fn advance(&mut self) {
@@ -184,11 +161,27 @@ impl<'a, 'b: 'a> TokenIter<'b> {
             self.advance();
         }
 
-        Token::ident(self.line, &self.src[start..self.byte_offset])
+        let ty = match &self.src[start..self.byte_offset] {
+            "A" => TokenType::A,
+            "B" => TokenType::B,
+            "C" => TokenType::C,
+            "D" => TokenType::D,
+            "mem" => TokenType::Mem,
+            "M1" => TokenType::SectionAddr,
+            "M2" => TokenType::BlockAddr,
+            sec => if sec.chars().next().unwrap() == '.' {
+                TokenType::Section
+            } else {
+                TokenType::Ident
+            }
+        };
+
+        self.tok(ty, start..self.byte_offset)
     }
 
     fn parse_num(&'a mut self) -> Token<'b> {
         // get num str
+        let start = self.byte_offset;
         let s = self.src[self.byte_offset..]
             .split(|c: char| c.is_whitespace() || c == ':' || c == ';')
             .next()
@@ -221,7 +214,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
         match u8::from_str_radix(num_str, base) {
             Ok(v) => {
                 self.byte_offset += s.len();
-                Token::byte(self.line, s, v)
+                self.tok(TokenType::Byte(v), start..self.byte_offset)
             }
             Err(_err) => self.recover(self.byte_offset),
         }
@@ -234,11 +227,7 @@ impl<'b> Iterator for TokenIter<'b> {
     fn next(&mut self) -> Option<Token<'b>> {
         if let Some(first) = self.current_char() {
             if first.is_alphabetic() || first == '.' || first == '_' {
-                let mut tok = self.parse_ident();
-                if first == '.' && tok.is_ident() {
-                    tok.ty = TokenType::Section;
-                }
-                Some(tok)
+                Some(self.parse_ident())
             } else if first.is_numeric() {
                 Some(self.parse_num())
             } else if first.is_whitespace() {
@@ -246,16 +235,10 @@ impl<'b> Iterator for TokenIter<'b> {
                 self.next()
             } else if first == ';' {
                 self.advance();
-                Some(Token::semi_colon(
-                    self.line,
-                    &self.src[self.byte_offset - 1..self.byte_offset],
-                ))
+                Some(self.tok(TokenType::SemiColon, self.byte_offset - 1..self.byte_offset))
             } else if first == ':' {
                 self.advance();
-                Some(Token::colon(
-                    self.line,
-                    &self.src[self.byte_offset - 1..self.byte_offset],
-                ))
+                Some(self.tok(TokenType::Colon, self.byte_offset - 1..self.byte_offset))
             } else {
                 Some(self.recover(self.byte_offset))
             }

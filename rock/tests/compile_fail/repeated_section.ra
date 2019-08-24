@@ -1,0 +1,6 @@
+block:
+    idle;
+.sec:
+    add C;
+.sec:
+    add D;

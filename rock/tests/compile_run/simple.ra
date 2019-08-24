@@ -1,6 +1,7 @@
 start:
     idle;
-    addc 17;
-    inv;
+    mov 17 B;
+    add A;
+    inv A;
 .loop:
-    idle;
+    jmp .loop;
