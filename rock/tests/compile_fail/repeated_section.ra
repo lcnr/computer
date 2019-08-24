@@ -1,6 +1,8 @@
+# sec
+# RepeatingSection
 block:
     idle;
 .sec:
-    add C;
+    jmp .sec;
 .sec:
-    add D;
+    jmp .sec;

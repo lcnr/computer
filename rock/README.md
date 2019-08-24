@@ -8,19 +8,20 @@ Assembly files should have the file ending `.ra` for `rock assembly`.
 
 All commands are terminated by a semi colon. As the targeted architecture has 256 different 256 byte blocks,
 there are two kind of location types. `blocks` which can be any valid identifier or `.segments` which have to start with a `.`.
-A segment can only be used as jump addresses within in the same block. This compiler currently does not allow for blocks which
+A segment can only be used as jump address within in the same block. This compiler currently does not allow for blocks which
 are longer than 256 bytes. While most commands are listed in [COMMANDS.md][commands], there are some special commands, notably
-`byte <data>` which stores 1 byte in memory.
+`byte <data>` which gets compiled to a plain byte in memory.
 
 ## Examples
 
 ```
 start:
-    loadc 0b1111_1011; # this is a single line comment
-    addc 4;
-    inv;
+    mov 0b1111_1011 A;
+    mov 4 B;
+    add A; # this is a single line comment, A is now 0xff
+    inv A;
 .loop:
-    jmpzc .loop;
+    if z jmp .loop; # this program now loops forever
 ```
 
 # Roadmap

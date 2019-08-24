@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::mem;
 
 mod commands;
 mod token;
@@ -19,6 +18,7 @@ pub enum Cause<'a> {
         expected: Vec<TokenType>,
         found: TokenType,
     },
+    RepeatingSectionIdentifier(&'a str),
     InvalidSection,
     InvalidBlock,
     EmptyBlock,
@@ -286,7 +286,11 @@ fn register_sections<'a>(
     let mut addr = 0u8;
     for cmd in block.content.iter() {
         match cmd {
-            Command::Section(s) => mem::drop(map.insert(s, addr)),
+            Command::Section(s) => map.insert(s, addr).map_or(Ok(()), 
+            |_| {
+                l.log_err(Error::new(ErrorLevel::Error, Cause::RepeatingSectionIdentifier(s), block.line, block.name));
+                Err(CodeGenError)
+            })?,
             c => {
                 addr = if let Some(addr) = addr.checked_add(c.size()) {
                     addr

@@ -1,6 +1,7 @@
 start:
-    loadc 0b1111_1011;
-    addc 4;
-    inv;
+    mov 0b1111_1011 A;
+    mov 4 B;
+    add A; # this is a single line comment, A is now 0xff
+    inv A;
 .loop:
-    jmpzc .loop;
+    if z jmp .loop; # this program now loops forever
