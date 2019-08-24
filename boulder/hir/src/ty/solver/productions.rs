@@ -33,23 +33,8 @@ impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for FieldAccess {
         let object_ty = object.content[0];
         if let Some(pos) = self.field_types.iter().position(|&(o, _)| object_ty == o) {
             let ty = self.field_types[pos].1;
-
-            let contents = {
-                let temp = field
-                .content
-                .iter()
-                .map(|&t| ty::build_sum_ty(ctx.types, ctx.type_lookup, &[ty, t]));
-
-                if let Some(bound) = ctx.bounds.get(&field.id) {
-                    temp.filter(|t| ty::is_subtype(t, fiel))
-                } else {
-                    temp.collect::<Result<_, _>>()?;
-                }
-            };
-
-            if !ctx.bound.contains(&field.id) {
-                Ok(())
-            } else if field.content.contains(&ty) {
+            
+            if field.content.contains(&ty) {
                 field.content.clear();
                 field.content.push(ty);
                 Ok(())
@@ -82,7 +67,7 @@ impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for FieldAccess {
         field: Entity<TypeId>,
     ) -> Result<(), CompileError> {
         let field_ty = field.content[0];
-        if ctx.bound.contains(&field.id) {
+        if ctx.bounds.contains_key(&field.id) {
             let possible_structs: Vec<_> = self
                 .field_types
                 .iter()
@@ -134,9 +119,9 @@ impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for Equality {
         target: Entity<TypeId>,
     ) -> Result<(), CompileError> {
         let origin_ty = origin.content[0];
-        if ctx.bound.contains(&target.id) || ctx.bound.contains(&origin.id) {
-            ctx.bound.insert(target.id);
-            ctx.bound.insert(origin.id);
+        if ctx.bounds.contains_key(&target.id) || ctx.bounds.contains_key(&origin.id) {
+            ctx.bounds.insert(target.id, vec![origin_ty]);
+            ctx.bounds.insert(origin.id, vec![origin_ty]);
 
             // target must exactly match origin
             if target.content.contains(&origin_ty) {
@@ -176,9 +161,9 @@ impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for Equality {
         target: Entity<TypeId>,
     ) -> Result<(), CompileError> {
         let target_ty = target.content[0];
-        if ctx.bound.contains(&target.id) || ctx.bound.contains(&origin.id) {
-            ctx.bound.insert(target.id);
-            ctx.bound.insert(origin.id);
+        if ctx.bounds.contains_key(&target.id) || ctx.bounds.contains_key(&origin.id) {
+            ctx.bounds.insert(target.id, vec![target_ty]);
+            ctx.bounds.insert(origin.id, vec![target_ty]);
 
             // target must exactly match origin
             if origin.content.contains(&target_ty) {
@@ -219,45 +204,11 @@ pub struct Extension;
 impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for Extension {
     fn resolve(
         &mut self,
-        ctx: &mut Context<'a, 'b>,
-        origin: Entity<TypeId>,
-        target: Entity<TypeId>,
+        _ctx: &mut Context<'a, 'b>,
+        _origin: Entity<TypeId>,
+        _target: Entity<TypeId>,
     ) -> Result<(), CompileError> {
-        let origin_ty = origin.content[0];
-        if ctx.bound.contains(&target.id) {
-            // target must already contain origin
-            let content: Vec<_> = target
-                .content
-                .iter()
-                .filter(|&&t| ty::is_subtype(origin_ty, t, &ctx.types))
-                .copied()
-                .collect();
-            if !content.is_empty() {
-                *target.content = content;
-                Ok(())
-            } else {
-                let found_str = TypeSolver::ty_error_str(ctx.types, target.content);
-                let expected_str = TypeSolver::ty_error_str(ctx.types, &[origin_ty]);
-                CompileError::build(
-                    ctx.meta.get(&target.id).unwrap(),
-                    format_args!(
-                        "Mismatched types: found {}, expected {}",
-                        found_str, expected_str
-                    ),
-                )
-                .with_location(&ctx.meta.get(&origin.id).unwrap())
-                .build()
-            }
-        } else {
-            let mut additional_types = target
-                .content
-                .iter()
-                .map(|t| ty::build_sum_ty(ctx.types, ctx.type_lookup, &[origin_ty, *t]))
-                .collect::<Result<_, _>>()?;
-
-            target.content.append(&mut additional_types);
-            Ok(())
-        }
+        Ok(())
     }
 
     fn resolve_backwards(
@@ -267,16 +218,18 @@ impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for Extension {
         target: Entity<TypeId>,
     ) -> Result<(), CompileError> {
         let target_ty = target.content[0];
-        if ctx.bound.contains(&target.id) {
+        if ctx.bounds.contains_key(&target.id) {
             // target must exactly match origin
-            let content: Vec<_> = origin
+            let bound = ctx.add_bound(origin.id, ty::subtypes(target_ty, ctx.types));
+            let possible_origins = origin
                 .content
                 .iter()
-                .filter(|&&t| ty::is_subtype(t, target_ty, &ctx.types))
+                .filter(|t| bound.contains(t))
                 .copied()
-                .collect();
-            if !content.is_empty() {
-                *origin.content = content;
+                .collect::<Vec<_>>();
+
+            if !possible_origins.is_empty() {
+                *origin.content = possible_origins;
                 Ok(())
             } else {
                 let found_str = TypeSolver::ty_error_str(ctx.types, target.content);

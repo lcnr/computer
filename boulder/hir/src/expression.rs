@@ -15,7 +15,7 @@ pub enum Expression<'a, V: IdentifierState, N: TypeState> {
         Box<Expression<'a, V, N>>,
         Box<Expression<'a, V, N>>,
     ),
-    Statement(N::Type, Meta<'a, ()>, Box<Expression<'a, V, N>>),
+    Statement(N::Type, Box<Expression<'a, V, N>>),
     Assignment(N::Type, V::Variable, Box<Expression<'a, V, N>>),
     FunctionCall(N::Type, V::Function, Vec<Expression<'a, V, N>>),
     FieldAccess(N::Type, Box<Expression<'a, V, N>>, N::Field),
@@ -105,9 +105,8 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
 
                 Expression::Assignment((), id, Box::new(expr))
             }
-            Expression::Statement((), meta, expr) => Expression::Statement(
+            Expression::Statement((), expr) => Expression::Statement(
                 (),
-                meta,
                 Box::new(expr.resolve_identifiers(variables, variable_lookup, function_lookup)?),
             ),
             Expression::FunctionCall((), name, args) => {
@@ -186,10 +185,10 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     Expression::Binop(a.id(), op, Box::new(a), Box::new(b))
                 }
             },
-            Expression::Statement((), meta, expr) => {
-                let span = expr.span().simplify().append(meta.clone());
+            Expression::Statement((), expr) => {
+                let span = expr.span().extend_right(';');
                 let expr = expr.type_constraints(functions, variables, solver)?;
-                Expression::Statement(solver.add_empty(span), meta, Box::new(expr))
+                Expression::Statement(solver.add_empty(span), Box::new(expr))
             }
             Expression::Assignment((), var, expr) => {
                 let span = var.span().simplify().append(expr.span());
@@ -278,7 +277,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             | &Expression::Variable(id, _)
             | &Expression::Lit(id, _)
             | &Expression::Binop(id, _, _, _)
-            | &Expression::Statement(id, _, _)
+            | &Expression::Statement(id, _)
             | &Expression::Assignment(id, _, _)
             | &Expression::FunctionCall(id, _, _)
             | &Expression::FieldAccess(id, _, _) => id,
@@ -311,9 +310,9 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
                 let b = b.insert_types(types, type_result);
                 Expression::Binop(type_result[id], op, Box::new(a), Box::new(b))
             }
-            Expression::Statement(id, meta, expr) => {
+            Expression::Statement(id, expr) => {
                 let expr = expr.insert_types(types, type_result);
-                Expression::Statement(type_result[id], meta, Box::new(expr))
+                Expression::Statement(type_result[id], Box::new(expr))
             }
             Expression::Assignment(id, var, expr) => {
                 let expr = expr.insert_types(types, type_result);
@@ -412,7 +411,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                     },
                 )))
             }
-            Expression::Statement(ty, _meta, expr) => {
+            Expression::Statement(ty, expr) => {
                 assert_eq!(ty, ty::EMPTY_ID);
                 expr.to_mir(types, var_lookup, curr, func)?;
                 Ok(func
@@ -461,7 +460,7 @@ where
             Expression::Variable(_, var) => var.span(),
             Expression::Lit(_, lit) => lit.simplify(),
             Expression::Binop(_, _op, a, b) => a.span().append(b.span()),
-            Expression::Statement(_, meta, expr) => expr.span().append(meta.clone()),
+            Expression::Statement(_, expr) => expr.span().extend_right(';'),
             Expression::Assignment(_, var, expr) => var.span().simplify().append(expr.span()),
             Expression::FunctionCall(_, name, _args) => name.span(),
             Expression::FieldAccess(_, _, field) => field.span().extend_left('.'),

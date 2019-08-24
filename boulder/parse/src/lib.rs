@@ -348,7 +348,7 @@ fn parse_block<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, CompileEr
         while tok.item == Token::SemiColon {
             tok = iter.next().unwrap();
             if let Some(expr) = block.pop() {
-                block.push(Expression::Statement((), tok.simplify(), Box::new(expr)));
+                block.push(Expression::Statement((), Box::new(expr)));
             }
         }
 

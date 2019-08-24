@@ -193,6 +193,16 @@ pub fn check_recursive_ty(types: &[Type<TypeId>]) -> Result<(), CompileError> {
     result
 }
 
+pub fn subtypes(ty: TypeId, types: &[Type<TypeId>]) -> Vec<TypeId> {
+    if let Kind::Sum(t) = &types[ty.0].kind {
+        let mut t = t.clone();
+        t.push(ty);
+        t
+    } else {
+        vec![ty]
+    }
+}
+
 pub fn is_subtype(ty: TypeId, of: TypeId, types: &[Type<TypeId>]) -> bool {
     if ty == of {
         true

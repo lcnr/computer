@@ -18,6 +18,20 @@ struct Context<'a, 'b> {
     bounds: HashMap<EntityId, Vec<TypeId>>,
 }
 
+impl Context<'_, '_> {
+    fn add_bound(&mut self, id: EntityId, bound: Vec<TypeId>) -> &mut Vec<TypeId> {
+        self.bounds
+            .entry(id)
+            .and_modify(|ty| {
+                *ty = std::mem::replace(ty, Vec::new())
+                    .into_iter()
+                    .filter(|t| bound.contains(t))
+                    .collect();
+            })
+            .or_insert_with(|| bound.clone())
+    }
+}
+
 #[derive(Debug)]
 pub struct TypeSolver<'a, 'b> {
     solver: ConstraintSolver<Context<'a, 'b>, TypeId, CompileError>,
@@ -119,23 +133,9 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         id
     }
 
-    fn add_bound(&mut self, id: EntityId, bound: Vec<TypeId>) {
-        self.solver
-            .context()
-            .bounds
-            .entry(id)
-            .and_modify(|ty| {
-                *ty = std::mem::replace(ty, Vec::new())
-                    .into_iter()
-                    .filter(|t| bound.contains(t))
-                    .collect();
-            })
-            .or_insert_with(|| self.integers.clone());
-    }
-
     pub fn add_integer(&mut self, meta: Meta<'a, ()>) -> EntityId {
         let id = self.add_entity(self.integers.clone(), meta);
-        self.add_bound(id, self.integers.clone());
+        self.solver.context().add_bound(id, self.integers.clone());
         id
     }
 
@@ -149,7 +149,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
 
     pub fn add_typed(&mut self, ty: TypeId, meta: Meta<'a, ()>) -> EntityId {
         let id = self.add_entity(vec![ty], meta);
-        self.add_bound(id, vec![ty]);
+        self.solver.context().add_bound(id, vec![ty]);
         id
     }
 
@@ -169,7 +169,6 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
     ) -> Result<(), CompileError> {
         if let Some(&(id, ref bounds)) = self.fields.get(&name.item) {
             self.solver.add_production(id, obj, field);
-            self.add_bound(id, bound.clone());
             Ok(())
         } else {
             CompileError::new(
