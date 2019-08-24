@@ -148,7 +148,6 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
     pub fn type_constraints<'b>(
         self,
         functions: &[FunctionDefinition<'a, TypeId>],
-        type_lookup: &mut HashMap<Box<str>, TypeId>,
         variables: &[solver::EntityId],
         solver: &mut TypeSolver<'a, 'b>,
     ) -> Result<Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>>, CompileError> {
@@ -160,7 +159,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     let content = v
                         .into_iter()
                         .map(|expr| {
-                            expr.type_constraints(functions, type_lookup, variables, solver)
+                            expr.type_constraints(functions, variables, solver)
                         })
                         .collect::<Result<Vec<_>, CompileError>>()?;
                     let id = content.last().unwrap().id();
@@ -177,8 +176,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             },
             Expression::Binop((), op, a, b) => match op.item {
                 Binop::Add | Binop::Sub | Binop::Mul | Binop::Div | Binop::BitOr => {
-                    let a = a.type_constraints(functions, type_lookup, variables, solver)?;
-                    let b = b.type_constraints(functions, type_lookup, variables, solver)?;
+                    let a = a.type_constraints(functions, variables, solver)?;
+                    let b = b.type_constraints(functions, variables, solver)?;
                     let integer = solver.add_integer(op.simplify());
                     solver.add_equality(a.id(), b.id())?;
                     solver.add_equality(a.id(), integer)?;
@@ -187,12 +186,12 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             },
             Expression::Statement((), meta, expr) => {
                 let span = expr.span().simplify().append(meta.clone());
-                let expr = expr.type_constraints(functions, type_lookup, variables, solver)?;
+                let expr = expr.type_constraints(functions, variables, solver)?;
                 Expression::Statement(solver.add_empty(span), meta, Box::new(expr))
             }
             Expression::Assignment((), var, expr) => {
                 let span = var.span().simplify().append(expr.span());
-                let expr = expr.type_constraints(functions, type_lookup, variables, solver)?;
+                let expr = expr.type_constraints(functions, variables, solver)?;
                 let var_id = variables[var.0];
                 solver.add_equality(expr.id(), var_id)?;
                 Expression::Assignment(solver.add_empty(span), var, Box::new(expr))
@@ -201,7 +200,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 let definition = &functions[name.0];
                 let args = args
                     .into_iter()
-                    .map(|expr| expr.type_constraints(functions, type_lookup, variables, solver))
+                    .map(|expr| expr.type_constraints(functions, variables, solver))
                     .collect::<Result<Vec<_>, CompileError>>()?;
 
                 if args.len() != definition.args.len() {
@@ -242,18 +241,18 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 Expression::FunctionCall(ret, name, args)
             }
             Expression::FieldAccess((), obj, field) => {
-                let obj = obj.type_constraints(functions, type_lookup, variables, solver)?;
+                let obj = obj.type_constraints(functions, variables, solver)?;
                 let access = solver.add_unconstrained(field.simplify());
                 solver.add_field_access(obj.id(), access, &field)?;
                 Expression::FieldAccess(access, Box::new(obj), field)
             }
             Expression::TypeRestriction(expr, ty) => {
-                let expr = expr.type_constraints(functions, type_lookup, variables, solver)?;
+                let expr = expr.type_constraints(functions, variables, solver)?;
                 let expected = match ty.item {
                     UnresolvedType::Sum(_) => unimplemented!(),
                     UnresolvedType::Integer => solver.add_integer(ty.simplify()),
                     UnresolvedType::Named(ref name) => {
-                        if let Some(&i) = type_lookup.get(name) {
+                        if let Some(&i) = solver.type_lookup().get(name) {
                             solver.add_typed(i, ty.simplify())
                         } else {
                             CompileError::new(

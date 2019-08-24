@@ -37,11 +37,6 @@ pub enum SolveError<T, E> {
     ProductionError(E),
 }
 
-pub struct ResolvedEntity<'a, T> {
-    pub id: EntityId,
-    pub ty: &'a T,
-}
-
 pub struct Entity<'a, T> {
     pub id: EntityId,
     pub content: &'a mut Vec<T>,
@@ -51,7 +46,7 @@ pub trait Production<C, T, E> {
     fn resolve(
         &mut self,
         ctx: &mut C,
-        origin: ResolvedEntity<T>,
+        origin: Entity<T>,
         target: Entity<T>,
     ) -> Result<(), E>;
 
@@ -59,7 +54,7 @@ pub trait Production<C, T, E> {
         &mut self,
         ctx: &mut C,
         origin: Entity<T>,
-        target: ResolvedEntity<T>,
+        target: Entity<T>,
     ) -> Result<(), E>;
 }
 
@@ -178,9 +173,9 @@ impl<C, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
                     };
                     self.productions[prod.0].resolve(
                         &mut self.context,
-                        ResolvedEntity {
+                        Entity {
                             id: actual_origin,
-                            ty: &origin[0],
+                            content: origin,
                         },
                         Entity {
                             id: actual_target,
@@ -203,9 +198,9 @@ impl<C, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
                             id: actual_origin,
                             content: origin,
                         },
-                        ResolvedEntity {
+                        Entity {
                             id: actual_target,
-                            ty: &target[0],
+                            content: target,
                         },
                     )?;
                 }
@@ -227,7 +222,10 @@ impl<C, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
             ids.swap(0, pos);
             self.apply_entity(ids[0])
                 .map_err(|e| SolveError::ProductionError(e))?;
-            ids = &mut ids[1..];
+
+            if self.entities[ids[0]].len() == 1 {
+                ids = &mut ids[1..];
+            }
         }
 
         if ids.is_empty() {

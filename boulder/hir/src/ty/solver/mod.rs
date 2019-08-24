@@ -12,6 +12,7 @@ use productions::*;
 
 struct Context<'a, 'b> {
     types: &'b mut Vec<Type<'a, TypeId>>,
+    type_lookup: &'b mut HashMap<Box<str>, TypeId>,
     meta: HashMap<EntityId, Meta<'a, ()>>,
     bound: HashSet<EntityId>,
 }
@@ -25,7 +26,7 @@ pub struct TypeSolver<'a, 'b> {
 }
 
 impl<'a, 'b> TypeSolver<'a, 'b> {
-    pub fn new(types: &'b mut Vec<Type<'a, TypeId>>) -> Self {
+    pub fn new(types: &'b mut Vec<Type<'a, TypeId>>, type_lookup: &'b mut HashMap<Box<str>, TypeId>) -> Self {
         let all = (0..types.len()).map(|t| TypeId(t)).collect();
         let empty = TypeId(types.iter().position(|t| &*t.name.item == "Empty").unwrap());
         let integers = types
@@ -52,6 +53,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
 
         let mut solver = ConstraintSolver::new(Context {
             types,
+            type_lookup,
             meta: HashMap::new(),
             bound: HashSet::new(),
         });
@@ -139,6 +141,10 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
 
     pub fn types(&mut self) -> &mut Vec<Type<'a, TypeId>> {
         self.solver.context().types
+    }
+
+    pub fn type_lookup(&mut self) -> &mut HashMap<Box<str>, TypeId> {
+        self.solver.context().type_lookup
     }
 
     pub fn add_field_access(

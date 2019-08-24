@@ -46,7 +46,7 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
         Self {
             name,
             arguments: Vec::new(),
-            ret: Meta::<()>::default().replace(Some(UnresolvedType::Named("Empty".into()))),
+            ret: Meta::fake(Some(UnresolvedType::Named("Empty".into()))),
             variables: Vec::new(),
             body: Expression::Block((), Meta::default(), Vec::new()),
         }
@@ -151,7 +151,9 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
         type_lookup: &mut HashMap<Box<str>, TypeId>,
     ) -> Result<Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId>, CompileError>
     {
-        let mut solver = TypeSolver::new(types);
+        let ret_ty = ty::resolve(self.ret.clone().map(|t| t.unwrap()), types, type_lookup).unwrap();
+
+        let mut solver = TypeSolver::new(types, type_lookup);
         // constraints must not contain any entities right now,
         // as we want `VariableId`s to be equal to `EntityId`s
         let variables = self
@@ -162,7 +164,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
                     Some(UnresolvedType::Sum(_)) => unimplemented!(),
                     Some(UnresolvedType::Integer) => solver.add_integer(variable.ty.simplify()),
                     Some(UnresolvedType::Named(ref name)) => {
-                        if let Some(&i) = type_lookup.get(name) {
+                        if let Some(&i) = solver.type_lookup().get(name) {
                             solver.add_typed(i, variable.ty.simplify())
                         } else {
                             CompileError::new(
@@ -176,16 +178,11 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
             })
             .collect::<Result<Vec<_>, _>>()?;
 
-        let ret = {
-            let types = solver.types();
-            let ty = ty::resolve(self.ret.clone().map(|t| t.unwrap()), types, type_lookup).unwrap();
-            let meta = ty.simplify();
-            solver.add_typed(ty.item, meta)
-        };
+        let ret = solver.add_typed(ret_ty.item, ret_ty.simplify());
 
         let body =
             self.body
-                .type_constraints(function_lookup, type_lookup, &variables, &mut solver)?;
+                .type_constraints(function_lookup, &variables, &mut solver)?;
 
         solver.add_equality(ret, body.id())?;
 

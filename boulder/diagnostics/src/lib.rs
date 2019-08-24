@@ -130,6 +130,15 @@ impl<'a> Meta<'a, ()> {
 }
 
 impl<'a, T> Meta<'a, T> {
+    pub fn fake(item: T) -> Meta<'a, T> {
+        Meta {
+            item,
+            span: 0..11,
+            source: &"<fake meta>",
+            line: 0
+        }
+    }
+
     pub fn simplify(&self) -> Meta<'a, ()> {
         Meta {
             item: (),

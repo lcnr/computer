@@ -7,7 +7,7 @@ use crate::ty::{
     Type, TypeId,
 };
 
-use solver::{Entity, EntityId, Production, ResolvedEntity};
+use solver::{Entity, EntityId, Production};
 
 pub struct FieldAccess {
     field_name: Box<str>,
@@ -27,10 +27,11 @@ impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for FieldAccess {
     fn resolve(
         &mut self,
         ctx: &mut Context<'a, 'b>,
-        object: ResolvedEntity<TypeId>,
+        object: Entity<TypeId>,
         field: Entity<TypeId>,
     ) -> Result<(), CompileError> {
-        if let Some(pos) = self.field_types.iter().position(|(o, _)| object.ty == o) {
+        let object_ty = object.content[0];
+        if let Some(pos) = self.field_types.iter().position(|&(o, _)| object_ty == o) {
             let ty = self.field_types[pos].1;
             if field.content.contains(&ty) {
                 field.content.clear();
@@ -52,7 +53,7 @@ impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for FieldAccess {
                 ctx.meta.get(&field.id).unwrap(),
                 format_args!(
                     "No field `{}` on type `{}`",
-                    self.field_name, ctx.types[object.ty.0].name.item,
+                    self.field_name, ctx.types[object_ty.0].name.item,
                 ),
             )
         }
@@ -62,12 +63,13 @@ impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for FieldAccess {
         &mut self,
         ctx: &mut Context<'a, 'b>,
         object: Entity<TypeId>,
-        field: ResolvedEntity<TypeId>,
+        field: Entity<TypeId>,
     ) -> Result<(), CompileError> {
+        let field_ty = field.content[0];
         let possible_structs: Vec<_> = self
             .field_types
             .iter()
-            .filter(|&(_, f)| f == field.ty)
+            .filter(|&&(_, f)| f == field_ty)
             .map(|&(o, _)| o)
             .collect();
         if !possible_structs.is_empty() {
@@ -94,30 +96,50 @@ impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for FieldAccess {
                 ctx.meta.get(&field.id).unwrap(),
                 format_args!(
                     "No field `{}` with type `{}`",
-                    self.field_name, ctx.types[field.ty.0].name.item,
+                    self.field_name, ctx.types[field_ty.0].name.item,
                 ),
             )
         }
     }
 }
 
-pub struct Extention;
+pub struct Extension;
 
-impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for Extention {
+impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for Extension {
     fn resolve(
         &mut self,
         ctx: &mut Context<'a, 'b>,
-        origin: ResolvedEntity<TypeId>,
+        origin: Entity<TypeId>,
         target: Entity<TypeId>,
     ) -> Result<(), CompileError> {
-        unimplemented!()
+        let origin_ty = origin.content[0];
+        if ctx.bound.contains(&target.id) {
+            // target must exactly match origin
+            if target.content.contains(&origin_ty) {
+                target.content.clear();
+                target.content.push(origin_ty);
+                Ok(())
+            } else {
+                let found_str = TypeSolver::ty_error_str(ctx.types, target.content);
+                let expected_str = TypeSolver::ty_error_str(ctx.types, &[origin_ty]);
+                CompileError::new(
+                    ctx.meta.get(&target.id).unwrap(),
+                    format_args!(
+                        "Mismatched types: found {}, expected {}",
+                        found_str, expected_str
+                    ),
+                )
+            }
+        } else {
+            unimplemented!()
+        }
     }
 
     fn resolve_backwards(
         &mut self,
         ctx: &mut Context<'a, 'b>,
         origin: Entity<TypeId>,
-        target: ResolvedEntity<TypeId>,
+        target: Entity<TypeId>,
     ) -> Result<(), CompileError> {
         unimplemented!()
     }
