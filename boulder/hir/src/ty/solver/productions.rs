@@ -33,7 +33,7 @@ impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for FieldAccess {
         let object_ty = object.content[0];
         if let Some(pos) = self.field_types.iter().position(|&(o, _)| object_ty == o) {
             let ty = self.field_types[pos].1;
-            
+
             if field.content.contains(&ty) {
                 field.content.clear();
                 field.content.push(ty);

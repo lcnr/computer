@@ -100,7 +100,13 @@ pub struct Hir<'a, V: IdentifierState, N: TypeState, T, MV> {
 }
 
 impl<'a>
-    Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType<'a>>, Box<str>>
+    Hir<
+        'a,
+        UnresolvedIdentifiers<'a>,
+        UnresolvedTypes<'a>,
+        Option<UnresolvedType<'a>>,
+        UnresolvedType<'a>,
+    >
 {
     pub fn new() -> Self {
         Self {
@@ -153,7 +159,7 @@ impl<'a>
         }
     }
 
-    pub fn add_type(&mut self, ty: Type<'a, Box<str>>) -> Result<(), CompileError> {
+    pub fn add_type(&mut self, ty: Type<'a, UnresolvedType<'a>>) -> Result<(), CompileError> {
         if self.types.iter().any(|t| t.name.item == ty.name.item) {
             CompileError::new(
                 &ty.name,
@@ -174,18 +180,26 @@ impl<'a>
         Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType<'a>>, TypeId>,
         CompileError,
     > {
-        let lookup = self
+        let mut lookup = self
             .types
             .iter()
             .enumerate()
             .map(|(i, ty)| (ty.name.item.clone(), TypeId(i)))
             .collect::<HashMap<_, _>>();
 
-        let types = self
+        let mut types = self
             .types
+            .iter()
+            .map(|ty| Type {
+                name: ty.name.clone(),
+                kind: ty::Kind::Struct(Vec::new()),
+            })
+            .collect::<Vec<_>>();
+
+        self.types
             .into_iter()
-            .map(|ty| ty.resolve(&lookup))
-            .collect::<Result<Vec<_>, _>>()?;
+            .map(|t| t.resolve(&mut types, &mut lookup))
+            .collect::<Result<Vec<()>, _>>()?;
 
         ty::check_recursive_ty(&types)?;
         Ok(Hir {

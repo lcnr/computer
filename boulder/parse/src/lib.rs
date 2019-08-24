@@ -19,11 +19,11 @@ type Hir<'a> = hir::Hir<
     hir::UnresolvedIdentifiers<'a>,
     hir::UnresolvedTypes<'a>,
     Option<hir::UnresolvedType<'a>>,
-    Box<str>,
+    hir::UnresolvedType<'a>,
 >;
-type Type<'a> = hir::Type<'a, Box<str>>;
-type Kind<'a> = hir::ty::Kind<'a, Box<str>>;
-type Field<'a> = hir::ty::Field<'a, Box<str>>;
+type Type<'a> = hir::Type<'a, hir::UnresolvedType<'a>>;
+type Kind<'a> = hir::ty::Kind<'a, hir::UnresolvedType<'a>>;
+type Field<'a> = hir::ty::Field<'a, hir::UnresolvedType<'a>>;
 
 pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
     let iter = &mut TokenIter::new(src);
@@ -383,7 +383,7 @@ fn parse_struct_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Type<'a>, CompileEr
 
                 let name = expect_ident(iter.next().unwrap())?;
                 consume_token(Token::Colon, iter)?;
-                let ty = expect_ident(iter.next().unwrap())?;
+                let ty = parse_type(iter)?;
                 fields.push(Field { name, ty });
 
                 let tok = iter.next().unwrap();

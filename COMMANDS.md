@@ -212,7 +212,7 @@ Notes:
 | `0xc4%1`   | if eq %1     | if A == B { execute command %1 } else { PC += 2; }                |
 | `0xc5%1`   | if neq %1    | if A != B { execute command %1 } else { PC += 2; }                |
 | `0xc6%1`   | if lte %1    | if A <= B { execute command %1 } else { PC += 2; }                |
-| `0xc7%1  ` | if lt %1     | if A < B { execute command %1 } else { PC += 2; }                 |
+| `0xc7%1`   | if lt %1     | if A < B { execute command %1 } else { PC += 2; }                 |
 | `0xc8%1$2` | if z %1 $2   | if A == 0 { execute command %1 $2 } else { PC += 3; }             |
 | `0xc9%1$2` | if nz %1 $2  | if A != 0 { execute command %1 $2 } else { PC += 3; }             |
 | `0xca%1$2` | if gt %1 $2  | if A > B { execute command %1 $2 } else { PC += 3; }              |

@@ -22,57 +22,52 @@ pub struct Type<'a, T> {
     pub kind: Kind<'a, T>,
 }
 
-impl<'a> Type<'a, Box<str>> {
+impl<'a> Type<'a, UnresolvedType<'a>> {
     pub fn resolve(
         self,
-        lookup: &HashMap<Box<str>, TypeId>,
-    ) -> Result<Type<'a, TypeId>, CompileError> {
-        Ok(Type {
-            name: self.name,
-            kind: match self.kind {
-                Kind::Unit => Kind::Unit,
-                Kind::Uninhabited => Kind::Uninhabited,
-                Kind::U8 => Kind::U8,
-                Kind::U16 => Kind::U16,
-                Kind::U32 => Kind::U32,
-                Kind::Struct(mut fields) => {
-                    fields.sort_by(|a, b| a.name.item.cmp(&b.name.item));
-                    for window in fields.windows(2) {
-                        if window[0].name.item == window[1].name.item {
-                            CompileError::build(
-                                &window[1].name,
-                                format_args!(
-                                    "Identifier `{}` is bound more than once in this parameter list",
-                                    &window[1].name.item,
-                                ),
-                            ).with_location(&window[0].name).build()?;
-                        }
+        types: &mut Vec<Type<'a, TypeId>>,
+        lookup: &mut HashMap<Box<str>, TypeId>,
+    ) -> Result<(), CompileError> {
+        let id = *lookup.get(&self.name.item).unwrap();
+
+        let kind = match self.kind {
+            Kind::Unit => Kind::Unit,
+            Kind::Uninhabited => Kind::Uninhabited,
+            Kind::U8 => Kind::U8,
+            Kind::U16 => Kind::U16,
+            Kind::U32 => Kind::U32,
+            Kind::Struct(mut fields) => {
+                fields.sort_by(|a, b| a.name.item.cmp(&b.name.item));
+                for window in fields.windows(2) {
+                    if window[0].name.item == window[1].name.item {
+                        CompileError::build(
+                            &window[1].name,
+                            format_args!(
+                                "Identifier `{}` is bound more than once in this parameter list",
+                                &window[1].name.item,
+                            ),
+                        )
+                        .with_location(&window[0].name)
+                        .build()?;
                     }
-                    Kind::Struct(
-                        fields
-                            .into_iter()
-                            .map(|m| {
-                                if let Some(&id) = lookup.get(&m.ty.item) {
-                                    Ok(Field {
-                                        name: m.name,
-                                        ty: m.ty.replace(id),
-                                    })
-                                } else {
-                                    CompileError::new(
-                                        &m.ty,
-                                        format_args!(
-                                            "Cannot find type `{}` in this scope",
-                                            &m.ty.item
-                                        ),
-                                    )?
-                                }
-                            })
-                            .collect::<Result<_, _>>()?,
-                    )
                 }
-                Kind::Sum(cases) => unimplemented!("{:?}", cases),
-            },
-        })
+
+                Kind::Struct(
+                    fields
+                        .into_iter()
+                        .map(|m| {
+                            Ok(Field {
+                                name: m.name,
+                                ty: resolve(m.ty, types, lookup)?,
+                            })
+                        })
+                        .collect::<Result<_, _>>()?,
+                )
+            }
+            _ => unimplemented!("non struct types"),
+        };
+        types[id.0].kind = kind;
+        Ok(())
     }
 }
 
