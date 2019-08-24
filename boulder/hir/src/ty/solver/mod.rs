@@ -1,10 +1,8 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use diagnostics::{CompileError, Meta};
 
-use solver::{
-    ConstraintSolver, EntityId, ExpectedFound, ProductionId, Solution, SolveError,
-};
+use solver::{ConstraintSolver, EntityId, ExpectedFound, ProductionId, Solution, SolveError};
 
 mod productions;
 
@@ -12,15 +10,14 @@ use crate::ty::{Type, TypeId};
 
 use productions::*;
 
+struct Context<'a, 'b> {
+    types: &'b mut Vec<Type<'a, TypeId>>,
+    meta: HashMap<EntityId, Meta<'a, ()>>,
+    bound: HashSet<EntityId>,
+}
+
 pub struct TypeSolver<'a, 'b> {
-    solver: ConstraintSolver<
-        (
-            &'b mut Vec<Type<'a, TypeId>>,
-            HashMap<EntityId, Meta<'a, ()>>,
-        ),
-        TypeId,
-        CompileError,
-    >,
+    solver: ConstraintSolver<Context<'a, 'b>, TypeId, CompileError>,
     empty: TypeId,
     all: Vec<TypeId>,
     integers: Vec<TypeId>,
@@ -53,7 +50,11 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
             }
         }
 
-        let mut solver = ConstraintSolver::new((types, HashMap::new()));
+        let mut solver = ConstraintSolver::new(Context {
+            types,
+            meta: HashMap::new(),
+            bound: HashSet::new(),
+        });
         let fields = fields
             .into_iter()
             .map(|(name, field_types)| {
@@ -97,8 +98,8 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
 
     fn add_entity(&mut self, types: Vec<TypeId>, meta: Meta<'a, ()>) -> EntityId {
         let id = self.solver.add_entity(types);
-        let (_, ref mut solver_meta) = self.solver.context();
-        solver_meta.insert(id, meta);
+        let ctx = &mut self.solver.context();
+        ctx.meta.insert(id, meta);
         id
     }
 
@@ -120,16 +121,16 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
 
     pub fn add_equality(&mut self, a: EntityId, b: EntityId) -> Result<(), CompileError> {
         if let Err(ExpectedFound { expected, found }) = self.solver.add_equality(a, b) {
-            let &mut (ref types, ref meta) = self.solver.context();
+            let ctx = self.solver.context();
             CompileError::build(
-                meta.get(&found.0).unwrap(),
+                ctx.meta.get(&found.0).unwrap(),
                 format_args!(
                     "Mismatched types: found {}, expected {}",
-                    Self::ty_error_str(types, &found.1),
-                    Self::ty_error_str(types, &expected.1),
+                    Self::ty_error_str(ctx.types, &found.1),
+                    Self::ty_error_str(ctx.types, &expected.1),
                 ),
             )
-            .with_location(meta.get(&expected.0).unwrap())
+            .with_location(ctx.meta.get(&expected.0).unwrap())
             .build()
         } else {
             Ok(())
@@ -137,7 +138,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
     }
 
     pub fn types(&mut self) -> &mut Vec<Type<'a, TypeId>> {
-        self.solver.context().0
+        self.solver.context().types
     }
 
     pub fn add_field_access(
@@ -164,7 +165,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         match self.solver.solve() {
             Ok(solution) => Ok(solution),
             Err(SolveError::UnsolvedEntities(entities)) => {
-                let &mut (ref types, ref meta) = self.solver.context();
+                let ctx = self.solver.context();
                 let ((start_id, start_types), rest) = entities.split_first().unwrap();
 
                 let msg = if rest.is_empty() {
@@ -174,14 +175,14 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
                 };
                 rest.into_iter()
                     .fold(
-                        CompileError::build(meta.get(&start_id).unwrap(), msg).with_help(
-                            format_args!("could be {}", Self::ty_error_str(types, start_types)),
+                        CompileError::build(ctx.meta.get(&start_id).unwrap(), msg).with_help(
+                            format_args!("could be {}", Self::ty_error_str(ctx.types, start_types)),
                         ),
                         |err, (id, ty)| {
-                            err.with_location(meta.get(&id).unwrap())
+                            err.with_location(ctx.meta.get(&id).unwrap())
                                 .with_help(format_args!(
                                     "could be {}",
-                                    Self::ty_error_str(types, &ty)
+                                    Self::ty_error_str(ctx.types, &ty)
                                 ))
                         },
                     )

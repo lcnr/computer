@@ -37,13 +37,30 @@ pub enum SolveError<T, E> {
     ProductionError(E),
 }
 
+pub struct ResolvedEntity<'a, T> {
+    pub id: EntityId,
+    pub ty: &'a T,
+}
+
 pub struct Entity<'a, T> {
     pub id: EntityId,
     pub content: &'a mut Vec<T>,
 }
 
 pub trait Production<C, T, E> {
-    fn resolve(&mut self, ctx: &mut C, origin: Entity<T>, target: Entity<T>) -> Result<(), E>;
+    fn resolve(
+        &mut self,
+        ctx: &mut C,
+        origin: ResolvedEntity<T>,
+        target: Entity<T>,
+    ) -> Result<(), E>;
+
+    fn resolve_backwards(
+        &mut self,
+        ctx: &mut C,
+        origin: Entity<T>,
+        target: ResolvedEntity<T>,
+    ) -> Result<(), E>;
 }
 
 pub struct ConstraintSolver<C, T, E> {
@@ -161,9 +178,9 @@ impl<C, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
                     };
                     self.productions[prod.0].resolve(
                         &mut self.context,
-                        Entity {
+                        ResolvedEntity {
                             id: actual_origin,
-                            content: origin,
+                            ty: &origin[0],
                         },
                         Entity {
                             id: actual_target,
@@ -180,15 +197,15 @@ impl<C, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
                         (&mut end[0], &mut begin[id])
                     };
 
-                    self.productions[prod.0].resolve(
+                    self.productions[prod.0].resolve_backwards(
                         &mut self.context,
                         Entity {
                             id: actual_origin,
                             content: origin,
                         },
-                        Entity {
+                        ResolvedEntity {
                             id: actual_target,
-                            content: target,
+                            ty: &target[0],
                         },
                     )?;
                 }
