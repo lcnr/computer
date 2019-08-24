@@ -1,32 +1,32 @@
 start:
-    store 12 C;
-    store 5 D;
+    mov 12 C;
+    mov 5 D;
     # push the return addr of the stack
-    setb 1;
-    sets 0;
-    load MEM A;
-    sets A;
-    store start;
-    loadc 1 B;
+    mov 1 M2;
+    mov 0 M1;
+    mov MEM A;
+    mov A M1;
+    mov start;
+    mov 1 B;
     add A;
-    sets A;
+    mov A M1;
     store .next_pos;
     add A;
-    sets 0;
-    store A;
+    mov 0 M1;
+    mov A;
 .next_pos:
-    # the result should now be in a
+    # the result should now be in A
     jmp .next_pos;
 
 
 # calculate C * D, storing the result in C
 multiply:
-    store 0 B;
+    mov 0 B;
 .loop:
     mov C A;
     mov B C;
-    jmpz .end;
-    store 1 B;
+    if z jmp .end;
+    mov 1 B;
     sub A;
     mov C B;
     mov A C;
@@ -35,20 +35,20 @@ multiply:
     jmp .loop;
 .end:
     # pop the return addr from the stack, jump back
-    setb 1;
-    sets 0;
-    load MEM A;
-    load 1 B;
+    mov 1 M2;
+    mov 0 M1;
+    mov MEM A;
+    mov 1 B;
     sub A;
-    sets A;
-    load MEM D;
+    mov A M1;
+    mov MEM D;
     sub A;
-    sets A;
-    load MEM B;
-    sets 0; # update stack pointer
-    store A;
+    mov A M1;
+    mov MEM B;
+    mov 0 M1; # update stack pointer
+    mov A;
     mov D A;
-    load MEM A;
-    fjmp B A;
+    mov MEM A;
+    ret B A;
 
 
