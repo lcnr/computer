@@ -193,6 +193,23 @@ pub fn check_recursive_ty(types: &[Type<TypeId>]) -> Result<(), CompileError> {
     result
 }
 
+pub fn is_subtype(ty: TypeId, of: TypeId, types: &[Type<TypeId>]) -> bool {
+    if ty == of {
+        true
+    } else {
+        match &types[of.0].kind {
+            Kind::Sum(options) => {
+                if let Kind::Sum(t) = &types[of.0].kind {
+                    t.iter().all(|ty| options.contains(ty))
+                } else {
+                    options.contains(&ty)
+                }
+            }
+            _ => false,
+        }
+    }
+}
+
 impl<'a> Type<'a, TypeId> {
     // check if this type contains `ty`
     pub fn contains(

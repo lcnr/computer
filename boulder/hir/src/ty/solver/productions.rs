@@ -33,12 +33,21 @@ impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for FieldAccess {
         let object_ty = object.content[0];
         if let Some(pos) = self.field_types.iter().position(|&(o, _)| object_ty == o) {
             let ty = self.field_types[pos].1;
+
+            let contents = {
+                let temp = field
+                .content
+                .iter()
+                .map(|&t| ty::build_sum_ty(ctx.types, ctx.type_lookup, &[ty, t]));
+
+                if let Some(bound) = ctx.bounds.get(&field.id) {
+                    temp.filter(|t| ty::is_subtype(t, fiel))
+                } else {
+                    temp.collect::<Result<_, _>>()?;
+                }
+            };
+
             if !ctx.bound.contains(&field.id) {
-                *field.content = field
-                    .content
-                    .iter()
-                    .map(|&t| ty::build_sum_ty(ctx.types, ctx.type_lookup, &[ty, t]))
-                    .collect::<Result<_, _>>()?;
                 Ok(())
             } else if field.content.contains(&ty) {
                 field.content.clear();
@@ -216,10 +225,15 @@ impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for Extension {
     ) -> Result<(), CompileError> {
         let origin_ty = origin.content[0];
         if ctx.bound.contains(&target.id) {
-            // target must exactly match origin
-            if target.content.contains(&origin_ty) {
-                target.content.clear();
-                target.content.push(origin_ty);
+            // target must already contain origin
+            let content: Vec<_> = target
+                .content
+                .iter()
+                .filter(|&&t| ty::is_subtype(origin_ty, t, &ctx.types))
+                .copied()
+                .collect();
+            if !content.is_empty() {
+                *target.content = content;
                 Ok(())
             } else {
                 let found_str = TypeSolver::ty_error_str(ctx.types, target.content);
@@ -255,9 +269,14 @@ impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for Extension {
         let target_ty = target.content[0];
         if ctx.bound.contains(&target.id) {
             // target must exactly match origin
-            if origin.content.contains(&target_ty) {
-                origin.content.clear();
-                origin.content.push(target_ty);
+            let content: Vec<_> = origin
+                .content
+                .iter()
+                .filter(|&&t| ty::is_subtype(t, target_ty, &ctx.types))
+                .copied()
+                .collect();
+            if !content.is_empty() {
+                *origin.content = content;
                 Ok(())
             } else {
                 let found_str = TypeSolver::ty_error_str(ctx.types, target.content);
@@ -273,13 +292,6 @@ impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for Extension {
                 .build()
             }
         } else {
-            let mut additional_types = origin
-                .content
-                .iter()
-                .map(|t| ty::build_sum_ty(ctx.types, ctx.type_lookup, &[target_ty, *t]))
-                .collect::<Result<_, _>>()?;
-
-            target.content.append(&mut additional_types);
             Ok(())
         }
     }

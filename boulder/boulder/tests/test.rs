@@ -56,14 +56,14 @@ fn compile_fail() -> Result<(), std::io::Error> {
             let content = match panic::catch_unwind(|| boulder::compile(&content)) {
                 Ok(c) => c,
                 Err(e) => {
-                    eprintln!("panic in {}", entry.path().display());
+                    eprintln!("panic in boulder/{}", entry.path().display());
                     panic::resume_unwind(e)
                 }
             };
 
             assert!(
                 content.is_err(),
-                "`{}` did not fail to compile",
+                "`boulder/{}` did not fail to compile",
                 entry.path().display()
             );
             let output = output.lock().unwrap();
@@ -72,7 +72,7 @@ fn compile_fail() -> Result<(), std::io::Error> {
                 count += 1;
                 assert!(
                     output.contains(expected),
-                    "{}: `{}` did not contain `{}`",
+                    "boulder/{}: `{}` did not contain `{}`",
                     entry.path().display(),
                     output.trim(),
                     expected,
@@ -81,7 +81,7 @@ fn compile_fail() -> Result<(), std::io::Error> {
             assert_ne!(
                 count,
                 0,
-                "`{}` did not check any error messages, actual output:\n{}",
+                "`boulder/{}` did not check any error messages, actual output:\n{}",
                 entry.path().display(),
                 output.trim(),
             );
@@ -118,14 +118,14 @@ fn compile_run() {
             let result = match panic::catch_unwind(|| boulder::compile(&content)) {
                 Ok(c) => c,
                 Err(e) => {
-                    eprintln!("panic in {}", entry.path().display());
+                    eprintln!("panic in boulder/{}", entry.path().display());
                     panic::resume_unwind(e)
                 }
             };
             let output = output.lock().unwrap();
             assert!(
                 result.is_ok(),
-                "`{}` failed to compile: `{}`",
+                "`boulder/{}` failed to compile: `{}`",
                 entry.path().display(),
                 output
             );

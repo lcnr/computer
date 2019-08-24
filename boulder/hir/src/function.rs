@@ -184,7 +184,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
             .body
             .type_constraints(function_lookup, &variables, &mut solver)?;
 
-        solver.add_equality(ret, body.id());
+        solver.add_extension(body.id(), ret);
         let solution = solver.solve()?;
 
         let body = body.insert_types(types, &solution);

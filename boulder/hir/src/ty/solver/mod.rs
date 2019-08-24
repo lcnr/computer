@@ -15,7 +15,7 @@ struct Context<'a, 'b> {
     types: &'b mut Vec<Type<'a, TypeId>>,
     type_lookup: &'b mut HashMap<Box<str>, TypeId>,
     meta: HashMap<EntityId, Meta<'a, ()>>,
-    bound: HashSet<EntityId>,
+    bounds: HashMap<EntityId, Vec<TypeId>>,
 }
 
 #[derive(Debug)]
@@ -24,7 +24,7 @@ pub struct TypeSolver<'a, 'b> {
     empty: TypeId,
     all: Vec<TypeId>,
     integers: Vec<TypeId>,
-    fields: HashMap<Box<str>, ProductionId>,
+    fields: HashMap<Box<str>, (ProductionId, Vec<TypeId>)>,
     equality: ProductionId,
     extension: ProductionId,
 }
@@ -62,16 +62,18 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
             types,
             type_lookup,
             meta: HashMap::new(),
-            bound: HashSet::new(),
+            bounds: HashMap::new(),
         });
+
         let fields = fields
             .into_iter()
             .map(|(name, field_types)| {
                 let field_name = name.clone();
+                let obj_types = field_types.iter().map(|(o, _)| o.clone()).collect();
                 let field_access = FieldAccess::new(field_name, field_types);
 
                 let id = solver.define_production(Box::new(field_access));
-                (name, id)
+                (name, (id, obj_types))
             })
             .collect();
 
@@ -117,9 +119,23 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         id
     }
 
+    fn add_bound(&mut self, id: EntityId, bound: Vec<TypeId>) {
+        self.solver
+            .context()
+            .bounds
+            .entry(id)
+            .and_modify(|ty| {
+                *ty = std::mem::replace(ty, Vec::new())
+                    .into_iter()
+                    .filter(|t| bound.contains(t))
+                    .collect();
+            })
+            .or_insert_with(|| self.integers.clone());
+    }
+
     pub fn add_integer(&mut self, meta: Meta<'a, ()>) -> EntityId {
         let id = self.add_entity(self.integers.clone(), meta);
-        self.solver.context().bound.insert(id);
+        self.add_bound(id, self.integers.clone());
         id
     }
 
@@ -133,7 +149,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
 
     pub fn add_typed(&mut self, ty: TypeId, meta: Meta<'a, ()>) -> EntityId {
         let id = self.add_entity(vec![ty], meta);
-        self.solver.context().bound.insert(id);
+        self.add_bound(id, vec![ty]);
         id
     }
 
@@ -151,9 +167,9 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         field: EntityId,
         name: &Meta<'_, Box<str>>,
     ) -> Result<(), CompileError> {
-        if let Some(&e) = self.fields.get(&name.item) {
-            self.solver.add_production(e, obj, field);
-            self.solver.context().bound.insert(obj);
+        if let Some(&(id, ref bounds)) = self.fields.get(&name.item) {
+            self.solver.add_production(id, obj, field);
+            self.add_bound(id, bound.clone());
             Ok(())
         } else {
             CompileError::new(

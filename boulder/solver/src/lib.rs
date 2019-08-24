@@ -179,7 +179,7 @@ impl<C: fmt::Debug, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<
                 }
                 step_count += 1;
 
-                if step_count > 10000 {
+                if step_count > 1000 {
                     return Err(SolveError::UnsolvedEntities(
                         all_ids
                             .iter()

@@ -1,6 +1,6 @@
 # Mismatched types
-# expected `u32`
-# found `Empty`
+# expected `Empty`
+# found `u32`
 # (8:
 # (11:
 # ^^^^^^
