@@ -205,6 +205,7 @@ Notes:
 | `0x87$1`   | ret $1 C     | P2 = mem[PC + 1]; P1 = C;                                         |
 | `0x88$1`   | ret $1 D     | P2 = mem[PC + 1]; P1 = D;                                         |
 | `0x89$1`   | ret $1 mem   | P2 = mem[PC + 1]; P1 = mem[MR];                                   |
+| `0x8a`     | swap         | A = B && B = A;                                                   |
 | `0xc0%1`   | if z %1      | if A == 0 { execute command %1 } else { PC += 2; }                |
 | `0xc1%1`   | if n %1      | if A != 0 { execute command %1 } else { PC += 2; }                |
 | `0xc2%1`   | if gt %1     | if A > B { execute command %1 } else { PC += 2; }                 |
