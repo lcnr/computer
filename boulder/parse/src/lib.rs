@@ -89,14 +89,18 @@ fn expect_ident<'a>(tok: Meta<'a, Token>) -> Result<Meta<'a, Box<str>>, CompileE
     }
 }
 
+fn parse_pattern<'a>(iter: &mut TokenIter<'a>) -> Result<Meta<'a, Box<str>>, CompileError> {
+    expect_ident(iter.next().unwrap())
+}
+
 fn check_expr_terminator<'a>(
     tok: Meta<'a, Token>,
     prev_checked: &[Token],
 ) -> Result<Meta<'a, Token>, CompileError> {
     match tok.item {
-        Token::Comma | Token::SemiColon | Token::CloseBlock(_) => Ok(tok),
+        Token::Comma | Token::SemiColon | Token::CloseBlock(_) | Token::OpenBlock(BlockDelim::Brace) => Ok(tok),
         _ => {
-            let mut expected = vec![Token::SemiColon, Token::CloseBlock(BlockDelim::Brace)];
+            let mut expected = vec![Token::SemiColon, Token::CloseBlock(BlockDelim::Brace),  Token::OpenBlock(BlockDelim::Brace)];
             expected.extend_from_slice(prev_checked);
             CompileError::expected(&expected, &tok)
         }
@@ -160,6 +164,30 @@ fn parse_ident_expr<'a>(
             Expression::Variable((), hir::UnresolvedVariable::Existing(ident))
         }
     })
+}
+
+fn parse_match<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, CompileError> {
+    let value = parse_expression(iter)?;
+    consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
+    let mut match_arms = Vec::new();
+    loop {
+        if try_consume_token(Token::CloseBlock(BlockDelim::Brace), iter) {
+            break;
+        }
+
+        let pat = parse_pattern(iter)?;
+        consume_token(Token::Colon, iter)?;
+        let ty = parse_type(iter)?;
+
+        match_arms.push(ty);
+
+        let tok = iter.next().unwrap();
+        if try_consume_token(Token::CloseBlock(BlockDelim::Brace), iter) {
+            break;
+        }
+    }
+
+    unimplemented!("{:?}, {:?}", value, match_arms)
 }
 
 fn parse_variable_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, CompileError> {
@@ -287,6 +315,11 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
             parse_binop(expr, iter)
         }
         Token::Keyword(Keyword::Let) => parse_variable_decl(iter),
+        Token::Keyword(Keyword::Match) => {
+            let expr = parse_match(iter)?;
+            consume_token(Token::CloseBlock(BlockDelim::Parenthesis), iter)?;
+            parse_binop(expr, iter)
+        }
         Token::Ident(v) => {
             let expr = parse_ident_expr(start.replace(v), iter)?;
             let next = iter.next().unwrap();
