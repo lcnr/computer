@@ -1,5 +1,16 @@
 # the stack pointer MEM[1][0] should always point above the last element on the stack
-store:
+stack:
+    # initialize the stack
+    mov 1 M2;
+    mov 0 M1;
+    mov 1 A;
+    mov A mem;
+    # initialize registers
+    mov 0xee B;
+    mov 0xdd C;
+    mov 0xcc D;
+    idle;
+.store:
     # store B, C and D on the stack
     mov 1 M2;
     mov 0 M1;
@@ -13,10 +24,20 @@ store:
     add A;
     mov A M1;
     mov D mem;
-    add A; # update stack pointer
+    # update stack pointer
+    add A; 
     mov 0 M1;
     mov A mem;
-load:
+.cleanse:
+    # fill all registers with garbage
+    mov 0x16 A;
+    mov 0x42 B;
+    mov 0xaf C;
+    mov 0xfe D;
+    mov 0x9a M1;
+    mov 0xa9 M2;
+    idle;
+.load:
     # load D and C from the stack
     mov 1 M2;
     mov 0 M1;
@@ -28,6 +49,9 @@ load:
     sub A;
     mov A M1;
     mov mem C;
-    mov 0 M1; # update stack pointer
+    # update stack pointer
+    mov 0 M1;
     mov A mem;
-
+    idle;
+.fin:
+    jmp .fin;
