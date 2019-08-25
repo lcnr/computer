@@ -1,33 +1,33 @@
 # the stack pointer MEM[1][0] should always point above the last element on the stack
 store:
     # store B, C and D on the stack
-    setb 1;
-    sets 0;
-    load MEM A;
-    sets A;
-    store B;
-    load 1 B;
+    mov 1 M2;
+    mov 0 M1;
+    mov mem A;
+    mov A M1;
+    mov B mem;
+    mov 1 B;
     add A;
-    sets A;
-    store C;
+    mov A M1;
+    mov C mem;
     add A;
-    sets A;
-    store D;
+    mov A M1;
+    mov D mem;
     add A; # update stack pointer
-    sets 0;
-    store A;
+    mov 0 M1;
+    mov A mem;
 load:
     # load D and C from the stack
-    setb 1;
-    sets 0;
-    load MEM A;
-    load 1 B;
+    mov 1 M2;
+    mov 0 M1;
+    mov mem A;
+    mov 1 B;
     sub A;
-    sets A;
-    load MEM D;
+    mov A M1;
+    mov mem D;
     sub A;
-    sets A;
-    load MEM C;
-    sets 0; # update stack pointer
-    store A;
+    mov A M1;
+    mov mem C;
+    mov 0 M1; # update stack pointer
+    mov A mem;
 

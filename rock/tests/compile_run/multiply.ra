@@ -4,19 +4,19 @@ start:
     # push the return addr of the stack
     mov 1 M2;
     mov 0 M1;
-    mov Mem A;
+    mov mem A;
     mov A M1;
     mov start B;
-    mov B Mem;
+    mov B mem;
     mov 1 B;
     add A;
     mov A M1;
     mov .next_pos B;
-    mov B Mem;
+    mov B mem;
     mov 1 B;
     add A;
     mov 0 M1;
-    mov Mem A;
+    mov mem A;
 .next_pos:
     # the result should now be in A
     jmp .next_pos;
@@ -40,18 +40,18 @@ multiply:
     # pop the return addr from the stack, jump back
     mov 1 M2;
     mov 0 M1;
-    mov Mem A;
+    mov mem A;
     mov 1 B;
     sub A;
     mov A M1;
-    mov Mem D;
+    mov mem D;
     sub A;
     mov A M1;
-    mov Mem B;
+    mov mem B;
     mov 0 M1; # update stack pointer
-    mov A Mem; #not sure
+    mov A mem; #not sure
     mov D A;
-    mov Mem A;
+    mov mem A;
     ret B A;
 
 
