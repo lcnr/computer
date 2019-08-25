@@ -1,0 +1,4 @@
+# InvalidBlock
+# "ff"
+block:
+    mov ff A;

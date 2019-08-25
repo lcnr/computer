@@ -392,7 +392,7 @@ pub fn resolve<'a, L: Logger>(blocks: &mut [Block<'a>], l: &mut L) -> Result<(),
                     ErrorLevel::Error,
                     Cause::InvalidBlock,
                     line,
-                    name,
+                    s,
                 ));
                 Err(CodeGenError)
             }
