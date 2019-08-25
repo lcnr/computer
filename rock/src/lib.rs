@@ -366,7 +366,7 @@ pub fn resolve<'a, L: Logger>(blocks: &mut [Block<'a>], l: &mut L) -> Result<(),
                     ErrorLevel::Error,
                     Cause::InvalidSection,
                     line,
-                    name,
+                    s,
                 ));
                 Err(CodeGenError)
             }
@@ -381,7 +381,7 @@ pub fn resolve<'a, L: Logger>(blocks: &mut [Block<'a>], l: &mut L) -> Result<(),
                         ErrorLevel::Error,
                         Cause::InvalidSection,
                         line,
-                        name,
+                        s,
                     ));
                     Err(CodeGenError)
                 }
