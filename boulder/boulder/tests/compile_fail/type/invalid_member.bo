@@ -1,4 +1,4 @@
-# No field `b` on type `A`
+# no field `b` on type `A`
 # (13:
 
 struct A {

@@ -104,7 +104,7 @@ pub fn resolve<'a>(
                 )?
             }
         }
-        _ => unimplemented!("unresolvable type: {:?}", unresolved),
+        UnresolvedType::Integer => unimplemented!("unresolvable type: {:?}", unresolved),
     })
 }
 
@@ -204,7 +204,7 @@ pub fn is_subtype(ty: TypeId, of: TypeId, types: &[Type<TypeId>]) -> bool {
     } else {
         match &types[of.0].kind {
             Kind::Sum(options) => {
-                if let Kind::Sum(t) = &types[of.0].kind {
+                if let Kind::Sum(t) = &types[ty.0].kind {
                     t.iter().all(|ty| options.contains(ty))
                 } else {
                     options.contains(&ty)

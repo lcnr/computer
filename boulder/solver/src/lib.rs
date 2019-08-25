@@ -27,34 +27,48 @@ impl<T> Index<EntityId> for Solution<T> {
 
 #[derive(Debug)]
 pub enum SolveError<T, E> {
-    UnsolvedEntities(Vec<(EntityId, Vec<T>)>),
+    UnsolvedEntities(Vec<(EntityId, T)>),
     ProductionError(E),
 }
 
-pub struct Entity<'a, T> {
+pub struct Entity<'a, T: EntityState> {
     pub id: EntityId,
-    pub content: &'a mut Vec<T>,
+    pub state: &'a mut T,
 }
 
-pub trait Production<C, T, E>: fmt::Debug {
-    fn resolve(&mut self, ctx: &mut C, origin: Entity<T>, target: Entity<T>) -> Result<(), E>;
+pub struct SolvedEntity<T: EntityState> {
+    pub id: EntityId,
+    pub value: T::Result,
+}
+
+pub trait EntityState {
+    type Result;
+    /// is the current entity uniquely identified
+    fn solved(&self) -> bool;
+    /// this function will only be called in case `entity.solved()` is true
+    fn solution(&self) -> Self::Result;
+}
+
+pub trait Production<C, T: EntityState, E>: fmt::Debug {
+    fn resolve(&mut self, ctx: &mut C, origin: SolvedEntity<T>, target: Entity<T>)
+        -> Result<(), E>;
 
     fn resolve_backwards(
         &mut self,
         ctx: &mut C,
         origin: Entity<T>,
-        target: Entity<T>,
+        target: SolvedEntity<T>,
     ) -> Result<(), E>;
 }
 
 pub struct ConstraintSolver<C, T, E> {
-    entities: Vec<Vec<T>>,
+    entities: Vec<T>,
     rules: Vec<Vec<Rule>>,
     productions: Vec<Box<dyn Production<C, T, E>>>,
     context: C,
 }
 
-impl<'ctx, C: fmt::Debug, T: fmt::Debug, E> fmt::Debug for ConstraintSolver<C, T, E> {
+impl<'ctx, C: fmt::Debug, T: fmt::Debug + EntityState, E> fmt::Debug for ConstraintSolver<C, T, E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ConstraintSolver")
             .field("entities", &self.entities)
@@ -65,7 +79,9 @@ impl<'ctx, C: fmt::Debug, T: fmt::Debug, E> fmt::Debug for ConstraintSolver<C, T
     }
 }
 
-impl<C: fmt::Debug, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
+impl<C: fmt::Debug, T: EntityState + Eq + Hash + Clone + std::fmt::Debug, E>
+    ConstraintSolver<C, T, E>
+{
     pub fn new(context: C) -> Self {
         Self {
             entities: Vec::new(),
@@ -82,11 +98,7 @@ impl<C: fmt::Debug, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<
     /// # Panic
     ///
     /// This function panics if `values` is empty.
-    pub fn add_entity(&mut self, values: Vec<T>) -> EntityId {
-        assert!(
-            !values.is_empty(),
-            "Tried adding an entity without any valid values"
-        );
+    pub fn add_entity(&mut self, values: T) -> EntityId {
         let id = EntityId(self.entities.len());
         self.entities.push(values);
         self.rules.push(Vec::new());
@@ -117,13 +129,13 @@ impl<C: fmt::Debug, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<
                     };
                     self.productions[prod.0].resolve(
                         &mut self.context,
-                        Entity {
+                        SolvedEntity {
                             id: actual_origin,
-                            content: origin,
+                            value: origin.solution(),
                         },
                         Entity {
                             id: target_id,
-                            content: target,
+                            state: target,
                         },
                     )?;
                 }
@@ -138,18 +150,14 @@ impl<C: fmt::Debug, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<
                         &mut self.context,
                         Entity {
                             id: origin_id,
-                            content: origin,
+                            state: origin,
                         },
-                        Entity {
+                        SolvedEntity {
                             id: actual_target,
-                            content: target,
+                            value: target.solution(),
                         },
                     )?;
                 }
-            }
-
-            if self.entities[id].len() != 1 {
-                break;
             }
         }
 
@@ -158,23 +166,19 @@ impl<C: fmt::Debug, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<
 
     /// finds a solution for the current set of constraints,
     /// returning an error in case there are either multiple or none.
-    pub fn solve(&mut self) -> Result<Solution<T>, SolveError<T, E>> {
-        if let Some((i, _)) = self.entities.iter().enumerate().find(|(_, e)| e.is_empty()) {
-            panic!("Entity without possible state: {}", i);
-        }
-
+    pub fn solve(&mut self) -> Result<Solution<T::Result>, SolveError<T, E>> {
         let mut all_ids: Box<[usize]> = (0..self.entities.len()).map(|v| v).collect::<Box<_>>();
         let mut step_count = 0;
         let mut first = true;
-        while first || all_ids.iter().any(|&id| self.entities[id].len() != 1) {
+        while first || all_ids.iter().any(|&id| !self.entities[id].solved()) {
             first = false;
             let mut ids: &mut [usize] = &mut all_ids;
-            while let Some(pos) = ids.iter().position(|&id| self.entities[id].len() == 1) {
+            while let Some(pos) = ids.iter().position(|&id| self.entities[id].solved()) {
                 ids.swap(0, pos);
                 self.apply_entity(ids[0])
                     .map_err(|e| SolveError::ProductionError(e))?;
 
-                if self.entities[ids[0]].len() == 1 {
+                if self.entities[ids[0]].solved() {
                     ids = &mut ids[1..];
                 }
                 step_count += 1;
@@ -183,7 +187,7 @@ impl<C: fmt::Debug, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<
                     return Err(SolveError::UnsolvedEntities(
                         all_ids
                             .iter()
-                            .filter(|&&id| self.entities[id].len() != 1)
+                            .filter(|&&id| !self.entities[id].solved())
                             .map(|&id| (EntityId(id), self.entities[id].clone()))
                             .collect(),
                     ));
@@ -192,11 +196,7 @@ impl<C: fmt::Debug, T: Eq + Hash + Clone + std::fmt::Debug, E> ConstraintSolver<
         }
 
         Ok(Solution {
-            inner: self
-                .entities
-                .iter()
-                .map(|e| e.last().unwrap().clone())
-                .collect(),
+            inner: self.entities.iter_mut().map(|e| e.solution()).collect(),
         })
     }
 }

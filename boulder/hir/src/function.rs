@@ -173,7 +173,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
                             )?
                         }
                     }
-                    None => solver.add_unconstrained(variable.name.simplify()),
+                    None => solver.add_unbound(variable.name.simplify()),
                 })
             })
             .collect::<Result<Vec<_>, _>>()?;

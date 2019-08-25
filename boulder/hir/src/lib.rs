@@ -9,7 +9,12 @@ pub use ty::{FieldId, Type, TypeId};
 
 use mir::Mir;
 
-use std::{collections::HashMap, convert::TryFrom, fmt, marker::PhantomData};
+use std::{
+    collections::{hash_map::Entry, HashMap},
+    convert::TryFrom,
+    fmt,
+    marker::PhantomData,
+};
 
 #[derive(Debug, Clone)]
 pub struct UnresolvedIdentifiers<'a>(PhantomData<&'a str>);
@@ -97,6 +102,7 @@ pub enum Literal {
 pub struct Hir<'a, V: IdentifierState, N: TypeState, T, MV> {
     functions: Vec<Function<'a, V, N, T>>,
     types: Vec<Type<'a, MV>>,
+    type_lookup: HashMap<Box<str>, TypeId>,
 }
 
 impl<'a>
@@ -109,30 +115,39 @@ impl<'a>
     >
 {
     pub fn new() -> Self {
+        let types = vec![
+            Type {
+                name: Meta::<'static, ()>::default().replace("Empty".into()),
+                kind: ty::Kind::Unit,
+            },
+            Type {
+                name: Meta::<'static, ()>::default().replace("Never".into()),
+                kind: ty::Kind::Uninhabited,
+            },
+            Type {
+                name: Meta::<'static, ()>::default().replace("u8".into()),
+                kind: ty::Kind::U8,
+            },
+            Type {
+                name: Meta::<'static, ()>::default().replace("u16".into()),
+                kind: ty::Kind::U16,
+            },
+            Type {
+                name: Meta::<'static, ()>::default().replace("u32".into()),
+                kind: ty::Kind::U32,
+            },
+        ];
+
+        let type_lookup = types
+            .iter()
+            .enumerate()
+            .map(|(i, t)| (t.name.item.clone(), TypeId(i)))
+            .collect();
+
         Self {
             functions: Vec::new(),
-            types: vec![
-                Type {
-                    name: Meta::<'static, ()>::default().replace("Empty".into()),
-                    kind: ty::Kind::Unit,
-                },
-                Type {
-                    name: Meta::<'static, ()>::default().replace("Never".into()),
-                    kind: ty::Kind::Uninhabited,
-                },
-                Type {
-                    name: Meta::<'static, ()>::default().replace("u8".into()),
-                    kind: ty::Kind::U8,
-                },
-                Type {
-                    name: Meta::<'static, ()>::default().replace("u16".into()),
-                    kind: ty::Kind::U16,
-                },
-                Type {
-                    name: Meta::<'static, ()>::default().replace("u32".into()),
-                    kind: ty::Kind::U32,
-                },
-            ],
+            types,
+            type_lookup,
         }
     }
 
@@ -160,17 +175,22 @@ impl<'a>
     }
 
     pub fn add_type(&mut self, ty: Type<'a, UnresolvedType<'a>>) -> Result<(), CompileError> {
-        if self.types.iter().any(|t| t.name.item == ty.name.item) {
-            CompileError::new(
-                &ty.name,
-                format_args!(
-                    "Another type with the name `{}` is already defined",
-                    ty.name.item
-                ),
-            )
-        } else {
-            self.types.push(ty);
-            Ok(())
+        match self.type_lookup.entry(ty.name.item.clone()) {
+            Entry::Occupied(o) => {
+                let old = &self.types[o.get().0];
+                CompileError::build(
+                    &old.name,
+                    format_args!("Defined multiple types with the name `{}`", o.key()),
+                )
+                .with_location(&ty.name)
+                .build()
+            }
+            Entry::Vacant(entry) => {
+                let id = TypeId(self.types.len());
+                self.types.push(ty);
+                entry.insert(id);
+                Ok(())
+            }
         }
     }
 
@@ -180,13 +200,7 @@ impl<'a>
         Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType<'a>>, TypeId>,
         CompileError,
     > {
-        let mut lookup = self
-            .types
-            .iter()
-            .enumerate()
-            .map(|(i, ty)| (ty.name.item.clone(), TypeId(i)))
-            .collect::<HashMap<_, _>>();
-
+        let mut type_lookup = self.type_lookup;
         let mut types = self
             .types
             .iter()
@@ -198,13 +212,14 @@ impl<'a>
 
         self.types
             .into_iter()
-            .map(|t| t.resolve(&mut types, &mut lookup))
+            .map(|t| t.resolve(&mut types, &mut type_lookup))
             .collect::<Result<Vec<()>, _>>()?;
 
         ty::check_recursive_ty(&types)?;
         Ok(Hir {
             functions: self.functions,
             types,
+            type_lookup,
         })
     }
 }
@@ -237,6 +252,7 @@ impl<'a>
                 .map(|f| f.resolve_identifiers(&known_functions))
                 .collect::<Result<Vec<_>, CompileError>>()?,
             types: self.types,
+            type_lookup: self.type_lookup,
         })
     }
 }
@@ -246,12 +262,8 @@ impl<'a> Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unresolved
         self,
     ) -> Result<Hir<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId, TypeId>, CompileError>
     {
+        let mut type_lookup = self.type_lookup;
         let mut types = self.types;
-        let mut type_lookup = types
-            .iter()
-            .enumerate()
-            .map(|(i, t)| (t.name.item.clone(), ty::TypeId(i)))
-            .collect::<HashMap<_, _>>();
 
         let functions = self
             .functions
@@ -265,7 +277,11 @@ impl<'a> Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unresolved
             .map(|f| f.resolve_expr_types(&functions, &mut types, &mut type_lookup))
             .collect::<Result<Vec<_>, CompileError>>()?;
 
-        Ok(Hir { functions, types })
+        Ok(Hir {
+            functions,
+            types,
+            type_lookup,
+        })
     }
 }
 

@@ -308,23 +308,8 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
             })
         }
         Token::Integer(c) => {
-            let next = iter.next().unwrap();
-            match &next.item {
-                Token::Operator(_) => {
-                    iter.step_back(next);
-                    parse_binop(
-                        Expression::Lit((), start.replace(hir::Literal::Integer(c))),
-                        iter,
-                    )
-                }
-                _ => {
-                    iter.step_back(check_expr_terminator(
-                        next,
-                        &[Token::Assignment, Token::Operator(Operator::Add)],
-                    )?);
-                    Ok(Expression::Lit((), start.replace(hir::Literal::Integer(c))))
-                }
-            }
+            let expr = Expression::Lit((), start.replace(hir::Literal::Integer(c)));
+            parse_binop(expr, iter)
         }
         _ => CompileError::expected(
             &[

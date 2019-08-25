@@ -1,5 +1,7 @@
-# Another type with the name `A`
+# multiple types
+# `A`
 # (6:
+# (8:
 
 struct A;
 

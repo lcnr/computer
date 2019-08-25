@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 
 use diagnostics::{CompileError, Meta};
 
@@ -11,30 +11,40 @@ use crate::ty::{Type, TypeId};
 use productions::*;
 
 #[derive(Debug)]
-struct Context<'a, 'b> {
-    types: &'b mut Vec<Type<'a, TypeId>>,
-    type_lookup: &'b mut HashMap<Box<str>, TypeId>,
-    meta: HashMap<EntityId, Meta<'a, ()>>,
-    bounds: HashMap<EntityId, Vec<TypeId>>,
+pub struct Context<'a, 'b> {
+    pub types: &'b mut Vec<Type<'a, TypeId>>,
+    pub type_lookup: &'b mut HashMap<Box<str>, TypeId>,
+    pub meta: HashMap<EntityId, Meta<'a, ()>>,
 }
 
-impl Context<'_, '_> {
-    fn add_bound(&mut self, id: EntityId, bound: Vec<TypeId>) -> &mut Vec<TypeId> {
-        self.bounds
-            .entry(id)
-            .and_modify(|ty| {
-                *ty = std::mem::replace(ty, Vec::new())
-                    .into_iter()
-                    .filter(|t| bound.contains(t))
-                    .collect();
-            })
-            .or_insert_with(|| bound.clone())
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+enum EntityState {
+    Unbound,
+    Bound(Vec<TypeId>),
+}
+
+impl solver::EntityState for EntityState {
+    type Result = TypeId;
+
+    fn solved(&self) -> bool {
+        match self {
+            EntityState::Unbound => false,
+            EntityState::Bound(v) => v.len() == 1,
+        }
+    }
+
+    fn solution(&self) -> TypeId {
+        if let EntityState::Bound(ref v) = self {
+            v.last().copied().unwrap()
+        } else {
+            unreachable!("{:?}", self);
+        }
     }
 }
 
 #[derive(Debug)]
 pub struct TypeSolver<'a, 'b> {
-    solver: ConstraintSolver<Context<'a, 'b>, TypeId, CompileError>,
+    solver: ConstraintSolver<Context<'a, 'b>, EntityState, CompileError>,
     empty: TypeId,
     all: Vec<TypeId>,
     integers: Vec<TypeId>,
@@ -76,7 +86,6 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
             types,
             type_lookup,
             meta: HashMap::new(),
-            bounds: HashMap::new(),
         });
 
         let fields = fields
@@ -105,51 +114,51 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         }
     }
 
-    fn ty_error_str(types: &[Type<'a, TypeId>], expected: &[TypeId]) -> String {
+    fn ty_error_str(types: &[Type<'a, TypeId>], expected: &EntityState) -> String {
         match expected {
-            [] => unreachable!("expected no types"),
-            [one] => format!("`{}`", types[one.0].name.item),
-            [one, two] => format!(
-                "either `{}` or `{}`",
-                types[one.0].name.item, types[two.0].name.item
-            ),
-            [one, two, three] => format!(
-                "one of `{}`, `{}` or `{}`",
-                types[one.0].name.item, types[two.0].name.item, types[three.0].name.item
-            ),
-            _ => format!(
-                "one of `{}`, `{}` or {} more",
-                types[expected[0].0].name.item,
-                types[expected[1].0].name.item,
-                expected.len() - 2
-            ),
+            EntityState::Unbound => "any type".into(),
+            EntityState::Bound(v) => match v.as_slice() {
+                [] => unreachable!("expected no types"),
+                [one] => format!("`{}`", types[one.0].name.item),
+                [one, two] => format!(
+                    "either `{}` or `{}`",
+                    types[one.0].name.item, types[two.0].name.item
+                ),
+                [one, two, three] => format!(
+                    "one of `{}`, `{}` or `{}`",
+                    types[one.0].name.item, types[two.0].name.item, types[three.0].name.item
+                ),
+                _ => format!(
+                    "one of `{}`, `{}` or {} more",
+                    types[v[0].0].name.item,
+                    types[v[1].0].name.item,
+                    v.len() - 2
+                ),
+            },
         }
     }
 
-    fn add_entity(&mut self, types: Vec<TypeId>, meta: Meta<'a, ()>) -> EntityId {
-        let id = self.solver.add_entity(types);
-        let ctx = &mut self.solver.context();
-        ctx.meta.insert(id, meta);
+    fn add_entity(&mut self, state: EntityState, meta: Meta<'a, ()>) -> EntityId {
+        let id = self.solver.add_entity(state);
+        self.solver.context().meta.insert(id, meta);
         id
     }
 
     pub fn add_integer(&mut self, meta: Meta<'a, ()>) -> EntityId {
-        let id = self.add_entity(self.integers.clone(), meta);
-        self.solver.context().add_bound(id, self.integers.clone());
+        let id = self.add_entity(EntityState::Bound(self.integers.clone()), meta);
         id
     }
 
     pub fn add_empty(&mut self, meta: Meta<'a, ()>) -> EntityId {
-        self.add_entity(vec![self.empty], meta)
+        self.add_typed(self.empty, meta)
     }
 
-    pub fn add_unconstrained(&mut self, meta: Meta<'a, ()>) -> EntityId {
-        self.add_entity(self.all.clone(), meta)
+    pub fn add_unbound(&mut self, meta: Meta<'a, ()>) -> EntityId {
+        self.add_entity(EntityState::Unbound, meta)
     }
 
     pub fn add_typed(&mut self, ty: TypeId, meta: Meta<'a, ()>) -> EntityId {
-        let id = self.add_entity(vec![ty], meta);
-        self.solver.context().add_bound(id, vec![ty]);
+        let id = self.add_entity(EntityState::Bound(vec![ty]), meta);
         id
     }
 
@@ -167,7 +176,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         field: EntityId,
         name: &Meta<'_, Box<str>>,
     ) -> Result<(), CompileError> {
-        if let Some(&(id, ref bounds)) = self.fields.get(&name.item) {
+        if let Some(&(id, _)) = self.fields.get(&name.item) {
             self.solver.add_production(id, obj, field);
             Ok(())
         } else {
@@ -179,6 +188,10 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
                 ),
             )
         }
+    }
+
+    pub fn ctx(&mut self) -> &mut Context<'a, 'b> {
+        self.solver.context()
     }
 
     pub fn types(&mut self) -> &mut Vec<Type<'a, TypeId>> {

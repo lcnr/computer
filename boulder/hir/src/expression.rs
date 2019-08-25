@@ -165,7 +165,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 Expression::Block(id, meta, content)
             }
             Expression::Variable((), var) => {
-                let id = solver.add_unconstrained(var.simplify());
+                let id = solver.add_unbound(var.simplify());
                 solver.add_equality(variables[var.0], id);
                 Expression::Variable(id, var)
             }
@@ -243,27 +243,23 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             }
             Expression::FieldAccess((), obj, field) => {
                 let obj = obj.type_constraints(functions, variables, solver)?;
-                let access = solver.add_unconstrained(field.simplify());
+                let access = solver.add_unbound(field.simplify());
                 solver.add_field_access(obj.id(), access, &field)?;
                 Expression::FieldAccess(access, Box::new(obj), field)
             }
             Expression::TypeRestriction(expr, ty) => {
-                let expr = expr.type_constraints(functions, variables, solver)?;
-                let expected = match ty.item {
-                    UnresolvedType::Sum(_) => unimplemented!(),
-                    UnresolvedType::Integer => solver.add_integer(ty.simplify()),
-                    UnresolvedType::Named(ref name) => {
-                        if let Some(&i) = solver.type_lookup().get(name) {
-                            solver.add_typed(i, ty.simplify())
-                        } else {
-                            CompileError::new(
-                                &ty,
-                                format_args!("Cannot find type `{}` in this scope", name),
-                            )?
-                        }
-                    }
+                let mut expr = expr.type_constraints(functions, variables, solver)?;
+                let meta = ty.simplify();
+                let expected = if let UnresolvedType::Integer = &ty.item {
+                    solver.add_integer(meta)
+                } else {
+                    let ctx = solver.ctx();
+
+                    let ty = ty::resolve(ty, ctx.types, ctx.type_lookup)?;
+                    solver.add_typed(ty.item, meta)
                 };
-                solver.add_equality(expected, expr.id());
+                solver.add_equality(expr.id(), expected);
+                *expr.id_mut() = expected;
                 expr
             }
         })
@@ -284,6 +280,20 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             &Expression::TypeRestriction(_, ()) => {
                 unreachable!("type restriction after type check")
             }
+        }
+    }
+
+    pub fn id_mut(&mut self) -> &mut solver::EntityId {
+        match self {
+            Expression::Block(id, _, _)
+            | Expression::Variable(id, _)
+            | Expression::Lit(id, _)
+            | Expression::Binop(id, _, _, _)
+            | Expression::Statement(id, _)
+            | Expression::Assignment(id, _, _)
+            | Expression::FunctionCall(id, _, _)
+            | Expression::FieldAccess(id, _, _) => id,
+            Expression::TypeRestriction(_, ()) => unreachable!("type restriction after type check"),
         }
     }
 
@@ -387,7 +397,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                         mir::Type::U8 => u8::try_from(i).map(|i| Object::U8(i)),
                         mir::Type::U16 => u16::try_from(i).map(|i| Object::U16(i)),
                         mir::Type::U32 => u32::try_from(i).map(|i| Object::U32(i)),
-                        _ => unreachable!("Unknown literal type: `{:?}`", lit),
+                        ty => unreachable!("Unknown literal type: `{:?}`, {:?}", lit, ty),
                     }
                     .or_else(|_| {
                         CompileError::new(&lit, format_args!("Literal out of range for `{}`", ty))
@@ -443,7 +453,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                     Action::FieldAccess(obj, field.to_mir()),
                 )))
             }
-            Expression::TypeRestriction(_, ()) => unreachable!("type restriction after type check"),
+            Expression::TypeRestriction(_, ()) => unreachable!("type restriction after type check")
         }
     }
 }

@@ -32,10 +32,11 @@ impl Write for OutputShim {
 
 #[test]
 #[serial]
-fn compile_fail() -> Result<(), std::io::Error> {
+fn compile_fail() {
     let mut count = 0;
+    let mut success = 0;
 
-    for entry in WalkDir::new("tests/compile_fail") {
+    'outer: for entry in WalkDir::new("tests/compile_fail") {
         let entry = entry.unwrap();
         if entry.metadata().unwrap().is_file() {
             count += 1;
@@ -55,46 +56,69 @@ fn compile_fail() -> Result<(), std::io::Error> {
 
             let content = match panic::catch_unwind(|| boulder::compile(&content)) {
                 Ok(c) => c,
-                Err(e) => {
-                    eprintln!("panic in boulder/{}", entry.path().display());
-                    panic::resume_unwind(e)
+                Err(_) => {
+                    let output = output.lock().unwrap();
+                    eprintln!(
+                        "[boulder/{}]: panic during compilation, output:\n{}",
+                        entry.path().display(),
+                        output
+                    );
+                    continue 'outer;
                 }
             };
 
-            assert!(
-                content.is_err(),
-                "`boulder/{}` did not fail to compile",
-                entry.path().display()
-            );
+            if content.is_ok() {
+                eprintln!(
+                    "[boulder/{}]: did not fail to compile",
+                    entry.path().display()
+                );
+                continue 'outer;
+            }
+
             let output = output.lock().unwrap();
-            let mut count = 0;
+            let mut check_count = 0;
             for expected in expected {
-                count += 1;
-                assert!(
-                    output.contains(expected),
-                    "boulder/{}: `{}` did not contain `{}`",
+                check_count += 1;
+                if !output.contains(expected) {
+                    eprintln!(
+                        "[boulder/{}]: did not contain `{}`:\n{}",
+                        entry.path().display(),
+                        expected,
+                        output.trim(),
+                    );
+                    continue 'outer;
+                }
+            }
+
+            if check_count == 0 {
+                eprintln!(
+                    "[boulder/{}]: did not check any error messages, actual output:\n{}",
                     entry.path().display(),
                     output.trim(),
-                    expected,
                 );
+                continue 'outer;
             }
-            assert_ne!(
-                count,
-                0,
-                "`boulder/{}` did not check any error messages, actual output:\n{}",
-                entry.path().display(),
-                output.trim(),
-            );
+
+            success += 1;
         }
     }
 
-    assert_ne!(count, 0);
+    if success != count {
+        panic!(
+            "Some tests failed: {} failures out of {}!",
+            count - success,
+            count
+        );
+    } else if count == 0 {
+        panic!("No `compile_run` tests found!");
+    }
 }
 
 #[test]
 #[serial]
 fn compile_run() {
     let mut count = 0;
+    let mut success = 0;
 
     for entry in WalkDir::new("tests/compile_run") {
         let entry = entry.unwrap();
@@ -117,21 +141,37 @@ fn compile_run() {
 
             let result = match panic::catch_unwind(|| boulder::compile(&content)) {
                 Ok(c) => c,
-                Err(e) => {
-                    eprintln!("panic in boulder/{}", entry.path().display());
-                    panic::resume_unwind(e)
+                Err(_) => {
+                    let output = output.lock().unwrap();
+                    eprintln!(
+                        "[boulder/{}]: panic during compilation, output:\n{}",
+                        entry.path().display(),
+                        output
+                    );
+                    continue;
                 }
             };
             let output = output.lock().unwrap();
-            assert!(
-                result.is_ok(),
-                "`boulder/{}` failed to compile: `{}`",
-                entry.path().display(),
-                output
-            );
+            if !result.is_ok() {
+                eprintln!(
+                    "[boulder/{}]: failed to compile:\n{}\n",
+                    entry.path().display(),
+                    output
+                );
+            } else {
+                success += 1;
+            }
             // TODO: interpret the compilation result
         }
     }
 
-    assert_ne!(count, 0);
+    if success != count {
+        panic!(
+            "Some tests failed: {} failures out of {}!",
+            count - success,
+            count
+        );
+    } else if count == 0 {
+        panic!("No `compile_run` tests found!");
+    }
 }

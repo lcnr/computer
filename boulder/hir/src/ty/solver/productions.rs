@@ -2,11 +2,11 @@ use diagnostics::CompileError;
 
 use crate::ty::{
     self,
-    solver::{Context, TypeSolver},
-    TypeId,
+    solver::{Context, EntityState, TypeSolver},
+    TypeId, Kind
 };
 
-use solver::{Entity, Production};
+use solver::{Entity, Production, SolvedEntity};
 
 #[derive(Debug)]
 pub struct FieldAccess {
@@ -23,87 +23,106 @@ impl FieldAccess {
     }
 }
 
-impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for FieldAccess {
+impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for FieldAccess {
     fn resolve(
         &mut self,
         ctx: &mut Context<'a, 'b>,
-        object: Entity<TypeId>,
-        field: Entity<TypeId>,
+        origin: SolvedEntity<EntityState>,
+        target: Entity<EntityState>,
     ) -> Result<(), CompileError> {
-        let object_ty = object.content[0];
-        if let Some(pos) = self.field_types.iter().position(|&(o, _)| object_ty == o) {
-            let ty = self.field_types[pos].1;
-
-            if field.content.contains(&ty) {
-                field.content.clear();
-                field.content.push(ty);
-                Ok(())
-            } else {
-                let found_str = TypeSolver::ty_error_str(ctx.types, &field.content);
-                let expected_str = TypeSolver::ty_error_str(ctx.types, &[ty]);
-                CompileError::new(
-                    ctx.meta.get(&field.id).unwrap(),
-                    format_args!(
-                        "Mismatched types: found {}, expected {}",
-                        found_str, expected_str
-                    ),
-                )
+        if let Some(value) = self.field_types.iter().find_map(|&(o, f)| if o == origin.value {
+            Some(f)
+        } else {
+            None
+        }) {
+            match target.state {
+                state @ EntityState::Unbound => {
+                    *state = EntityState::Bound(vec![value]);
+                    Ok(())
+                }
+                EntityState::Bound(ref mut v) => {
+                    if v.contains(&value) {
+                        *v = vec![value];
+                        Ok(())
+                    } else {
+                        let found_str = TypeSolver::ty_error_str(ctx.types, target.state);
+                        let expected_str = &ctx.types[value.0].name.item;
+                        CompileError::new(
+                            ctx.meta.get(&target.id).unwrap(),
+                            format_args!(
+                                "Mismatched types: found {}, expected `{}`",
+                                found_str, expected_str
+                            ),
+                        )
+                    }
+                }
             }
         } else {
-            CompileError::new(
-                ctx.meta.get(&field.id).unwrap(),
+            let allowed_objects = EntityState::Bound(self.field_types.iter().map(|&(o, _)| o).collect());
+            let expected_str = TypeSolver::ty_error_str(ctx.types, &allowed_objects);
+            let found_str = &ctx.types[origin.value.0].name.item;
+            CompileError::build(
+                ctx.meta.get(&target.id).unwrap(),
                 format_args!(
-                    "No field `{}` on type `{}`",
-                    self.field_name, ctx.types[object_ty.0].name.item,
+                    "Mismatched types: found `{}`, expected {}",
+                    found_str, expected_str
                 ),
-            )
+            ).with_help(format_args!("no field `{}` on type `{}`", self.field_name, found_str)).build()
         }
     }
 
     fn resolve_backwards(
         &mut self,
         ctx: &mut Context<'a, 'b>,
-        object: Entity<TypeId>,
-        field: Entity<TypeId>,
+        origin: Entity<EntityState>,
+        target: SolvedEntity<EntityState>,
     ) -> Result<(), CompileError> {
-        let field_ty = field.content[0];
-        if ctx.bounds.contains_key(&field.id) {
-            let possible_structs: Vec<_> = self
-                .field_types
-                .iter()
-                .filter(|&&(_, f)| f == field_ty)
-                .map(|&(o, _)| o)
-                .collect();
-            if !possible_structs.is_empty() {
-                let object_types: Vec<_> = possible_structs
-                    .into_iter()
-                    .filter(|t| object.content.contains(t))
-                    .collect();
-                if !object_types.is_empty() {
-                    *object.content = object_types;
+        let values: Vec<_> = self.field_types.iter().filter_map(|&(o, f)| if f == target.value {
+            Some(o)
+        } else {
+            None
+        }).collect();
+
+        if !values.is_empty() {
+            match origin.state {
+                state @ EntityState::Unbound => {
+                    *state = EntityState::Bound(values);
                     Ok(())
-                } else {
-                    let found_str = TypeSolver::ty_error_str(ctx.types, object.content);
-                    let expected_str = TypeSolver::ty_error_str(ctx.types, &object_types);
-                    CompileError::new(
-                        ctx.meta.get(&field.id).unwrap(),
-                        format_args!(
-                            "Mismatched types: found {}, expected {}",
-                            found_str, expected_str
-                        ),
-                    )
                 }
-            } else {
-                CompileError::new(
-                    ctx.meta.get(&field.id).unwrap(),
-                    format_args!(
-                        "No field `{}` with type `{}`",
-                        self.field_name, ctx.types[field_ty.0].name.item,
-                    ),
-                )
+                EntityState::Bound(ref mut v) => {
+                    let allowed_values: Vec<_> =
+                        v.iter().copied().filter(|t| values.contains(&t)).collect();
+                    if !allowed_values.is_empty() {
+                        *v = allowed_values;
+                        Ok(())
+                    } else {
+                        let allowed_objects = EntityState::Bound(self.field_types.iter().map(|&(o, _)| o).collect());
+                        let found_str = TypeSolver::ty_error_str(ctx.types, origin.state);
+                        let expected_str = TypeSolver::ty_error_str(ctx.types, &allowed_objects);
+                        CompileError::new(
+                            ctx.meta.get(&target.id).unwrap(),
+                            format_args!(
+                                "Mismatched types: found {}, expected {}",
+                                found_str, expected_str
+                            ),
+                        )
+                    }
+                }
             }
         } else {
-            Ok(())
+            let allowed_targets = EntityState::Bound(self.field_types.iter().map(|&(_, f)| f).collect());
+            let expected_str = TypeSolver::ty_error_str(ctx.types, &allowed_targets);
+            let found_str = &ctx.types[target.value.0].name.item;
+            CompileError::build(
+                ctx.meta.get(&target.id).unwrap(),
+                format_args!(
+                    "Mismatched types: found `{}`, expected {}",
+                    found_str, expected_str
+                ),
+            )
+            .with_location(&ctx.meta.get(&origin.id).unwrap())
+            .with_help(format_args!("No struct has a field `{}` with type `{}`", self.field_name, found_str))
+            .build()
         }
     }
 }
@@ -111,89 +130,72 @@ impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for FieldAccess {
 #[derive(Debug)]
 pub struct Equality;
 
-impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for Equality {
+impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for Equality {
     fn resolve(
         &mut self,
         ctx: &mut Context<'a, 'b>,
-        origin: Entity<TypeId>,
-        target: Entity<TypeId>,
+        origin: SolvedEntity<EntityState>,
+        target: Entity<EntityState>,
     ) -> Result<(), CompileError> {
-        let origin_ty = origin.content[0];
-        if ctx.bounds.contains_key(&target.id) || ctx.bounds.contains_key(&origin.id) {
-            ctx.bounds.insert(target.id, vec![origin_ty]);
-            ctx.bounds.insert(origin.id, vec![origin_ty]);
-
-            // target must exactly match origin
-            if target.content.contains(&origin_ty) {
-                target.content.clear();
-                target.content.push(origin_ty);
+        match target.state {
+            state @ EntityState::Unbound => {
+                *state = EntityState::Bound(vec![origin.value]);
                 Ok(())
-            } else {
-                let found_str = TypeSolver::ty_error_str(ctx.types, target.content);
-                let expected_str = TypeSolver::ty_error_str(ctx.types, &[origin_ty]);
-                CompileError::build(
-                    ctx.meta.get(&target.id).unwrap(),
-                    format_args!(
-                        "Mismatched types: found {}, expected {}",
-                        found_str, expected_str
-                    ),
-                )
-                .with_location(&ctx.meta.get(&origin.id).unwrap())
-                .build()
             }
-        } else {
-            let types = target
-                .content
-                .iter()
-                .map(|t| ty::build_sum_ty(ctx.types, ctx.type_lookup, &[origin_ty, *t]))
-                .collect::<Result<_, _>>()?;
-
-            target.content.clone_from(&types);
-            *origin.content = types;
-            Ok(())
+            EntityState::Bound(ref mut v) => {
+                let allowed_values: Vec<_> =
+                    v.iter().copied().filter(|&t| t == origin.value).collect();
+                if !allowed_values.is_empty() {
+                    *v = allowed_values;
+                    Ok(())
+                } else {
+                    let found_str = TypeSolver::ty_error_str(ctx.types, target.state);
+                    let expected_str = &ctx.types[origin.value.0].name.item;
+                    CompileError::build(
+                        ctx.meta.get(&target.id).unwrap(),
+                        format_args!(
+                            "Mismatched types: found {}, expected `{}`",
+                            found_str, expected_str
+                        ),
+                    )
+                    .with_location(&ctx.meta.get(&origin.id).unwrap())
+                    .build()
+                }
+            }
         }
     }
 
     fn resolve_backwards(
         &mut self,
         ctx: &mut Context<'a, 'b>,
-        origin: Entity<TypeId>,
-        target: Entity<TypeId>,
+        origin: Entity<EntityState>,
+        target: SolvedEntity<EntityState>,
     ) -> Result<(), CompileError> {
-        let target_ty = target.content[0];
-        if ctx.bounds.contains_key(&target.id) || ctx.bounds.contains_key(&origin.id) {
-            ctx.bounds.insert(target.id, vec![target_ty]);
-            ctx.bounds.insert(origin.id, vec![target_ty]);
-
-            // target must exactly match origin
-            if origin.content.contains(&target_ty) {
-                origin.content.clear();
-                origin.content.push(target_ty);
+        match origin.state {
+            state @ EntityState::Unbound => {
+                *state = EntityState::Bound(vec![target.value]);
                 Ok(())
-            } else {
-                let found_str = TypeSolver::ty_error_str(ctx.types, &[target_ty]);
-                let expected_str = TypeSolver::ty_error_str(ctx.types, origin.content);
-                CompileError::build(
-                    ctx.meta.get(&target.id).unwrap(),
-                    format_args!(
-                        "Mismatched types: found {}, expected {}",
-                        found_str, expected_str
-                    ),
-                )
-                .with_location(&ctx.meta.get(&origin.id).unwrap())
-                .build()
             }
-        } else {
-            let types = origin
-                .content
-                .iter()
-                .map(|t| ty::build_sum_ty(ctx.types, ctx.type_lookup, &[target_ty, *t]))
-                .collect::<Result<_, _>>()?;
-
-            origin.content.clone_from(&types);
-            *target.content = types;
-
-            Ok(())
+            EntityState::Bound(ref mut v) => {
+                let allowed_values: Vec<_> =
+                    v.iter().copied().filter(|&t| t == target.value).collect();
+                if !allowed_values.is_empty() {
+                    *v = allowed_values;
+                    Ok(())
+                } else {
+                    let expected_str = TypeSolver::ty_error_str(ctx.types, origin.state);
+                    let found_str = &ctx.types[target.value.0].name.item;
+                    CompileError::build(
+                        ctx.meta.get(&target.id).unwrap(),
+                        format_args!(
+                            "Mismatched types: found `{}`, expected {}",
+                            found_str, expected_str
+                        ),
+                    )
+                    .with_location(&ctx.meta.get(&origin.id).unwrap())
+                    .build()
+                }
+            }
         }
     }
 }
@@ -201,51 +203,80 @@ impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for Equality {
 #[derive(Debug)]
 pub struct Extension;
 
-impl<'a, 'b> Production<Context<'a, 'b>, TypeId, CompileError> for Extension {
+impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for Extension {
     fn resolve(
         &mut self,
-        _ctx: &mut Context<'a, 'b>,
-        _origin: Entity<TypeId>,
-        _target: Entity<TypeId>,
+        ctx: &mut Context<'a, 'b>,
+        origin: SolvedEntity<EntityState>,
+        target: Entity<EntityState>,
     ) -> Result<(), CompileError> {
-        Ok(())
+        match target.state {
+            EntityState::Unbound => Ok(()),
+            EntityState::Bound(v) => {
+                let allowed_values: Vec<_> = v
+                    .iter()
+                    .copied()
+                    .filter(|&t| ty::is_subtype(origin.value, t, ctx.types))
+                    .collect();
+                if !allowed_values.is_empty() {
+                    *v = allowed_values;
+                    Ok(())
+                } else {
+                    let expected_str = TypeSolver::ty_error_str(ctx.types, target.state);
+                    let found_str = &ctx.types[origin.value.0].name.item;
+                    CompileError::build(
+                        ctx.meta.get(&target.id).unwrap(),
+                        format_args!(
+                            "Mismatched types: found `{}`, expected {}",
+                            found_str, expected_str
+                        ),
+                    )
+                    .with_location(&ctx.meta.get(&origin.id).unwrap())
+                    .build()
+                }
+            }
+        }
     }
 
     fn resolve_backwards(
         &mut self,
         ctx: &mut Context<'a, 'b>,
-        origin: Entity<TypeId>,
-        target: Entity<TypeId>,
+        origin: Entity<EntityState>,
+        target: SolvedEntity<EntityState>,
     ) -> Result<(), CompileError> {
-        let target_ty = target.content[0];
-        if ctx.bounds.contains_key(&target.id) {
-            // target must exactly match origin
-            let bound = ctx.add_bound(origin.id, ty::subtypes(target_ty, ctx.types));
-            let possible_origins = origin
-                .content
-                .iter()
-                .filter(|t| bound.contains(t))
-                .copied()
-                .collect::<Vec<_>>();
-
-            if !possible_origins.is_empty() {
-                *origin.content = possible_origins;
-                Ok(())
-            } else {
-                let found_str = TypeSolver::ty_error_str(ctx.types, target.content);
-                let expected_str = TypeSolver::ty_error_str(ctx.types, origin.content);
-                CompileError::build(
-                    ctx.meta.get(&target.id).unwrap(),
-                    format_args!(
-                        "Mismatched types: found {}, expected {}",
-                        found_str, expected_str
-                    ),
-                )
-                .with_location(&ctx.meta.get(&origin.id).unwrap())
-                .build()
+        match origin.state {
+            state @ EntityState::Unbound => {
+                match ctx.types[target.value.0].kind {
+                    Kind::Sum(_) => Ok(()),
+                    _ => {
+                        *state = EntityState::Bound(vec![target.value]);
+                        Ok(())
+                    }
+                }
+            },
+            EntityState::Bound(v) => {
+                let allowed_values: Vec<_> = v
+                    .iter()
+                    .copied()
+                    .filter(|&t| ty::is_subtype(t, target.value, ctx.types))
+                    .collect();
+                if !allowed_values.is_empty() {
+                    *v = allowed_values;
+                    Ok(())
+                } else {
+                    let expected_str = TypeSolver::ty_error_str(ctx.types, origin.state);
+                    let found_str = &ctx.types[target.value.0].name.item;
+                    CompileError::build(
+                        ctx.meta.get(&target.id).unwrap(),
+                        format_args!(
+                            "Mismatched types: found `{}`, expected {}",
+                            found_str, expected_str
+                        ),
+                    )
+                    .with_location(&ctx.meta.get(&origin.id).unwrap())
+                    .build()
+                }
             }
-        } else {
-            Ok(())
         }
     }
 }
