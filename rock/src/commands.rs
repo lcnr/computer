@@ -7,7 +7,7 @@ pub enum MemAddr<'a> {
     Byte(u8),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Writeable {
     A = 0,
     B = 1,
@@ -16,6 +16,12 @@ pub enum Writeable {
     Mem = 4,
     SectionAddr = 5,
     BlockAddr = 6,
+}
+
+impl Writeable {
+    pub fn is_mem_access(self) -> bool {
+        self == Writeable::Mem
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -28,6 +34,13 @@ pub enum Readable<'a> {
     MemAddr(MemAddr<'a>),
 }
 impl Readable<'_> {
+    pub fn is_mem_access(&self) -> bool {
+        match self {
+            Readable::Mem | Readable::MemAddr(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn command_offset(&self) -> u8 {
         match self {
             Readable::A => 0,
@@ -264,7 +277,14 @@ where
     if expect_arg_count(cmd, args, l, 2) {
         if let Some(one) = as_readable(&args[0], l) {
             if let Some(two) = as_readable(&args[1], l) {
-                return f(one, two);
+                match (&one, &two) {
+                    (Readable::MemAddr(_), Readable::MemAddr(_)) => l.log_err(Error::at_token(
+                        ErrorLevel::Error,
+                        Cause::NonUniqueMemoryAccess(args[0].origin(), args[1].origin()),
+                        cmd,
+                    )),
+                    _ => return f(one, two),
+                }
             }
         }
     }
@@ -284,7 +304,15 @@ where
     if expect_arg_count(cmd, args, l, 2) {
         if let Some(read) = as_readable(&args[0], l) {
             if let Some(write) = as_writeable(&args[1], l) {
-                return f(read, write);
+                if !(read.is_mem_access() && write.is_mem_access()) {
+                    return f(read, write);
+                } else {
+                    l.log_err(Error::at_token(
+                        ErrorLevel::Error,
+                        Cause::NonUniqueMemoryAccess(args[0].origin(), args[1].origin()),
+                        cmd,
+                    ));
+                }
             }
         }
     }

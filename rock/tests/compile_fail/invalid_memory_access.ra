@@ -1,0 +1,9 @@
+# found: Byte(1) }, line: 6
+# NonUniqueMemoryAccess("mem", "mem"), line: 7
+# NonUniqueMemoryAccess("0xff", "mem"), line: 8
+# NonUniqueMemoryAccess("0xff", "0xff"), line: 9
+invalid:
+    mov 0xff 0x1;
+    mov mem mem;
+    mov 0xff mem;
+    ret 0xff 0xff;

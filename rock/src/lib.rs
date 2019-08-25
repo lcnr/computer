@@ -23,6 +23,7 @@ pub enum Cause<'a> {
     InvalidBlock,
     EmptyBlock,
     UnspecifiedError,
+    NonUniqueMemoryAccess(&'a str, &'a str),
     WrongArgCount(&'a str, usize, usize),
     /// only 256 blocks can be stored
     BlockCount(usize),
@@ -388,12 +389,7 @@ pub fn resolve<'a, L: Logger>(blocks: &mut [Block<'a>], l: &mut L) -> Result<(),
             } else if s == name {
                 Ok(MemAddr::Byte(0))
             } else {
-                l.log_err(Error::new(
-                    ErrorLevel::Error,
-                    Cause::InvalidBlock,
-                    line,
-                    s,
-                ));
+                l.log_err(Error::new(ErrorLevel::Error, Cause::InvalidBlock, line, s));
                 Err(CodeGenError)
             }
         };
