@@ -432,7 +432,7 @@ fn finalize(mut blocks: Vec<Block<'_>>) -> Vec<u8> {
         res.resize(block.pos.unwrap() as usize * 256, 0);
         for mut cmd in block.content {
             if let Command::If(cond, expr) = cmd {
-                res.push(0xc0 + cond as u8 + expr.size());
+                res.push(0xc0 + cond as u8 + (expr.size() - 1) * 8);
                 cmd = *expr;
             }
 
