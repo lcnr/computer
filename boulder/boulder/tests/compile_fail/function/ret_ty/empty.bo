@@ -1,0 +1,8 @@
+# Mismatched types:
+# `Empty`
+# `u32`
+# (7:
+
+fn void(a: u32) {
+    a
+}

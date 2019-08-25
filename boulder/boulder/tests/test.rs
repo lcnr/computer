@@ -105,12 +105,12 @@ fn compile_fail() {
 
     if success != count {
         panic!(
-            "Some tests failed: {} failures out of {}!",
+            "{} out of {} tests failed",
             count - success,
             count
         );
     } else if count == 0 {
-        panic!("No `compile_run` tests found!");
+        panic!("No `compile_run` tests found");
     }
 }
 
@@ -167,11 +167,11 @@ fn compile_run() {
 
     if success != count {
         panic!(
-            "Some tests failed: {} failures out of {}!",
+            "{} out of {} tests failed",
             count - success,
             count
         );
     } else if count == 0 {
-        panic!("No `compile_run` tests found!");
+        panic!("No `compile_run` tests found");
     }
 }

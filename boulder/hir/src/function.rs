@@ -43,10 +43,11 @@ pub struct Function<'a, V: IdentifierState, N: TypeState, T> {
 
 impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType<'a>>> {
     pub fn new(name: Meta<'a, Box<str>>) -> Self {
+        let ret_meta = name.simplify();
         Self {
             name,
             arguments: Vec::new(),
-            ret: Meta::fake(Some(UnresolvedType::Named("Empty".into()))),
+            ret: ret_meta.replace(Some(UnresolvedType::Named("Empty".into()))),
             variables: Vec::new(),
             body: Expression::Block((), Meta::default(), Vec::new()),
         }

@@ -1,0 +1,7 @@
+struct A {
+    a: u32 | Empty,
+}
+
+fn test(a: A) -> u16 | u32 | Empty {
+    a.a
+}
