@@ -134,16 +134,6 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                 self.line += 1;
             }
         }
-
-        if self.current_char() == Some('#') {
-            while let Some(c) = self.current_char() {
-                if c == '\n' {
-                    break;
-                } else {
-                    self.byte_offset += c.len_utf8();
-                }
-            }
-        }
     }
 
     /// expects that the first byte is already checked to be alphabetical
@@ -169,10 +159,12 @@ impl<'a, 'b: 'a> TokenIter<'b> {
             "mem" => TokenType::Mem,
             "M1" => TokenType::SectionAddr,
             "M2" => TokenType::BlockAddr,
-            sec => if sec.chars().next().unwrap() == '.' {
-                TokenType::Section
-            } else {
-                TokenType::Ident
+            sec => {
+                if sec.chars().next().unwrap() == '.' {
+                    TokenType::Section
+                } else {
+                    TokenType::Ident
+                }
             }
         };
 
@@ -239,6 +231,15 @@ impl<'b> Iterator for TokenIter<'b> {
             } else if first == ':' {
                 self.advance();
                 Some(self.tok(TokenType::Colon, self.byte_offset - 1..self.byte_offset))
+            } else if first == '#' {
+                while let Some(c) = self.current_char() {
+                    if c == '\n' {
+                        break;
+                    } else {
+                        self.byte_offset += c.len_utf8();
+                    }
+                }
+                self.next()
             } else {
                 Some(self.recover(self.byte_offset))
             }

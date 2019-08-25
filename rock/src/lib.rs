@@ -286,9 +286,13 @@ fn register_sections<'a>(
     let mut addr = 0u8;
     for cmd in block.content.iter() {
         match cmd {
-            Command::Section(s) => map.insert(s, addr).map_or(Ok(()), 
-            |_| {
-                l.log_err(Error::new(ErrorLevel::Error, Cause::RepeatingSectionIdentifier(s), block.line, block.name));
+            Command::Section(s) => map.insert(s, addr).map_or(Ok(()), |_| {
+                l.log_err(Error::new(
+                    ErrorLevel::Error,
+                    Cause::RepeatingSectionIdentifier(s),
+                    block.line,
+                    block.name,
+                ));
                 Err(CodeGenError)
             })?,
             c => {
@@ -495,8 +499,7 @@ fn finalize(mut blocks: Vec<Block<'_>>) -> Vec<u8> {
                         } else {
                             unreachable!("ljmp with named mem addr");
                         }
-                    }
-                    else if let Readable::MemAddr(addr) = s {
+                    } else if let Readable::MemAddr(addr) = s {
                         if let MemAddr::Byte(v) = addr {
                             res.push(v);
                         } else {
@@ -505,9 +508,7 @@ fn finalize(mut blocks: Vec<Block<'_>>) -> Vec<u8> {
                     }
                 }
                 Command::Section(_) => (),
-                cmd @ Command::Invalid
-                | cmd @ Command::If(_, _)
-                => {
+                cmd @ Command::Invalid | cmd @ Command::If(_, _) => {
                     unreachable!("unexpected command: {:?}", cmd)
                 }
             };

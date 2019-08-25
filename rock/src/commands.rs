@@ -155,11 +155,9 @@ impl<'a> Command<'a> {
             | Command::Inv(_)
             | Command::Shr(_)
             | Command::Shl(_) => 1,
-            Command::Mov(r, _) 
-            | Command::Jmp(r)
-            | Command::Ljmp(r) => 1 + r.size(),
-            | Command::Ret(r, s) => 1 + r.size() + s.size(),
-            | Command::If(_, cmd) => 1 + cmd.size(),
+            Command::Mov(r, _) | Command::Jmp(r) | Command::Ljmp(r) => 1 + r.size(),
+            Command::Ret(r, s) => 1 + r.size() + s.size(),
+            Command::If(_, cmd) => 1 + cmd.size(),
         }
     }
 }
@@ -219,8 +217,11 @@ fn as_readable<'a>(arg: &Token<'a>, l: &mut impl Logger) -> Option<Readable<'a>>
     })
 }
 
-fn parse_if<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logger) -> Command<'a>{
-    if let Some((first, (second, rest))) = args.split_first().and_then(|(f, s)| Some((f, s.split_first()?))) {
+fn parse_if<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logger) -> Command<'a> {
+    if let Some((first, (second, rest))) = args
+        .split_first()
+        .and_then(|(f, s)| Some((f, s.split_first()?)))
+    {
         let condition = match first.origin() {
             "z" => Condition::Zero,
             "nz" => Condition::NotZero,
@@ -231,14 +232,22 @@ fn parse_if<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logger) -> Com
             "lte" => Condition::LessThanOrEqual,
             "lt" => Condition::LessThan,
             v => {
-                l.log_err(Error::at_token(ErrorLevel::Error, Cause::InvalidCondition(v), first));
+                l.log_err(Error::at_token(
+                    ErrorLevel::Error,
+                    Cause::InvalidCondition(v),
+                    first,
+                ));
                 return Command::Invalid;
             }
         };
 
         Command::If(condition, Box::new(parse_commands(second, rest, l)))
     } else {
-        l.log_err(Error::at_token(ErrorLevel::Error, Cause::WrongArgCount(cmd.origin(), 3, args.len()), cmd));
+        l.log_err(Error::at_token(
+            ErrorLevel::Error,
+            Cause::WrongArgCount(cmd.origin(), 3, args.len()),
+            cmd,
+        ));
         Command::Invalid
     }
 }
@@ -259,7 +268,7 @@ where
             }
         }
     }
-    
+
     Command::Invalid
 }
 
@@ -279,7 +288,7 @@ where
             }
         }
     }
-    
+
     Command::Invalid
 }
 
