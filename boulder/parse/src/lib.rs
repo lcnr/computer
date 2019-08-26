@@ -24,6 +24,7 @@ type Hir<'a> = hir::Hir<
 type Type<'a> = hir::Type<'a, hir::UnresolvedType<'a>>;
 type Kind<'a> = hir::ty::Kind<'a, hir::UnresolvedType<'a>>;
 type Field<'a> = hir::ty::Field<'a, hir::UnresolvedType<'a>>;
+type MatchArm<'a> = hir::expression::MatchArm<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedTypes<'a>>;
 
 pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
     let iter = &mut TokenIter::new(src);
@@ -178,16 +179,22 @@ fn parse_match<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, CompileEr
         let pat = parse_pattern(iter)?;
         consume_token(Token::Colon, iter)?;
         let ty = parse_type(iter)?;
+        consume_token(Token::Arrow, iter)?;
+        let expr = parse_expression(iter)?;
 
-        match_arms.push(ty);
+        match_arms.push(MatchArm {
+            pattern: hir::UnresolvedVariable::New(pat, ty.map(|t| Some(t))),
+            expr,
+        });
 
-        let tok = iter.next().unwrap();
         if try_consume_token(Token::CloseBlock(BlockDelim::Brace), iter) {
             break;
+        } else {
+            consume_token(Token::Comma, iter)?
         }
     }
 
-    unimplemented!("{:?}, {:?}", value, match_arms)
+    Ok(Expression::Match((), Box::new(value), match_arms))
 }
 
 fn parse_variable_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, CompileError> {
@@ -317,7 +324,6 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
         Token::Keyword(Keyword::Let) => parse_variable_decl(iter),
         Token::Keyword(Keyword::Match) => {
             let expr = parse_match(iter)?;
-            consume_token(Token::CloseBlock(BlockDelim::Parenthesis), iter)?;
             parse_binop(expr, iter)
         }
         Token::Ident(v) => {

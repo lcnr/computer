@@ -1,6 +1,6 @@
 fn match_fn(value: u16 | u32) -> u32 {
     match value {
-        _: u16 => 42,
-        v: u32 => v,
+        unused: u16 -> 42,
+        v: u32 -> v,
     }
 }

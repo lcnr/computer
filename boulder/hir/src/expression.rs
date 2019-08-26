@@ -140,7 +140,38 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 Box::new(obj.resolve_identifiers(variables, variable_lookup, function_lookup)?),
                 field,
             ),
-            Expression::Match((), expr, match_arms) => unimplemented!(),
+            Expression::Match((), value, match_arms) => {
+                let value = Box::new(value.resolve_identifiers(variables, variable_lookup, function_lookup)?);
+
+                
+                let mut new = Vec::new();
+                for arm in match_arms {
+                    variable_lookup.push(Vec::new());
+                    let pattern = match arm.pattern {
+                        UnresolvedVariable::New(name, ty) => {
+                            let id = VariableId(variables.len());
+                            let meta = name.simplify();
+                            variable_lookup
+                                .last_mut()
+                                .unwrap()
+                                .push((name.item.clone(), id));
+                            variables.push(function::Variable { name, ty });
+                            meta.replace(id)
+                        }
+                        err @ UnresolvedVariable::Existing(_) => unreachable!("invalid match pattern: {:?}", err),
+                    };
+                    new.push(MatchArm {
+                        pattern,
+                        expr: arm.expr.resolve_identifiers(
+                        variables,
+                        variable_lookup,
+                        function_lookup,
+                    )?});
+                    variable_lookup.pop();
+                }
+                dbg!((&value, &new));
+                Expression::Match((), value, new)
+            },
             Expression::TypeRestriction(expr, ty) => Expression::TypeRestriction(
                 Box::new(expr.resolve_identifiers(variables, variable_lookup, function_lookup)?),
                 ty,
@@ -247,7 +278,10 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 solver.add_field_access(obj.id(), access, &field)?;
                 Expression::FieldAccess(access, Box::new(obj), field)
             }
-            Expression::Match((), expr, match_arms) => unimplemented!(),
+            Expression::Match((), value, match_arms) => {
+                let value = value.type_constraints(functions, variables, solver)?;
+                unimplemented!()
+            },
             Expression::TypeRestriction(expr, ty) => {
                 let mut expr = expr.type_constraints(functions, variables, solver)?;
                 let meta = ty.simplify();
