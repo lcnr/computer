@@ -178,11 +178,9 @@ impl<C: fmt::Debug, T: EntityState + Eq + Hash + Clone + std::fmt::Debug, E>
                 self.apply_entity(ids[0])
                     .map_err(|e| SolveError::ProductionError(e))?;
 
-                if self.entities[ids[0]].solved() {
-                    ids = &mut ids[1..];
-                }
-                step_count += 1;
+                ids = &mut ids[1..];
 
+                step_count += 1;
                 if step_count > 1000 {
                     return Err(SolveError::UnsolvedEntities(
                         all_ids

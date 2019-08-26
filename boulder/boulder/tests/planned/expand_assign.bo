@@ -1,0 +1,5 @@
+fn test(a: u32 | Empty, b: u16) -> u16 | u32 | Empty {
+    let x = a;
+    x = b;
+    x
+}

@@ -20,6 +20,7 @@ pub struct Context<'a, 'b> {
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 enum EntityState {
     Unbound,
+    Subtype(Vec<TypeId>),
     Bound(Vec<TypeId>),
 }
 
@@ -28,7 +29,7 @@ impl solver::EntityState for EntityState {
 
     fn solved(&self) -> bool {
         match self {
-            EntityState::Unbound => false,
+            EntityState::Unbound | EntityState::Subtype(_) => false,
             EntityState::Bound(v) => v.len() == 1,
         }
     }
@@ -117,6 +118,24 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
     fn ty_error_str(types: &[Type<'a, TypeId>], expected: &EntityState) -> String {
         match expected {
             EntityState::Unbound => "any type".into(),
+            EntityState::Subtype(v) => match v.as_slice() {
+                [] => unreachable!("expected no types"),
+                [one] => format!("`{}`", types[one.0].name.item),
+                [one, two] => format!(
+                    "a combination of `{}` or `{}`",
+                    types[one.0].name.item, types[two.0].name.item
+                ),
+                [one, two, three] => format!(
+                    "a combination of `{}`, `{}` or `{}`",
+                    types[one.0].name.item, types[two.0].name.item, types[three.0].name.item
+                ),
+                _ => format!(
+                    "a combination of `{}`, `{}` or {} more",
+                    types[v[0].0].name.item,
+                    types[v[1].0].name.item,
+                    v.len() - 2
+                ),
+            },
             EntityState::Bound(v) => match v.as_slice() {
                 [] => unreachable!("expected no types"),
                 [one] => format!("`{}`", types[one.0].name.item),

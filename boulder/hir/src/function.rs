@@ -161,19 +161,13 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
             .variables
             .iter()
             .map(|variable| {
-                Ok(match variable.ty.item {
-                    Some(UnresolvedType::Sum(_)) => unimplemented!(),
-                    Some(UnresolvedType::Integer) => solver.add_integer(variable.ty.simplify()),
-                    Some(UnresolvedType::Named(ref name)) => {
-                        if let Some(&i) = solver.type_lookup().get(name) {
-                            solver.add_typed(i, variable.ty.simplify())
-                        } else {
-                            CompileError::new(
-                                &variable.ty,
-                                format_args!("Cannot find type `{}` in this scope", name),
-                            )?
-                        }
+                Ok(match &variable.ty.item {
+                    Some(unresolved @ UnresolvedType::Sum(_)) | Some(unresolved @ UnresolvedType::Named(_)) => {
+                        let ctx = solver.ctx();
+                        let ty = ty::resolve(variable.ty.clone().replace(unresolved.clone()), ctx.types, ctx.type_lookup)?;
+                        solver.add_typed(ty.item, ty.simplify())
                     }
+                    Some(UnresolvedType::Integer) => solver.add_integer(variable.ty.simplify()),
                     None => solver.add_unbound(variable.name.simplify()),
                 })
             })

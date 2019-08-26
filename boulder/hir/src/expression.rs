@@ -5,6 +5,12 @@ use crate::ty::solver::TypeSolver;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
+pub struct MatchArm<'a, V: IdentifierState, N: TypeState> {
+    pub pattern: V::Variable,
+    pub expr: Expression<'a, V, N>,
+}
+
+#[derive(Debug, Clone)]
 pub enum Expression<'a, V: IdentifierState, N: TypeState> {
     Block(N::Type, Meta<'a, ()>, Vec<Expression<'a, V, N>>),
     Variable(N::Type, V::Variable),
@@ -19,6 +25,7 @@ pub enum Expression<'a, V: IdentifierState, N: TypeState> {
     Assignment(N::Type, V::Variable, Box<Expression<'a, V, N>>),
     FunctionCall(N::Type, V::Function, Vec<Expression<'a, V, N>>),
     FieldAccess(N::Type, Box<Expression<'a, V, N>>, N::Field),
+    Match(N::Type, Box<Expression<'a, V, N>>, Vec<MatchArm<'a, V, N>>),
     TypeRestriction(Box<Expression<'a, V, N>>, N::Restriction),
 }
 
@@ -112,13 +119,11 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             Expression::FunctionCall((), name, args) => {
                 let mut new = Vec::new();
                 for expr in args {
-                    variable_lookup.push(Vec::new());
                     new.push(expr.resolve_identifiers(
                         variables,
                         variable_lookup,
                         function_lookup,
                     )?);
-                    variable_lookup.pop();
                 }
 
                 if let Some(id) = function_lookup.get(&name.item) {
@@ -135,6 +140,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 Box::new(obj.resolve_identifiers(variables, variable_lookup, function_lookup)?),
                 field,
             ),
+            Expression::Match((), expr, match_arms) => unimplemented!(),
             Expression::TypeRestriction(expr, ty) => Expression::TypeRestriction(
                 Box::new(expr.resolve_identifiers(variables, variable_lookup, function_lookup)?),
                 ty,
@@ -194,7 +200,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 let span = var.span().simplify().append(expr.span());
                 let expr = expr.type_constraints(functions, variables, solver)?;
                 let var_id = variables[var.0];
-                solver.add_equality(expr.id(), var_id);
+                solver.add_extension(expr.id(), var_id);
                 Expression::Assignment(solver.add_empty(span), var, Box::new(expr))
             }
             Expression::FunctionCall((), name, args) => {
@@ -209,33 +215,27 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                         .last()
                         .map_or(name.simplify(), |arg| name.simplify().append(arg.span()))
                         .extend_right(')');
-                    if definition.args.len() == 1 {
-                        CompileError::build(
-                            &definition.name,
-                            format_args!(
-                                "This function takes 1 parameter but received {}",
-                                args.len()
-                            ),
-                        )
-                        .with_location(&location)
-                        .build()?
+                    let parameters_str = if definition.args.len() == 1 {
+                        "parameter"
                     } else {
-                        CompileError::build(
-                            &definition.name,
-                            format_args!(
-                                "This function takes {} parameters but received {}",
-                                definition.args.len(),
-                                args.len()
-                            ),
-                        )
-                        .with_location(&location)
-                        .build()?
-                    }
+                        "parameters"
+                    };
+                    CompileError::build(
+                        &definition.name,
+                        format_args!(
+                            "This function takes {} {} but received {}",
+                            definition.args.len(),
+                            parameters_str,
+                            args.len()
+                        ),
+                    )
+                    .with_location(&location)
+                    .build()?
                 }
 
                 for (actual, expected) in args.iter().zip(&definition.args) {
                     let expected = solver.add_typed(expected.item, expected.simplify());
-                    solver.add_equality(expected, actual.id());
+                    solver.add_extension(actual.id(), expected);
                 }
 
                 let ret = solver.add_typed(definition.ty.item, definition.ty.simplify());
@@ -247,6 +247,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 solver.add_field_access(obj.id(), access, &field)?;
                 Expression::FieldAccess(access, Box::new(obj), field)
             }
+            Expression::Match((), expr, match_arms) => unimplemented!(),
             Expression::TypeRestriction(expr, ty) => {
                 let mut expr = expr.type_constraints(functions, variables, solver)?;
                 let meta = ty.simplify();
@@ -276,7 +277,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             | &Expression::Statement(id, _)
             | &Expression::Assignment(id, _, _)
             | &Expression::FunctionCall(id, _, _)
-            | &Expression::FieldAccess(id, _, _) => id,
+            | &Expression::FieldAccess(id, _, _)
+            | &Expression::Match(id, _, _) => id,
             &Expression::TypeRestriction(_, ()) => {
                 unreachable!("type restriction after type check")
             }
@@ -292,7 +294,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             | Expression::Statement(id, _)
             | Expression::Assignment(id, _, _)
             | Expression::FunctionCall(id, _, _)
-            | Expression::FieldAccess(id, _, _) => id,
+            | Expression::FieldAccess(id, _, _)
+            | Expression::Match(id, _, _) => id,
             Expression::TypeRestriction(_, ()) => unreachable!("type restriction after type check"),
         }
     }
@@ -347,6 +350,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
                     }),
                 )
             }
+            Expression::Match(id, expr, match_arms) => unimplemented!(),
             Expression::TypeRestriction(expr, _) => expr.insert_types(types, type_result),
         }
     }
@@ -453,6 +457,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                     Action::FieldAccess(obj, field.to_mir()),
                 )))
             }
+            Expression::Match(id, expr, match_arms) => unimplemented!(),
             Expression::TypeRestriction(_, ()) => unreachable!("type restriction after type check")
         }
     }
@@ -474,6 +479,7 @@ where
             Expression::Assignment(_, var, expr) => var.span().simplify().append(expr.span()),
             Expression::FunctionCall(_, name, _args) => name.span(),
             Expression::FieldAccess(_, _, field) => field.span().extend_left('.'),
+            Expression::Match(_, expr, match_arms) => expr.span().extend_left('m'), // includes `match`
             Expression::TypeRestriction(expr, _) => expr.span(),
         }
     }
