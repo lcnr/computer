@@ -162,9 +162,14 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
             .iter()
             .map(|variable| {
                 Ok(match &variable.ty.item {
-                    Some(unresolved @ UnresolvedType::Sum(_)) | Some(unresolved @ UnresolvedType::Named(_)) => {
+                    Some(unresolved @ UnresolvedType::Sum(_))
+                    | Some(unresolved @ UnresolvedType::Named(_)) => {
                         let ctx = solver.ctx();
-                        let ty = ty::resolve(variable.ty.clone().replace(unresolved.clone()), ctx.types, ctx.type_lookup)?;
+                        let ty = ty::resolve(
+                            variable.ty.clone().replace(unresolved.clone()),
+                            ctx.types,
+                            ctx.type_lookup,
+                        )?;
                         solver.add_typed(ty.item, ty.simplify())
                     }
                     Some(UnresolvedType::Integer) => solver.add_integer(variable.ty.simplify()),
@@ -204,7 +209,8 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
 impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
     pub fn to_mir(self, types: &[mir::Type]) -> Result<mir::Function, CompileError> {
         let mut func = mir::Function::new();
-        let mut start = mir::Block::new();
+        let mut id = func.add_block();
+        let start = func.block(id);
 
         let mut variables: Vec<Option<mir::StepId>> =
             std::iter::repeat(None).take(self.variables.len()).collect();
@@ -213,9 +219,11 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
             variables[i] = Some(id);
         }
 
-        let id = func.add_block(start);
+        let variable_types: Vec<TypeId> = self.variables.iter().map(|v| v.ty.item).collect();
 
-        let ret = self.body.to_mir(types, &mut variables, id, &mut func)?;
+        let ret = self
+            .body
+            .to_mir(types, &variable_types, &mut variables, &mut id, &mut func)?;
         func.block(id).add_step(mir::Step::new(
             ty::NEVER_ID.to_mir(),
             mir::Action::Return(ret),

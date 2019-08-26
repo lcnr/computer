@@ -44,6 +44,7 @@ pub enum Action {
     Mul(StepId, StepId),
     Div(StepId, StepId),
     BitOr(StepId, StepId),
+    Match(StepId, Vec<(TypeId, BlockId, Vec<StepId>)>),
 }
 
 #[derive(Debug, Clone)]
@@ -70,9 +71,9 @@ impl Function {
         }
     }
 
-    pub fn add_block(&mut self, block: Block) -> BlockId {
+    pub fn add_block(&mut self) -> BlockId {
         let id = BlockId(self.content.len());
-        self.content.push(block);
+        self.content.push(Block::new());
         id
     }
 

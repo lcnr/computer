@@ -24,7 +24,8 @@ type Hir<'a> = hir::Hir<
 type Type<'a> = hir::Type<'a, hir::UnresolvedType<'a>>;
 type Kind<'a> = hir::ty::Kind<'a, hir::UnresolvedType<'a>>;
 type Field<'a> = hir::ty::Field<'a, hir::UnresolvedType<'a>>;
-type MatchArm<'a> = hir::expression::MatchArm<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedTypes<'a>>;
+type MatchArm<'a> =
+    hir::expression::MatchArm<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedTypes<'a>>;
 
 pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
     let iter = &mut TokenIter::new(src);
@@ -99,9 +100,16 @@ fn check_expr_terminator<'a>(
     prev_checked: &[Token],
 ) -> Result<Meta<'a, Token>, CompileError> {
     match tok.item {
-        Token::Comma | Token::SemiColon | Token::CloseBlock(_) | Token::OpenBlock(BlockDelim::Brace) => Ok(tok),
+        Token::Comma
+        | Token::SemiColon
+        | Token::CloseBlock(_)
+        | Token::OpenBlock(BlockDelim::Brace) => Ok(tok),
         _ => {
-            let mut expected = vec![Token::SemiColon, Token::CloseBlock(BlockDelim::Brace),  Token::OpenBlock(BlockDelim::Brace)];
+            let mut expected = vec![
+                Token::SemiColon,
+                Token::CloseBlock(BlockDelim::Brace),
+                Token::OpenBlock(BlockDelim::Brace),
+            ];
             expected.extend_from_slice(prev_checked);
             CompileError::expected(&expected, &tok)
         }
@@ -167,7 +175,10 @@ fn parse_ident_expr<'a>(
     })
 }
 
-fn parse_match<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, CompileError> {
+fn parse_match<'a>(
+    keyword: Meta<'a, ()>,
+    iter: &mut TokenIter<'a>,
+) -> Result<Expression<'a>, CompileError> {
     let value = parse_expression(iter)?;
     consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
     let mut match_arms = Vec::new();
@@ -194,7 +205,7 @@ fn parse_match<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, CompileEr
         }
     }
 
-    Ok(Expression::Match((), Box::new(value), match_arms))
+    Ok(Expression::Match((), keyword, Box::new(value), match_arms))
 }
 
 fn parse_variable_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, CompileError> {
@@ -323,7 +334,7 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
         }
         Token::Keyword(Keyword::Let) => parse_variable_decl(iter),
         Token::Keyword(Keyword::Match) => {
-            let expr = parse_match(iter)?;
+            let expr = parse_match(start.simplify(), iter)?;
             parse_binop(expr, iter)
         }
         Token::Ident(v) => {

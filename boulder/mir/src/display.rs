@@ -96,6 +96,28 @@ impl Display for Mir {
                         Action::Mul(a, b) => writeln!(f, "mul ${} ${}", a.0, b.0),
                         Action::Div(a, b) => writeln!(f, "div ${} ${}", a.0, b.0),
                         Action::BitOr(a, b) => writeln!(f, "bitor ${} $ {}", a.0, b.0),
+                        Action::Match(id, arms) => {
+                            let write_arm = |f: &mut Formatter, (ty, block, args): &(TypeId, BlockId, Vec<StepId>)| {
+                                write!(f, "%{} -> ~{}(", ty.0, block.0)?;
+                                if let Some((last, start)) = args.split_last() {
+                                    for arg in start.iter() {
+                                        write!(f, "${}, ", arg.0)?;
+                                    }
+                                    write!(f, "${}", last.0)?;
+                                }
+                                write!(f, ")")
+                            };
+
+                            write!(f, "match ${}(", id.0)?;
+                            if let Some((last, start)) = arms.split_last() {
+                                for arm in start.iter() {
+                                    write_arm(f, arm);
+                                    write!(f, ", ")?;
+                                }
+                                write_arm(f, last);
+                            }
+                            writeln!(f, ")")
+                        }
                     }?;
                 }
             }

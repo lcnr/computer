@@ -25,7 +25,12 @@ pub enum Expression<'a, V: IdentifierState, N: TypeState> {
     Assignment(N::Type, V::Variable, Box<Expression<'a, V, N>>),
     FunctionCall(N::Type, V::Function, Vec<Expression<'a, V, N>>),
     FieldAccess(N::Type, Box<Expression<'a, V, N>>, N::Field),
-    Match(N::Type, Box<Expression<'a, V, N>>, Vec<MatchArm<'a, V, N>>),
+    Match(
+        N::Type,
+        Meta<'a, ()>,
+        Box<Expression<'a, V, N>>,
+        Vec<MatchArm<'a, V, N>>,
+    ),
     TypeRestriction(Box<Expression<'a, V, N>>, N::Restriction),
 }
 
@@ -140,10 +145,13 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 Box::new(obj.resolve_identifiers(variables, variable_lookup, function_lookup)?),
                 field,
             ),
-            Expression::Match((), value, match_arms) => {
-                let value = Box::new(value.resolve_identifiers(variables, variable_lookup, function_lookup)?);
+            Expression::Match((), meta, value, match_arms) => {
+                let value = Box::new(value.resolve_identifiers(
+                    variables,
+                    variable_lookup,
+                    function_lookup,
+                )?);
 
-                
                 let mut new = Vec::new();
                 for arm in match_arms {
                     variable_lookup.push(Vec::new());
@@ -158,20 +166,22 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                             variables.push(function::Variable { name, ty });
                             meta.replace(id)
                         }
-                        err @ UnresolvedVariable::Existing(_) => unreachable!("invalid match pattern: {:?}", err),
+                        err @ UnresolvedVariable::Existing(_) => {
+                            unreachable!("invalid match pattern: {:?}", err)
+                        }
                     };
                     new.push(MatchArm {
                         pattern,
                         expr: arm.expr.resolve_identifiers(
-                        variables,
-                        variable_lookup,
-                        function_lookup,
-                    )?});
+                            variables,
+                            variable_lookup,
+                            function_lookup,
+                        )?,
+                    });
                     variable_lookup.pop();
                 }
-                dbg!((&value, &new));
-                Expression::Match((), value, new)
-            },
+                Expression::Match((), meta, value, new)
+            }
             Expression::TypeRestriction(expr, ty) => Expression::TypeRestriction(
                 Box::new(expr.resolve_identifiers(variables, variable_lookup, function_lookup)?),
                 ty,
@@ -278,10 +288,24 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 solver.add_field_access(obj.id(), access, &field)?;
                 Expression::FieldAccess(access, Box::new(obj), field)
             }
-            Expression::Match((), value, match_arms) => {
+            Expression::Match((), meta, value, match_arms) => {
                 let value = value.type_constraints(functions, variables, solver)?;
-                unimplemented!()
-            },
+                let result = solver.add_unbound(meta.clone());
+                let match_arms = match_arms
+                    .into_iter()
+                    .map(|arm| {
+                        let id = variables[arm.pattern.item.0];
+                        solver.add_extension(id, value.id());
+                        let expr = arm.expr.type_constraints(functions, variables, solver)?;
+                        solver.add_extension(expr.id(), result);
+                        Ok(MatchArm {
+                            pattern: arm.pattern,
+                            expr,
+                        })
+                    })
+                    .collect::<Result<_, _>>()?;
+                Expression::Match(result, meta, Box::new(value), match_arms)
+            }
             Expression::TypeRestriction(expr, ty) => {
                 let mut expr = expr.type_constraints(functions, variables, solver)?;
                 let meta = ty.simplify();
@@ -312,7 +336,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             | &Expression::Assignment(id, _, _)
             | &Expression::FunctionCall(id, _, _)
             | &Expression::FieldAccess(id, _, _)
-            | &Expression::Match(id, _, _) => id,
+            | &Expression::Match(id, _, _, _) => id,
             &Expression::TypeRestriction(_, ()) => {
                 unreachable!("type restriction after type check")
             }
@@ -329,7 +353,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             | Expression::Assignment(id, _, _)
             | Expression::FunctionCall(id, _, _)
             | Expression::FieldAccess(id, _, _)
-            | Expression::Match(id, _, _) => id,
+            | Expression::Match(id, _, _, _) => id,
             Expression::TypeRestriction(_, ()) => unreachable!("type restriction after type check"),
         }
     }
@@ -384,7 +408,21 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
                     }),
                 )
             }
-            Expression::Match(id, expr, match_arms) => unimplemented!(),
+            Expression::Match(id, meta, expr, match_arms) => {
+                let match_arms = match_arms
+                    .into_iter()
+                    .map(|arm| MatchArm {
+                        pattern: arm.pattern,
+                        expr: arm.expr.insert_types(types, type_result),
+                    })
+                    .collect();
+                Expression::Match(
+                    type_result[id],
+                    meta,
+                    Box::new(expr.insert_types(types, type_result)),
+                    match_arms,
+                )
+            }
             Expression::TypeRestriction(expr, _) => expr.insert_types(types, type_result),
         }
     }
@@ -394,8 +432,9 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
     pub fn to_mir(
         self,
         types: &[mir::Type],
+        variable_types: &[TypeId],
         var_lookup: &mut [Option<mir::StepId>],
-        curr: mir::BlockId,
+        curr: &mut mir::BlockId,
         func: &mut mir::Function,
     ) -> Result<mir::StepId, CompileError> {
         use mir::{Action, Object, Step};
@@ -405,19 +444,19 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 // as only control flow requires new blocks
                 Ok(if let Some(last) = v.pop() {
                     for e in v {
-                        e.to_mir(types, var_lookup, curr, func)?;
+                        e.to_mir(types, variable_types, var_lookup, curr, func)?;
                     }
 
-                    last.to_mir(types, var_lookup, curr, func)?
+                    last.to_mir(types, variable_types, var_lookup, curr, func)?
                 } else {
                     assert_eq!(ty, ty::EMPTY_ID);
-                    func.block(curr)
+                    func.block(*curr)
                         .add_step(Step::new(ty.to_mir(), Action::LoadConstant(Object::Unit)))
                 })
             }
             Expression::Variable(ty, var) => {
                 if let Some(step) = var_lookup[var.0] {
-                    assert_eq!(ty.to_mir(), func.block(curr).get_step(step).ty);
+                    assert_eq!(ty.to_mir(), func.block(*curr).get_step(step).ty);
                     Ok(step)
                 } else {
                     let span = var.span_str();
@@ -442,13 +481,13 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                     }),
                 }?;
                 Ok(func
-                    .block(curr)
+                    .block(*curr)
                     .add_step(Step::new(type_id, Action::LoadConstant(obj))))
             }
             Expression::Binop(ty, op, a, b) => {
-                let a = a.to_mir(types, var_lookup, curr, func)?;
-                let b = b.to_mir(types, var_lookup, curr, func)?;
-                Ok(func.block(curr).add_step(Step::new(
+                let a = a.to_mir(types, variable_types, var_lookup, curr, func)?;
+                let b = b.to_mir(types, variable_types, var_lookup, curr, func)?;
+                Ok(func.block(*curr).add_step(Step::new(
                     ty.to_mir(),
                     match op.item {
                         Binop::Add => Action::Add(a, b),
@@ -461,38 +500,71 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
             }
             Expression::Statement(ty, expr) => {
                 assert_eq!(ty, ty::EMPTY_ID);
-                expr.to_mir(types, var_lookup, curr, func)?;
+                expr.to_mir(types, variable_types, var_lookup, curr, func)?;
                 Ok(func
-                    .block(curr)
+                    .block(*curr)
                     .add_step(Step::new(ty.to_mir(), Action::LoadConstant(Object::Unit))))
             }
             Expression::Assignment(ty, var, expr) => {
-                let expr = expr.to_mir(types, var_lookup, curr, func)?;
+                let expr = expr.to_mir(types, variable_types, var_lookup, curr, func)?;
                 var_lookup[var.0] = Some(expr);
                 assert_eq!(ty, ty::EMPTY_ID);
                 Ok(func
-                    .block(curr)
+                    .block(*curr)
                     .add_step(Step::new(ty.to_mir(), Action::LoadConstant(Object::Unit))))
             }
             Expression::FunctionCall(ty, id, args) => {
                 let args = args
                     .into_iter()
-                    .map(|arg| arg.to_mir(types, var_lookup, curr, func))
+                    .map(|arg| arg.to_mir(types, variable_types, var_lookup, curr, func))
                     .collect::<Result<Vec<_>, CompileError>>()?;
-                Ok(func.block(curr).add_step(Step::new(
+                Ok(func.block(*curr).add_step(Step::new(
                     ty.to_mir(),
                     Action::CallFunction(id.item.to_mir(), args),
                 )))
             }
             Expression::FieldAccess(ty, obj, field) => {
-                let obj = obj.to_mir(types, var_lookup, curr, func)?;
-                Ok(func.block(curr).add_step(Step::new(
+                let obj = obj.to_mir(types, variable_types, var_lookup, curr, func)?;
+                Ok(func.block(*curr).add_step(Step::new(
                     ty.to_mir(),
                     Action::FieldAccess(obj, field.to_mir()),
                 )))
             }
-            Expression::Match(id, expr, match_arms) => unimplemented!(),
-            Expression::TypeRestriction(_, ()) => unreachable!("type restriction after type check")
+            Expression::Match(id, _, value, match_arms) => {
+                let old_block = *curr;
+
+                let value = value.to_mir(types, variable_types, var_lookup, curr, func)?;
+                let cont = func.add_block();
+
+                let mut arms = Vec::new();
+                for arm in match_arms {
+                    let mut available_variables = var_lookup.to_vec();
+                    let mut id = to_mir::initialized_mir_block(
+                        variable_types,
+                        &mut available_variables,
+                        func,
+                    );
+                    let block = func.block(id);
+
+                    available_variables[arm.pattern.0] =
+                        Some(block.add_input(variable_types[arm.pattern.0].to_mir()));
+                    let expr_id = arm.expr.to_mir(
+                        types,
+                        variable_types,
+                        &mut available_variables,
+                        &mut id,
+                        func,
+                    );
+                }
+
+                func.block(old_block).add_step(Step::new(
+                    ty::NEVER_ID.to_mir(),
+                    mir::Action::Match(value, arms),
+                ));
+                *curr = cont;
+                Ok(mir::StepId(0))
+            }
+            Expression::TypeRestriction(_, ()) => unreachable!("type restriction after type check"),
         }
     }
 }
@@ -513,7 +585,7 @@ where
             Expression::Assignment(_, var, expr) => var.span().simplify().append(expr.span()),
             Expression::FunctionCall(_, name, _args) => name.span(),
             Expression::FieldAccess(_, _, field) => field.span().extend_left('.'),
-            Expression::Match(_, expr, match_arms) => expr.span().extend_left('m'), // includes `match`
+            Expression::Match(_, meta, _, _) => meta.clone(),
             Expression::TypeRestriction(expr, _) => expr.span(),
         }
     }

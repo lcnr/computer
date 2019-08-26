@@ -4,6 +4,8 @@ pub mod expression;
 pub mod function;
 pub mod ty;
 
+mod to_mir;
+
 pub use function::{Function, FunctionDefinition, FunctionId, VariableId};
 pub use ty::{FieldId, Type, TypeId};
 
