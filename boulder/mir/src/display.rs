@@ -63,7 +63,7 @@ impl Display for Mir {
         }
 
         for (i, func) in self.functions.iter().enumerate() {
-            writeln!(f, "fn #{}:", i)?;
+            writeln!(f, "fn {}[#{}]:", func.name, i)?;
             for (i, block) in func.content.iter().enumerate() {
                 write!(f, "  block ~{}(", i)?;
                 if let Some((last, start)) = block.input.split_last() {
@@ -95,6 +95,7 @@ impl Display for Mir {
                         Action::Sub(a, b) => writeln!(f, "sub ${} ${}", a.0, b.0),
                         Action::Mul(a, b) => writeln!(f, "mul ${} ${}", a.0, b.0),
                         Action::Div(a, b) => writeln!(f, "div ${} ${}", a.0, b.0),
+                        Action::Lt(a, b) => writeln!(f, "cmp ${} < ${}", a.0, b.0),
                         Action::BitOr(a, b) => writeln!(f, "bitor ${} $ {}", a.0, b.0),
                         Action::Goto(block, args) => {
                             write!(f, "goto ~{}(", block.0)?;
@@ -121,10 +122,10 @@ impl Display for Mir {
                             write!(f, "match ${}(", id.0)?;
                             if let Some((last, start)) = arms.split_last() {
                                 for arm in start.iter() {
-                                    write_arm(f, arm);
+                                    write_arm(f, arm)?;
                                     write!(f, ", ")?;
                                 }
-                                write_arm(f, last);
+                                write_arm(f, last)?;
                             }
                             writeln!(f, ")")
                         }

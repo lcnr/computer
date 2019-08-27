@@ -6,5 +6,5 @@ members = [
     "diagnostics",
     "parse",
     "hir",
-    "mir"
+    "mir",
 ]

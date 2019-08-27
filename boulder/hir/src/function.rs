@@ -208,8 +208,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
 
 impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
     pub fn to_mir(self, types: &[mir::Type]) -> Result<mir::Function, CompileError> {
-        dbg!(&self.body);
-        let mut func = mir::Function::new();
+        let mut func = mir::Function::new(self.name.item);
         let mut id = func.add_block();
         let start = func.block(id);
 

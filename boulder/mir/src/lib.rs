@@ -43,6 +43,7 @@ pub enum Action {
     Sub(StepId, StepId),
     Mul(StepId, StepId),
     Div(StepId, StepId),
+    Lt(StepId, StepId),
     BitOr(StepId, StepId),
     Goto(BlockId, Vec<StepId>),
     Match(StepId, Vec<(TypeId, BlockId, Vec<StepId>)>),
@@ -62,12 +63,14 @@ impl Step {
 
 #[derive(Debug, Clone)]
 pub struct Function {
+    pub name: Box<str>,
     pub content: Vec<Block>,
 }
 
 impl Function {
-    pub fn new() -> Self {
+    pub fn new(name: Box<str>) -> Self {
         Self {
+            name,
             content: Vec::new(),
         }
     }

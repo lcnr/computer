@@ -92,6 +92,7 @@ pub enum Binop {
     Sub,
     Mul,
     Div,
+    Lt,
     BitOr,
 }
 
@@ -125,6 +126,18 @@ impl<'a>
             Type {
                 name: Meta::<'static, ()>::default().replace("Never".into()),
                 kind: ty::Kind::Uninhabited,
+            },
+            Type {
+                name: Meta::<'static, ()>::default().replace("True".into()),
+                kind: ty::Kind::Unit,
+            },
+            Type {
+                name: Meta::<'static, ()>::default().replace("False".into()),
+                kind: ty::Kind::Unit,
+            },
+            Type {
+                name: Meta::<'static, ()>::default().replace("Bool".into()),
+                kind: ty::Kind::Sum(vec![TypeId(2), TypeId(3)]),
             },
             Type {
                 name: Meta::<'static, ()>::default().replace("u8".into()),

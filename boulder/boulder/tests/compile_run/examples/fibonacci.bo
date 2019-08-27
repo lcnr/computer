@@ -1,0 +1,6 @@
+fn fibonacci(a: u32) -> u32 {
+    match a < 2 {
+        t: True -> 1,
+        f: False -> fibonacci(a - 1) + fibonacci(a - 2),
+    }
+}

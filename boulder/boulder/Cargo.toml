@@ -8,6 +8,7 @@ edition = "2018"
 diagnostics = { path = "../diagnostics" }
 parse = { path = "../parse"}
 mir = { path = "../mir" }
+rock = { path = "../../rock" }
 
 [dev-dependencies]
 walkdir = "2.2.9"

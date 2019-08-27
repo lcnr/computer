@@ -2,7 +2,7 @@ use crate::*;
 
 use crate::ty::solver::TypeSolver;
 
-use std::{convert::identity, collections::HashMap};
+use std::{collections::HashMap, convert::identity};
 
 #[derive(Debug, Clone)]
 pub struct MatchArm<'a, V: IdentifierState, N: TypeState> {
@@ -222,16 +222,25 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     Expression::Lit(id, lit)
                 }
             },
-            Expression::Binop((), op, a, b) => match op.item {
-                Binop::Add | Binop::Sub | Binop::Mul | Binop::Div | Binop::BitOr => {
-                    let a = a.type_constraints(functions, variables, solver)?;
-                    let b = b.type_constraints(functions, variables, solver)?;
-                    let integer = solver.add_integer(op.simplify());
-                    solver.add_equality(a.id(), b.id());
-                    solver.add_equality(a.id(), integer);
-                    Expression::Binop(a.id(), op, Box::new(a), Box::new(b))
+            Expression::Binop((), op, a, b) => {
+                let a = a.type_constraints(functions, variables, solver)?;
+                let b = b.type_constraints(functions, variables, solver)?;
+                match op.item {
+                    Binop::Add | Binop::Sub | Binop::Mul | Binop::Div | Binop::BitOr => {
+                        let integer = solver.add_integer(op.simplify());
+                        solver.add_equality(a.id(), b.id());
+                        solver.add_equality(a.id(), integer);
+                        Expression::Binop(a.id(), op, Box::new(a), Box::new(b))
+                    }
+                    Binop::Lt => {
+                        let integer = solver.add_integer(op.simplify());
+                        solver.add_equality(a.id(), b.id());
+                        solver.add_equality(a.id(), integer);
+                        let id = solver.add_typed(ty::BOOL_ID, op.simplify());
+                        Expression::Binop(id, op, Box::new(a), Box::new(b))
+                    }
                 }
-            },
+            }
             Expression::Statement((), expr) => {
                 let span = expr.span().extend_right(';');
                 let expr = expr.type_constraints(functions, variables, solver)?;
@@ -495,6 +504,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                         Binop::Mul => Action::Mul(a, b),
                         Binop::Div => Action::Div(a, b),
                         Binop::BitOr => Action::BitOr(a, b),
+                        Binop::Lt => Action::Lt(a, b),
                     },
                 )))
             }
@@ -540,7 +550,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 let mut arms_data = Vec::new();
                 for arm in match_arms {
                     let mut available_variables = var_lookup.to_vec();
-                    
+
                     let mut id = to_mir::initialized_mir_block(
                         variable_types,
                         &mut available_variables,
@@ -550,9 +560,9 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                     available_variables[arm.pattern.0] =
                         Some(block.add_input(variable_types[arm.pattern.0].to_mir()));
 
-                
                     arms.push((variable_types[arm.pattern.0].to_mir(), id, {
-                        let mut args: Vec<mir::StepId> = var_lookup.iter().copied().filter_map(identity).collect();
+                        let mut args: Vec<mir::StepId> =
+                            var_lookup.iter().copied().filter_map(identity).collect();
                         args.push(match_step);
                         args
                     }));
@@ -568,29 +578,36 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                     arms_data.push((id, expr_id, available_variables));
                 }
 
-                let mut initialized_variables = if let Some((first, rest)) = arms_data.split_first() {
-                    rest
-                        .iter()
-                        .fold(first.2.to_vec(), |mut lookup, arm| {
-                            lookup
-                                .iter_mut()
-                                .zip(&arm.2)
-                                .for_each(|(v, arm)| *v = v.and(*arm));
-                            lookup
-                        })
+                let mut initialized_variables = if let Some((first, rest)) = arms_data.split_first()
+                {
+                    rest.iter().fold(first.2.to_vec(), |mut lookup, arm| {
+                        lookup
+                            .iter_mut()
+                            .zip(&arm.2)
+                            .for_each(|(v, arm)| *v = v.and(*arm));
+                        lookup
+                    })
                 } else {
                     var_lookup.to_vec()
                 };
 
-                let id = to_mir::initialized_mir_block(variable_types, &mut initialized_variables, func);
+                let id =
+                    to_mir::initialized_mir_block(variable_types, &mut initialized_variables, func);
                 let step = func.block(id).add_input(ty_id.to_mir());
-                
+
                 arms_data.iter().for_each(|&(block, step, ref vars)| {
                     let block = func.block(block);
-                    let mut steps: Vec<mir::StepId> = vars.iter().copied().zip(initialized_variables.iter().copied()).filter_map(|(v, needed)|
-                    needed.and(v)).collect();
+                    let mut steps: Vec<mir::StepId> = vars
+                        .iter()
+                        .copied()
+                        .zip(initialized_variables.iter().copied())
+                        .filter_map(|(v, needed)| needed.and(v))
+                        .collect();
                     steps.push(step);
-                    block.add_step(Step::new(ty::NEVER_ID.to_mir(), mir::Action::Goto(id, steps)));
+                    block.add_step(Step::new(
+                        ty::NEVER_ID.to_mir(),
+                        mir::Action::Goto(id, steps),
+                    ));
                 });
 
                 func.block(old_block).add_step(Step::new(

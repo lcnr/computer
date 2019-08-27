@@ -15,6 +15,9 @@ impl TypeId {
 
 pub const EMPTY_ID: TypeId = TypeId(0);
 pub const NEVER_ID: TypeId = TypeId(1);
+pub const TRUE_ID: TypeId = TypeId(2);
+pub const FALSE_ID: TypeId = TypeId(3);
+pub const BOOL_ID: TypeId = TypeId(4);
 
 #[derive(Debug, Clone)]
 pub struct Type<'a, T> {
@@ -64,7 +67,7 @@ impl<'a> Type<'a, UnresolvedType<'a>> {
                         .collect::<Result<_, _>>()?,
                 )
             }
-            _ => unimplemented!("non struct types"),
+            Kind::Sum(v) => Kind::Sum(v),
         };
         types[id.0].kind = kind;
         Ok(())

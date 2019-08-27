@@ -45,6 +45,20 @@ pub enum Operator {
     Mul,
     /// `/`
     Div,
+    /*
+    /// `>`
+    Gt,
+    /// `>=`
+    Gte,
+    /// `==`
+    Eq,
+    /// `!=`
+    Neq,
+    /// `<=`
+    Lte,
+    */
+    /// `<`
+    Lt,
     /// `|`
     BitOr,
 }
@@ -52,11 +66,12 @@ pub enum Operator {
 impl Operator {
     pub fn priority(self) -> u32 {
         match self {
-            Operator::BitOr => 5,
-            Operator::Add => 10,
-            Operator::Sub => 10,
-            Operator::Mul => 20,
-            Operator::Div => 20,
+            Operator::Lt => 10,
+            Operator::BitOr => 20,
+            Operator::Add => 30,
+            Operator::Sub => 30,
+            Operator::Mul => 40,
+            Operator::Div => 40,
         }
     }
 
@@ -79,6 +94,9 @@ impl Operator {
             Operator::Div => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::Div), a.into(), b.into())
             }
+            Operator::Lt => {
+                crate::Expression::Binop((), meta.replace(hir::Binop::Lt), a.into(), b.into())
+            }
             Operator::BitOr => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::BitOr), a.into(), b.into())
             }
@@ -93,6 +111,7 @@ impl fmt::Display for Operator {
             Operator::Sub => write!(f, "-"),
             Operator::Mul => write!(f, "*"),
             Operator::Div => write!(f, "/"),
+            Operator::Lt => write!(f, "<"),
             Operator::BitOr => write!(f, "|"),
         }
     }
@@ -423,11 +442,25 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                 '=' => {
                     self.advance();
                     if self.current_char().map(|c| c == '=').unwrap_or(false) {
+                        self.advance();
                         unimplemented!()
                     } else {
                         self.new_token(Token::Assignment, self.byte_offset - 1..self.byte_offset)
                     }
                 }
+                '>' => unimplemented!(),
+                '<' => {
+                    self.advance();
+                    if self.current_char().map(|c| c == '=').unwrap_or(false) {
+                        unimplemented!()
+                    } else {
+                        self.new_token(
+                            Token::Operator(Operator::Lt),
+                            self.byte_offset - 1..self.byte_offset,
+                        )
+                    }
+                }
+                '!' => unimplemented!(),
                 _ => self.recover(self.byte_offset),
             }
         }
