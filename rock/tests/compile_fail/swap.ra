@@ -1,0 +1,9 @@
+# WrongArgCount("swap", 0, 2), line: 6
+# WrongArgCount("swap", 0, 1), line: 7
+# WrongArgCount("swap", 0, 5), line: 8
+
+0:
+    swap A B;
+    swap 0xff;
+    swap 0xff 0xff 0xff 0xff 0xff;
+    idle;
