@@ -44,6 +44,7 @@ pub enum Action {
     Mul(StepId, StepId),
     Div(StepId, StepId),
     BitOr(StepId, StepId),
+    Goto(BlockId, Vec<StepId>),
     Match(StepId, Vec<(TypeId, BlockId, Vec<StepId>)>),
 }
 

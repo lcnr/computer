@@ -1,0 +1,7 @@
+fn coerce(a: u32 | Empty) -> u32 {
+    match a {
+        a: u32 -> { },
+        empty: Empty -> { },
+    };
+    7
+}

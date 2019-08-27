@@ -72,7 +72,7 @@ impl Display for Mir {
                     }
                     write!(f, "!{}: %{}", start.len(), last.0)?;
                 }
-                writeln!(f, ")")?;
+                writeln!(f, "):")?;
 
                 for (i, step) in block.content.iter().enumerate() {
                     write!(f, "    ${}: %{} := ", i, step.ty.0)?;
@@ -96,6 +96,16 @@ impl Display for Mir {
                         Action::Mul(a, b) => writeln!(f, "mul ${} ${}", a.0, b.0),
                         Action::Div(a, b) => writeln!(f, "div ${} ${}", a.0, b.0),
                         Action::BitOr(a, b) => writeln!(f, "bitor ${} $ {}", a.0, b.0),
+                        Action::Goto(block, args) => {
+                            write!(f, "goto ~{}(", block.0)?;
+                            if let Some((last, start)) = args.split_last() {
+                                for arg in start.iter() {
+                                    write!(f, "${}, ", arg.0)?;
+                                }
+                                write!(f, "${}", last.0)?;
+                            }
+                            writeln!(f, ")")
+                        }
                         Action::Match(id, arms) => {
                             let write_arm = |f: &mut Formatter, (ty, block, args): &(TypeId, BlockId, Vec<StepId>)| {
                                 write!(f, "%{} -> ~{}(", ty.0, block.0)?;

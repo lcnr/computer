@@ -1,0 +1,11 @@
+# Mismatched types
+# found `u16`
+# expected `u32`
+# (9:
+
+fn test(a: Empty | u32) -> u16{
+    match a {
+        x: Empty -> 16,
+        x: u32 -> x,
+    }
+}

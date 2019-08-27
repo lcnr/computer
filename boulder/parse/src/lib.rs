@@ -244,6 +244,7 @@ fn parse_binop_rhs<'a>(
     let mut expr = match mem::replace(&mut start.item, Token::Invalid) {
         Token::Ident(v) => parse_ident_expr(start.replace(v), iter)?,
         Token::Integer(c) => Expression::Lit((), start.replace(hir::Literal::Integer(c))),
+        Token::Keyword(Keyword::Match) => parse_match(start.simplify(), iter)?,
         Token::OpenBlock(BlockDelim::Parenthesis) => {
             let expr = parse_expression(iter)?;
             consume_token(Token::CloseBlock(BlockDelim::Parenthesis), iter)?;

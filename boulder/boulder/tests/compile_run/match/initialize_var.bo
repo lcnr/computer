@@ -1,0 +1,8 @@
+fn init_var(a: u32 | Empty) -> u32 {
+    let x;
+    match a {
+        v: u32 -> x = v,
+        empty: Empty -> x = 0,
+    }: Empty;
+    x
+}
