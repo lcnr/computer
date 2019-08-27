@@ -24,7 +24,6 @@ start:
     if z jmp .loop; # this program now loops forever
 ```
 
-
 # Roadmap
 
 - [x] MVP

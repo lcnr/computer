@@ -1,6 +1,7 @@
 mod display;
+pub mod optimize;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     Uninhabited,
     Unit,
