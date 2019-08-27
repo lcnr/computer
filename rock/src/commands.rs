@@ -88,6 +88,7 @@ pub enum Command<'a> {
     Shr(Writeable),
     Shl(Writeable),
     Mov(Readable<'a>, Writeable),
+    Swap,
     Jmp(Readable<'a>),
     Ljmp(Readable<'a>),
     Ret(Readable<'a>, Readable<'a>),
@@ -107,6 +108,7 @@ pub fn parse_commands<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logg
         "shr" => with_writeable(cmd, args, l, Command::Shr),
         "shl" => with_writeable(cmd, args, l, Command::Shl),
         "mov" => with_readable_writeable(cmd, args, l, Command::Mov),
+        "swap" => without_args(cmd, args, l, Command::Swap),
         "jmp" => with_readable(cmd, args, l, Command::Jmp),
         "ljmp" => with_readable(cmd, args, l, Command::Ljmp),
         "ret" => with_readable_readable(cmd, args, l, Command::Ret),
@@ -167,7 +169,8 @@ impl<'a> Command<'a> {
             | Command::Xor(_)
             | Command::Inv(_)
             | Command::Shr(_)
-            | Command::Shl(_) => 1,
+            | Command::Shl(_)
+            | Command::Swap => 1,
             Command::Mov(r, _) | Command::Jmp(r) | Command::Ljmp(r) => 1 + r.size(),
             Command::Ret(r, s) => 1 + r.size() + s.size(),
             Command::If(_, cmd) => 1 + cmd.size(),

@@ -461,6 +461,7 @@ fn finalize(mut blocks: Vec<Block<'_>>) -> Vec<u8> {
                         }
                     }
                 }
+                Command::Swap => res.push(0x5d),
                 Command::Jmp(read) => {
                     res.push(0x60 + read.command_offset());
                     if let Readable::MemAddr(addr) = read {

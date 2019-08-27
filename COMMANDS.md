@@ -163,6 +163,7 @@ Notes:
 | `0x5a$1`   | mov $1 D     | D = mem[PC + 1]; PC += 2;                                         |
 | `0x5b$1`   | mov $1 M1    | M1 = mem[PC + 1]; PC += 2;                                        |
 | `0x5c$1`   | mov $1 M2    | M2 = mem[PC + 1]; PC += 2;                                        |
+| `0x5d`     | swap         | (A, B) = (B, A);                                                  |
 | `0x60`     | jmp A        | P1 = A;                                                           |
 | `0x61`     | jmp B        | P1 = B;                                                           |
 | `0x62`     | jmp C        | P1 = C;                                                           |
@@ -205,7 +206,6 @@ Notes:
 | `0x87$1`   | ret $1 C     | P2 = mem[PC + 1]; P1 = C;                                         |
 | `0x88$1`   | ret $1 D     | P2 = mem[PC + 1]; P1 = D;                                         |
 | `0x89$1`   | ret $1 mem   | P2 = mem[PC + 1]; P1 = mem[MR];                                   |
-| `0x8a`     | swap         | A = B && B = A;                                                   |
 | `0xc0%1`   | if z %1      | if A == 0 { execute command %1 } else { PC += 2; }                |
 | `0xc1%1`   | if n %1      | if A != 0 { execute command %1 } else { PC += 2; }                |
 | `0xc2%1`   | if gt %1     | if A > B { execute command %1 } else { PC += 2; }                 |
