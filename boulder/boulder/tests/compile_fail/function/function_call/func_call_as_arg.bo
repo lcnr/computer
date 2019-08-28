@@ -1,0 +1,14 @@
+# Mismatched types
+# found `u16`
+# expected `u32`
+# (8:
+# (13:
+# ^^^^^
+
+fn callee(a: u32) -> u32 { a }
+
+fn arg() -> u16 { 7 }
+
+fn caller() -> u32 {
+    callee(arg())
+}
