@@ -288,7 +288,12 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     solver.add_extension(actual.id(), expected);
                 }
 
-                let ret = solver.add_typed(definition.ty.item, args.last().map_or(name.simplify(), |a| name.simplify().append(a.span())).extend_right(')'));
+                let ret = solver.add_typed(
+                    definition.ty.item,
+                    args.last()
+                        .map_or(name.simplify(), |a| name.simplify().append(a.span()))
+                        .extend_right(')'),
+                );
                 Expression::FunctionCall(ret, name, args)
             }
             Expression::FieldAccess((), obj, field) => {

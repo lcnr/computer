@@ -6,7 +6,7 @@ use solver::{ConstraintSolver, EntityId, ProductionId, Solution, SolveError};
 
 mod productions;
 
-use crate::ty::{Type, TypeId};
+use crate::ty::{Kind, Type, TypeId};
 
 use productions::*;
 
@@ -20,8 +20,56 @@ pub struct Context<'a, 'b> {
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 enum EntityState {
     Unbound,
-    Subtype(Vec<TypeId>),
+    Restricted {
+        supertypes: Vec<TypeId>,
+        subtypes: Vec<TypeId>,
+    },
     Bound(Vec<TypeId>),
+}
+
+impl EntityState {
+    pub fn try_bind(&mut self, ty: TypeId, types: &[Type<TypeId>]) -> bool {
+        match self {
+            state @ EntityState::Unbound => {
+                *state = EntityState::Bound(vec![ty]);
+                true
+            }
+            EntityState::Restricted {
+                supertypes,
+                subtypes,
+            } => {
+                let e;
+                let e = match &types[ty.0].kind {
+                    Kind::Sum(e) => e,
+                    _ => {
+                        e = vec![ty];
+                        &e
+                    }
+                };
+
+                let is_valid = if !supertypes.is_empty() {
+                    e.iter().all(|t| supertypes.contains(t))
+                } else {
+                    true
+                } && subtypes.iter().fold(true, |s, t| s && e.contains(t));
+
+                if is_valid {
+                    *self = EntityState::Bound(vec![ty]);
+                    true
+                } else {
+                    false
+                }
+            }
+            EntityState::Bound(ref mut v) => {
+                if v.contains(&ty) {
+                    *v = vec![ty];
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+    }
 }
 
 impl solver::EntityState for EntityState {
@@ -29,7 +77,7 @@ impl solver::EntityState for EntityState {
 
     fn solved(&self) -> bool {
         match self {
-            EntityState::Unbound | EntityState::Subtype(_) => false,
+            EntityState::Unbound | EntityState::Restricted { .. } => false,
             EntityState::Bound(v) => v.len() == 1,
         }
     }
@@ -118,24 +166,55 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
     fn ty_error_str(types: &[Type<'a, TypeId>], expected: &EntityState) -> String {
         match expected {
             EntityState::Unbound => "any type".into(),
-            EntityState::Subtype(v) => match v.as_slice() {
-                [] => unreachable!("expected no types"),
-                [one] => format!("`{}`", types[one.0].name.item),
-                [one, two] => format!(
-                    "a combination of `{}` or `{}`",
-                    types[one.0].name.item, types[two.0].name.item
-                ),
-                [one, two, three] => format!(
-                    "a combination of `{}`, `{}` or `{}`",
-                    types[one.0].name.item, types[two.0].name.item, types[three.0].name.item
-                ),
-                _ => format!(
-                    "a combination of `{}`, `{}` or {} more",
-                    types[v[0].0].name.item,
-                    types[v[1].0].name.item,
-                    v.len() - 2
-                ),
-            },
+            EntityState::Restricted {
+                supertypes,
+                subtypes,
+            } => {
+                let sup = match supertypes.as_slice() {
+                    [] => String::new(),
+                    [one] => format!("`{}`", types[one.0].name.item),
+                    [one, two] => format!(
+                        "a combination of `{}` or `{}`",
+                        types[one.0].name.item, types[two.0].name.item
+                    ),
+                    [one, two, three] => format!(
+                        "a combination of `{}`, `{}` or `{}`",
+                        types[one.0].name.item, types[two.0].name.item, types[three.0].name.item
+                    ),
+                    _ => format!(
+                        "a combination of `{}`, `{}` or {} more",
+                        types[supertypes[0].0].name.item,
+                        types[supertypes[1].0].name.item,
+                        supertypes.len() - 2
+                    ),
+                };
+
+                let sub = match subtypes.as_slice() {
+                    [] => String::new(),
+                    [one] => format!("`containing {}`", types[one.0].name.item),
+                    [one, two] => format!(
+                        "containing `{}` or `{}`",
+                        types[one.0].name.item, types[two.0].name.item
+                    ),
+                    [one, two, three] => format!(
+                        "containing `{}`, `{}` or `{}`",
+                        types[one.0].name.item, types[two.0].name.item, types[three.0].name.item
+                    ),
+                    _ => format!(
+                        "containing `{}`, `{}` or {} more",
+                        types[subtypes[0].0].name.item,
+                        types[subtypes[1].0].name.item,
+                        subtypes.len() - 2
+                    ),
+                };
+
+                match (!sup.is_empty(), !sub.is_empty()) {
+                    (true, true) => format!("{}, {}", sup, sub),
+                    (true, false) => format!("{}", sup),
+                    (false, true) => format!("a type {}", sub),
+                    (fasle, false) => unreachable!("empty restriction"),
+                }
+            }
             EntityState::Bound(v) => match v.as_slice() {
                 [] => unreachable!("expected no types"),
                 [one] => format!("`{}`", types[one.0].name.item),
