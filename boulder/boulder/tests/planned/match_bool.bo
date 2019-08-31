@@ -1,6 +1,0 @@
-fn test() -> Bool {
-    match n < 2 {
-        t: True -> 1: u32 < 0: u32,
-        f: False -> f
-    }
-}

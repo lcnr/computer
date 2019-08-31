@@ -95,7 +95,7 @@ pub fn resolve<'a>(
                 })
                 .collect::<Result<Vec<_>, _>>()?;
 
-            unresolved.replace(build_sum_ty(types, lookup, &type_ids)?)
+            unresolved.replace(build_sum_ty(types, lookup, &type_ids))
         }
         UnresolvedType::Named(ref name) => {
             if let Some(&i) = lookup.get(&*name) {
@@ -115,7 +115,7 @@ pub fn build_sum_ty<'a>(
     types: &mut Vec<Type<'a, TypeId>>,
     lookup: &mut HashMap<Box<str>, TypeId>,
     cases: &[TypeId],
-) -> Result<TypeId, CompileError> {
+) -> TypeId {
     let mut values = Vec::with_capacity(cases.len());
     let visited = &mut HashSet::new();
     for &case in cases {
@@ -125,7 +125,7 @@ pub fn build_sum_ty<'a>(
     }
 
     if values.len() == 1 {
-        Ok(values[0])
+        values[0]
     } else {
         let (first, rest) = values
             .split_first()
@@ -143,14 +143,14 @@ pub fn build_sum_ty<'a>(
             },
         );
 
-        Ok(*lookup.entry(type_name.into()).or_insert_with(|| {
+        *lookup.entry(type_name.into()).or_insert_with(|| {
             let id = TypeId(types.len());
             types.push(Type {
                 name: Meta::fake(resolved_type_name.into()),
                 kind: Kind::Sum(values),
             });
             id
-        }))
+        })
     }
 }
 
@@ -193,9 +193,7 @@ pub fn check_recursive_ty(types: &[Type<TypeId>]) -> Result<(), CompileError> {
 
 pub fn subtypes(ty: TypeId, types: &[Type<TypeId>]) -> Vec<TypeId> {
     if let Kind::Sum(t) = &types[ty.0].kind {
-        let mut t = t.clone();
-        t.push(ty);
-        t
+        t.clone()
     } else {
         vec![ty]
     }

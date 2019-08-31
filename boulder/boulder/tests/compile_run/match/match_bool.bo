@@ -1,0 +1,6 @@
+fn test(n: Bool) -> Bool {
+    match n {
+        t: True -> t,
+        f: False -> f
+    }
+}

@@ -127,6 +127,7 @@ impl<C: fmt::Debug, T: EntityState + Eq + Hash + Clone + std::fmt::Debug, E>
                     } else {
                         (&mut end[0], &mut begin[target_id.0])
                     };
+                    /* */// println!("before {:?}: {:?}, {:?}",  rule, origin, target);
                     self.productions[prod.0].resolve(
                         &mut self.context,
                         SolvedEntity {
@@ -138,6 +139,7 @@ impl<C: fmt::Debug, T: EntityState + Eq + Hash + Clone + std::fmt::Debug, E>
                             state: target,
                         },
                     )?;
+                    /* */// println!("after {:?}: {:?}, {:?}\n",  rule, origin, target);
                 }
                 &Rule::BackwardsProduction(prod, origin_id, actual_target) => {
                     let (begin, end) = self.entities.split_at_mut(id.max(origin_id.0));
@@ -146,6 +148,7 @@ impl<C: fmt::Debug, T: EntityState + Eq + Hash + Clone + std::fmt::Debug, E>
                     } else {
                         (&mut end[0], &mut begin[id])
                     };
+                    /* */// println!("before {:?}: {:?}, {:?}",  rule, origin, target);
                     self.productions[prod.0].resolve_backwards(
                         &mut self.context,
                         Entity {
@@ -157,6 +160,7 @@ impl<C: fmt::Debug, T: EntityState + Eq + Hash + Clone + std::fmt::Debug, E>
                             value: target.solution(),
                         },
                     )?;
+                    /* */// println!("after {:?}: {:?}, {:?}\n",  rule, origin, target);
                 }
             }
         }
@@ -167,6 +171,7 @@ impl<C: fmt::Debug, T: EntityState + Eq + Hash + Clone + std::fmt::Debug, E>
     /// finds a solution for the current set of constraints,
     /// returning an error in case there are either multiple or none.
     pub fn solve(&mut self) -> Result<Solution<T::Result>, SolveError<T, E>> {
+        /* */// println!("{:?},\n{:?}", self.entities, self.productions);
         let mut all_ids: Box<[usize]> = (0..self.entities.len()).map(|v| v).collect::<Box<_>>();
         let mut step_count = 0;
         let mut first = true;

@@ -6,7 +6,7 @@ use solver::{ConstraintSolver, EntityId, ProductionId, Solution, SolveError};
 
 mod productions;
 
-use crate::ty::{Kind, Type, TypeId};
+use crate::ty::{self, Kind, Type, TypeId};
 
 use productions::*;
 
@@ -21,48 +21,185 @@ pub struct Context<'a, 'b> {
 enum EntityState {
     Unbound,
     Restricted {
+        /// at most a combination of the listed types
         supertypes: Vec<TypeId>,
+        /// contains at least these subtypes
         subtypes: Vec<TypeId>,
     },
     Bound(Vec<TypeId>),
 }
 
 impl EntityState {
-    pub fn try_bind(&mut self, ty: TypeId, types: &[Type<TypeId>]) -> bool {
-        match self {
-            state @ EntityState::Unbound => {
-                *state = EntityState::Bound(vec![ty]);
+    fn simplify_restriction(
+        supertypes: Vec<TypeId>,
+        subtypes: Vec<TypeId>,
+        types: &mut Vec<Type<TypeId>>,
+        lookup: &mut HashMap<Box<str>, TypeId>,
+    ) -> Self {
+        if supertypes.len() == 1 {
+            EntityState::Bound(supertypes)
+        } else if supertypes == subtypes {
+            EntityState::Bound(vec![ty::build_sum_ty(types, lookup, &supertypes)])
+        } else {
+            EntityState::Restricted {
+                supertypes,
+                subtypes,
+            }
+        }
+    }
+
+    pub fn try_subtype(
+        &mut self,
+        mut restriction: Vec<TypeId>,
+        types: &mut Vec<Type<TypeId>>,
+        lookup: &mut HashMap<Box<str>, TypeId>,
+    ) -> bool {
+        match &self {
+            EntityState::Unbound => {
+                *self = EntityState::Restricted {
+                    supertypes: Vec::new(),
+                    subtypes: restriction,
+                };
                 true
             }
             EntityState::Restricted {
                 supertypes,
                 subtypes,
             } => {
-                let e;
-                let e = match &types[ty.0].kind {
-                    Kind::Sum(e) => e,
-                    _ => {
-                        e = vec![ty];
-                        &e
-                    }
-                };
-
-                let is_valid = if !supertypes.is_empty() {
-                    e.iter().all(|t| supertypes.contains(t))
-                } else {
+                if supertypes.is_empty() || !restriction.iter().any(|r| !supertypes.contains(r)) {
+                    restriction.extend(subtypes.iter().copied());
+                    restriction.sort();
+                    restriction.dedup();
+                    *self =
+                        Self::simplify_restriction(supertypes.to_vec(), restriction, types, lookup);
                     true
-                } && subtypes.iter().fold(true, |s, t| s && e.contains(t));
+                } else {
+                    false
+                }
+            }
+            EntityState::Bound(v) => {
+                let allowed_types = v
+                    .iter()
+                    .copied()
+                    .filter(|&v| {
+                        let subtypes = ty::subtypes(v, types);
+                        restriction.iter().all(|ty| subtypes.contains(ty))
+                    })
+                    .collect::<Vec<_>>();
 
-                if is_valid {
-                    *self = EntityState::Bound(vec![ty]);
+                if !allowed_types.is_empty() {
+                    *self = EntityState::Bound(allowed_types);
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+    }
+
+    pub fn try_supertype(
+        &mut self,
+        restriction: Vec<TypeId>,
+        types: &mut Vec<Type<TypeId>>,
+        lookup: &mut HashMap<Box<str>, TypeId>,
+    ) -> bool {
+        match &self {
+            EntityState::Unbound => {
+                *self = EntityState::Restricted {
+                    supertypes: restriction,
+                    subtypes: Vec::new(),
+                };
+                true
+            }
+            EntityState::Restricted {
+                supertypes,
+                subtypes,
+            } => {
+                let mut allowed_types = supertypes
+                    .iter()
+                    .copied()
+                    .filter(|ty| restriction.contains(ty))
+                    .collect::<Vec<_>>();
+
+                allowed_types.sort();
+                allowed_types.dedup();
+                if !allowed_types.is_empty() && subtypes.iter().all(|ty| allowed_types.contains(ty))
+                {
+                    *self =
+                        Self::simplify_restriction(allowed_types, subtypes.to_vec(), types, lookup);
+                    true
+                } else {
+                    false
+                }
+            }
+            EntityState::Bound(v) => {
+                let allowed_types = v
+                    .iter()
+                    .copied()
+                    .filter(|&v| {
+                        ty::subtypes(v, types)
+                            .iter()
+                            .all(|ty| restriction.contains(ty))
+                    })
+                    .collect::<Vec<_>>();
+
+                if !allowed_types.is_empty() {
+                    *self = EntityState::Bound(allowed_types);
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+    }
+
+    pub fn try_bind(&mut self, ty: Vec<TypeId>, types: &[Type<TypeId>]) -> bool {
+        match self {
+            state @ EntityState::Unbound => {
+                *state = EntityState::Bound(ty);
+                true
+            }
+            EntityState::Restricted {
+                supertypes,
+                subtypes,
+            } => {
+                let mut allowed_types = Vec::new();
+                for ty in ty {
+                    let e;
+                    let e = match &types[ty.0].kind {
+                        Kind::Sum(e) => e,
+                        _ => {
+                            e = vec![ty];
+                            &e
+                        }
+                    };
+
+                    let is_valid = if !supertypes.is_empty() {
+                        e.iter().all(|t| supertypes.contains(t))
+                    } else {
+                        true
+                    } && subtypes.iter().fold(true, |s, t| s && e.contains(t));
+
+                    if is_valid {
+                        allowed_types.push(ty);
+                    }
+                }
+
+                if !allowed_types.is_empty() {
+                    *self = EntityState::Bound(allowed_types);
                     true
                 } else {
                     false
                 }
             }
             EntityState::Bound(ref mut v) => {
-                if v.contains(&ty) {
-                    *v = vec![ty];
+                let allowed_types = v
+                    .iter()
+                    .copied()
+                    .filter(|t| ty.contains(t))
+                    .collect::<Vec<_>>();
+                if !allowed_types.is_empty() {
+                    *self = EntityState::Bound(allowed_types);
                     true
                 } else {
                     false
@@ -191,7 +328,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
 
                 let sub = match subtypes.as_slice() {
                     [] => String::new(),
-                    [one] => format!("`containing {}`", types[one.0].name.item),
+                    [one] => format!("containing `{}`", types[one.0].name.item),
                     [one, two] => format!(
                         "containing `{}` or `{}`",
                         types[one.0].name.item, types[two.0].name.item
@@ -212,7 +349,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
                     (true, true) => format!("{}, {}", sup, sub),
                     (true, false) => format!("{}", sup),
                     (false, true) => format!("a type {}", sub),
-                    (fasle, false) => unreachable!("empty restriction"),
+                    (false, false) => unreachable!("empty restriction"),
                 }
             }
             EntityState::Bound(v) => match v.as_slice() {
