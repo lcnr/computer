@@ -1,57 +1,83 @@
 start:
+    # after arbitrary code
     mov 12 C;
-    mov 5 D;
-    # push the return addr of the stack
-    mov 1 M2;
-    mov 0 M1;
-    mov mem A;
-    mov A M1;
-    mov start B;
+    mov 15 D;
+                    # stack
+    mov 0xff M1;
+    mov 0xff M2;
+    mov mem B;
+    mov 1 A;
+    add B;
+    mov 0xff A;
+    sub M1;
+    mov .return A;  # return adress
+    mov A mem;
+                    # push variables on stack
+    mov 1 A;
+    add B;
+    mov 0xff A;
+    sub M1;
+    mov C mem;
+    
+    mov 1 A;
+    add B;
+    mov 0xff A;
+    sub M1;
+    mov D mem;
+    mov 0xff M1;
+    mov 0xff M2; 
     mov B mem;
-    mov 1 B;
-    add A;
-    mov A M1;
-    mov .next_pos B;
-    mov B mem;
-    mov 1 B;
-    add A;
-    mov 0 M1;
-    mov mem A;
-.next_pos:
-    # the result should now be in A
-    jmp .next_pos;
+    
+                    #function call
+    ljmp multiply;
+    
+.return:
+jmp .return;
 
-
-# calculate C * D, storing the result in C
+# multiply two variables on top of stack
 multiply:
-    mov 0 B;
+    mov 0xff M1;    #catch variable ##1
+    mov 0xff M2;
+    mov mem B;
+    mov 0xff A;
+    sub M1;
+    mov mem C;
+    
+    mov 1 A;        #catch variable ##2
+    swap;
+    sub A;
+    swap;
+    mov 0xff A;
+    sub M1;
+    mov mem D;
+    
+    mov C A;
+    if z jmp .end;
+    mov D A;
+    if z jmp .end;
+    
 .loop:
     mov C A;
-    mov B C;
-    if z jmp .end;
     mov 1 B;
     sub A;
-    mov C B;
     mov A C;
-    mov D A;
-    add B;
+    if z jmp .end;
+    
+    mov mem A;
+    mov D B;
+    add D;
     jmp .loop;
+    
 .end:
-    # pop the return addr from the stack, jump back
-    mov 1 M2;
-    mov 0 M1;
+    mov 0xff M1;
+    mov 0xff M2;
     mov mem A;
-    mov 1 B;
+    mov 2 B;
     sub A;
-    mov A M1;
-    mov mem D;
-    sub A;
-    mov A M1;
+    mov A mem;
+    mov 0xff A;
     mov mem B;
-    mov 0 M1; # update stack pointer
-    mov A mem; #not sure
-    mov D A;
-    mov mem A;
-    ret B A;
-
-
+    sub M1;
+    mov D A;        #result in A
+    ret 0 mem;
+    
