@@ -196,8 +196,12 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 }
                 Expression::Match((), meta, value, new)
             }
-            Expression::Loop((), id, body) => unimplemented!("loop"),
-            Expression::Break(_, _, _) => unimplemented!("break"),
+            Expression::Loop((), _, _) => unimplemented!("loop"),
+            Expression::Break((), scope, expr) => Expression::Break(
+                (),
+                scope,
+                Box::new(expr.resolve_identifiers(variables, variable_lookup, function_lookup)?),
+            ),
             Expression::TypeRestriction(expr, ty) => Expression::TypeRestriction(
                 Box::new(expr.resolve_identifiers(variables, variable_lookup, function_lookup)?),
                 ty,
@@ -336,8 +340,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     .collect::<Result<_, _>>()?;
                 Expression::Match(result, meta, Box::new(value), match_arms)
             }
-            Expression::Loop(ty, id, body) => unimplemented!("loop"),
-            Expression::Break(_, _, _) => unimplemented!("break"),
+            Expression::Loop((), _id, _body) => unimplemented!("loop"),
+            Expression::Break((), _, _) => unimplemented!("break"),
             Expression::TypeRestriction(expr, ty) => {
                 let mut expr = expr.type_constraints(functions, variables, solver)?;
                 let meta = ty.simplify();
@@ -459,7 +463,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
                     match_arms,
                 )
             }
-            Expression::Loop(ty, id, body) => unimplemented!("loop"),
+            Expression::Loop(_id, _scope, _body) => unimplemented!("loop"),
             Expression::Break(_, _, _) => unimplemented!("break"),
             Expression::TypeRestriction(expr, _) => expr.insert_types(types, type_result),
         }
@@ -647,7 +651,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 *var_lookup = initialized_variables;
                 Ok(step)
             }
-            Expression::Loop(ty, id, body) => unimplemented!("loop"),
+            Expression::Loop(_ty, _scope, _body) => unimplemented!("loop"),
             Expression::Break(_, _, _) => unimplemented!("break"),
             Expression::TypeRestriction(_, ()) => unreachable!("type restriction after type check"),
         }
