@@ -1,0 +1,8 @@
+fn scoped() -> u32 {
+    'block: {
+        {
+            break 'block 7;
+            5
+        } + 5
+    }
+}

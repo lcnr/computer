@@ -40,6 +40,11 @@ pub enum Expression<'a, V: IdentifierState, N: TypeState> {
         Meta<'a, Option<Box<str>>>,
         Box<Expression<'a, V, N>>,
     ),
+    Break(
+        N::Type,
+        Meta<'a, Option<Box<str>>>,
+        Box<Expression<'a, V, N>>,
+    ),
     TypeRestriction(Box<Expression<'a, V, N>>, N::Restriction),
 }
 
@@ -61,7 +66,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     }
                 }
             }
-            
+
             CompileError::new(
                 &name,
                 format_args!("Cannot find value `{}` in this scope", name.item),
@@ -192,6 +197,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 Expression::Match((), meta, value, new)
             }
             Expression::Loop((), id, body) => unimplemented!("loop"),
+            Expression::Break(_, _, _) => unimplemented!("break"),
             Expression::TypeRestriction(expr, ty) => Expression::TypeRestriction(
                 Box::new(expr.resolve_identifiers(variables, variable_lookup, function_lookup)?),
                 ty,
@@ -331,6 +337,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 Expression::Match(result, meta, Box::new(value), match_arms)
             }
             Expression::Loop(ty, id, body) => unimplemented!("loop"),
+            Expression::Break(_, _, _) => unimplemented!("break"),
             Expression::TypeRestriction(expr, ty) => {
                 let mut expr = expr.type_constraints(functions, variables, solver)?;
                 let meta = ty.simplify();
@@ -362,7 +369,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             | &Expression::FunctionCall(id, _, _)
             | &Expression::FieldAccess(id, _, _)
             | &Expression::Match(id, _, _, _)
-            | &Expression::Loop(id, _, _) => id,
+            | &Expression::Loop(id, _, _) 
+            | &Expression::Break(id, _, _) => id,
             &Expression::TypeRestriction(_, ()) => {
                 unreachable!("type restriction after type check")
             }
@@ -380,7 +388,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             | Expression::FunctionCall(id, _, _)
             | Expression::FieldAccess(id, _, _)
             | Expression::Match(id, _, _, _)
-            | Expression::Loop(id, _, _) => id,
+            | Expression::Loop(id, _, _)
+            | Expression::Break(id, _, _)=> id,
             Expression::TypeRestriction(_, ()) => unreachable!("type restriction after type check"),
         }
     }
@@ -451,6 +460,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
                 )
             }
             Expression::Loop(ty, id, body) => unimplemented!("loop"),
+            Expression::Break(_, _, _) => unimplemented!("break"),
             Expression::TypeRestriction(expr, _) => expr.insert_types(types, type_result),
         }
     }
@@ -638,6 +648,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 Ok(step)
             }
             Expression::Loop(ty, id, body) => unimplemented!("loop"),
+            Expression::Break(_, _, _) => unimplemented!("break"),
             Expression::TypeRestriction(_, ()) => unreachable!("type restriction after type check"),
         }
     }
@@ -661,6 +672,7 @@ where
             Expression::FieldAccess(_, _, field) => field.span().extend_left('.'),
             Expression::Match(_, meta, _, _) => meta.clone(),
             Expression::Loop(_, id, _) => id.simplify(),
+            Expression::Break(_, arg, _) => arg.simplify(),
             Expression::TypeRestriction(expr, _) => expr.span(),
         }
     }

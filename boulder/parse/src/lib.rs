@@ -360,6 +360,17 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
             let expr = parse_match(start.simplify(), iter)?;
             parse_binop(expr, iter)
         }
+
+        Token::Keyword(Keyword::Break) => {
+            let mut next = iter.next().unwrap();
+            let scope = if let Token::Scope(v) = mem::replace(&mut next.item, Token::Invalid) {
+                next.replace(Some(v))
+            } else {
+                iter.step_back(next);
+                start.replace(None)
+            };
+            Ok(Expression::Break((), scope, Box::new(parse_expression(iter)?)))
+        }
         Token::Ident(v) => {
             let expr = parse_ident_expr(start.replace(v), iter)?;
             let next = iter.next().unwrap();

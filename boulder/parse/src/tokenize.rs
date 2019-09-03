@@ -12,6 +12,10 @@ pub enum Keyword {
     Struct,
     /// `match`
     Match,
+    /// `loop`
+    Loop,
+    /// `break`
+    Break,
 }
 
 impl fmt::Display for Keyword {
@@ -21,6 +25,8 @@ impl fmt::Display for Keyword {
             Keyword::Let => write!(f, "let"),
             Keyword::Struct => write!(f, "struct"),
             Keyword::Match => write!(f, "match"),
+            Keyword::Loop => write!(f, "loop"),
+            Keyword::Break => write!(f, "loop"),
         }
     }
 }
@@ -294,6 +300,8 @@ impl<'a, 'b: 'a> TokenIter<'b> {
             "let" => self.new_token(Token::Keyword(Keyword::Let), origin),
             "struct" => self.new_token(Token::Keyword(Keyword::Struct), origin),
             "match" => self.new_token(Token::Keyword(Keyword::Match), origin),
+            "loop" => self.new_token(Token::Keyword(Keyword::Loop), origin),
+            "break" => self.new_token(Token::Keyword(Keyword::Break), origin),
             v => self.new_token(Token::Ident(v.into()), origin),
         }
     }
@@ -508,6 +516,9 @@ mod tests {
 
     #[test]
     fn scope() {
-        assert_eq!(Token::Scope("a".into()), TokenIter::new("'a").next().unwrap().item);
+        assert_eq!(
+            Token::Scope("a".into()),
+            TokenIter::new("'a").next().unwrap().item
+        );
     }
 }
