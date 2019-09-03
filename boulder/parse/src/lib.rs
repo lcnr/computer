@@ -369,7 +369,11 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
                 iter.step_back(next);
                 start.replace(None)
             };
-            Ok(Expression::Break((), scope, Box::new(parse_expression(iter)?)))
+            Ok(Expression::Break(
+                (),
+                scope,
+                Box::new(parse_expression(iter)?),
+            ))
         }
         Token::Ident(v) => {
             let expr = parse_ident_expr(start.replace(v), iter)?;

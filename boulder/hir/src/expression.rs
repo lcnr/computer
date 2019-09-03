@@ -369,7 +369,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             | &Expression::FunctionCall(id, _, _)
             | &Expression::FieldAccess(id, _, _)
             | &Expression::Match(id, _, _, _)
-            | &Expression::Loop(id, _, _) 
+            | &Expression::Loop(id, _, _)
             | &Expression::Break(id, _, _) => id,
             &Expression::TypeRestriction(_, ()) => {
                 unreachable!("type restriction after type check")
@@ -389,7 +389,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             | Expression::FieldAccess(id, _, _)
             | Expression::Match(id, _, _, _)
             | Expression::Loop(id, _, _)
-            | Expression::Break(id, _, _)=> id,
+            | Expression::Break(id, _, _) => id,
             Expression::TypeRestriction(_, ()) => unreachable!("type restriction after type check"),
         }
     }
