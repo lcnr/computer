@@ -1,0 +1,85 @@
+start:
+    #arbitrary code
+    mov 12 C;
+    mov 15 D;
+    
+    mov 0xff M2;
+    mov 0 M1;
+    mov mem A;
+    mov 1 B;
+    add M1;
+    add A;
+    mov .return B;
+    mov B mem;
+    
+    mov 1 B;
+    add M1;
+    add A;
+    mov start B;
+    mov B mem;
+
+    mov 1 B;
+    add M1;
+    add A;
+    mov C mem;
+    
+    add M1;
+    add A;
+    mov D mem;
+    
+    mov 0 M1;
+    mov A mem;
+
+    ljmp multiply;
+
+.return:
+    jmp .return;
+
+multiply:
+    mov 0xff M2;
+    mov 0 M1;
+    mov mem A;
+    mov 0 B;
+    add M1;
+    
+    mov mem D;
+    
+    mov 1 B;
+    sub M1;
+    mov mem C;
+    
+    mov C A;
+    if z jmp .end;
+    mov D A;
+    if z jmp .end;
+    
+.loop:
+    mov C A;
+    mov 1 B;
+    sub A;
+    mov A C;
+    if z jmp .end;
+    
+    mov mem A;
+    mov D B;
+    add D;
+    jmp .loop;
+
+.end:
+    mov 0 M1;
+    mov 2 B;
+    mov mem A;
+    sub M1;
+    sub A;
+    
+    mov mem C;
+    mov 1 B;
+    sub M1;
+    sub A;
+    
+    mov 0 M1;
+    mov A mem;
+    mov A M1;
+    
+    mov D A;
+    ret mem C;
