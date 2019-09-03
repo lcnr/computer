@@ -88,8 +88,20 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
 
     pub fn set_body(
         &mut self,
-        body: Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>>,
+        mut body: Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>>,
     ) {
+        if let Expression::Block(a, name, b) = body {
+            body = Expression::Block(
+                a,
+                name.map(|e| {
+                    assert!(e.is_none());
+                    Some("fn".into())
+                }),
+                b,
+            );
+        } else {
+            unimplemented!("function with a non block as body type: {:?}", body);
+        }
         self.body = body;
     }
 

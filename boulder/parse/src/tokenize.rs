@@ -131,6 +131,8 @@ pub enum Token {
     Comma,
     Dot,
     Arrow,
+    /// `'`
+    Scope(Box<str>),
     Invalid,
     EOF,
 }
@@ -154,6 +156,7 @@ impl fmt::Display for Token {
             Token::Comma => write!(f, ","),
             Token::Dot => write!(f, "."),
             Token::Arrow => write!(f, "->"),
+            Token::Scope(v) => write!(f, "'{}", v),
             Token::Invalid => write!(f, "<invalid token>"),
             Token::EOF => write!(f, "<EOF>"),
         }
@@ -206,7 +209,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
         c.is_whitespace()
             || match c {
                 ';' | ':' | '(' | ')' | '{' | '}' | '[' | ']' | ',' | '.' | '=' | '+' | '-'
-                | '*' | '/' | '|' => true,
+                | '*' | '/' | '|' | '\'' => true,
                 _ => false,
             }
     }
@@ -244,6 +247,29 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                     self.byte_offset += c.len_utf8();
                 }
             }
+        }
+    }
+
+    /// expects the first character to be `'`
+    fn parse_char_or_scope(&mut self) -> Meta<'a, Token> {
+        let start = self.byte_offset;
+        // TODO: accept char literal
+        self.advance();
+        if self
+            .current_char()
+            .map_or(false, |first| first.is_alphabetic() || first == '_')
+        {
+            let mut ident = self.parse_ident();
+            ident.span.start -= 1;
+            ident.map(|i| {
+                if let Token::Ident(v) = i {
+                    Token::Scope(v)
+                } else {
+                    unimplemented!("invalid scopes");
+                }
+            })
+        } else {
+            self.recover(start)
         }
     }
 
@@ -461,6 +487,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                     }
                 }
                 '!' => unimplemented!(),
+                '\'' => self.parse_char_or_scope(),
                 _ => self.recover(self.byte_offset),
             }
         }
@@ -472,5 +499,15 @@ impl<'a> Iterator for TokenIter<'a> {
 
     fn next(&mut self) -> Option<Meta<'a, Token>> {
         Some(self.next_token())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scope() {
+        assert_eq!(Token::Scope("a".into()), TokenIter::new("'a").next().unwrap().item);
     }
 }

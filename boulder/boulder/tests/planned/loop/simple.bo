@@ -1,0 +1,5 @@
+fn loopidoo() -> u32 {
+    'loo: loop {
+        break 'loo 7;
+    }
+}

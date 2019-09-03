@@ -242,6 +242,17 @@ fn parse_binop_rhs<'a>(
 ) -> Result<Expression<'a>, CompileError> {
     let mut start = iter.next().unwrap();
     let mut expr = match mem::replace(&mut start.item, Token::Invalid) {
+        Token::Scope(v) => {
+            consume_token(Token::Colon, iter)?;
+            let next = iter.next().unwrap();
+            match next.item {
+                Token::OpenBlock(BlockDelim::Brace) => {
+                    let block = parse_block(Some(start.map(|_| v)), iter)?;
+                    parse_binop(block, iter)
+                }
+                _ => CompileError::expected(&[Token::OpenBlock(BlockDelim::Brace)], &start),
+            }?
+        }
         Token::Ident(v) => parse_ident_expr(start.replace(v), iter)?,
         Token::Integer(c) => Expression::Lit((), start.replace(hir::Literal::Integer(c))),
         Token::Keyword(Keyword::Match) => parse_match(start.simplify(), iter)?,
@@ -325,8 +336,19 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
     let mut start = iter.next().unwrap();
     match mem::replace(&mut start.item, Token::Invalid) {
         Token::OpenBlock(BlockDelim::Brace) => {
-            let block = parse_block(iter)?;
+            let block = parse_block(None, iter)?;
             parse_binop(block, iter)
+        }
+        Token::Scope(v) => {
+            consume_token(Token::Colon, iter)?;
+            let next = iter.next().unwrap();
+            match next.item {
+                Token::OpenBlock(BlockDelim::Brace) => {
+                    let block = parse_block(Some(start.map(|_| v)), iter)?;
+                    parse_binop(block, iter)
+                }
+                _ => CompileError::expected(&[Token::OpenBlock(BlockDelim::Brace)], &start),
+            }
         }
         Token::OpenBlock(BlockDelim::Parenthesis) => {
             let expr = parse_expression(iter)?;
@@ -374,7 +396,10 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
     }
 }
 
-fn parse_block<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, CompileError> {
+fn parse_block<'a>(
+    name: Option<Meta<'a, Box<str>>>,
+    iter: &mut TokenIter<'a>,
+) -> Result<Expression<'a>, CompileError> {
     let mut block = Vec::new();
     let start = iter.current_offset();
     let line = iter.current_line();
@@ -392,7 +417,14 @@ fn parse_block<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, CompileEr
             let end = iter.current_offset();
             return Ok(Expression::Block(
                 (),
-                Meta::empty(iter.source(), line, start..end).extend_left('{'),
+                name.map_or_else(
+                    || {
+                        Meta::empty(iter.source(), line, start..end)
+                            .map(|_| None)
+                            .extend_left('{')
+                    },
+                    |v| v.map(|v| Some(v)),
+                ),
                 block,
             ));
         }
@@ -478,7 +510,7 @@ fn parse_function<'a>(iter: &mut TokenIter<'a>) -> Result<Function<'a>, CompileE
         CompileError::expected(&Token::OpenBlock(BlockDelim::Brace), &tok)?;
     }
 
-    func.set_body(parse_block(iter)?);
+    func.set_body(parse_block(None, iter)?);
 
     Ok(func)
 }

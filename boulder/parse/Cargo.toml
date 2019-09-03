@@ -7,6 +7,3 @@ edition = "2018"
 [dependencies]
 diagnostics = { path =  "../diagnostics" }
 hir = { path = "../hir" }
-
-[features]
-scope = []

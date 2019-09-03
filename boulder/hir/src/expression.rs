@@ -12,7 +12,11 @@ pub struct MatchArm<'a, V: IdentifierState, N: TypeState> {
 
 #[derive(Debug, Clone)]
 pub enum Expression<'a, V: IdentifierState, N: TypeState> {
-    Block(N::Type, Meta<'a, ()>, Vec<Expression<'a, V, N>>),
+    Block(
+        N::Type,
+        Meta<'a, Option<Box<str>>>,
+        Vec<Expression<'a, V, N>>,
+    ),
     Variable(N::Type, V::Variable),
     Lit(N::Type, Meta<'a, Literal>),
     Binop(
@@ -30,6 +34,11 @@ pub enum Expression<'a, V: IdentifierState, N: TypeState> {
         Meta<'a, ()>,
         Box<Expression<'a, V, N>>,
         Vec<MatchArm<'a, V, N>>,
+    ),
+    Loop(
+        N::Type,
+        Meta<'a, Option<Box<str>>>,
+        Box<Expression<'a, V, N>>,
     ),
     TypeRestriction(Box<Expression<'a, V, N>>, N::Restriction),
 }
@@ -52,7 +61,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     }
                 }
             }
-
+            
             CompileError::new(
                 &name,
                 format_args!("Cannot find value `{}` in this scope", name.item),
@@ -88,7 +97,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                         name,
                         ty: type_name,
                     });
-                    Expression::Block((), meta.simplify(), Vec::new())
+                    Expression::Block((), meta.simplify().map(|_| None), Vec::new())
                 }
             },
             Expression::Lit((), lit) => Expression::Lit((), lit),
@@ -182,6 +191,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 }
                 Expression::Match((), meta, value, new)
             }
+            Expression::Loop((), id, body) => unimplemented!("loop"),
             Expression::TypeRestriction(expr, ty) => Expression::TypeRestriction(
                 Box::new(expr.resolve_identifiers(variables, variable_lookup, function_lookup)?),
                 ty,
@@ -320,6 +330,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     .collect::<Result<_, _>>()?;
                 Expression::Match(result, meta, Box::new(value), match_arms)
             }
+            Expression::Loop(ty, id, body) => unimplemented!("loop"),
             Expression::TypeRestriction(expr, ty) => {
                 let mut expr = expr.type_constraints(functions, variables, solver)?;
                 let meta = ty.simplify();
@@ -350,7 +361,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             | &Expression::Assignment(id, _, _)
             | &Expression::FunctionCall(id, _, _)
             | &Expression::FieldAccess(id, _, _)
-            | &Expression::Match(id, _, _, _) => id,
+            | &Expression::Match(id, _, _, _)
+            | &Expression::Loop(id, _, _) => id,
             &Expression::TypeRestriction(_, ()) => {
                 unreachable!("type restriction after type check")
             }
@@ -367,7 +379,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             | Expression::Assignment(id, _, _)
             | Expression::FunctionCall(id, _, _)
             | Expression::FieldAccess(id, _, _)
-            | Expression::Match(id, _, _, _) => id,
+            | Expression::Match(id, _, _, _)
+            | Expression::Loop(id, _, _) => id,
             Expression::TypeRestriction(_, ()) => unreachable!("type restriction after type check"),
         }
     }
@@ -437,6 +450,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
                     match_arms,
                 )
             }
+            Expression::Loop(ty, id, body) => unimplemented!("loop"),
             Expression::TypeRestriction(expr, _) => expr.insert_types(types, type_result),
         }
     }
@@ -623,6 +637,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 *var_lookup = initialized_variables;
                 Ok(step)
             }
+            Expression::Loop(ty, id, body) => unimplemented!("loop"),
             Expression::TypeRestriction(_, ()) => unreachable!("type restriction after type check"),
         }
     }
@@ -645,6 +660,7 @@ where
             Expression::FunctionCall(_, name, _args) => name.span(),
             Expression::FieldAccess(_, _, field) => field.span().extend_left('.'),
             Expression::Match(_, meta, _, _) => meta.clone(),
+            Expression::Loop(_, id, _) => id.simplify(),
             Expression::TypeRestriction(expr, _) => expr.span(),
         }
     }
