@@ -2,7 +2,7 @@ start:
     # after arbitrary code
     mov 12 C;
     mov 15 D;
-                    # stack
+                    # stack 
     mov 0xff M1;
     mov 0xff M2;
     mov mem B;
@@ -10,7 +10,14 @@ start:
     add B;
     mov 0xff A;
     sub M1;
-    mov .return A;  # return adress
+    mov .return A;  # return adress section (P1)
+    mov A mem;
+    
+    mov 1 A;
+    add B;
+    mov 0xff A;
+    sub M1;
+    mov start A;    #return adress block (P2)
     mov A mem;
                     # push variables on stack
     mov 1 A;
@@ -78,6 +85,18 @@ multiply:
     mov 0xff A;
     mov mem B;
     sub M1;
+    mov mem C;      #block return
+    
+    mov 0xff M1;
+    mov 0xff M2;
+    mov mem A;
+    mov 1 B;
+    sub A;
+    mov A mem;
+    mov 0xff A;
+    mov mem B;
+    sub M1;         #section return
+    
     mov D A;        #result in A
-    ret 0 mem;
+    ret C mem;
     
