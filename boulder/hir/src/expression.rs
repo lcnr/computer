@@ -36,19 +36,19 @@ pub enum Expression<'a, V: IdentifierState, N: TypeState> {
     TypeRestriction(Box<Expression<'a, V, N>>, N::Restriction),
 }
 
-pub struct ResolveIdentifiersContext<'a, 'b, 'c, 'd, 'e, 'f, 'g> {
+pub struct ResolveIdentifiersContext<'a, 'b> {
     pub variables: &'b mut Vec<function::Variable<'a, Option<UnresolvedType<'a>>>>,
-    pub variable_lookup: &'c mut Vec<Vec<(Box<str>, VariableId)>>,
-    pub function_lookup: &'d HashMap<Box<str>, Meta<'a, FunctionId>>,
-    pub scope_lookup: &'e mut Vec<Option<Box<str>>>,
-    pub types: &'f mut Vec<Type<'a, TypeId>>,
-    pub type_lookup: &'g mut HashMap<Box<str>, TypeId>,
+    pub variable_lookup: &'b mut Vec<Vec<(Box<str>, VariableId)>>,
+    pub function_lookup: &'b HashMap<Box<str>, Meta<'a, FunctionId>>,
+    pub scope_lookup: &'b mut Vec<Option<Box<str>>>,
+    pub types: &'b mut Vec<Type<'a, TypeId>>,
+    pub type_lookup: &'b mut HashMap<Box<str>, TypeId>,
 }
 
 impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
     pub fn resolve_identifiers(
         self,
-        ctx: &mut ResolveIdentifiersContext<'a, '_, '_, '_, '_, '_, '_>,
+        ctx: &mut ResolveIdentifiersContext<'a, '_>,
     ) -> Result<Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>>, CompileError> {
         fn get_id<'b>(
             name: Meta<'b, Box<str>>,
