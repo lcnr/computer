@@ -1,7 +1,8 @@
+# stack in M2 = xff; M1 = 0;
 start:
     #arbitrary code
-    mov 12 C;
-    mov 15 D;
+    mov 2 C;
+    mov 5 D;
     
     mov 0xff M2;
     mov 0 M1;
@@ -42,15 +43,15 @@ multiply:
     mov 0 B;
     add M1;
     
-    mov mem D;
+    mov mem C;
     
     mov 1 B;
     sub M1;
-    mov mem C;
+    mov mem D;
     
-    mov C A;
-    if z jmp .end;
     mov D A;
+    if z jmp .end;
+    mov C A;
     if z jmp .end;
     
 .loop:
@@ -82,4 +83,4 @@ multiply:
     mov A M1;
     
     mov D A;
-    ret mem C;
+    ret C mem;
