@@ -122,7 +122,7 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
                 .map(|(i, v)| (v.name.item.clone(), VariableId(i)))
                 .collect(),
         );
-        
+
         let mut scope_lookup = Vec::new();
         scope_lookup.push(Some("fn".into()));
 
