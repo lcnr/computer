@@ -1,0 +1,4 @@
+fn na() -> u32 {
+    let True = 7;
+    True
+}
