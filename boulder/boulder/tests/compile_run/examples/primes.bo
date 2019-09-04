@@ -1,17 +1,17 @@
 fn is_prime(n: u32) -> Bool {
     match n < 2 {
-        t: True -> False ,
+        t: True -> False,
         f: False -> is_prime_recurse(n, n - 1)
     }
 }
 
 fn is_prime_recurse(n: u32, i: u32) -> Bool {
-    match i < 2{
-        t: True -> 0: u32 < 1: u32,
+    match i < 2 {
+        t: True -> True,
         f: False -> match mod(n,i) < 1{
             t: True -> False,
             f: False -> is_prime_recurse(n, i - 1),
-        }
+        }: Bool
     }
 }
 

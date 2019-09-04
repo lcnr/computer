@@ -36,15 +36,19 @@ pub enum Expression<'a, V: IdentifierState, N: TypeState> {
     TypeRestriction(Box<Expression<'a, V, N>>, N::Restriction),
 }
 
+pub struct ResolveIdentifiersContext<'a, 'b, 'c, 'd, 'e, 'f, 'g> {
+    pub variables: &'b mut Vec<function::Variable<'a, Option<UnresolvedType<'a>>>>,
+    pub variable_lookup: &'c mut Vec<Vec<(Box<str>, VariableId)>>,
+    pub function_lookup: &'d HashMap<Box<str>, Meta<'a, FunctionId>>,
+    pub scope_lookup: &'e mut Vec<Option<Box<str>>>,
+    pub types: &'f mut Vec<Type<'a, TypeId>>,
+    pub type_lookup: &'g mut HashMap<Box<str>, TypeId>,
+}
+
 impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
     pub fn resolve_identifiers(
         self,
-        variables: &mut Vec<function::Variable<'a, Option<UnresolvedType<'a>>>>,
-        variable_lookup: &mut Vec<Vec<(Box<str>, VariableId)>>,
-        function_lookup: &HashMap<Box<str>, Meta<'a, FunctionId>>,
-        scope_lookup: &mut Vec<Option<Box<str>>>,
-        types: &mut Vec<Type<'a, TypeId>>,
-        type_lookup: &mut HashMap<Box<str>, TypeId>,
+        ctx: &mut ResolveIdentifiersContext<'a, '_, '_, '_, '_, '_, '_>,
     ) -> Result<Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>>, CompileError> {
         fn get_id<'b>(
             name: Meta<'b, Box<str>>,
@@ -62,29 +66,22 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
 
         Ok(match self {
             Expression::Block((), scope, expressions) => {
-                variable_lookup.push(Vec::new());
+                ctx.variable_lookup.push(Vec::new());
                 let mut new = Vec::new();
-                let scope_id = ScopeId(scope_lookup.len());
-                scope_lookup.push(scope.item.clone());
+                let scope_id = ScopeId(ctx.scope_lookup.len());
+                ctx.scope_lookup.push(scope.item.clone());
                 for expr in expressions {
-                    new.push(expr.resolve_identifiers(
-                        variables,
-                        variable_lookup,
-                        function_lookup,
-                        scope_lookup,
-                        types,
-                        type_lookup,
-                    )?);
+                    new.push(expr.resolve_identifiers(ctx)?);
                 }
-                variable_lookup.pop();
+                ctx.variable_lookup.pop();
                 Expression::Block((), scope.replace(scope_id), new)
             }
             Expression::Variable((), var) => match var {
                 UnresolvedVariable::Existing(name) => {
-                    if let Some(id) = get_id(name.clone(), variable_lookup) {
+                    if let Some(id) = get_id(name.clone(), ctx.variable_lookup) {
                         Expression::Variable((), id)
-                    } else if let Some(&ty) = type_lookup.get(&name.item) {
-                        if let ty::Kind::Unit = types[ty.0].kind {
+                    } else if let Some(&ty) = ctx.type_lookup.get(&name.item) {
+                        if let ty::Kind::Unit = ctx.types[ty.0].kind {
                             Expression::Lit((), name.replace(Literal::Unit(ty)))
                         } else {
                             unimplemented!()
@@ -97,13 +94,13 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     }
                 }
                 UnresolvedVariable::New(name, type_name) => {
-                    let id = VariableId(variables.len());
+                    let id = VariableId(ctx.variables.len());
                     let lit = name.replace(Literal::Unit(ty::EMPTY_ID));
-                    variable_lookup
+                    ctx.variable_lookup
                         .last_mut()
                         .unwrap()
                         .push((name.item.clone(), id));
-                    variables.push(function::Variable {
+                    ctx.variables.push(function::Variable {
                         name,
                         ty: type_name,
                     });
@@ -121,35 +118,14 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             Expression::Binop((), op, rhs, lhs) => Expression::Binop(
                 (),
                 op,
-                Box::new(rhs.resolve_identifiers(
-                    variables,
-                    variable_lookup,
-                    function_lookup,
-                    scope_lookup,
-                    types,
-                    type_lookup,
-                )?),
-                Box::new(lhs.resolve_identifiers(
-                    variables,
-                    variable_lookup,
-                    function_lookup,
-                    scope_lookup,
-                    types,
-                    type_lookup,
-                )?),
+                Box::new(rhs.resolve_identifiers(ctx)?),
+                Box::new(lhs.resolve_identifiers(ctx)?),
             ),
             Expression::Assignment((), var, expr) => {
-                let expr = expr.resolve_identifiers(
-                    variables,
-                    variable_lookup,
-                    function_lookup,
-                    scope_lookup,
-                    types,
-                    type_lookup,
-                )?;
+                let expr = expr.resolve_identifiers(ctx)?;
 
                 let id = match var {
-                    UnresolvedVariable::Existing(name) => get_id(name.clone(), variable_lookup)
+                    UnresolvedVariable::Existing(name) => get_id(name.clone(), ctx.variable_lookup)
                         .map_or_else(
                             || {
                                 CompileError::new(
@@ -160,13 +136,13 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                             |v| Ok(v),
                         )?,
                     UnresolvedVariable::New(name, ty) => {
-                        let id = VariableId(variables.len());
+                        let id = VariableId(ctx.variables.len());
                         let meta = name.simplify();
-                        variable_lookup
+                        ctx.variable_lookup
                             .last_mut()
                             .unwrap()
                             .push((name.item.clone(), id));
-                        variables.push(function::Variable { name, ty });
+                        ctx.variables.push(function::Variable { name, ty });
                         meta.replace(id)
                     }
                 };
@@ -175,29 +151,15 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             }
             Expression::Statement((), expr) => Expression::Statement(
                 (),
-                Box::new(expr.resolve_identifiers(
-                    variables,
-                    variable_lookup,
-                    function_lookup,
-                    scope_lookup,
-                    types,
-                    type_lookup,
-                )?),
+                Box::new(expr.resolve_identifiers(ctx)?),
             ),
             Expression::FunctionCall((), name, args) => {
                 let mut new = Vec::new();
                 for expr in args {
-                    new.push(expr.resolve_identifiers(
-                        variables,
-                        variable_lookup,
-                        function_lookup,
-                        scope_lookup,
-                        types,
-                        type_lookup,
-                    )?);
+                    new.push(expr.resolve_identifiers(ctx)?);
                 }
 
-                if let Some(id) = function_lookup.get(&name.item) {
+                if let Some(id) = ctx.function_lookup.get(&name.item) {
                     Expression::FunctionCall((), name.replace(id.item), new)
                 } else {
                     CompileError::new(
@@ -208,38 +170,24 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             }
             Expression::FieldAccess((), obj, field) => Expression::FieldAccess(
                 (),
-                Box::new(obj.resolve_identifiers(
-                    variables,
-                    variable_lookup,
-                    function_lookup,
-                    scope_lookup,
-                    types,
-                    type_lookup,
-                )?),
+                Box::new(obj.resolve_identifiers(ctx)?),
                 field,
             ),
             Expression::Match((), meta, value, match_arms) => {
-                let value = Box::new(value.resolve_identifiers(
-                    variables,
-                    variable_lookup,
-                    function_lookup,
-                    scope_lookup,
-                    types,
-                    type_lookup,
-                )?);
+                let value = Box::new(value.resolve_identifiers(ctx)?);
 
                 let mut new = Vec::new();
                 for arm in match_arms {
-                    variable_lookup.push(Vec::new());
+                    ctx.variable_lookup.push(Vec::new());
                     let pattern = match arm.pattern {
                         UnresolvedVariable::New(name, ty) => {
-                            let id = VariableId(variables.len());
+                            let id = VariableId(ctx.variables.len());
                             let meta = name.simplify();
-                            variable_lookup
+                            ctx.variable_lookup
                                 .last_mut()
                                 .unwrap()
                                 .push((name.item.clone(), id));
-                            variables.push(function::Variable { name, ty });
+                            ctx.variables.push(function::Variable { name, ty });
                             meta.replace(id)
                         }
                         err @ UnresolvedVariable::Existing(_) => {
@@ -248,35 +196,43 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     };
                     new.push(MatchArm {
                         pattern,
-                        expr: arm.expr.resolve_identifiers(
-                            variables,
-                            variable_lookup,
-                            function_lookup,
-                            scope_lookup,
-                            types,
-                            type_lookup,
-                        )?,
+                        expr: arm.expr.resolve_identifiers(ctx)?,
                     });
-                    variable_lookup.pop();
+                    ctx.variable_lookup.pop();
                 }
                 Expression::Match((), meta, value, new)
             }
             Expression::Loop((), _, _) => unimplemented!("loop"),
-            Expression::Break((), scope, expr) => unimplemented!(), /*Expression::Break(
-            (),
-            scope,
-            Box::new(expr.resolve_identifiers(variables, variable_lookup, function_lookup, scope_lookup, types, type_lookup)?),
-            ),
-             */
+            Expression::Break((), scope, expr) => {
+                if let Some(ref s) = &scope.item {
+                    for (i, id) in ctx.scope_lookup
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(i, v)| v.as_ref().map(|v| (ScopeId(i), v)))
+                    {
+                        if s == id {
+                            return Ok(Expression::Break(
+                                (),
+                                scope.replace(i),
+                                Box::new(expr.resolve_identifiers(ctx)?),
+                            ));
+                        }
+                    }
+
+                    CompileError::new(
+                        &scope,
+                        format_args!("Cannot find scope `{}` in this scope", s),
+                    )?
+                } else {
+                    Expression::Break(
+                        (),
+                        scope.replace(ScopeId(ctx.scope_lookup.len() - 1)),
+                        Box::new(expr.resolve_identifiers(ctx)?),
+                    )
+                }
+            }
             Expression::TypeRestriction(expr, ty) => Expression::TypeRestriction(
-                Box::new(expr.resolve_identifiers(
-                    variables,
-                    variable_lookup,
-                    function_lookup,
-                    scope_lookup,
-                    types,
-                    type_lookup,
-                )?),
+                Box::new(expr.resolve_identifiers(ctx)?),
                 ty,
             ),
         })
@@ -433,7 +389,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     let ty = ty::resolve(ty, ctx.types, ctx.type_lookup)?;
                     solver.add_typed(ty.item, meta)
                 };
-                solver.add_equality(expr.id(), expected);
+                solver.add_extension(expr.id(), expected);
                 *expr.id_mut() = expected;
                 expr
             }

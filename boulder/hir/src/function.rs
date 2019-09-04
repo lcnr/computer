@@ -3,7 +3,7 @@ use diagnostics::{CompileError, Meta};
 use std::collections::HashMap;
 
 use crate::{
-    expression::Expression, ty, ty::solver::TypeSolver, IdentifierState, ResolvedIdentifiers,
+    expression::{ResolveIdentifiersContext, Expression}, ty, ty::solver::TypeSolver, IdentifierState, ResolvedIdentifiers,
     ResolvedTypes, Type, TypeId, TypeState, UnresolvedIdentifiers, UnresolvedType, UnresolvedTypes,
 };
 
@@ -126,14 +126,14 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
         let mut scope_lookup = Vec::new();
         scope_lookup.push(Some("fn".into()));
 
-        let body = self.body.resolve_identifiers(
-            &mut self.variables,
-            &mut variable_lookup,
+        let body = self.body.resolve_identifiers(&mut ResolveIdentifiersContext {
+            variables: &mut self.variables,
+            variable_lookup: &mut variable_lookup,
             function_lookup,
-            &mut scope_lookup,
+            scope_lookup: &mut scope_lookup,
             types,
             type_lookup,
-        )?;
+        })?;
 
         Ok(Function {
             name: self.name,

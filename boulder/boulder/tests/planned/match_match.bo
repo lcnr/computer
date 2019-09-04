@@ -1,0 +1,9 @@
+fn match_match() -> Bool {
+    match True: Bool {
+        t: True -> True,
+        f: False -> match True: Bool {
+            t: True -> False,
+            f: False -> True: Bool,
+        }
+    }
+}

@@ -1,0 +1,10 @@
+fn bool() -> Bool {
+    True
+}
+
+fn arm() -> Bool {
+    match bool() {
+        t: True -> True,
+        f: False -> bool()
+    }
+}
