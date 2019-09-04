@@ -1,0 +1,12 @@
+fn test() {
+    let u = Empty;
+    u
+}
+
+fn true() -> Bool {
+    True
+}
+
+fn false() -> Bool {
+    False
+}

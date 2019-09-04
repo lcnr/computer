@@ -1,0 +1,5 @@
+fn delayed() -> u32 {
+    let x;
+    x = 7;
+    x
+}

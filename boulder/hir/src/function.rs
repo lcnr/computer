@@ -108,6 +108,8 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
     pub fn resolve_identifiers(
         mut self,
         function_lookup: &HashMap<Box<str>, Meta<'a, FunctionId>>,
+        types: &mut Vec<Type<'a, TypeId>>,
+        type_lookup: &mut HashMap<Box<str>, TypeId>,
     ) -> Result<
         Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType<'a>>>,
         CompileError,
@@ -120,11 +122,17 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
                 .map(|(i, v)| (v.name.item.clone(), VariableId(i)))
                 .collect(),
         );
+        
+        let mut scope_lookup = Vec::new();
+        scope_lookup.push(Some("fn".into()));
 
         let body = self.body.resolve_identifiers(
             &mut self.variables,
             &mut variable_lookup,
             function_lookup,
+            &mut scope_lookup,
+            types,
+            type_lookup,
         )?;
 
         Ok(Function {

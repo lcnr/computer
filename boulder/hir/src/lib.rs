@@ -24,14 +24,21 @@ pub struct UnresolvedIdentifiers<'a>(PhantomData<&'a str>);
 impl<'a> IdentifierState for UnresolvedIdentifiers<'a> {
     type Variable = UnresolvedVariable<'a>;
     type Function = Meta<'a, Box<str>>;
+    type Scope = Meta<'a, Option<Box<str>>>;
+    type Type = Box<str>;
 }
 
 #[derive(Debug, Clone)]
 pub struct ResolvedIdentifiers<'a>(PhantomData<&'a str>);
 
+#[derive(Debug, Clone)]
+pub struct ScopeId(pub usize);
+
 impl<'a> IdentifierState for ResolvedIdentifiers<'a> {
     type Variable = Meta<'a, VariableId>;
     type Function = Meta<'a, FunctionId>;
+    type Scope = Meta<'a, ScopeId>;
+    type Type = TypeId;
 }
 
 #[derive(Debug, Clone)]
@@ -70,6 +77,8 @@ pub trait TypeState: fmt::Debug + Clone {
 pub trait IdentifierState: fmt::Debug + Clone {
     type Variable: fmt::Debug + Clone;
     type Function: fmt::Debug + Clone;
+    type Scope: fmt::Debug + Clone;
+    type Type: fmt::Debug + Clone;
 }
 
 #[derive(Debug, Clone)]
@@ -97,8 +106,9 @@ pub enum Binop {
 }
 
 #[derive(Debug, Clone)]
-pub enum Literal {
+pub enum Literal<V: IdentifierState> {
     Integer(u128),
+    Unit(V::Type),
 }
 
 #[derive(Debug)]
@@ -260,14 +270,17 @@ impl<'a>
             })
             .collect();
 
+        let mut types = self.types;
+        let mut type_lookup = self.type_lookup;
+
         Ok(Hir {
             functions: self
                 .functions
                 .into_iter()
-                .map(|f| f.resolve_identifiers(&known_functions))
+                .map(|f| f.resolve_identifiers(&known_functions, &mut types, &mut type_lookup))
                 .collect::<Result<Vec<_>, CompileError>>()?,
-            types: self.types,
-            type_lookup: self.type_lookup,
+            types,
+            type_lookup,
         })
     }
 }

@@ -164,10 +164,10 @@ impl<'a, T> Meta<'a, T> {
         }
     }
 
-    pub fn replace<U>(self, new: U) -> Meta<'a, U> {
+    pub fn replace<U>(&self, new: U) -> Meta<'a, U> {
         Meta {
             item: new,
-            span: self.span,
+            span: self.span.clone(),
             source: self.source,
             line: self.line,
         }

@@ -14,11 +14,11 @@ pub struct MatchArm<'a, V: IdentifierState, N: TypeState> {
 pub enum Expression<'a, V: IdentifierState, N: TypeState> {
     Block(
         N::Type,
-        Meta<'a, Option<Box<str>>>,
+        V::Scope,
         Vec<Expression<'a, V, N>>,
     ),
     Variable(N::Type, V::Variable),
-    Lit(N::Type, Meta<'a, Literal>),
+    Lit(N::Type, Meta<'a, Literal<V>>),
     Binop(
         N::Type,
         Meta<'a, Binop>,
@@ -37,12 +37,12 @@ pub enum Expression<'a, V: IdentifierState, N: TypeState> {
     ),
     Loop(
         N::Type,
-        Meta<'a, Option<Box<str>>>,
+        V::Scope,
         Box<Expression<'a, V, N>>,
     ),
     Break(
         N::Type,
-        Meta<'a, Option<Box<str>>>,
+        V::Scope,
         Box<Expression<'a, V, N>>,
     ),
     TypeRestriction(Box<Expression<'a, V, N>>, N::Restriction),
@@ -54,46 +54,60 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
         variables: &mut Vec<function::Variable<'a, Option<UnresolvedType<'a>>>>,
         variable_lookup: &mut Vec<Vec<(Box<str>, VariableId)>>,
         function_lookup: &HashMap<Box<str>, Meta<'a, FunctionId>>,
+        scope_lookup: &mut Vec<Option<Box<str>>>,
+        types: &mut Vec<Type<'a, TypeId>>,
+        type_lookup: &mut HashMap<Box<str>, TypeId>,
     ) -> Result<Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>>, CompileError> {
         fn get_id<'b>(
             name: Meta<'b, Box<str>>,
             variable_lookup: &mut Vec<Vec<(Box<str>, VariableId)>>,
-        ) -> Result<Meta<'b, VariableId>, CompileError> {
+        ) -> Option<Meta<'b, VariableId>> {
             for scope in variable_lookup.iter().rev() {
                 for (var, id) in scope.iter().rev() {
                     if var == &name.item {
-                        return Ok(name.replace(id.clone()));
+                        return Some(name.replace(id.clone()));
                     }
                 }
             }
-
-            CompileError::new(
-                &name,
-                format_args!("Cannot find value `{}` in this scope", name.item),
-            )
+            None
         }
 
         Ok(match self {
-            Expression::Block((), meta, expressions) => {
+            Expression::Block((), scope, expressions) => {
                 variable_lookup.push(Vec::new());
                 let mut new = Vec::new();
+                let scope_id = ScopeId(scope_lookup.len());
+                scope_lookup.push(scope.item.clone());
                 for expr in expressions {
                     new.push(expr.resolve_identifiers(
                         variables,
                         variable_lookup,
-                        function_lookup,
+                        function_lookup, scope_lookup, types, type_lookup,
                     )?);
                 }
                 variable_lookup.pop();
-                Expression::Block((), meta, new)
+                Expression::Block((), scope.replace(scope_id), new)
             }
             Expression::Variable((), var) => match var {
                 UnresolvedVariable::Existing(name) => {
-                    Expression::Variable((), get_id(name, variable_lookup)?)
+                    if let Some(id) = get_id(name.clone(), variable_lookup){
+                        Expression::Variable((), id)
+                    } else if let Some(&ty) = type_lookup.get(&name.item) {
+                        if let ty::Kind::Unit = types[ty.0].kind {
+                            Expression::Lit((), name.replace(Literal::Unit(ty)))
+                        } else {
+                            unimplemented!()
+                        }
+                    } else {
+                        CompileError::new(
+                            &name,
+                            format_args!("Cannot find value `{}` in this scope", name.item),
+                        )?
+                    }
                 }
                 UnresolvedVariable::New(name, type_name) => {
                     let id = VariableId(variables.len());
-                    let meta = name.simplify();
+                    let lit = name.replace(Literal::Unit(ty::EMPTY_ID));
                     variable_lookup
                         .last_mut()
                         .unwrap()
@@ -102,21 +116,32 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                         name,
                         ty: type_name,
                     });
-                    Expression::Block((), meta.simplify().map(|_| None), Vec::new())
+                    Expression::Lit((), lit)
                 }
             },
-            Expression::Lit((), lit) => Expression::Lit((), lit),
+            Expression::Lit((), lit) => {
+                let meta = lit.simplify();
+                let lit = match lit.item {
+                    Literal::Integer(v) => meta.replace(Literal::Integer(v)),
+                    Literal::Unit(_) => unreachable!("Typed literal during identifier resolution"),
+                };
+                Expression::Lit((), lit)
+            }
             Expression::Binop((), op, rhs, lhs) => Expression::Binop(
                 (),
                 op,
-                Box::new(rhs.resolve_identifiers(variables, variable_lookup, function_lookup)?),
-                Box::new(lhs.resolve_identifiers(variables, variable_lookup, function_lookup)?),
+                Box::new(rhs.resolve_identifiers(variables, variable_lookup, function_lookup, scope_lookup, types, type_lookup)?),
+                Box::new(lhs.resolve_identifiers(variables, variable_lookup, function_lookup, scope_lookup, types, type_lookup)?),
             ),
             Expression::Assignment((), var, expr) => {
-                let expr = expr.resolve_identifiers(variables, variable_lookup, function_lookup)?;
+                let expr = expr.resolve_identifiers(variables, variable_lookup, function_lookup, scope_lookup, types, type_lookup)?;
 
                 let id = match var {
-                    UnresolvedVariable::Existing(name) => get_id(name, variable_lookup)?,
+                    UnresolvedVariable::Existing(name) => get_id(name.clone(), variable_lookup).map_or_else(|| 
+                    CompileError::new(
+                        &name,
+                        format_args!("Cannot find value `{}` in this scope", name.item),
+                    ), |v| Ok(v))?,
                     UnresolvedVariable::New(name, ty) => {
                         let id = VariableId(variables.len());
                         let meta = name.simplify();
@@ -133,7 +158,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             }
             Expression::Statement((), expr) => Expression::Statement(
                 (),
-                Box::new(expr.resolve_identifiers(variables, variable_lookup, function_lookup)?),
+                Box::new(expr.resolve_identifiers(variables, variable_lookup, function_lookup, scope_lookup, types, type_lookup)?),
             ),
             Expression::FunctionCall((), name, args) => {
                 let mut new = Vec::new();
@@ -141,7 +166,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     new.push(expr.resolve_identifiers(
                         variables,
                         variable_lookup,
-                        function_lookup,
+                        function_lookup, scope_lookup, types, type_lookup,
                     )?);
                 }
 
@@ -156,14 +181,14 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             }
             Expression::FieldAccess((), obj, field) => Expression::FieldAccess(
                 (),
-                Box::new(obj.resolve_identifiers(variables, variable_lookup, function_lookup)?),
+                Box::new(obj.resolve_identifiers(variables, variable_lookup, function_lookup, scope_lookup, types, type_lookup)?),
                 field,
             ),
             Expression::Match((), meta, value, match_arms) => {
                 let value = Box::new(value.resolve_identifiers(
                     variables,
                     variable_lookup,
-                    function_lookup,
+                    function_lookup, scope_lookup, types, type_lookup,
                 )?);
 
                 let mut new = Vec::new();
@@ -189,7 +214,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                         expr: arm.expr.resolve_identifiers(
                             variables,
                             variable_lookup,
-                            function_lookup,
+                            function_lookup, scope_lookup, types, type_lookup,
                         )?,
                     });
                     variable_lookup.pop();
@@ -197,13 +222,14 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 Expression::Match((), meta, value, new)
             }
             Expression::Loop((), _, _) => unimplemented!("loop"),
-            Expression::Break((), scope, expr) => Expression::Break(
+            Expression::Break((), scope, expr) => unimplemented!(), /*Expression::Break(
                 (),
                 scope,
-                Box::new(expr.resolve_identifiers(variables, variable_lookup, function_lookup)?),
+                Box::new(expr.resolve_identifiers(variables, variable_lookup, function_lookup, scope_lookup, types, type_lookup)?),
             ),
+            */
             Expression::TypeRestriction(expr, ty) => Expression::TypeRestriction(
-                Box::new(expr.resolve_identifiers(variables, variable_lookup, function_lookup)?),
+                Box::new(expr.resolve_identifiers(variables, variable_lookup, function_lookup, scope_lookup, types, type_lookup)?),
                 ty,
             ),
         })
@@ -236,10 +262,17 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 solver.add_equality(variables[var.0], id);
                 Expression::Variable(id, var)
             }
-            Expression::Lit((), lit) => match &lit.item {
-                Literal::Integer(_) => {
-                    let id = solver.add_integer(lit.simplify());
-                    Expression::Lit(id, lit)
+            Expression::Lit((), lit) => {
+                let meta = lit.simplify();
+                match lit.item {
+                    Literal::Integer(v) => {
+                        let id = solver.add_integer(meta.clone());
+                        Expression::Lit(id, meta.replace(Literal::Integer(v)))
+                    }
+                    Literal::Unit(t) => {
+                        let id = solver.add_typed(t, meta.simplify());
+                        Expression::Lit(id, meta.replace(Literal::Unit(t)))
+                    }
                 }
             },
             Expression::Binop((), op, a, b) => {
@@ -413,9 +446,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
                 Expression::Block(ty, meta, content)
             }
             Expression::Variable(id, var) => Expression::Variable(type_result[id], var),
-            Expression::Lit(id, lit) => match &lit.item {
-                Literal::Integer(_) => Expression::Lit(type_result[id], lit),
-            },
+            Expression::Lit(id, lit) => Expression::Lit(type_result[id], lit),
             Expression::Binop(id, op, a, b) => {
                 let a = a.insert_types(types, type_result);
                 let b = b.insert_types(types, type_result);
@@ -520,8 +551,9 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                     }
                     .or_else(|_| {
                         CompileError::new(&lit, format_args!("Literal out of range for `{}`", ty))
-                    }),
-                }?;
+                    })?,
+                    &Literal::Unit(_) => mir::Object::Unit,
+                };
                 Ok(func
                     .block(*curr)
                     .add_step(Step::new(type_id, Action::LoadConstant(obj))))
@@ -662,11 +694,12 @@ impl<'a, T: IdentifierState, N: TypeState> diagnostics::Span<'a> for Expression<
 where
     T::Variable: diagnostics::Span<'a>,
     T::Function: diagnostics::Span<'a>,
+    T::Scope: diagnostics::Span<'a>,
     N::Field: diagnostics::Span<'a>,
 {
     fn span(&self) -> Meta<'a, ()> {
         match self {
-            Expression::Block(_, meta, _) => meta.simplify(),
+            Expression::Block(_, scope, _) =>   scope.span().simplify(),
             Expression::Variable(_, var) => var.span(),
             Expression::Lit(_, lit) => lit.simplify(),
             Expression::Binop(_, _op, a, b) => a.span().append(b.span()),
@@ -675,8 +708,8 @@ where
             Expression::FunctionCall(_, name, _args) => name.span(),
             Expression::FieldAccess(_, _, field) => field.span().extend_left('.'),
             Expression::Match(_, meta, _, _) => meta.clone(),
-            Expression::Loop(_, id, _) => id.simplify(),
-            Expression::Break(_, arg, _) => arg.simplify(),
+            Expression::Loop(_, scope, _) => scope.span().simplify(),
+            Expression::Break(_, scope, _) => scope.span().simplify(),
             Expression::TypeRestriction(expr, _) => expr.span(),
         }
     }
