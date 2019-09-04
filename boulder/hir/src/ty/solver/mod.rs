@@ -115,11 +115,15 @@ impl EntityState {
                 supertypes,
                 subtypes,
             } => {
-                let mut allowed_types = supertypes
-                    .iter()
-                    .copied()
-                    .filter(|ty| restriction.contains(ty))
-                    .collect::<Vec<_>>();
+                let mut allowed_types = if supertypes.is_empty() {
+                    restriction
+                } else {
+                    supertypes
+                        .iter()
+                        .copied()
+                        .filter(|ty| restriction.contains(ty))
+                        .collect::<Vec<_>>()
+                };
 
                 allowed_types.sort();
                 allowed_types.dedup();
