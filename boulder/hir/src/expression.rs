@@ -253,12 +253,17 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 let (id, content) = if v.is_empty() {
                     (ctx.solver.add_empty(meta.simplify()), Vec::new())
                 } else {
+                    let id = ctx.solver.add_unbound(meta.simplify());
+                    ctx.scopes.push(id);
                     let content = v
                         .into_iter()
                         .map(|expr| expr.type_constraints(ctx))
                         .collect::<Result<Vec<_>, CompileError>>()?;
-                    let id = content.last().unwrap().id();
-                    (id, content)
+
+                    let expr_id = content.last().unwrap().id();
+                    ctx.solver.add_equality(id, expr_id);
+                    ctx.scopes.pop();
+                    (expr_id, content)
                 };
                 Expression::Block(id, meta, content)
             }
@@ -379,7 +384,16 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 Expression::Match(result, meta, Box::new(value), match_arms)
             }
             Expression::Loop((), _id, _body) => unimplemented!("loop"),
-            Expression::Break((), _, _) => unimplemented!("break"),
+            Expression::Break((), scope_id, expr) => {
+                let expr = expr.type_constraints(ctx)?;
+                ctx.solver
+                    .add_equality(ctx.scopes[scope_id.item.0], expr.id());
+                Expression::Break(
+                    ctx.solver.add_typed(ty::NEVER_ID, scope_id.simplify()),
+                    scope_id,
+                    Box::new(expr),
+                )
+            }
             Expression::TypeRestriction(expr, ty) => {
                 let mut expr = expr.type_constraints(ctx)?;
                 let meta = ty.simplify();
@@ -500,41 +514,72 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
                 )
             }
             Expression::Loop(_id, _scope, _body) => unimplemented!("loop"),
-            Expression::Break(_, _, _) => unimplemented!("break"),
+            Expression::Break(id, scope_id, expr) => Expression::Break(
+                type_result[id],
+                scope_id,
+                Box::new(expr.insert_types(types, type_result)),
+            ),
             Expression::TypeRestriction(expr, _) => expr.insert_types(types, type_result),
         }
     }
 }
 
+pub struct ToMirContext<'a> {
+    pub types: &'a [mir::Type],
+    pub variable_types: &'a [TypeId],
+    pub var_lookup: &'a mut Vec<Option<mir::StepId>>,
+    pub scopes: &'a mut Vec<mir::BlockId>,
+    pub curr: &'a mut mir::BlockId,
+    pub func: &'a mut mir::Function,
+}
+
 impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
-    pub fn to_mir(
-        self,
-        types: &[mir::Type],
-        variable_types: &[TypeId],
-        var_lookup: &mut Vec<Option<mir::StepId>>,
-        curr: &mut mir::BlockId,
-        func: &mut mir::Function,
-    ) -> Result<mir::StepId, CompileError> {
+    pub fn to_mir<'b>(self, ctx: &mut ToMirContext<'b>) -> Result<mir::StepId, CompileError> {
         use mir::{Action, Object, Step};
         match self {
             Expression::Block(ty, _, mut v) => {
                 // we do not start a new block for an expression block
                 // as only control flow requires new blocks
                 Ok(if let Some(last) = v.pop() {
+                    let end = ctx.func.add_block();
+                    ctx.scopes.push(end);
                     for e in v {
-                        e.to_mir(types, variable_types, var_lookup, curr, func)?;
+                        e.to_mir(ctx)?;
                     }
 
-                    last.to_mir(types, variable_types, var_lookup, curr, func)?
+                    let last_id = last.to_mir(ctx)?;
+                    ctx.scopes.pop();
+
+                    to_mir::initialized_mir_block(
+                        end,
+                        ctx.variable_types,
+                        ctx.var_lookup,
+                        ctx.func,
+                    );
+                    let step = ctx.func.block(end).add_input(ty.to_mir());
+                    let mut steps: Vec<mir::StepId> = ctx
+                        .var_lookup
+                        .iter()
+                        .copied()
+                        .filter_map(identity)
+                        .collect();
+                    steps.push(last_id);
+                    ctx.func.block(*ctx.curr).add_step(Step::new(
+                        ty::NEVER_ID.to_mir(),
+                        mir::Action::Goto(end, steps),
+                    ));
+                    *ctx.curr = end;
+                    step
                 } else {
                     assert_eq!(ty, ty::EMPTY_ID);
-                    func.block(*curr)
+                    ctx.func
+                        .block(*ctx.curr)
                         .add_step(Step::new(ty.to_mir(), Action::LoadConstant(Object::Unit)))
                 })
             }
             Expression::Variable(ty, var) => {
-                if let Some(step) = var_lookup[var.0] {
-                    assert_eq!(ty.to_mir(), func.block(*curr).get_step(step).ty);
+                if let Some(step) = ctx.var_lookup[var.0] {
+                    assert_eq!(ty.to_mir(), ctx.func.block(*ctx.curr).get_step(step).ty);
                     Ok(step)
                 } else {
                     let span = var.span_str();
@@ -546,7 +591,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
             }
             Expression::Lit(ty, lit) => {
                 let type_id = ty.to_mir();
-                let ty = &types[type_id.0];
+                let ty = &ctx.types[type_id.0];
                 let obj = match &lit.item {
                     &Literal::Integer(i) => match ty {
                         mir::Type::U8 => u8::try_from(i).map(|i| Object::U8(i)),
@@ -559,14 +604,15 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                     })?,
                     &Literal::Unit(_) => mir::Object::Unit,
                 };
-                Ok(func
-                    .block(*curr)
+                Ok(ctx
+                    .func
+                    .block(*ctx.curr)
                     .add_step(Step::new(type_id, Action::LoadConstant(obj))))
             }
             Expression::Binop(ty, op, a, b) => {
-                let a = a.to_mir(types, variable_types, var_lookup, curr, func)?;
-                let b = b.to_mir(types, variable_types, var_lookup, curr, func)?;
-                Ok(func.block(*curr).add_step(Step::new(
+                let a = a.to_mir(ctx)?;
+                let b = b.to_mir(ctx)?;
+                Ok(ctx.func.block(*ctx.curr).add_step(Step::new(
                     ty.to_mir(),
                     match op.item {
                         Binop::Add => Action::Add(a, b),
@@ -580,70 +626,79 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
             }
             Expression::Statement(ty, expr) => {
                 assert_eq!(ty, ty::EMPTY_ID);
-                expr.to_mir(types, variable_types, var_lookup, curr, func)?;
-                Ok(func
-                    .block(*curr)
+                expr.to_mir(ctx)?;
+                Ok(ctx
+                    .func
+                    .block(*ctx.curr)
                     .add_step(Step::new(ty.to_mir(), Action::LoadConstant(Object::Unit))))
             }
             Expression::Assignment(ty, var, expr) => {
-                let expr = expr.to_mir(types, variable_types, var_lookup, curr, func)?;
-                var_lookup[var.0] = Some(expr);
+                let expr = expr.to_mir(ctx)?;
+                ctx.var_lookup[var.0] = Some(expr);
                 assert_eq!(ty, ty::EMPTY_ID);
-                Ok(func
-                    .block(*curr)
+                Ok(ctx
+                    .func
+                    .block(*ctx.curr)
                     .add_step(Step::new(ty.to_mir(), Action::LoadConstant(Object::Unit))))
             }
             Expression::FunctionCall(ty, id, args) => {
                 let args = args
                     .into_iter()
-                    .map(|arg| arg.to_mir(types, variable_types, var_lookup, curr, func))
+                    .map(|arg| arg.to_mir(ctx))
                     .collect::<Result<Vec<_>, CompileError>>()?;
-                Ok(func.block(*curr).add_step(Step::new(
+                Ok(ctx.func.block(*ctx.curr).add_step(Step::new(
                     ty.to_mir(),
                     Action::CallFunction(id.item.to_mir(), args),
                 )))
             }
             Expression::FieldAccess(ty, obj, field) => {
-                let obj = obj.to_mir(types, variable_types, var_lookup, curr, func)?;
-                Ok(func.block(*curr).add_step(Step::new(
+                let obj = obj.to_mir(ctx)?;
+                Ok(ctx.func.block(*ctx.curr).add_step(Step::new(
                     ty.to_mir(),
                     Action::FieldAccess(obj, field.to_mir()),
                 )))
             }
             Expression::Match(ty_id, _, value, match_arms) => {
-                let old_block = *curr;
+                let old_block = *ctx.curr;
 
-                let value = value.to_mir(types, variable_types, var_lookup, curr, func)?;
+                let value = value.to_mir(ctx)?;
 
                 let mut arms = Vec::new();
-                let match_step = mir::StepId(func.block(*curr).content.len());
+                let match_step = mir::StepId(ctx.func.block(*ctx.curr).content.len());
                 let mut arms_data = Vec::new();
                 for arm in match_arms {
-                    let mut available_variables = var_lookup.to_vec();
+                    let mut available_variables = ctx.var_lookup.to_vec();
 
-                    let mut id = to_mir::initialized_mir_block(
-                        variable_types,
+                    let mut id = ctx.func.add_block();
+                    to_mir::initialized_mir_block(
+                        id,
+                        ctx.variable_types,
                         &mut available_variables,
-                        func,
+                        ctx.func,
                     );
-                    let block = func.block(id);
+                    let block = ctx.func.block(id);
                     available_variables[arm.pattern.0] =
-                        Some(block.add_input(variable_types[arm.pattern.0].to_mir()));
+                        Some(block.add_input(ctx.variable_types[arm.pattern.0].to_mir()));
 
-                    arms.push((variable_types[arm.pattern.0].to_mir(), id, {
-                        let mut args: Vec<mir::StepId> =
-                            var_lookup.iter().copied().filter_map(identity).collect();
+                    arms.push((ctx.variable_types[arm.pattern.0].to_mir(), id, {
+                        let mut args: Vec<mir::StepId> = ctx
+                            .var_lookup
+                            .iter()
+                            .copied()
+                            .filter_map(identity)
+                            .collect();
                         args.push(match_step);
                         args
                     }));
 
-                    let expr_id = arm.expr.to_mir(
-                        types,
-                        variable_types,
-                        &mut available_variables,
-                        &mut id,
-                        func,
-                    )?;
+                    let expr_id = arm.expr.to_mir(&mut ToMirContext {
+                        types: ctx.types,
+                        variable_types: ctx.variable_types,
+                        var_lookup: &mut available_variables,
+                        scopes: ctx.scopes,
+                        curr: &mut id,
+                        func: ctx.func,
+                    })?;
 
                     arms_data.push((id, expr_id, available_variables));
                 }
@@ -658,15 +713,20 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                         lookup
                     })
                 } else {
-                    var_lookup.to_vec()
+                    ctx.var_lookup.to_vec()
                 };
 
-                let id =
-                    to_mir::initialized_mir_block(variable_types, &mut initialized_variables, func);
-                let step = func.block(id).add_input(ty_id.to_mir());
+                let id = ctx.func.add_block();
+                to_mir::initialized_mir_block(
+                    id,
+                    ctx.variable_types,
+                    &mut initialized_variables,
+                    ctx.func,
+                );
+                let step = ctx.func.block(id).add_input(ty_id.to_mir());
 
                 arms_data.iter().for_each(|&(block, step, ref vars)| {
-                    let block = func.block(block);
+                    let block = ctx.func.block(block);
                     let mut steps: Vec<mir::StepId> = vars
                         .iter()
                         .copied()
@@ -680,16 +740,29 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                     ));
                 });
 
-                func.block(old_block).add_step(Step::new(
+                ctx.func.block(old_block).add_step(Step::new(
                     ty::NEVER_ID.to_mir(),
                     mir::Action::Match(value, arms),
                 ));
-                *curr = id;
-                *var_lookup = initialized_variables;
+                *ctx.curr = id;
+                *ctx.var_lookup = initialized_variables;
                 Ok(step)
             }
             Expression::Loop(_ty, _scope, _body) => unimplemented!("loop"),
-            Expression::Break(_, _, _) => unimplemented!("break"),
+            Expression::Break(ty, scope_id, expr) => {
+                let step = expr.to_mir(ctx)?;
+                let mut steps: Vec<mir::StepId> = ctx
+                    .var_lookup
+                    .iter()
+                    .copied()
+                    .filter_map(identity)
+                    .collect();
+                steps.push(step);
+                Ok(ctx.func.block(*ctx.curr).add_step(Step::new(
+                    ty.to_mir(),
+                    mir::Action::Goto(ctx.scopes[scope_id.item.0], steps),
+                )))
+            }
             Expression::TypeRestriction(_, ()) => unreachable!("type restriction after type check"),
         }
     }

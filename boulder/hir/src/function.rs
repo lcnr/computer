@@ -3,7 +3,7 @@ use diagnostics::{CompileError, Meta};
 use std::collections::HashMap;
 
 use crate::{
-    expression::{Expression, ResolveIdentifiersContext, TypeConstraintsContext},
+    expression::{Expression, ResolveIdentifiersContext, ToMirContext, TypeConstraintsContext},
     ty,
     ty::solver::TypeSolver,
     IdentifierState, ResolvedIdentifiers, ResolvedTypes, Type, TypeId, TypeState,
@@ -127,7 +127,6 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
         );
 
         let mut scope_lookup = Vec::new();
-        scope_lookup.push(Some("fn".into()));
 
         let body = self
             .body
@@ -249,9 +248,14 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
 
         let variable_types: Vec<TypeId> = self.variables.iter().map(|v| v.ty.item).collect();
 
-        let ret = self
-            .body
-            .to_mir(types, &variable_types, &mut variables, &mut id, &mut func)?;
+        let ret = self.body.to_mir(&mut ToMirContext {
+            types,
+            variable_types: &variable_types,
+            var_lookup: &mut variables,
+            scopes: &mut Vec::new(),
+            curr: &mut id,
+            func: &mut func,
+        })?;
         func.block(id).add_step(mir::Step::new(
             ty::NEVER_ID.to_mir(),
             mir::Action::Return(ret),
