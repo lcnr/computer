@@ -3,8 +3,11 @@ use diagnostics::{CompileError, Meta};
 use std::collections::HashMap;
 
 use crate::{
-    expression::{ResolveIdentifiersContext, Expression}, ty, ty::solver::TypeSolver, IdentifierState, ResolvedIdentifiers,
-    ResolvedTypes, Type, TypeId, TypeState, UnresolvedIdentifiers, UnresolvedType, UnresolvedTypes,
+    expression::{Expression, ResolveIdentifiersContext, TypeConstraintsContext},
+    ty,
+    ty::solver::TypeSolver,
+    IdentifierState, ResolvedIdentifiers, ResolvedTypes, Type, TypeId, TypeState,
+    UnresolvedIdentifiers, UnresolvedType, UnresolvedTypes,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -126,14 +129,16 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
         let mut scope_lookup = Vec::new();
         scope_lookup.push(Some("fn".into()));
 
-        let body = self.body.resolve_identifiers(&mut ResolveIdentifiersContext {
-            variables: &mut self.variables,
-            variable_lookup: &mut variable_lookup,
-            function_lookup,
-            scope_lookup: &mut scope_lookup,
-            types,
-            type_lookup,
-        })?;
+        let body = self
+            .body
+            .resolve_identifiers(&mut ResolveIdentifiersContext {
+                variables: &mut self.variables,
+                variable_lookup: &mut variable_lookup,
+                function_lookup,
+                scope_lookup: &mut scope_lookup,
+                types,
+                type_lookup,
+            })?;
 
         Ok(Function {
             name: self.name,
@@ -200,9 +205,12 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
 
         let ret = solver.add_typed(ret_ty.item, ret_ty.simplify());
 
-        let body = self
-            .body
-            .type_constraints(function_lookup, &variables, &mut solver)?;
+        let body = self.body.type_constraints(&mut TypeConstraintsContext {
+            functions: function_lookup,
+            variables: &variables,
+            scopes: &mut vec![ret],
+            solver: &mut solver,
+        })?;
 
         solver.add_extension(body.id(), ret);
         let solution = solver.solve()?;

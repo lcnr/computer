@@ -149,10 +149,9 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
 
                 Expression::Assignment((), id, Box::new(expr))
             }
-            Expression::Statement((), expr) => Expression::Statement(
-                (),
-                Box::new(expr.resolve_identifiers(ctx)?),
-            ),
+            Expression::Statement((), expr) => {
+                Expression::Statement((), Box::new(expr.resolve_identifiers(ctx)?))
+            }
             Expression::FunctionCall((), name, args) => {
                 let mut new = Vec::new();
                 for expr in args {
@@ -168,11 +167,9 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     )?
                 }
             }
-            Expression::FieldAccess((), obj, field) => Expression::FieldAccess(
-                (),
-                Box::new(obj.resolve_identifiers(ctx)?),
-                field,
-            ),
+            Expression::FieldAccess((), obj, field) => {
+                Expression::FieldAccess((), Box::new(obj.resolve_identifiers(ctx)?), field)
+            }
             Expression::Match((), meta, value, match_arms) => {
                 let value = Box::new(value.resolve_identifiers(ctx)?);
 
@@ -205,7 +202,8 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             Expression::Loop((), _, _) => unimplemented!("loop"),
             Expression::Break((), scope, expr) => {
                 if let Some(ref s) = &scope.item {
-                    for (i, id) in ctx.scope_lookup
+                    for (i, id) in ctx
+                        .scope_lookup
                         .iter()
                         .enumerate()
                         .filter_map(|(i, v)| v.as_ref().map(|v| (ScopeId(i), v)))
@@ -231,29 +229,33 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     )
                 }
             }
-            Expression::TypeRestriction(expr, ty) => Expression::TypeRestriction(
-                Box::new(expr.resolve_identifiers(ctx)?),
-                ty,
-            ),
+            Expression::TypeRestriction(expr, ty) => {
+                Expression::TypeRestriction(Box::new(expr.resolve_identifiers(ctx)?), ty)
+            }
         })
     }
 }
 
+pub struct TypeConstraintsContext<'a, 'b, 'c> {
+    pub functions: &'c [FunctionDefinition<'a, TypeId>],
+    pub variables: &'c [solver::EntityId],
+    pub scopes: &'c mut Vec<solver::EntityId>,
+    pub solver: &'c mut TypeSolver<'a, 'b>,
+}
+
 impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
-    pub fn type_constraints<'b>(
+    pub fn type_constraints<'b, 'c>(
         self,
-        functions: &[FunctionDefinition<'a, TypeId>],
-        variables: &[solver::EntityId],
-        solver: &mut TypeSolver<'a, 'b>,
+        ctx: &mut TypeConstraintsContext<'a, 'b, 'c>,
     ) -> Result<Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>>, CompileError> {
         Ok(match self {
             Expression::Block((), meta, v) => {
                 let (id, content) = if v.is_empty() {
-                    (solver.add_empty(meta.simplify()), Vec::new())
+                    (ctx.solver.add_empty(meta.simplify()), Vec::new())
                 } else {
                     let content = v
                         .into_iter()
-                        .map(|expr| expr.type_constraints(functions, variables, solver))
+                        .map(|expr| expr.type_constraints(ctx))
                         .collect::<Result<Vec<_>, CompileError>>()?;
                     let id = content.last().unwrap().id();
                     (id, content)
@@ -261,59 +263,59 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 Expression::Block(id, meta, content)
             }
             Expression::Variable((), var) => {
-                let id = solver.add_unbound(var.simplify());
-                solver.add_equality(variables[var.0], id);
+                let id = ctx.solver.add_unbound(var.simplify());
+                ctx.solver.add_equality(ctx.variables[var.0], id);
                 Expression::Variable(id, var)
             }
             Expression::Lit((), lit) => {
                 let meta = lit.simplify();
                 match lit.item {
                     Literal::Integer(v) => {
-                        let id = solver.add_integer(meta.clone());
+                        let id = ctx.solver.add_integer(meta.clone());
                         Expression::Lit(id, meta.replace(Literal::Integer(v)))
                     }
                     Literal::Unit(t) => {
-                        let id = solver.add_typed(t, meta.simplify());
+                        let id = ctx.solver.add_typed(t, meta.simplify());
                         Expression::Lit(id, meta.replace(Literal::Unit(t)))
                     }
                 }
             }
             Expression::Binop((), op, a, b) => {
-                let a = a.type_constraints(functions, variables, solver)?;
-                let b = b.type_constraints(functions, variables, solver)?;
+                let a = a.type_constraints(ctx)?;
+                let b = b.type_constraints(ctx)?;
                 match op.item {
                     Binop::Add | Binop::Sub | Binop::Mul | Binop::Div | Binop::BitOr => {
-                        let integer = solver.add_integer(op.simplify());
-                        solver.add_equality(a.id(), b.id());
-                        solver.add_equality(a.id(), integer);
+                        let integer = ctx.solver.add_integer(op.simplify());
+                        ctx.solver.add_equality(a.id(), b.id());
+                        ctx.solver.add_equality(a.id(), integer);
                         Expression::Binop(a.id(), op, Box::new(a), Box::new(b))
                     }
                     Binop::Lt => {
-                        let integer = solver.add_integer(op.simplify());
-                        solver.add_equality(a.id(), b.id());
-                        solver.add_equality(a.id(), integer);
-                        let id = solver.add_typed(ty::BOOL_ID, op.simplify());
+                        let integer = ctx.solver.add_integer(op.simplify());
+                        ctx.solver.add_equality(a.id(), b.id());
+                        ctx.solver.add_equality(a.id(), integer);
+                        let id = ctx.solver.add_typed(ty::BOOL_ID, op.simplify());
                         Expression::Binop(id, op, Box::new(a), Box::new(b))
                     }
                 }
             }
             Expression::Statement((), expr) => {
                 let span = expr.span().extend_right(';');
-                let expr = expr.type_constraints(functions, variables, solver)?;
-                Expression::Statement(solver.add_empty(span), Box::new(expr))
+                let expr = expr.type_constraints(ctx)?;
+                Expression::Statement(ctx.solver.add_empty(span), Box::new(expr))
             }
             Expression::Assignment((), var, expr) => {
                 let span = var.span().simplify().append(expr.span());
-                let expr = expr.type_constraints(functions, variables, solver)?;
-                let var_id = variables[var.0];
-                solver.add_extension(expr.id(), var_id);
-                Expression::Assignment(solver.add_empty(span), var, Box::new(expr))
+                let expr = expr.type_constraints(ctx)?;
+                let var_id = ctx.variables[var.0];
+                ctx.solver.add_extension(expr.id(), var_id);
+                Expression::Assignment(ctx.solver.add_empty(span), var, Box::new(expr))
             }
             Expression::FunctionCall((), name, args) => {
-                let definition = &functions[name.0];
+                let definition = &ctx.functions[name.0];
                 let args = args
                     .into_iter()
-                    .map(|expr| expr.type_constraints(functions, variables, solver))
+                    .map(|expr| expr.type_constraints(ctx))
                     .collect::<Result<Vec<_>, CompileError>>()?;
 
                 if args.len() != definition.args.len() {
@@ -340,11 +342,11 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 }
 
                 for (actual, expected) in args.iter().zip(&definition.args) {
-                    let expected = solver.add_typed(expected.item, expected.simplify());
-                    solver.add_extension(actual.id(), expected);
+                    let expected = ctx.solver.add_typed(expected.item, expected.simplify());
+                    ctx.solver.add_extension(actual.id(), expected);
                 }
 
-                let ret = solver.add_typed(
+                let ret = ctx.solver.add_typed(
                     definition.ty.item,
                     args.last()
                         .map_or(name.simplify(), |a| name.simplify().append(a.span()))
@@ -353,21 +355,21 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 Expression::FunctionCall(ret, name, args)
             }
             Expression::FieldAccess((), obj, field) => {
-                let obj = obj.type_constraints(functions, variables, solver)?;
-                let access = solver.add_unbound(field.simplify());
-                solver.add_field_access(obj.id(), access, &field)?;
+                let obj = obj.type_constraints(ctx)?;
+                let access = ctx.solver.add_unbound(field.simplify());
+                ctx.solver.add_field_access(obj.id(), access, &field)?;
                 Expression::FieldAccess(access, Box::new(obj), field)
             }
             Expression::Match((), meta, value, match_arms) => {
-                let value = value.type_constraints(functions, variables, solver)?;
-                let result = solver.add_unbound(meta.clone());
+                let value = value.type_constraints(ctx)?;
+                let result = ctx.solver.add_unbound(meta.clone());
                 let match_arms = match_arms
                     .into_iter()
                     .map(|arm| {
-                        let id = variables[arm.pattern.item.0];
-                        solver.add_extension(id, value.id());
-                        let expr = arm.expr.type_constraints(functions, variables, solver)?;
-                        solver.add_extension(expr.id(), result);
+                        let id = ctx.variables[arm.pattern.item.0];
+                        ctx.solver.add_extension(id, value.id());
+                        let expr = arm.expr.type_constraints(ctx)?;
+                        ctx.solver.add_extension(expr.id(), result);
                         Ok(MatchArm {
                             pattern: arm.pattern,
                             expr,
@@ -379,17 +381,17 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             Expression::Loop((), _id, _body) => unimplemented!("loop"),
             Expression::Break((), _, _) => unimplemented!("break"),
             Expression::TypeRestriction(expr, ty) => {
-                let mut expr = expr.type_constraints(functions, variables, solver)?;
+                let mut expr = expr.type_constraints(ctx)?;
                 let meta = ty.simplify();
                 let expected = if let UnresolvedType::Integer = &ty.item {
-                    solver.add_integer(meta)
+                    ctx.solver.add_integer(meta)
                 } else {
-                    let ctx = solver.ctx();
+                    let solver_ctx = ctx.solver.ctx();
 
-                    let ty = ty::resolve(ty, ctx.types, ctx.type_lookup)?;
-                    solver.add_typed(ty.item, meta)
+                    let ty = ty::resolve(ty, solver_ctx.types, solver_ctx.type_lookup)?;
+                    ctx.solver.add_typed(ty.item, meta)
                 };
-                solver.add_extension(expr.id(), expected);
+                ctx.solver.add_extension(expr.id(), expected);
                 *expr.id_mut() = expected;
                 expr
             }
