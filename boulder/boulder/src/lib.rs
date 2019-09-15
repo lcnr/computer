@@ -6,6 +6,6 @@ pub fn compile(src: &str) -> Result<mir::Mir, CompileError> {
     let hir = hir.resolve_identifiers()?;
     let hir = hir.resolve_expr_types()?;
     let mut mir = hir.to_mir()?;
-    mir::optimize::kill_unreachable(&mut mir);
+    mir::optimize::kill_uninhabited(&mut mir);
     Ok(mir)
 }
