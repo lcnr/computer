@@ -1,0 +1,7 @@
+# `break` outside of scope
+# (5:
+
+fn scopeless_break() -> u32 {
+    break 7;
+    7
+}

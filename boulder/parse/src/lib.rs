@@ -250,7 +250,7 @@ fn parse_binop_rhs<'a>(
                     let block = parse_block(Some(start.map(|_| v)), iter)?;
                     parse_binop(block, iter)
                 }
-                _ => CompileError::expected(&[Token::OpenBlock(BlockDelim::Brace)], &start),
+                _ => CompileError::expected(&[Token::OpenBlock(BlockDelim::Brace)], &next),
             }?
         }
         Token::Ident(v) => parse_ident_expr(start.replace(v), iter)?,

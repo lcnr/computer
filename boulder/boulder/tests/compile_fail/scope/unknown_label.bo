@@ -1,0 +1,9 @@
+# Cannot find scope `hey` in this scope
+# (6:
+
+fn unknown_label() -> u32 {
+    'hi: {
+        break 'hey 7;
+        7
+    }
+}

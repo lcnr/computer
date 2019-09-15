@@ -222,11 +222,19 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                         format_args!("Cannot find scope `{}` in this scope", s),
                     )?
                 } else {
-                    Expression::Break(
-                        (),
-                        scope.replace(ScopeId(ctx.scope_lookup.len() - 1)),
-                        Box::new(expr.resolve_identifiers(ctx)?),
-                    )
+                    let scope_id = ScopeId(ctx.scope_lookup.len() - 1);
+                    if ctx.scope_lookup[scope_id.0]
+                        .as_ref()
+                        .map_or(false, |n| n.as_ref() == "fn")
+                    {
+                        CompileError::new(&scope, format_args!("`break` outside of scope"))?
+                    } else {
+                        Expression::Break(
+                            (),
+                            scope.replace(scope_id),
+                            Box::new(expr.resolve_identifiers(ctx)?),
+                        )
+                    }
                 }
             }
             Expression::TypeRestriction(expr, ty) => {
@@ -549,7 +557,6 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
 
                     let last_id = last.to_mir(ctx)?;
                     ctx.scopes.pop();
-
                     to_mir::initialized_mir_block(
                         end,
                         ctx.variable_types,
