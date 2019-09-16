@@ -4,8 +4,6 @@ pub mod expr;
 pub mod func;
 pub mod ty;
 
-mod to_mir;
-
 pub use func::{Function, FunctionDefinition, FunctionId, VariableId};
 pub use ty::{FieldId, Type, TypeId};
 

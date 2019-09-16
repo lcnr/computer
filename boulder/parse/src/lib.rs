@@ -246,10 +246,7 @@ fn parse_binop_rhs<'a>(
             consume_token(Token::Colon, iter)?;
             let next = iter.next().unwrap();
             match next.item {
-                Token::OpenBlock(BlockDelim::Brace) => {
-                    let block = parse_block(Some(start.map(|_| v)), iter)?;
-                    parse_binop(block, iter)
-                }
+                Token::OpenBlock(BlockDelim::Brace) => parse_block(Some(start.map(|_| v)), iter),
                 _ => CompileError::expected(&[Token::OpenBlock(BlockDelim::Brace)], &next),
             }?
         }
@@ -261,10 +258,13 @@ fn parse_binop_rhs<'a>(
             consume_token(Token::CloseBlock(BlockDelim::Parenthesis), iter)?;
             expr
         }
+        Token::OpenBlock(BlockDelim::Brace) => parse_block(None, iter)?,
         _ => CompileError::expected(
             &[
+                Token::Scope("".into()),
                 Token::Ident("".into()),
                 Token::Integer(0),
+                Token::Keyword(Keyword::Match),
                 Token::OpenBlock(BlockDelim::Parenthesis),
             ],
             &start,

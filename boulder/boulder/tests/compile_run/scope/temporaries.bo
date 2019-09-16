@@ -1,0 +1,8 @@
+fn temporaries() -> u32 {
+    7 + {
+        5
+    } + match True: Bool {
+        f: False -> 7 + { 4 },
+        t: True -> { 2 } + 3,
+    } + 3
+}

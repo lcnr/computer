@@ -5,7 +5,6 @@ use diagnostics::CompileError;
 use crate::{
     expr::Expression,
     func::FunctionDefinition,
-    to_mir,
     ty::{self, TypeId},
     Binop, Literal, ResolvedIdentifiers, ResolvedTypes,
 };
@@ -21,6 +20,27 @@ pub struct ExitScopeMeta {
 pub struct Temporary {
     step: mir::StepId,
     ty: mir::TypeId,
+}
+
+pub fn initialized_mir_block(
+    id: mir::BlockId,
+    variables: &[TypeId],
+    var_lookup: &mut [Option<mir::StepId>],
+    temporaries: &mut [Temporary],
+    func: &mut mir::Function,
+) {
+    let block = &mut func[id];
+    for (i, var) in var_lookup
+        .iter_mut()
+        .enumerate()
+        .filter_map(|(i, v)| v.as_mut().map(|v| (i, v)))
+    {
+        *var = block.add_input(variables[i].to_mir());
+    }
+
+    for temp in temporaries.iter_mut() {
+        temp.step = block.add_input(temp.ty);
+    }
 }
 
 #[derive(Debug)]
@@ -62,13 +82,14 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 }
 
                 for exit in exits.into_iter() {
-                    let step = &mut ctx.func[exit.origin.0][(exit.origin.1)];
+                    let step = &mut ctx.func[exit.origin.0][exit.origin.1];
                     if let mir::Action::Goto(_, ref mut vars) = step.action {
                         *vars = exit
                             .variables
                             .into_iter()
                             .zip(&*ctx.var_lookup)
                             .filter_map(|(v, lk)| lk.and(v))
+                            .chain(ctx.temporaries.iter().map(|t| t.step))
                             .collect();
                         vars.push(exit.expr);
                     } else {
@@ -80,7 +101,13 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                     }
                 }
 
-                to_mir::initialized_mir_block(end, ctx.variable_types, ctx.var_lookup, ctx.func);
+                initialized_mir_block(
+                    end,
+                    ctx.variable_types,
+                    ctx.var_lookup,
+                    ctx.temporaries,
+                    ctx.func,
+                );
                 let step = ctx.func[end].add_input(ty.to_mir());
                 *ctx.curr = end;
                 step
@@ -181,12 +208,14 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 let mut arms_data = Vec::new();
                 for arm in match_arms {
                     let mut available_variables = ctx.var_lookup.to_vec();
+                    let mut temporaries = ctx.temporaries.clone();
 
                     let mut id = ctx.func.add_block();
-                    to_mir::initialized_mir_block(
+                    initialized_mir_block(
                         id,
                         ctx.variable_types,
                         &mut available_variables,
+                        &mut temporaries,
                         ctx.func,
                     );
 
@@ -218,7 +247,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                     let extended_expr =
                         ctx.func[id].add_step(ty_id.to_mir(), Action::Extend(expr_id));
 
-                    arms_data.push((id, extended_expr, available_variables));
+                    arms_data.push((id, extended_expr, available_variables, temporaries));
                 }
 
                 let mut initialized_variables = if let Some((first, rest)) = arms_data.split_first()
@@ -235,30 +264,29 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 };
 
                 let id = ctx.func.add_block();
-                to_mir::initialized_mir_block(
+                initialized_mir_block(
                     id,
                     ctx.variable_types,
                     &mut initialized_variables,
+                    ctx.temporaries,
                     ctx.func,
                 );
                 let step = ctx.func[id].add_input(ty_id.to_mir());
 
-                arms_data.iter().for_each(|&(block, step, ref vars)| {
-                    let block = &mut ctx.func[block];
-                    let mut steps: Vec<mir::StepId> = vars
-                        .iter()
-                        .copied()
-                        .zip(initialized_variables.iter().copied())
-                        .filter_map(|(v, needed)| needed.and(v))
-                        .chain(ctx.temporaries.iter().map(|t| t.step))
-                        .collect();
-                    steps.push(step);
-                    block.add_step(ty::NEVER_ID.to_mir(), mir::Action::Goto(id, steps));
-                });
-
-                for temp in ctx.temporaries.iter_mut() {
-                    temp.step = ctx.func[id].add_input(temp.ty);
-                }
+                arms_data
+                    .iter()
+                    .for_each(|&(block, step, ref vars, ref temporaries)| {
+                        let block = &mut ctx.func[block];
+                        let mut steps: Vec<mir::StepId> = vars
+                            .iter()
+                            .copied()
+                            .zip(initialized_variables.iter().copied())
+                            .filter_map(|(v, needed)| needed.and(v))
+                            .chain(temporaries.iter().map(|t| t.step))
+                            .collect();
+                        steps.push(step);
+                        block.add_step(ty::NEVER_ID.to_mir(), mir::Action::Goto(id, steps));
+                    });
 
                 ctx.func[old_block]
                     .add_step(ty::NEVER_ID.to_mir(), mir::Action::Match(value, arms));
