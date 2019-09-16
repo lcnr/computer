@@ -4,6 +4,15 @@ mod display;
 pub mod optimize;
 pub mod validate;
 
+#[allow(dead_code)]
+mod ty {
+    use super::TypeId;
+
+    pub const EMPTY_TYPE_ID: TypeId = TypeId(0);
+    pub const UNINHABITED_TYPE_ID: TypeId = TypeId(1);
+    pub const BOOL_TYPE_ID: TypeId = TypeId(4);
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     Uninhabited,
