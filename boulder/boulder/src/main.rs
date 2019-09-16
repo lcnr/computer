@@ -10,7 +10,7 @@ pub fn main() {
     let mut args = env::args().skip(1);
     if let Some(ref input) = args.next() {
         let output = args.next();
-        let output = output.as_ref().map(|t| &**t).unwrap_or("a.data");
+        let output = output.as_ref().map(|t| &**t).unwrap_or("./a.data");
         if let Some(_) = args.next() {
             eprintln!("{}", USAGE);
             return;
@@ -23,9 +23,9 @@ pub fn main() {
             }
 
             if let Ok(res) = boulder::compile(&src) {
-                println!("Successfully compiled `{}`", input);
                 if let Ok(mut file) = File::create(output) {
                     write!(file, "{}", res).unwrap();
+                    println!("Successfully compiled `{}` to `{}`", input, output);
                 } else {
                     eprintln!("unable to create file: {}", output);
                 }
