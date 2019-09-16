@@ -1,6 +1,6 @@
 use std::{fmt, mem, ops::Drop};
 
-use crate::{Action, BlockId, FunctionId, Mir, Type, TypeId, ty::*};
+use crate::{ty::*, Action, BlockId, FunctionId, Mir, Type, TypeId};
 
 struct PanicDisplay<'a>(&'a str, &'a dyn fmt::Display);
 
