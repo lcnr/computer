@@ -7,7 +7,7 @@ mod tokenize;
 use tokenize::{BlockDelim, Keyword, Operator, Token, TokenIter};
 
 type Expression<'a> =
-    hir::expression::Expression<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedTypes<'a>>;
+    hir::expr::Expression<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedTypes<'a>>;
 type Function<'a> = hir::Function<
     'a,
     hir::UnresolvedIdentifiers<'a>,
@@ -25,7 +25,7 @@ type Type<'a> = hir::Type<'a, hir::UnresolvedType<'a>>;
 type Kind<'a> = hir::ty::Kind<'a, hir::UnresolvedType<'a>>;
 type Field<'a> = hir::ty::Field<'a, hir::UnresolvedType<'a>>;
 type MatchArm<'a> =
-    hir::expression::MatchArm<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedTypes<'a>>;
+    hir::expr::MatchArm<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedTypes<'a>>;
 
 pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
     let iter = &mut TokenIter::new(src);

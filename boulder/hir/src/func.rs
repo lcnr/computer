@@ -3,7 +3,7 @@ use diagnostics::{CompileError, Meta};
 use std::collections::HashMap;
 
 use crate::{
-    expression::{Expression, ResolveIdentifiersContext, ToMirContext, TypeConstraintsContext},
+    expr::{Expression, ResolveIdentifiersContext, ToMirContext, TypeConstraintsContext},
     ty,
     ty::solver::TypeSolver,
     IdentifierState, ResolvedIdentifiers, ResolvedTypes, Type, TypeId, TypeState,
@@ -234,7 +234,23 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
 }
 
 impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
-    pub fn to_mir(self, types: &[mir::Type]) -> Result<mir::Function, CompileError> {
+    pub fn definition(&self) -> FunctionDefinition<'a, TypeId> {
+        FunctionDefinition {
+            name: self.name.simplify(),
+            ty: self.ret.clone(),
+            args: self
+                .arguments
+                .iter()
+                .map(|arg| self.variables[arg.0].ty.clone())
+                .collect(),
+        }
+    }
+
+    pub fn to_mir(
+        self,
+        types: &[mir::Type],
+        function_definitions: &[FunctionDefinition<'a, TypeId>],
+    ) -> Result<mir::Function, CompileError> {
         let mut func = mir::Function::new(self.name.item);
         let mut id = func.add_block();
         let start = func.block(id);
@@ -251,8 +267,10 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
         let ret = self.body.to_mir(&mut ToMirContext {
             types,
             variable_types: &variable_types,
+            function_definitions,
             var_lookup: &mut variables,
             scopes: &mut Vec::new(),
+            temporaries: &mut Vec::new(),
             curr: &mut id,
             func: &mut func,
         })?;

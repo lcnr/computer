@@ -1,19 +1,18 @@
-use diagnostics::{CompileError, Meta, Span};
+use diagnostics::{CompileError, Meta};
 
-pub mod expression;
-pub mod function;
+pub mod expr;
+pub mod func;
 pub mod ty;
 
 mod to_mir;
 
-pub use function::{Function, FunctionDefinition, FunctionId, VariableId};
+pub use func::{Function, FunctionDefinition, FunctionId, VariableId};
 pub use ty::{FieldId, Type, TypeId};
 
 use mir::Mir;
 
 use std::{
     collections::{hash_map::Entry, HashMap},
-    convert::TryFrom,
     fmt,
     marker::PhantomData,
 };
@@ -293,7 +292,7 @@ impl<'a> Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unresolved
         let mut type_lookup = self.type_lookup;
         let mut types = self.types;
 
-        let functions = self
+        let function_definitions = self
             .functions
             .iter()
             .map(|f| f.definition(&mut types, &mut type_lookup))
@@ -302,7 +301,7 @@ impl<'a> Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unresolved
         let functions = self
             .functions
             .into_iter()
-            .map(|f| f.resolve_expr_types(&functions, &mut types, &mut type_lookup))
+            .map(|f| f.resolve_expr_types(&function_definitions, &mut types, &mut type_lookup))
             .collect::<Result<Vec<_>, CompileError>>()?;
 
         Ok(Hir {
@@ -316,10 +315,17 @@ impl<'a> Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unresolved
 impl<'a> Hir<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId, TypeId> {
     pub fn to_mir(self) -> Result<Mir, CompileError> {
         let types: Vec<_> = self.types.into_iter().map(|t| t.to_mir()).collect();
+
+        let function_definitions = self
+            .functions
+            .iter()
+            .map(|f| f.definition())
+            .collect::<Vec<_>>();
+
         let functions = self
             .functions
             .into_iter()
-            .map(|f| f.to_mir(&types))
+            .map(|f| f.to_mir(&types, &function_definitions))
             .collect::<Result<Vec<_>, CompileError>>()?;
 
         Ok(Mir { types, functions })

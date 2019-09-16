@@ -38,7 +38,6 @@ impl Display for Object {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Object::Unit => write!(f, "Unit"),
-            Object::Uninhabited => write!(f, "Uninhabited"),
             Object::U8(v) => write!(f, "{}u8", v),
             Object::U16(v) => write!(f, "{}u16", v),
             Object::U32(v) => write!(f, "{}u32", v),
@@ -77,6 +76,7 @@ impl Display for Mir {
                 for (i, step) in block.content.iter().enumerate() {
                     write!(f, "    ${}: %{} := ", i, step.ty.0)?;
                     match &step.action {
+                        Action::Extend(id) => writeln!(f, "extend ${}", id.0),
                         Action::LoadConstant(obj) => writeln!(f, "load {}", obj),
                         Action::LoadInput(i) => writeln!(f, "load !{}", i),
                         Action::CallFunction(i, args) => {

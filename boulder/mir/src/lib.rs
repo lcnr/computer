@@ -1,5 +1,8 @@
+use std::ops::{Index, IndexMut};
+
 mod display;
 pub mod optimize;
+pub mod validate;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
@@ -14,7 +17,6 @@ pub enum Type {
 
 #[derive(Debug, Clone)]
 pub enum Object {
-    Uninhabited,
     Unit,
     U8(u8),
     U16(u16),
@@ -26,7 +28,7 @@ pub enum Object {
 pub struct TypeId(pub usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FieldId(pub usize);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepId(pub usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BlockId(pub usize);
@@ -35,6 +37,7 @@ pub struct FunctionId(pub usize);
 
 #[derive(Debug, Clone)]
 pub enum Action {
+    Extend(StepId),
     LoadInput(usize),
     LoadConstant(Object),
     Return(StepId),
@@ -66,6 +69,20 @@ impl Step {
 pub struct Function {
     pub name: Box<str>,
     pub content: Vec<Block>,
+}
+
+impl Index<BlockId> for Function {
+    type Output = Block;
+
+    fn index(&self, id: BlockId) -> &Self::Output {
+        &self.content[id.0]
+    }
+}
+
+impl IndexMut<BlockId> for Function {
+    fn index_mut(&mut self, id: BlockId) -> &mut Self::Output {
+        &mut self.content[id.0]
+    }
 }
 
 impl Function {
@@ -101,6 +118,20 @@ pub struct Block {
     pub content: Vec<Step>,
 }
 
+impl Index<StepId> for Block {
+    type Output = Step;
+
+    fn index(&self, id: StepId) -> &Self::Output {
+        &self.content[id.0]
+    }
+}
+
+impl IndexMut<StepId> for Block {
+    fn index_mut(&mut self, id: StepId) -> &mut Self::Output {
+        &mut self.content[id.0]
+    }
+}
+
 impl Block {
     pub fn new() -> Self {
         Self {
@@ -115,8 +146,12 @@ impl Block {
         id
     }
 
-    pub fn get_step(&self, id: StepId) -> Step {
-        self.content[id.0].clone()
+    pub fn step(&self, id: StepId) -> &Step {
+        &self.content[id.0]
+    }
+
+    pub fn step_mut(&mut self, id: StepId) -> &mut Step {
+        &mut self.content[id.0]
     }
 
     pub fn add_input(&mut self, ty: TypeId) -> StepId {
@@ -133,4 +168,32 @@ impl Block {
 pub struct Mir {
     pub types: Vec<Type>,
     pub functions: Vec<Function>,
+}
+
+impl Index<TypeId> for Mir {
+    type Output = Type;
+
+    fn index(&self, id: TypeId) -> &Self::Output {
+        &self.types[id.0]
+    }
+}
+
+impl IndexMut<TypeId> for Mir {
+    fn index_mut(&mut self, id: TypeId) -> &mut Self::Output {
+        &mut self.types[id.0]
+    }
+}
+
+impl Index<FunctionId> for Mir {
+    type Output = Function;
+
+    fn index(&self, id: FunctionId) -> &Self::Output {
+        &self.functions[id.0]
+    }
+}
+
+impl IndexMut<FunctionId> for Mir {
+    fn index_mut(&mut self, id: FunctionId) -> &mut Self::Output {
+        &mut self.functions[id.0]
+    }
 }
