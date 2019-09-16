@@ -42,7 +42,7 @@ impl Mir {
                             let field_ty = ty[field.0];
                             assert_eq!(field_ty, step.ty);
                         } else {
-                            panic!("field access on invalid type: {:?}", block.step(id).ty);
+                            panic!("field access on invalid type: {:?}", block[id].ty);
                         }
                     }
                     &Action::Add(a, b)

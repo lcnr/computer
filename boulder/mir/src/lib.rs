@@ -99,10 +99,6 @@ impl Function {
         id
     }
 
-    pub fn block(&mut self, id: BlockId) -> &mut Block {
-        &mut self.content[id.0]
-    }
-
     pub fn args(&self) -> &[TypeId] {
         if let Some(first) = self.content.first() {
             &first.input
@@ -140,25 +136,15 @@ impl Block {
         }
     }
 
-    pub fn add_step(&mut self, step: Step) -> StepId {
+    pub fn add_step(&mut self, ty: TypeId, action: Action) -> StepId {
+        let step = Step { ty, action };
         let id = StepId(self.content.len());
         self.content.push(step);
         id
     }
 
-    pub fn step(&self, id: StepId) -> &Step {
-        &self.content[id.0]
-    }
-
-    pub fn step_mut(&mut self, id: StepId) -> &mut Step {
-        &mut self.content[id.0]
-    }
-
     pub fn add_input(&mut self, ty: TypeId) -> StepId {
-        let id = self.add_step(Step {
-            ty,
-            action: Action::LoadInput(self.input.len()),
-        });
+        let id = self.add_step(ty, Action::LoadInput(self.input.len()));
         self.input.push(ty);
         id
     }

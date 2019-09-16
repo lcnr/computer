@@ -253,7 +253,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
     ) -> Result<mir::Function, CompileError> {
         let mut func = mir::Function::new(self.name.item);
         let mut id = func.add_block();
-        let start = func.block(id);
+        let start = &mut func[id];
 
         let mut variables: Vec<Option<mir::StepId>> =
             std::iter::repeat(None).take(self.variables.len()).collect();
@@ -274,10 +274,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
             curr: &mut id,
             func: &mut func,
         })?;
-        func.block(id).add_step(mir::Step::new(
-            ty::NEVER_ID.to_mir(),
-            mir::Action::Return(ret),
-        ));
+        func[id].add_step(ty::NEVER_ID.to_mir(), mir::Action::Return(ret));
 
         Ok(func)
     }

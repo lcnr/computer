@@ -6,7 +6,7 @@ pub fn initialized_mir_block(
     var_lookup: &mut [Option<mir::StepId>],
     func: &mut mir::Function,
 ) {
-    let block = func.block(id);
+    let block = &mut func[id];
     for (i, var) in var_lookup
         .iter_mut()
         .enumerate()
