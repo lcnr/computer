@@ -1,4 +1,4 @@
-use std::{fmt, mem, ops::Drop};
+use std::{cmp::Ordering, fmt, mem, ops::Drop};
 
 use crate::{ty::*, Action, BlockId, FunctionId, Mir, Type, TypeId};
 
@@ -45,6 +45,8 @@ impl Mir {
                                 } else {
                                     assert!(v.contains(&block[s].ty));
                                 }
+                            } else {
+                                unreachable!("mismatched types");
                             }
                         }
                     }
@@ -93,7 +95,34 @@ impl Mir {
                         let target = &func[target];
                         assert_eq!(target.input.len(), steps.len());
                         for i in 0..steps.len() {
+                            assert!(steps[i].0 < step_id);
                             assert_eq!(target.input[i], block[steps[i]].ty);
+                        }
+                    }
+                    &Action::Match(value, ref targets) => {
+                        for &(ty, target, ref args) in targets.iter() {
+                            let target = &func[target];
+                            assert_eq!(target.input.len(), args.len());
+                            for i in 0..args.len() {
+                                if block[value].ty != step.ty {
+                                    if let &Type::Sum(ref s) = &self[block[value].ty] {
+                                        if let &Type::Sum(ref v) = &self[ty] {
+                                            assert!(v.iter().all(|t| s.contains(t)));
+                                        } else {
+                                            assert!(s.contains(&ty));
+                                        }
+                                    } else {
+                                        unreachable!("mismatched types");
+                                    }
+                                }
+                                match (args[i].0).cmp(&step_id) {
+                                    Ordering::Less => {
+                                        assert_eq!(target.input[i], block[args[i]].ty)
+                                    }
+                                    Ordering::Equal => assert_eq!(target.input[i], ty),
+                                    Ordering::Greater => unreachable!("invalid match argument"),
+                                }
+                            }
                         }
                     }
                     _ => (), // TODO: validate

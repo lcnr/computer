@@ -60,7 +60,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
         use mir::{Action, Object};
         match self {
             Expression::Block(ty, _scope, mut v) => Ok(if let Some(last) = v.pop() {
-                let end = dbg!(ctx.func.add_block());
+                let end = ctx.func.add_block();
                 ctx.scopes.push((end, Vec::new()));
                 for e in v {
                     e.to_mir(ctx)?;
