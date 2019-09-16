@@ -532,11 +532,17 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
     }
 }
 
+pub struct ExitScopeMeta {
+    origin: (mir::BlockId, mir::StepId),
+    expr: mir::StepId,
+    variables: Vec<Option<mir::StepId>>,
+}
+
 pub struct ToMirContext<'a> {
     pub types: &'a [mir::Type],
     pub variable_types: &'a [TypeId],
     pub var_lookup: &'a mut Vec<Option<mir::StepId>>,
-    pub scopes: &'a mut Vec<mir::BlockId>,
+    pub scopes: &'a mut Vec<(mir::BlockId, Vec<ExitScopeMeta>)>,
     pub curr: &'a mut mir::BlockId,
     pub func: &'a mut mir::Function,
 }
@@ -546,17 +552,37 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
         use mir::{Action, Object, Step};
         match self {
             Expression::Block(ty, _, mut v) => {
-                // we do not start a new block for an expression block
-                // as only control flow requires new blocks
                 Ok(if let Some(last) = v.pop() {
                     let end = ctx.func.add_block();
-                    ctx.scopes.push(end);
+                    ctx.scopes.push((end, Vec::new()));
                     for e in v {
                         e.to_mir(ctx)?;
                     }
 
                     let last_id = last.to_mir(ctx)?;
-                    ctx.scopes.pop();
+                    let goto_id = ctx.func.block(*ctx.curr).add_step(Step::new(ty::NEVER_ID.to_mir(), Action::Goto(end, Vec::new())));
+                    let (_, mut exits) = ctx.scopes.pop().unwrap();
+                    exits.push(ExitScopeMeta {
+                        origin: (*ctx.curr, goto_id),
+                        expr: last_id,
+                        variables: ctx.var_lookup.clone(),
+                    });
+                    for exit in exits.iter() {
+                        for (v, ex) in ctx.var_lookup.iter_mut().zip(&exit.variables) {
+                            *v = ex.and(*v);
+                        }
+                    }
+
+                    for exit in exits.into_iter() {
+                        let step = &mut ctx.func.block(exit.origin.0).content[(exit.origin.1).0];
+                        if let mir::Action::Goto(_, ref mut vars) = step.action {
+                            *vars = exit.variables.into_iter().zip(&*ctx.var_lookup).filter_map(|(v, lk)| lk.and(v)).collect();
+                            vars.push(exit.expr);
+                        } else {
+                            panic!("invalid break action `{:?}` in `{:?}`", step.clone(), ctx.func);
+                        }
+                    }
+
                     to_mir::initialized_mir_block(
                         end,
                         ctx.variable_types,
@@ -564,17 +590,6 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                         ctx.func,
                     );
                     let step = ctx.func.block(end).add_input(ty.to_mir());
-                    let mut steps: Vec<mir::StepId> = ctx
-                        .var_lookup
-                        .iter()
-                        .copied()
-                        .filter_map(identity)
-                        .collect();
-                    steps.push(last_id);
-                    ctx.func.block(*ctx.curr).add_step(Step::new(
-                        ty::NEVER_ID.to_mir(),
-                        mir::Action::Goto(end, steps),
-                    ));
                     *ctx.curr = end;
                     step
                 } else {
@@ -757,18 +772,19 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
             }
             Expression::Loop(_ty, _scope, _body) => unimplemented!("loop"),
             Expression::Break(ty, scope_id, expr) => {
-                let step = expr.to_mir(ctx)?;
-                let mut steps: Vec<mir::StepId> = ctx
-                    .var_lookup
-                    .iter()
-                    .copied()
-                    .filter_map(identity)
-                    .collect();
-                steps.push(step);
-                Ok(ctx.func.block(*ctx.curr).add_step(Step::new(
-                    ty.to_mir(),
-                    mir::Action::Goto(ctx.scopes[scope_id.item.0], steps),
-                )))
+                let expr = expr.to_mir(ctx)?;
+                let step = ctx.func.block(*ctx.curr).add_step(Step::new(
+                    ty.to_mir(), 
+                    mir::Action::Goto(ctx.scopes[scope_id.item.0].0, Vec::new())
+                ));
+
+                ctx.scopes[scope_id.0].1.push(ExitScopeMeta {
+                    origin: (*ctx.curr, step),
+                    expr,
+                    variables: ctx.var_lookup.clone(),
+                });
+
+                Ok(step)
             }
             Expression::TypeRestriction(_, ()) => unreachable!("type restriction after type check"),
         }

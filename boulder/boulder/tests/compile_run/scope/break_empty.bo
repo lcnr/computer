@@ -1,0 +1,4 @@
+fn var_after_break() -> u32 {
+    { break Empty; };
+    7
+}

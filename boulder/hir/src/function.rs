@@ -207,7 +207,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
         let body = self.body.type_constraints(&mut TypeConstraintsContext {
             functions: function_lookup,
             variables: &variables,
-            scopes: &mut vec![ret],
+            scopes: &mut Vec::new(),
             solver: &mut solver,
         })?;
 

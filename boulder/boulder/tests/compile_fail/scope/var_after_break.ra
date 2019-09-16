@@ -1,0 +1,13 @@
+# Use of possibly uninitialized variable: `b`
+# (11:
+
+fn var_after_break() -> u32 {
+    let a = 7;
+    let b;
+    {
+        break Empty;
+        b = 5;
+    };
+    a = b;
+    a
+}
