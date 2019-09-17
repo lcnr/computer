@@ -47,6 +47,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 for expr in expressions {
                     new.push(expr.resolve_identifiers(ctx)?);
                 }
+                ctx.scope_lookup.pop();
                 ctx.variable_lookup.pop();
                 Expression::Block((), scope.replace(scope_id), new)
             }
@@ -173,7 +174,18 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 }
                 Expression::Match((), meta, value, new)
             }
-            Expression::Loop((), _, _) => unimplemented!("loop"),
+            Expression::Loop((), scope, expressions) => {
+                ctx.variable_lookup.push(Vec::new());
+                let mut new = Vec::new();
+                let scope_id = ScopeId(ctx.scope_lookup.len());
+                ctx.scope_lookup.push(scope.item.clone());
+                for expr in expressions {
+                    new.push(expr.resolve_identifiers(ctx)?);
+                }
+                ctx.scope_lookup.pop();
+                ctx.variable_lookup.pop();
+                Expression::Loop((), scope.replace(scope_id), new)
+            }
             Expression::Break((), scope, expr) => {
                 if let Some(ref s) = &scope.item {
                     for (i, id) in ctx

@@ -39,6 +39,13 @@ pub struct TypeId(pub usize);
 pub struct FieldId(pub usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepId(pub usize);
+
+impl StepId {
+    pub fn invalid() -> Self {
+        StepId(std::usize::MAX)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct BlockId(pub usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

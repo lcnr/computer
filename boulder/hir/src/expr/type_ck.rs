@@ -155,7 +155,24 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     .collect::<Result<_, _>>()?;
                 Expression::Match(result, meta, Box::new(value), match_arms)
             }
-            Expression::Loop((), _id, _body) => unimplemented!("loop"),
+            Expression::Loop((), meta, v) => {
+                if v.is_empty() {
+                    CompileError::new(
+                        &meta,
+                        "Provably endless loop, consider adding a `break` statement",
+                    )?
+                }
+
+                let id = ctx.solver.add_unbound(meta.simplify());
+                ctx.scopes.push(id);
+                let content = v
+                    .into_iter()
+                    .map(|expr| expr.type_constraints(ctx))
+                    .collect::<Result<Vec<_>, CompileError>>()?;
+
+                ctx.scopes.pop();
+                Expression::Loop(id, meta, content)
+            }
             Expression::Break((), scope_id, expr) => {
                 let expr = expr.type_constraints(ctx)?;
                 ctx.solver
@@ -285,7 +302,14 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
                     match_arms,
                 )
             }
-            Expression::Loop(_id, _scope, _body) => unimplemented!("loop"),
+            Expression::Loop(id, meta, content) => {
+                let ty = type_result[id];
+                let content = content
+                    .into_iter()
+                    .map(|expr| expr.insert_types(types, type_result))
+                    .collect::<Vec<_>>();
+                Expression::Loop(ty, meta, content)
+            }
             Expression::Break(id, scope_id, expr) => Expression::Break(
                 type_result[id],
                 scope_id,

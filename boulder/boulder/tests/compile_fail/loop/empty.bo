@@ -1,0 +1,8 @@
+# endless loop
+# (5:
+
+fn empty() {
+    loop {
+
+    }
+}

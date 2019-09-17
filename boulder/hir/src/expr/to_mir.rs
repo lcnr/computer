@@ -292,7 +292,74 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 *ctx.var_lookup = initialized_variables;
                 Ok(step)
             }
-            Expression::Loop(_ty, _scope, _body) => unimplemented!("loop"),
+            Expression::Loop(ty, _scope, content) => Ok({
+                let block = ctx.func.add_block();
+                ctx.func[*ctx.curr].add_step(
+                    ty::NEVER_ID.to_mir(),
+                    Action::Goto(
+                        block,
+                        ctx.var_lookup
+                            .iter()
+                            .copied()
+                            .filter_map(identity)
+                            .chain(ctx.temporaries.iter().map(|t| t.step))
+                            .collect(),
+                    ),
+                );
+                initialized_mir_block(
+                    block,
+                    ctx.variable_types,
+                    ctx.var_lookup,
+                    ctx.temporaries,
+                    ctx.func,
+                );
+                *ctx.curr = block;
+
+                let end = ctx.func.add_block();
+                ctx.scopes.push((end, Vec::new()));
+                for expr in content {
+                    expr.to_mir(ctx)?;
+                }
+
+                let (_, exits) = ctx.scopes.pop().unwrap();
+                *ctx.var_lookup = vec![Some(mir::StepId::invalid()); ctx.var_lookup.len()];
+                for exit in exits.iter() {
+                    for (v, ex) in ctx.var_lookup.iter_mut().zip(&exit.variables) {
+                        *v = ex.and(*v);
+                    }
+                }
+
+                for exit in exits.into_iter() {
+                    let step = &mut ctx.func[exit.origin.0][exit.origin.1];
+                    if let mir::Action::Goto(_, ref mut vars) = step.action {
+                        *vars = exit
+                            .variables
+                            .into_iter()
+                            .zip(&*ctx.var_lookup)
+                            .filter_map(|(v, lk)| lk.and(v))
+                            .chain(ctx.temporaries.iter().map(|t| t.step))
+                            .collect();
+                        vars.push(exit.expr);
+                    } else {
+                        panic!(
+                            "invalid break action `{:?}` in `{:?}`",
+                            step.clone(),
+                            ctx.func
+                        );
+                    }
+                }
+
+                initialized_mir_block(
+                    end,
+                    ctx.variable_types,
+                    ctx.var_lookup,
+                    ctx.temporaries,
+                    ctx.func,
+                );
+                let step = ctx.func[end].add_input(ty.to_mir());
+                *ctx.curr = end;
+                step
+            }),
             Expression::Break(ty, scope_id, expr) => {
                 let expr = expr.to_mir(ctx)?;
                 let step = ctx.func[*ctx.curr].add_step(
