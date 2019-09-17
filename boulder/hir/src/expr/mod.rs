@@ -35,7 +35,7 @@ pub enum Expression<'a, V: IdentifierState, N: TypeState> {
         Box<Expression<'a, V, N>>,
         Vec<MatchArm<'a, V, N>>,
     ),
-    Loop(N::Type, V::Scope, Box<Expression<'a, V, N>>),
+    Loop(N::Type, V::Scope, Vec<Expression<'a, V, N>>),
     Break(N::Type, V::Scope, Box<Expression<'a, V, N>>),
     TypeRestriction(Box<Expression<'a, V, N>>, N::Restriction),
 }

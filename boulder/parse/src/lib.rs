@@ -247,7 +247,23 @@ fn parse_binop_rhs<'a>(
             let next = iter.next().unwrap();
             match next.item {
                 Token::OpenBlock(BlockDelim::Brace) => parse_block(Some(start.map(|_| v)), iter),
-                _ => CompileError::expected(&[Token::OpenBlock(BlockDelim::Brace)], &next),
+                Token::Keyword(Keyword::Loop) => {
+                    consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
+                    if let Expression::Block((), scope, body) =
+                        parse_block(Some(start.map(|_| v)), iter)?
+                    {
+                        Ok(Expression::Loop((), scope, body))
+                    } else {
+                        unreachable!("parse_block returned an unexpected expression")
+                    }
+                }
+                _ => CompileError::expected(
+                    &[
+                        Token::OpenBlock(BlockDelim::Brace),
+                        Token::Keyword(Keyword::Loop),
+                    ],
+                    &next,
+                ),
             }?
         }
         Token::Ident(v) => parse_ident_expr(start.replace(v), iter)?,
@@ -259,6 +275,14 @@ fn parse_binop_rhs<'a>(
             expr
         }
         Token::OpenBlock(BlockDelim::Brace) => parse_block(None, iter)?,
+        Token::Keyword(Keyword::Loop) => {
+            consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
+            if let Expression::Block((), scope, body) = parse_block(None, iter)? {
+                Expression::Loop((), scope, body)
+            } else {
+                unreachable!("parse_block returned an unexpected expression")
+            }
+        }
         _ => CompileError::expected(
             &[
                 Token::Scope("".into()),
@@ -339,6 +363,14 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
             let block = parse_block(None, iter)?;
             parse_binop(block, iter)
         }
+        Token::Keyword(Keyword::Loop) => {
+            consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
+            if let Expression::Block((), scope, body) = parse_block(None, iter)? {
+                parse_binop(Expression::Loop((), scope, body), iter)
+            } else {
+                unreachable!("parse_block returned an unexpected expression")
+            }
+        }
         Token::Scope(v) => {
             consume_token(Token::Colon, iter)?;
             let next = iter.next().unwrap();
@@ -347,7 +379,23 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
                     let block = parse_block(Some(start.map(|_| v)), iter)?;
                     parse_binop(block, iter)
                 }
-                _ => CompileError::expected(&[Token::OpenBlock(BlockDelim::Brace)], &start),
+                Token::Keyword(Keyword::Loop) => {
+                    consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
+                    if let Expression::Block((), scope, body) =
+                        parse_block(Some(start.map(|_| v)), iter)?
+                    {
+                        parse_binop(Expression::Loop((), scope, body), iter)
+                    } else {
+                        unreachable!("parse_block returned an unexpected expression")
+                    }
+                }
+                _ => CompileError::expected(
+                    &[
+                        Token::OpenBlock(BlockDelim::Brace),
+                        Token::Keyword(Keyword::Loop),
+                    ],
+                    &next,
+                ),
             }
         }
         Token::OpenBlock(BlockDelim::Parenthesis) => {

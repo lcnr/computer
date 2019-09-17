@@ -1,0 +1,12 @@
+fn many_loops() -> u32 {
+    let a = loop {
+        break 4;
+    } + 'loo: loop {
+        break 5;
+    };
+    'loo: loop {
+        break 3;
+    } + a + loop {
+        break 2;
+    }
+}
