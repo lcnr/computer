@@ -9,5 +9,7 @@ pub fn compile(src: &str) -> Result<mir::Mir, CompileError> {
     mir.validate();
     mir.kill_uninhabited();
     mir.validate();
+    mir.remove_noop_extend();
+    mir.validate();
     Ok(mir)
 }

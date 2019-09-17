@@ -129,6 +129,11 @@ impl Mir {
                 }
                 mem::forget(step_panic);
             }
+
+            assert!(match block.content.last().unwrap().action {
+                Action::Match(_, _) | Action::Goto(_, _) | Action::Return(_) => true,
+                _ => false,
+            });
             mem::forget(block_panic);
         }
 

@@ -306,6 +306,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                             .collect(),
                     ),
                 );
+                let variables = ctx.var_lookup.clone();
                 initialized_mir_block(
                     block,
                     ctx.variable_types,
@@ -320,6 +321,19 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 for expr in content {
                     expr.to_mir(ctx)?;
                 }
+
+                ctx.func[*ctx.curr].add_step(
+                    ty::NEVER_ID.to_mir(),
+                    Action::Goto(
+                        block,
+                        ctx.var_lookup
+                            .into_iter()
+                            .zip(variables)
+                            .filter_map(|(&mut v, e)| e.and(v))
+                            .chain(ctx.temporaries.iter().map(|t| t.step))
+                            .collect(),
+                    ),
+                );
 
                 let (_, exits) = ctx.scopes.pop().unwrap();
                 *ctx.var_lookup = vec![Some(mir::StepId::invalid()); ctx.var_lookup.len()];

@@ -1,0 +1,14 @@
+fn cond_exit(a: u32) -> u32 {
+    let b = 0;
+    loop {
+        match a < 1 {
+            t: True -> break Empty,
+            f: False -> { },
+        }: Empty | Never;
+
+        b = b + a;
+        a = a - 1;
+    };
+
+    b
+}
