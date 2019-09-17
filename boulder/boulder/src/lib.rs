@@ -6,10 +6,13 @@ pub fn compile(src: &str) -> Result<mir::Mir, CompileError> {
     let hir = hir.resolve_identifiers()?;
     let hir = hir.resolve_expr_types()?;
     let mut mir = hir.to_mir()?;
+    dbg!(mir.step_count());
     mir.validate();
     mir.kill_uninhabited();
+    dbg!(mir.step_count());
     mir.validate();
     mir.remove_noop_extend();
+    dbg!(mir.step_count());
     mir.validate();
     Ok(mir)
 }

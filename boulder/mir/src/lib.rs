@@ -172,6 +172,16 @@ pub struct Mir {
     pub functions: Vec<Function>,
 }
 
+impl Mir {
+    pub fn step_count(&self) -> usize {
+        self.functions
+            .iter()
+            .flat_map(|f| f.content.iter())
+            .flat_map(|b| b.content.iter())
+            .count()
+    }
+}
+
 impl Index<TypeId> for Mir {
     type Output = Type;
 
