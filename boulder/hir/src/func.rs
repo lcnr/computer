@@ -249,7 +249,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
         types: &[mir::Type],
         function_definitions: &[FunctionDefinition<'a, TypeId>],
     ) -> Result<mir::Function, CompileError> {
-        let mut func = mir::Function::new(self.name.item);
+        let mut func = mir::Function::new(self.name.item, self.ret.to_mir());
         let mut id = func.add_block();
         let start = &mut func[id];
 

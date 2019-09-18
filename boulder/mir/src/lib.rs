@@ -85,6 +85,7 @@ impl Step {
 pub struct Function {
     pub name: Box<str>,
     pub content: Vec<Block>,
+    pub ret: TypeId,
 }
 
 impl Index<BlockId> for Function {
@@ -102,10 +103,11 @@ impl IndexMut<BlockId> for Function {
 }
 
 impl Function {
-    pub fn new(name: Box<str>) -> Self {
+    pub fn new(name: Box<str>, ret: TypeId) -> Self {
         Self {
             name,
             content: Vec::new(),
+            ret,
         }
     }
 

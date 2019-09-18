@@ -55,15 +55,16 @@ impl Mir {
                     &Action::Return(id) => {
                         assert_eq!(NEVER_TYPE_ID, step.ty);
                         assert!(id.0 < step_id);
-                        // TODO: check function return type
+                        assert_eq!(func.ret, block[id].ty);
                     }
                     &Action::CallFunction(target_func, ref input) => {
-                        let expected_input = &self[target_func][BlockId(0)].input;
+                        let expected_input = self[target_func].args();
                         assert_eq!(expected_input.len(), input.len());
                         for i in 0..expected_input.len() {
                             assert!(input[i].0 < step_id);
                             assert_eq!(expected_input[i], block[input[i]].ty);
                         }
+                        assert_eq!(step.ty, self[target_func].ret);
                     }
                     &Action::FieldAccess(id, field) => {
                         assert!(id.0 < step_id);
