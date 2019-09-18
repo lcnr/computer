@@ -11,7 +11,7 @@ use crate::{
 pub struct TypeConstraintsContext<'a, 'b, 'c> {
     pub functions: &'c [FunctionDefinition<'a, TypeId>],
     pub variables: &'c [solver::EntityId],
-    pub scopes: &'c mut Vec<solver::EntityId>,
+    pub scopes: &'c mut Vec<(solver::EntityId, bool)>,
     pub solver: &'c mut TypeSolver<'a, 'b>,
 }
 
@@ -23,7 +23,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
         Ok(match self {
             Expression::Block((), meta, v) => {
                 let id = ctx.solver.add_unbound(meta.simplify());
-                ctx.scopes.push(id);
+                ctx.scopes.push((id, false));
                 let content = v
                     .into_iter()
                     .map(|expr| expr.type_constraints(ctx))
@@ -164,19 +164,23 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 }
 
                 let id = ctx.solver.add_unbound(meta.simplify());
-                ctx.scopes.push(id);
+                ctx.scopes.push((id, false));
                 let content = v
                     .into_iter()
                     .map(|expr| expr.type_constraints(ctx))
                     .collect::<Result<Vec<_>, CompileError>>()?;
 
-                ctx.scopes.pop();
+                if !ctx.scopes.pop().unwrap().1 {
+                    ctx.solver.override_entity(id, ty::NEVER_ID, meta.simplify());
+                };
                 Expression::Loop(id, meta, content)
             }
             Expression::Break((), scope_id, expr) => {
                 let expr = expr.type_constraints(ctx)?;
                 ctx.solver
-                    .add_extension(expr.id(), ctx.scopes[scope_id.item.0]);
+                    .add_extension(expr.id(), ctx.scopes[scope_id.item.0].0);
+                ctx.scopes[scope_id.item.0].1 = true;
+                
                 Expression::Break(
                     ctx.solver.add_typed(ty::NEVER_ID, scope_id.simplify()),
                     scope_id,

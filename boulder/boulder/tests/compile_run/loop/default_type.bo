@@ -1,0 +1,6 @@
+fn default_type() -> u8 {
+    loop {
+        return 7;
+    };
+    5
+}
