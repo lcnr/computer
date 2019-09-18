@@ -51,12 +51,18 @@ pub struct BlockId(pub usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct FunctionId(pub usize);
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Terminator {
+    Return(StepId),
+    Goto(BlockId, Vec<StepId>),
+    Match(StepId, Vec<(TypeId, BlockId, Vec<Option<StepId>>)>),
+}
+
 #[derive(Debug, Clone)]
 pub enum Action {
     Extend(StepId),
     LoadInput(usize),
     LoadConstant(Object),
-    Return(StepId),
     CallFunction(FunctionId, Vec<StepId>),
     FieldAccess(StepId, FieldId),
     Add(StepId, StepId),
@@ -65,8 +71,6 @@ pub enum Action {
     Div(StepId, StepId),
     Lt(StepId, StepId),
     BitOr(StepId, StepId),
-    Goto(BlockId, Vec<StepId>),
-    Match(StepId, Vec<(TypeId, BlockId, Vec<StepId>)>),
 }
 
 #[derive(Debug, Clone)]
@@ -130,6 +134,7 @@ impl Function {
 pub struct Block {
     pub input: Vec<TypeId>,
     pub content: Vec<Step>,
+    pub terminator: Terminator,
 }
 
 impl Index<StepId> for Block {
@@ -151,6 +156,7 @@ impl Block {
         Self {
             input: Vec::new(),
             content: Vec::new(),
+            terminator: Terminator::Return(StepId::invalid())
         }
     }
 
@@ -165,6 +171,11 @@ impl Block {
         let id = self.add_step(ty, Action::LoadInput(self.input.len()));
         self.input.push(ty);
         id
+    }
+
+    pub fn add_terminator(&mut self, terminator: Terminator) {
+        assert_eq!(self.terminator, Terminator::Return(StepId::invalid()));
+        self.terminator = terminator;
     }
 }
 

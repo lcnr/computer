@@ -272,7 +272,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
             curr: &mut id,
             func: &mut func,
         })?;
-        func[id].add_step(ty::NEVER_ID.to_mir(), mir::Action::Return(ret));
+        func[id].add_terminator(mir::Terminator::Return(ret));
 
         Ok(func)
     }

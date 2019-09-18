@@ -89,7 +89,7 @@ impl Display for Mir {
                             }
                             writeln!(f, ")")
                         }
-                        Action::Return(v) => writeln!(f, "return ${}", v.0),
+                        
                         Action::FieldAccess(s, a) => writeln!(f, "${}.{}", s.0, a.0),
                         Action::Add(a, b) => writeln!(f, "add ${} ${}", a.0, b.0),
                         Action::Sub(a, b) => writeln!(f, "sub ${} ${}", a.0, b.0),
@@ -97,7 +97,11 @@ impl Display for Mir {
                         Action::Div(a, b) => writeln!(f, "div ${} ${}", a.0, b.0),
                         Action::Lt(a, b) => writeln!(f, "cmp ${} < ${}", a.0, b.0),
                         Action::BitOr(a, b) => writeln!(f, "bitor ${} $ {}", a.0, b.0),
-                        Action::Goto(block, args) => {
+                    }?;
+
+                    match &block.terminator {
+                        Terminator::Return(v) => writeln!(f, "return ${}", v.0),
+                        Terminator::Goto(block, args) => {
                             write!(f, "goto ~{}(", block.0)?;
                             if let Some((last, start)) = args.split_last() {
                                 for arg in start.iter() {
@@ -107,14 +111,23 @@ impl Display for Mir {
                             }
                             writeln!(f, ")")
                         }
-                        Action::Match(id, arms) => {
-                            let write_arm = |f: &mut Formatter, (ty, block, args): &(TypeId, BlockId, Vec<StepId>)| {
+                        Terminator::Match(id, arms) => {
+                            let write_arm = |f: &mut Formatter, (ty, block, args): &(TypeId, BlockId, Vec<Option<StepId>>)| {
                                 write!(f, "%{} -> ~{}(", ty.0, block.0)?;
                                 if let Some((last, start)) = args.split_last() {
                                     for arg in start.iter() {
-                                        write!(f, "${}, ", arg.0)?;
+                                        if let Some(arg) = arg {
+                                            write!(f, "${}, ", arg.0)?;
+                                        } else {
+                                            write!(f, "$self")?;
+                                        }
                                     }
-                                    write!(f, "${}", last.0)?;
+
+                                    if let Some(arg) = last {
+                                        write!(f, "${}, ", arg.0)?;
+                                    } else {
+                                        write!(f, "$self")?;
+                                    }
                                 }
                                 write!(f, ")")
                             };
@@ -131,6 +144,7 @@ impl Display for Mir {
                         }
                     }?;
                 }
+
             }
         }
 

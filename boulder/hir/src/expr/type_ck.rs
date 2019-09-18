@@ -171,7 +171,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     .collect::<Result<Vec<_>, CompileError>>()?;
 
                 if !ctx.scopes.pop().unwrap().1 {
-                    ctx.solver.override_entity(id, ty::NEVER_ID, meta.simplify());
+                    ctx.solver
+                        .override_entity(id, ty::NEVER_ID, meta.simplify());
                 };
                 Expression::Loop(id, meta, content)
             }
@@ -180,7 +181,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 ctx.solver
                     .add_extension(expr.id(), ctx.scopes[scope_id.item.0].0);
                 ctx.scopes[scope_id.item.0].1 = true;
-                
+
                 Expression::Break(
                     ctx.solver.add_typed(ty::NEVER_ID, scope_id.simplify()),
                     scope_id,

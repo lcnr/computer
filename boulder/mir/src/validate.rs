@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, fmt, mem, ops::Drop};
 
-use crate::{ty::*, Action, BlockId, FunctionId, Mir, Type, TypeId};
+use crate::{ty::*, Action, BlockId, FunctionId, Mir, Terminator, Type, TypeId};
 
 struct PanicDisplay<'a>(&'a str, &'a dyn fmt::Display);
 
@@ -52,11 +52,6 @@ impl Mir {
                     }
                     &Action::LoadInput(v) => assert_eq!(block.input[v], step.ty),
                     &Action::LoadConstant(_) => (), // TODO: check type of constant
-                    &Action::Return(id) => {
-                        assert_eq!(NEVER_TYPE_ID, step.ty);
-                        assert!(id.0 < step_id);
-                        assert_eq!(func.ret, block[id].ty);
-                    }
                     &Action::CallFunction(target_func, ref input) => {
                         let expected_input = self[target_func].args();
                         assert_eq!(expected_input.len(), input.len());
@@ -92,43 +87,46 @@ impl Mir {
                         // TODO: check if values are integers
                         assert_eq!(BOOL_TYPE_ID, step.ty);
                     }
-                    &Action::Goto(target, ref steps) => {
-                        let target = &func[target];
-                        assert_eq!(target.input.len(), steps.len());
-                        for i in 0..steps.len() {
-                            assert!(steps[i].0 < step_id);
-                            assert_eq!(target.input[i], block[steps[i]].ty);
-                        }
-                    }
-                    &Action::Match(value, ref targets) => {
-                        for &(ty, target, ref args) in targets.iter() {
-                            let target = &func[target];
-                            assert_eq!(target.input.len(), args.len());
-                            for i in 0..args.len() {
-                                if block[value].ty != step.ty {
-                                    if let &Type::Sum(ref s) = &self[block[value].ty] {
-                                        if let &Type::Sum(ref v) = &self[ty] {
-                                            assert!(v.iter().all(|t| s.contains(t)));
-                                        } else {
-                                            assert!(s.contains(&ty));
-                                        }
-                                    } else {
-                                        unreachable!("mismatched types");
-                                    }
-                                }
-                                match (args[i].0).cmp(&step_id) {
-                                    Ordering::Less => {
-                                        assert_eq!(target.input[i], block[args[i]].ty)
-                                    }
-                                    Ordering::Equal => assert_eq!(target.input[i], ty),
-                                    Ordering::Greater => unreachable!("invalid match argument"),
-                                }
-                            }
-                        }
-                    }
                     _ => (), // TODO: validate
                 }
                 mem::forget(step_panic);
+            }
+
+            match &block.terminator {
+                &Terminator::Return(id) => {
+                    assert_eq!(func.ret, block[id].ty);
+                }
+                &Terminator::Goto(target, ref steps) => {
+                    let target = &func[target];
+                    assert_eq!(target.input.len(), steps.len());
+                    for i in 0..steps.len() {
+                        assert_eq!(target.input[i], block[steps[i]].ty);
+                    }
+                }
+                &Terminator::Match(value, ref targets) => {
+                    for &(ty, target, ref args) in targets.iter() {
+                        let target = &func[target];
+                        assert_eq!(target.input.len(), args.len());
+                        for i in 0..args.len() {
+                            if block[value].ty != block[value].ty {
+                                if let &Type::Sum(ref s) = &self[block[value].ty] {
+                                    if let &Type::Sum(ref v) = &self[ty] {
+                                        assert!(v.iter().all(|t| s.contains(t)));
+                                    } else {
+                                        assert!(s.contains(&ty));
+                                    }
+                                } else {
+                                    unreachable!("mismatched types");
+                                }
+                            }
+                            if let Some(arg) = args[i] {
+                                assert_eq!(target.input[i], block[arg].ty)
+                            } else {
+                                assert_eq!(target.input[i], ty)
+                            }
+                        }
+                    }
+                }
             }
 
             assert_eq!(block.content.last().unwrap().ty, NEVER_TYPE_ID);
