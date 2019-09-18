@@ -16,6 +16,8 @@ pub enum Keyword {
     Loop,
     /// `break`
     Break,
+    /// `return`
+    Return,
 }
 
 impl fmt::Display for Keyword {
@@ -27,6 +29,7 @@ impl fmt::Display for Keyword {
             Keyword::Match => write!(f, "match"),
             Keyword::Loop => write!(f, "loop"),
             Keyword::Break => write!(f, "loop"),
+            Keyword::Return => write!(f, "return"),
         }
     }
 }
@@ -302,6 +305,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
             "match" => self.new_token(Token::Keyword(Keyword::Match), origin),
             "loop" => self.new_token(Token::Keyword(Keyword::Loop), origin),
             "break" => self.new_token(Token::Keyword(Keyword::Break), origin),
+            "return" => self.new_token(Token::Keyword(Keyword::Return), origin),
             v => self.new_token(Token::Ident(v.into()), origin),
         }
     }

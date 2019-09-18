@@ -202,23 +202,21 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
             })
             .collect::<Result<Vec<_>, _>>()?;
 
-        let ret = solver.add_typed(ret_ty.item, ret_ty.simplify());
-
         let body = self.body.type_constraints(&mut TypeConstraintsContext {
             functions: function_lookup,
             variables: &variables,
             scopes: &mut Vec::new(),
             solver: &mut solver,
         })?;
-
-        solver.add_extension(body.id(), ret);
+        let body_id = body.id();
+        solver.override_entity(body_id, ret_ty.item, ret_ty.simplify());
         let solution = solver.solve()?;
 
         let body = body.insert_types(types, &solution);
         Ok(Function {
             name: self.name,
             arguments: self.arguments,
-            ret: self.ret.replace(solution[ret]),
+            ret: self.ret.replace(solution[body_id]),
             variables: self
                 .variables
                 .into_iter()

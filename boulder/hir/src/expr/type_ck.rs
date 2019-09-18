@@ -22,21 +22,21 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
     ) -> Result<Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>>, CompileError> {
         Ok(match self {
             Expression::Block((), meta, v) => {
-                let (id, content) = if v.is_empty() {
-                    (ctx.solver.add_empty(meta.simplify()), Vec::new())
-                } else {
-                    let id = ctx.solver.add_unbound(meta.simplify());
-                    ctx.scopes.push(id);
-                    let content = v
-                        .into_iter()
-                        .map(|expr| expr.type_constraints(ctx))
-                        .collect::<Result<Vec<_>, CompileError>>()?;
+                let id = ctx.solver.add_unbound(meta.simplify());
+                ctx.scopes.push(id);
+                let content = v
+                    .into_iter()
+                    .map(|expr| expr.type_constraints(ctx))
+                    .collect::<Result<Vec<_>, CompileError>>()?;
 
-                    let expr_id = content.last().unwrap().id();
-                    ctx.solver.add_equality(id, expr_id);
-                    ctx.scopes.pop();
-                    (expr_id, content)
+                let expr_id = if let Some(last) = content.last() {
+                    last.id()
+                } else {
+                    ctx.solver.add_typed(ty::EMPTY_ID, meta.simplify())
                 };
+
+                ctx.solver.add_extension(expr_id, id);
+                ctx.scopes.pop();
                 Expression::Block(id, meta, content)
             }
             Expression::Variable((), var) => {
@@ -176,7 +176,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             Expression::Break((), scope_id, expr) => {
                 let expr = expr.type_constraints(ctx)?;
                 ctx.solver
-                    .add_equality(ctx.scopes[scope_id.item.0], expr.id());
+                    .add_extension(expr.id(), ctx.scopes[scope_id.item.0]);
                 Expression::Break(
                     ctx.solver.add_typed(ty::NEVER_ID, scope_id.simplify()),
                     scope_id,

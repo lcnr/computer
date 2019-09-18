@@ -43,6 +43,12 @@ impl Mir {
             }
         }
     }
+
+    /// unify blocks if they are only found in sequence
+    /// this simplifies future optimizations
+    pub fn unify_blocks(&mut self) {
+        // TODO
+    }
 }
 
 impl Action {

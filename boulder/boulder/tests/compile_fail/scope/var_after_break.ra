@@ -7,7 +7,7 @@ fn var_after_break() -> u32 {
     {
         break Empty;
         b = 5;
-    };
+    }: Empty;
     a = b;
     a
 }

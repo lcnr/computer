@@ -1,0 +1,7 @@
+# `break` outside of scope
+# (5:
+
+fn break_fn() -> u32 {
+    break 7;
+    4
+}

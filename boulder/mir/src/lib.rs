@@ -9,7 +9,7 @@ mod ty {
     use super::TypeId;
 
     pub const EMPTY_TYPE_ID: TypeId = TypeId(0);
-    pub const UNINHABITED_TYPE_ID: TypeId = TypeId(1);
+    pub const NEVER_TYPE_ID: TypeId = TypeId(1);
     pub const BOOL_TYPE_ID: TypeId = TypeId(4);
 }
 

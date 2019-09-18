@@ -1,4 +1,4 @@
-fn var_after_break() -> u32 {
-    { break Empty; };
+fn break_empty() -> u32 {
+    { break Empty; }: Empty;
     7
 }

@@ -53,7 +53,7 @@ impl Mir {
                     &Action::LoadInput(v) => assert_eq!(block.input[v], step.ty),
                     &Action::LoadConstant(_) => (), // TODO: check type of constant
                     &Action::Return(id) => {
-                        assert_eq!(UNINHABITED_TYPE_ID, step.ty);
+                        assert_eq!(NEVER_TYPE_ID, step.ty);
                         assert!(id.0 < step_id);
                         // TODO: check function return type
                     }
@@ -130,10 +130,7 @@ impl Mir {
                 mem::forget(step_panic);
             }
 
-            assert!(match block.content.last().unwrap().action {
-                Action::Match(_, _) | Action::Goto(_, _) | Action::Return(_) => true,
-                _ => false,
-            });
+            assert_eq!(block.content.last().unwrap().ty, NEVER_TYPE_ID);
             mem::forget(block_panic);
         }
 

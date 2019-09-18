@@ -423,6 +423,11 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
                 Box::new(parse_expression(iter)?),
             ))
         }
+        Token::Keyword(Keyword::Return) => Ok(Expression::Break(
+            (),
+            start.replace(Some("fn".into())),
+            Box::new(parse_expression(iter)?),
+        )),
         Token::Ident(v) => {
             let expr = parse_ident_expr(start.replace(v), iter)?;
             let next = iter.next().unwrap();

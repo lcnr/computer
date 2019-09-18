@@ -1,0 +1,8 @@
+fn break_sum(a: u32) -> Bool {
+    loop {
+        match a < 1 {
+            t: True -> break True,
+            f: False -> break False,
+        }: Never;
+    }
+}

@@ -401,6 +401,12 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         id
     }
 
+    pub fn override_entity(&mut self, id: EntityId, ty: TypeId, meta: Meta<'a, ()>) {
+        self.solver
+            .override_entity_state(id, EntityState::Bound(vec![ty]));
+        self.solver.context().meta.insert(id, meta);
+    }
+
     pub fn add_equality(&mut self, origin: EntityId, target: EntityId) {
         self.solver.add_production(self.equality, origin, target);
     }

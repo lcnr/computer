@@ -105,6 +105,10 @@ impl<C: fmt::Debug, T: EntityState + Eq + Hash + Clone + std::fmt::Debug, E>
         id
     }
 
+    pub fn override_entity_state(&mut self, entity: EntityId, state: T) {
+        self.entities[entity.0] = state;
+    }
+
     pub fn define_production(&mut self, production: Box<dyn Production<C, T, E>>) -> ProductionId {
         let id = ProductionId(self.productions.len());
         self.productions.push(production);

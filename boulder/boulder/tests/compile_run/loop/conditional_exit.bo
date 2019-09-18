@@ -3,12 +3,12 @@ fn cond_exit(a: u32) -> u32 {
     loop {
         match a < 1 {
             t: True -> break Empty,
-            f: False -> { },
+            f: False -> Empty,
         }: Empty | Never;
 
         b = b + a;
         a = a - 1;
-    };
+    }: Empty;
 
     b
 }

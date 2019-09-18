@@ -49,7 +49,7 @@ pub struct ToMirContext<'a> {
     pub variable_types: &'a [TypeId],
     pub function_definitions: &'a [FunctionDefinition<'a, TypeId>],
     pub var_lookup: &'a mut Vec<Option<mir::StepId>>,
-    pub scopes: &'a mut Vec<(mir::BlockId, Vec<ExitScopeMeta>)>,
+    pub scopes: &'a mut Vec<(mir::BlockId, mir::TypeId, Vec<ExitScopeMeta>)>,
     pub temporaries: &'a mut Vec<Temporary>,
     pub curr: &'a mut mir::BlockId,
     pub func: &'a mut mir::Function,
@@ -61,15 +61,16 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
         match self {
             Expression::Block(ty, _scope, mut v) => Ok(if let Some(last) = v.pop() {
                 let end = ctx.func.add_block();
-                ctx.scopes.push((end, Vec::new()));
+                ctx.scopes.push((end, ty.to_mir(), Vec::new()));
                 for e in v {
                     e.to_mir(ctx)?;
                 }
 
                 let last_id = last.to_mir(ctx)?;
+                let last_id = ctx.func[*ctx.curr].add_step(ty.to_mir(), Action::Extend(last_id));
                 let goto_id = ctx.func[*ctx.curr]
                     .add_step(ty::NEVER_ID.to_mir(), Action::Goto(end, Vec::new()));
-                let (_, mut exits) = ctx.scopes.pop().unwrap();
+                let (_, _, mut exits) = ctx.scopes.pop().unwrap();
                 exits.push(ExitScopeMeta {
                     origin: (*ctx.curr, goto_id),
                     expr: last_id,
@@ -317,7 +318,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 *ctx.curr = block;
 
                 let end = ctx.func.add_block();
-                ctx.scopes.push((end, Vec::new()));
+                ctx.scopes.push((end, ty.to_mir(), Vec::new()));
                 for expr in content {
                     expr.to_mir(ctx)?;
                 }
@@ -335,7 +336,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                     ),
                 );
 
-                let (_, exits) = ctx.scopes.pop().unwrap();
+                let (_, _, exits) = ctx.scopes.pop().unwrap();
                 *ctx.var_lookup = vec![Some(mir::StepId::invalid()); ctx.var_lookup.len()];
                 for exit in exits.iter() {
                     for (v, ex) in ctx.var_lookup.iter_mut().zip(&exit.variables) {
@@ -376,12 +377,14 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
             }),
             Expression::Break(ty, scope_id, expr) => {
                 let expr = expr.to_mir(ctx)?;
+                let expr = ctx.func[*ctx.curr]
+                    .add_step(ctx.scopes[scope_id.item.0].1, Action::Extend(expr));
                 let step = ctx.func[*ctx.curr].add_step(
                     ty.to_mir(),
                     mir::Action::Goto(ctx.scopes[scope_id.item.0].0, Vec::new()),
                 );
 
-                ctx.scopes[scope_id.0].1.push(ExitScopeMeta {
+                ctx.scopes[scope_id.0].2.push(ExitScopeMeta {
                     origin: (*ctx.curr, step),
                     expr,
                     variables: ctx.var_lookup.clone(),
