@@ -99,7 +99,7 @@ impl Display for Mir {
                         Action::BitOr(a, b) => writeln!(f, "bitor ${} $ {}", a.0, b.0),
                     }?;
                 }
-                
+
                 write!(f, "    ")?;
                 match &block.terminator {
                     Terminator::Return(v) => writeln!(f, "return ${}", v.0),

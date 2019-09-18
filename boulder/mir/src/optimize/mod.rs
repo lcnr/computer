@@ -18,8 +18,6 @@ impl Mir {
                 func.remove_block(i);
             }
         }
-
-        
     }
 
     /// remove all `Action::Extend` which do not change the type
@@ -185,8 +183,6 @@ impl Block {
         for c in self.content[previous.0..].iter_mut() {
             c.action.update_step_ids(replacer);
         }
-        eprintln!("{:?}", &self.terminator);
         self.terminator.update_step_ids(replacer);
-        eprintln!("{:?}", &self.terminator);
     }
 }
