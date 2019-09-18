@@ -3,25 +3,23 @@ use std::cmp::Ordering;
 use super::*;
 
 impl Mir {
-    /// remove all steps after a step with an `Uninhabited` type
-    /// this is always expected to run as the first optimization,
-    /// as all other optimizations expect only the last step
-    /// of a block to be a branch
+    /// remove blocks where an input is unreachable
     pub fn kill_uninhabited(&mut self) {
         let types = &mut self.types;
 
         for func in self.functions.iter_mut() {
-            for block in func.content.iter_mut() {
-                if let Some((pos, _)) = block
-                    .content
-                    .iter()
-                    .enumerate()
-                    .find(|(_, step)| types[step.ty.0] == Type::Uninhabited)
-                {
-                    block.content.truncate(pos + 1);
+            let mut to_remove = Vec::new();
+            for (i, block) in func.content.iter_mut().enumerate() {
+                if block.input.iter().any(|i| types[i.0] == Type::Uninhabited) {
+                    to_remove.push(BlockId(i));
                 }
             }
+            for i in to_remove.into_iter().rev() {
+                func.remove_block(i);
+            }
         }
+
+        
     }
 
     /// remove all `Action::Extend` which do not change the type
@@ -52,6 +50,30 @@ impl Mir {
 }
 
 impl Terminator {
+    pub fn update_block_ids<F>(&mut self, mut f: F)
+    where
+        F: FnMut(&mut BlockId),
+    {
+        match self {
+            Terminator::Return(_) => (),
+            Terminator::Goto(id, _) => f(id),
+            Terminator::Match(_, arms) => {
+                for arm in arms.iter_mut() {
+                    f(&mut arm.1);
+                }
+            }
+        }
+    }
+
+    /// shift all block ids for which the condition `self >= after` holds
+    pub fn shift_block_ids(&mut self, after: BlockId, by: isize) {
+        self.update_block_ids(|id| {
+            if *id >= after {
+                id.0 = (id.0 as isize + by) as usize;
+            }
+        });
+    }
+
     pub fn update_step_ids<F>(&mut self, mut f: F)
     where
         F: FnMut(&mut StepId),
@@ -121,6 +143,15 @@ impl Action {
     }
 }
 
+impl Function {
+    pub fn remove_block(&mut self, id: BlockId) {
+        self.content.remove(id.0);
+        for block in self.content.iter_mut() {
+            block.terminator.shift_block_ids(id, -1);
+        }
+    }
+}
+
 impl Block {
     /// Removes a step from this block, this leads to undefined behavior if the step is still referenced.
     ///
@@ -154,7 +185,8 @@ impl Block {
         for c in self.content[previous.0..].iter_mut() {
             c.action.update_step_ids(replacer);
         }
-
+        eprintln!("{:?}", &self.terminator);
         self.terminator.update_step_ids(replacer);
+        eprintln!("{:?}", &self.terminator);
     }
 }

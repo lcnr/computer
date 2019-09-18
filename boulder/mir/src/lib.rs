@@ -46,9 +46,9 @@ impl StepId {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BlockId(pub usize);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct FunctionId(pub usize);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -156,7 +156,7 @@ impl Block {
         Self {
             input: Vec::new(),
             content: Vec::new(),
-            terminator: Terminator::Return(StepId::invalid())
+            terminator: Terminator::Return(StepId::invalid()),
         }
     }
 
@@ -174,7 +174,12 @@ impl Block {
     }
 
     pub fn add_terminator(&mut self, terminator: Terminator) {
-        assert_eq!(self.terminator, Terminator::Return(StepId::invalid()));
+        assert_eq!(
+            self.terminator,
+            Terminator::Return(StepId::invalid()),
+            "{:?}",
+            self
+        );
         self.terminator = terminator;
     }
 }

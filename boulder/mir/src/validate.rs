@@ -1,6 +1,6 @@
-use std::{cmp::Ordering, fmt, mem, ops::Drop};
+use std::{fmt, mem, ops::Drop};
 
-use crate::{ty::*, Action, BlockId, FunctionId, Mir, Terminator, Type, TypeId};
+use crate::{ty::*, Action, FunctionId, Mir, Terminator, Type, TypeId};
 
 struct PanicDisplay<'a>(&'a str, &'a dyn fmt::Display);
 
@@ -128,8 +128,6 @@ impl Mir {
                     }
                 }
             }
-
-            assert_eq!(block.content.last().unwrap().ty, NEVER_TYPE_ID);
             mem::forget(block_panic);
         }
 

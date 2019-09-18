@@ -89,7 +89,7 @@ impl Display for Mir {
                             }
                             writeln!(f, ")")
                         }
-                        
+
                         Action::FieldAccess(s, a) => writeln!(f, "${}.{}", s.0, a.0),
                         Action::Add(a, b) => writeln!(f, "add ${} ${}", a.0, b.0),
                         Action::Sub(a, b) => writeln!(f, "sub ${} ${}", a.0, b.0),
@@ -98,53 +98,58 @@ impl Display for Mir {
                         Action::Lt(a, b) => writeln!(f, "cmp ${} < ${}", a.0, b.0),
                         Action::BitOr(a, b) => writeln!(f, "bitor ${} $ {}", a.0, b.0),
                     }?;
-
-                    match &block.terminator {
-                        Terminator::Return(v) => writeln!(f, "return ${}", v.0),
-                        Terminator::Goto(block, args) => {
-                            write!(f, "goto ~{}(", block.0)?;
+                }
+                
+                write!(f, "    ")?;
+                match &block.terminator {
+                    Terminator::Return(v) => writeln!(f, "return ${}", v.0),
+                    Terminator::Goto(block, args) => {
+                        write!(f, "goto ~{}(", block.0)?;
+                        if let Some((last, start)) = args.split_last() {
+                            for arg in start.iter() {
+                                write!(f, "${}, ", arg.0)?;
+                            }
+                            write!(f, "${}", last.0)?;
+                        }
+                        writeln!(f, ")")
+                    }
+                    Terminator::Match(id, arms) => {
+                        let write_arm = |f: &mut Formatter,
+                                         (ty, block, args): &(
+                            TypeId,
+                            BlockId,
+                            Vec<Option<StepId>>,
+                        )| {
+                            write!(f, "%{} -> ~{}(", ty.0, block.0)?;
                             if let Some((last, start)) = args.split_last() {
                                 for arg in start.iter() {
-                                    write!(f, "${}, ", arg.0)?;
-                                }
-                                write!(f, "${}", last.0)?;
-                            }
-                            writeln!(f, ")")
-                        }
-                        Terminator::Match(id, arms) => {
-                            let write_arm = |f: &mut Formatter, (ty, block, args): &(TypeId, BlockId, Vec<Option<StepId>>)| {
-                                write!(f, "%{} -> ~{}(", ty.0, block.0)?;
-                                if let Some((last, start)) = args.split_last() {
-                                    for arg in start.iter() {
-                                        if let Some(arg) = arg {
-                                            write!(f, "${}, ", arg.0)?;
-                                        } else {
-                                            write!(f, "$self")?;
-                                        }
-                                    }
-
-                                    if let Some(arg) = last {
+                                    if let Some(arg) = arg {
                                         write!(f, "${}, ", arg.0)?;
                                     } else {
                                         write!(f, "$self")?;
                                     }
                                 }
-                                write!(f, ")")
-                            };
 
-                            write!(f, "match ${}(", id.0)?;
-                            if let Some((last, start)) = arms.split_last() {
-                                for arm in start.iter() {
-                                    write_arm(f, arm)?;
-                                    write!(f, ", ")?;
+                                if let Some(arg) = last {
+                                    write!(f, "${}, ", arg.0)?;
+                                } else {
+                                    write!(f, "$self")?;
                                 }
-                                write_arm(f, last)?;
                             }
-                            writeln!(f, ")")
-                        }
-                    }?;
-                }
+                            write!(f, ")")
+                        };
 
+                        write!(f, "match ${}(", id.0)?;
+                        if let Some((last, start)) = arms.split_last() {
+                            for arm in start.iter() {
+                                write_arm(f, arm)?;
+                                write!(f, ", ")?;
+                            }
+                            write_arm(f, last)?;
+                        }
+                        writeln!(f, ")")
+                    }
+                }?;
             }
         }
 

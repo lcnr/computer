@@ -11,7 +11,7 @@ use crate::{
 
 #[derive(Debug)]
 pub struct ExitScopeMeta {
-    origin: (mir::BlockId, mir::StepId),
+    origin: mir::BlockId,
     expr: mir::StepId,
     variables: Vec<Option<mir::StepId>>,
 }
@@ -57,7 +57,7 @@ pub struct ToMirContext<'a> {
 
 impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
     pub fn to_mir<'b>(self, ctx: &mut ToMirContext<'b>) -> Result<mir::StepId, CompileError> {
-        use mir::{Action, Object};
+        use mir::{Action, Object, Terminator};
         match self {
             Expression::Block(ty, _scope, mut v) => Ok(if let Some(last) = v.pop() {
                 let end = ctx.func.add_block();
@@ -68,11 +68,9 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
 
                 let last_id = last.to_mir(ctx)?;
                 let last_id = ctx.func[*ctx.curr].add_step(ty.to_mir(), Action::Extend(last_id));
-                let goto_id = ctx.func[*ctx.curr]
-                    .add_step(ty::NEVER_ID.to_mir(), Action::Goto(end, Vec::new()));
                 let (_, _, mut exits) = ctx.scopes.pop().unwrap();
                 exits.push(ExitScopeMeta {
-                    origin: (*ctx.curr, goto_id),
+                    origin: *ctx.curr,
                     expr: last_id,
                     variables: ctx.var_lookup.clone(),
                 });
@@ -83,23 +81,15 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 }
 
                 for exit in exits.into_iter() {
-                    let step = &mut ctx.func[exit.origin.0][exit.origin.1];
-                    if let mir::Action::Goto(_, ref mut vars) = step.action {
-                        *vars = exit
-                            .variables
-                            .into_iter()
-                            .zip(&*ctx.var_lookup)
-                            .filter_map(|(v, lk)| lk.and(v))
-                            .chain(ctx.temporaries.iter().map(|t| t.step))
-                            .collect();
-                        vars.push(exit.expr);
-                    } else {
-                        panic!(
-                            "invalid break action `{:?}` in `{:?}`",
-                            step.clone(),
-                            ctx.func
-                        );
-                    }
+                    let mut vars: Vec<_> = exit
+                        .variables
+                        .into_iter()
+                        .zip(&*ctx.var_lookup)
+                        .filter_map(|(v, lk)| lk.and(v))
+                        .chain(ctx.temporaries.iter().map(|t| t.step))
+                        .collect();
+                    vars.push(exit.expr);
+                    ctx.func[exit.origin].add_terminator(Terminator::Goto(end, vars));
                 }
 
                 initialized_mir_block(
@@ -205,7 +195,6 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 let value = value.to_mir(ctx)?;
 
                 let mut arms = Vec::new();
-                let match_step = mir::StepId(ctx.func[*ctx.curr].content.len());
                 let mut arms_data = Vec::new();
                 for arm in match_arms {
                     let mut available_variables = ctx.var_lookup.to_vec();
@@ -224,14 +213,15 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                         Some(ctx.func[id].add_input(ctx.variable_types[arm.pattern.0].to_mir()));
 
                     arms.push((ctx.variable_types[arm.pattern.0].to_mir(), id, {
-                        let mut args: Vec<mir::StepId> = ctx
+                        let mut args: Vec<Option<mir::StepId>> = ctx
                             .var_lookup
                             .iter()
                             .copied()
                             .filter_map(identity)
                             .chain(ctx.temporaries.iter().map(|t| t.step))
+                            .map(Some)
                             .collect();
-                        args.push(match_step);
+                        args.push(None);
                         args
                     }));
 
@@ -284,29 +274,25 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                         .chain(temporaries.iter().map(|t| t.step))
                         .collect();
                     steps.push(step);
-                    block.add_step(ty::NEVER_ID.to_mir(), mir::Action::Goto(id, steps));
+                    block.add_terminator(Terminator::Goto(id, steps));
                 }
 
-                ctx.func[old_block]
-                    .add_step(ty::NEVER_ID.to_mir(), mir::Action::Match(value, arms));
+                ctx.func[old_block].add_terminator(Terminator::Match(value, arms));
                 *ctx.curr = id;
                 *ctx.var_lookup = initialized_variables;
                 Ok(step)
             }
             Expression::Loop(ty, _scope, content) => Ok({
                 let block = ctx.func.add_block();
-                ctx.func[*ctx.curr].add_step(
-                    ty::NEVER_ID.to_mir(),
-                    Action::Goto(
-                        block,
-                        ctx.var_lookup
-                            .iter()
-                            .copied()
-                            .filter_map(identity)
-                            .chain(ctx.temporaries.iter().map(|t| t.step))
-                            .collect(),
-                    ),
-                );
+                ctx.func[*ctx.curr].add_terminator(Terminator::Goto(
+                    block,
+                    ctx.var_lookup
+                        .iter()
+                        .copied()
+                        .filter_map(identity)
+                        .chain(ctx.temporaries.iter().map(|t| t.step))
+                        .collect(),
+                ));
                 let variables = ctx.var_lookup.clone();
                 initialized_mir_block(
                     block,
@@ -323,18 +309,15 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                     expr.to_mir(ctx)?;
                 }
 
-                ctx.func[*ctx.curr].add_step(
-                    ty::NEVER_ID.to_mir(),
-                    Action::Goto(
-                        block,
-                        ctx.var_lookup
-                            .into_iter()
-                            .zip(variables)
-                            .filter_map(|(&mut v, e)| e.and(v))
-                            .chain(ctx.temporaries.iter().map(|t| t.step))
-                            .collect(),
-                    ),
-                );
+                ctx.func[*ctx.curr].add_terminator(Terminator::Goto(
+                    block,
+                    ctx.var_lookup
+                        .into_iter()
+                        .zip(variables)
+                        .filter_map(|(&mut v, e)| e.and(v))
+                        .chain(ctx.temporaries.iter().map(|t| t.step))
+                        .collect(),
+                ));
 
                 let (_, _, exits) = ctx.scopes.pop().unwrap();
                 *ctx.var_lookup = vec![Some(mir::StepId::invalid()); ctx.var_lookup.len()];
@@ -345,23 +328,16 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 }
 
                 for exit in exits.into_iter() {
-                    let step = &mut ctx.func[exit.origin.0][exit.origin.1];
-                    if let mir::Action::Goto(_, ref mut vars) = step.action {
-                        *vars = exit
-                            .variables
-                            .into_iter()
-                            .zip(&*ctx.var_lookup)
-                            .filter_map(|(v, lk)| lk.and(v))
-                            .chain(ctx.temporaries.iter().map(|t| t.step))
-                            .collect();
-                        vars.push(exit.expr);
-                    } else {
-                        panic!(
-                            "invalid break action `{:?}` in `{:?}`",
-                            step.clone(),
-                            ctx.func
-                        );
-                    }
+                    let mut vars: Vec<_> = exit
+                        .variables
+                        .into_iter()
+                        .zip(&*ctx.var_lookup)
+                        .filter_map(|(v, lk)| lk.and(v))
+                        .chain(ctx.temporaries.iter().map(|t| t.step))
+                        .collect();
+                    vars.push(exit.expr);
+                    let block = &mut ctx.func[exit.origin];
+                    block.add_terminator(Terminator::Goto(end, vars));
                 }
 
                 initialized_mir_block(
@@ -379,13 +355,20 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 let expr = expr.to_mir(ctx)?;
                 let expr = ctx.func[*ctx.curr]
                     .add_step(ctx.scopes[scope_id.item.0].1, Action::Extend(expr));
-                let step = ctx.func[*ctx.curr].add_step(
-                    ty.to_mir(),
-                    mir::Action::Goto(ctx.scopes[scope_id.item.0].0, Vec::new()),
+                let origin = *ctx.curr;
+
+                *ctx.curr = ctx.func.add_block();
+                initialized_mir_block(
+                    *ctx.curr,
+                    ctx.variable_types,
+                    ctx.var_lookup,
+                    ctx.temporaries,
+                    ctx.func,
                 );
+                let step = ctx.func[*ctx.curr].add_input(ty.to_mir());
 
                 ctx.scopes[scope_id.0].2.push(ExitScopeMeta {
-                    origin: (*ctx.curr, step),
+                    origin,
                     expr,
                     variables: ctx.var_lookup.clone(),
                 });
