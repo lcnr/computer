@@ -1,0 +1,10 @@
+fn if_empty() -> u32 {
+    let x: u32 | Empty = if True {
+        7: u32
+    };
+
+    match x {
+        n: u32 -> n,
+        _: Empty -> 8,
+    }
+}

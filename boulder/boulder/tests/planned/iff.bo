@@ -1,0 +1,30 @@
+# fn invert(b: Bool) -> Bool {
+#    if b {
+#        False: Bool
+#    } else {
+#        True: Bool
+#    }: Bool
+#}
+
+fn iff() -> u32 {
+    if True: Bool {
+        3
+    } else {
+        4
+    }: Bool + if True {
+        5
+    } else {
+        6
+    }: Bool
+}
+
+fn iff_empty() -> u32 {
+    let x = if True {
+        7
+    };
+
+    match x {
+        n: u32 -> n,
+        _: Empty -> 8,
+    }
+}
