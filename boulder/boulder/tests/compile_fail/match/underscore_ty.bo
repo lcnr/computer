@@ -1,0 +1,12 @@
+# Mismatched types:
+# found `True`
+# expected `False`
+# (8:
+# (10:
+
+fn underscore() -> u8 {
+    match True {
+        _: True -> 4,
+        _: False -> 3,
+    }
+}

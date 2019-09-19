@@ -26,6 +26,7 @@ type Kind<'a> = hir::ty::Kind<'a, hir::UnresolvedType<'a>>;
 type Field<'a> = hir::ty::Field<'a, hir::UnresolvedType<'a>>;
 type MatchArm<'a> =
     hir::expr::MatchArm<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedTypes<'a>>;
+type Pattern<'a> = hir::Pattern<'a, hir::UnresolvedIdentifiers<'a>>;
 
 pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
     let iter = &mut TokenIter::new(src);
@@ -91,8 +92,23 @@ fn expect_ident<'a>(tok: Meta<'a, Token>) -> Result<Meta<'a, Box<str>>, CompileE
     }
 }
 
-fn parse_pattern<'a>(iter: &mut TokenIter<'a>) -> Result<Meta<'a, Box<str>>, CompileError> {
-    expect_ident(iter.next().unwrap())
+fn parse_pattern<'a>(iter: &mut TokenIter<'a>) -> Result<Pattern<'a>, CompileError> {
+    let mut next = iter.next().unwrap();
+    let name = match mem::replace(&mut next.item, Token::Invalid) {
+        Token::Ident(v) => Some(next.replace(v)),
+        Token::Underscore => None,
+        _ => CompileError::expected(&[Token::Ident("".into()), Token::Underscore], &next)?,
+    };
+    consume_token(Token::Colon, iter)?;
+    let ty = parse_type(iter)?;
+    if let Some(name) = name {
+        Ok(Pattern::Named(hir::UnresolvedVariable::New(
+            name,
+            ty.map(|t| Some(t)),
+        )))
+    } else {
+        Ok(Pattern::Underscore(ty))
+    }
 }
 
 fn check_expr_terminator<'a>(
@@ -187,16 +203,11 @@ fn parse_match<'a>(
             break;
         }
 
-        let pat = parse_pattern(iter)?;
-        consume_token(Token::Colon, iter)?;
-        let ty = parse_type(iter)?;
+        let pattern = parse_pattern(iter)?;
         consume_token(Token::Arrow, iter)?;
         let expr = parse_expression(iter)?;
 
-        match_arms.push(MatchArm {
-            pattern: hir::UnresolvedVariable::New(pat, ty.map(|t| Some(t))),
-            expr,
-        });
+        match_arms.push(MatchArm { pattern, expr });
 
         if try_consume_token(Token::CloseBlock(BlockDelim::Brace), iter) {
             break;

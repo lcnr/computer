@@ -4,7 +4,7 @@ use crate::{
     expr::{Expression, MatchArm},
     func::FunctionDefinition,
     ty::{self, solver::TypeSolver, Type, TypeId},
-    Binop, Literal, ResolvedIdentifiers, ResolvedTypes, ResolvingTypes, UnresolvedType,
+    Binop, Literal, Pattern, ResolvedIdentifiers, ResolvedTypes, ResolvingTypes, UnresolvedType,
     UnresolvedTypes,
 };
 
@@ -143,7 +143,11 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 let match_arms = match_arms
                     .into_iter()
                     .map(|arm| {
-                        let id = ctx.variables[arm.pattern.item.0];
+                        let id = match &arm.pattern {
+                            Pattern::Named(named) => ctx.variables[named.item.0],
+                            Pattern::Underscore(ty) => ctx.solver.add_typed(ty.item, ty.simplify()),
+                        };
+
                         ctx.solver.add_extension(id, value.id());
                         let expr = arm.expr.type_constraints(ctx)?;
                         ctx.solver.add_extension(expr.id(), result);

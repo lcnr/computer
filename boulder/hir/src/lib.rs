@@ -21,6 +21,7 @@ pub struct UnresolvedIdentifiers<'a>(PhantomData<&'a str>);
 impl<'a> IdentifierState for UnresolvedIdentifiers<'a> {
     type Variable = UnresolvedVariable<'a>;
     type Function = Meta<'a, Box<str>>;
+    type Pattern = UnresolvedType<'a>;
     type Scope = Meta<'a, Option<Box<str>>>;
     type Type = Box<str>;
 }
@@ -34,6 +35,7 @@ pub struct ScopeId(pub usize);
 impl<'a> IdentifierState for ResolvedIdentifiers<'a> {
     type Variable = Meta<'a, VariableId>;
     type Function = Meta<'a, FunctionId>;
+    type Pattern = TypeId;
     type Scope = Meta<'a, ScopeId>;
     type Type = TypeId;
 }
@@ -74,6 +76,7 @@ pub trait TypeState: fmt::Debug + Clone {
 pub trait IdentifierState: fmt::Debug + Clone {
     type Variable: fmt::Debug + Clone;
     type Function: fmt::Debug + Clone;
+    type Pattern: fmt::Debug + Clone;
     type Scope: fmt::Debug + Clone;
     type Type: fmt::Debug + Clone;
 }
@@ -106,6 +109,12 @@ pub enum Binop {
 pub enum Literal<V: IdentifierState> {
     Integer(u128),
     Unit(V::Type),
+}
+
+#[derive(Debug, Clone)]
+pub enum Pattern<'a, V: IdentifierState> {
+    Named(V::Variable),
+    Underscore(Meta<'a, V::Pattern>),
 }
 
 #[derive(Debug)]

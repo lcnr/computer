@@ -6,7 +6,7 @@ use crate::{
     expr::Expression,
     func::FunctionDefinition,
     ty::{self, TypeId},
-    Binop, Literal, ResolvedIdentifiers, ResolvedTypes,
+    Binop, Literal, Pattern, ResolvedIdentifiers, ResolvedTypes,
 };
 
 #[derive(Debug)]
@@ -209,21 +209,26 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                         ctx.func,
                     );
 
-                    available_variables[arm.pattern.0] =
-                        Some(ctx.func[id].add_input(ctx.variable_types[arm.pattern.0].to_mir()));
+                    let mut args: Vec<Option<mir::StepId>> = ctx
+                        .var_lookup
+                        .iter()
+                        .copied()
+                        .filter_map(identity)
+                        .chain(ctx.temporaries.iter().map(|t| t.step))
+                        .map(Some)
+                        .collect();
 
-                    arms.push((ctx.variable_types[arm.pattern.0].to_mir(), id, {
-                        let mut args: Vec<Option<mir::StepId>> = ctx
-                            .var_lookup
-                            .iter()
-                            .copied()
-                            .filter_map(identity)
-                            .chain(ctx.temporaries.iter().map(|t| t.step))
-                            .map(Some)
-                            .collect();
-                        args.push(None);
-                        args
-                    }));
+                    let ty = match arm.pattern {
+                        Pattern::Underscore(ty) => ty.to_mir(),
+                        Pattern::Named(name) => {
+                            let ty = ctx.variable_types[name.0].to_mir();
+                            available_variables[name.0] = Some(ctx.func[id].add_input(ty));
+                            args.push(None);
+                            ty
+                        }
+                    };
+
+                    arms.push((ty, id, args));
 
                     let expr_id = arm.expr.to_mir(&mut ToMirContext {
                         types: ctx.types,

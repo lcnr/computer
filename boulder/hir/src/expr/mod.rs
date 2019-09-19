@@ -10,7 +10,7 @@ pub use type_ck::TypeConstraintsContext;
 
 #[derive(Debug, Clone)]
 pub struct MatchArm<'a, V: IdentifierState, N: TypeState> {
-    pub pattern: V::Variable,
+    pub pattern: Pattern<'a, V>,
     pub expr: Expression<'a, V, N>,
 }
 

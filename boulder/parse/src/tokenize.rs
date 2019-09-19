@@ -140,6 +140,7 @@ pub enum Token {
     Comma,
     Dot,
     Arrow,
+    Underscore,
     /// `'`
     Scope(Box<str>),
     Invalid,
@@ -165,6 +166,7 @@ impl fmt::Display for Token {
             Token::Comma => write!(f, ","),
             Token::Dot => write!(f, "."),
             Token::Arrow => write!(f, "->"),
+            Token::Underscore => write!(f, "_"),
             Token::Scope(v) => write!(f, "'{}", v),
             Token::Invalid => write!(f, "<invalid token>"),
             Token::EOF => write!(f, "<EOF>"),
@@ -299,6 +301,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
 
         let origin = start..self.byte_offset;
         match &self.src[start..self.byte_offset] {
+            "_" => self.new_token(Token::Underscore, origin),
             "fn" => self.new_token(Token::Keyword(Keyword::Function), origin),
             "let" => self.new_token(Token::Keyword(Keyword::Let), origin),
             "struct" => self.new_token(Token::Keyword(Keyword::Struct), origin),

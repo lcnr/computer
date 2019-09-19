@@ -6,8 +6,8 @@ use crate::{
     expr::{Expression, MatchArm},
     func::{FunctionId, Variable, VariableId},
     ty::{self, Type, TypeId},
-    Literal, ResolvedIdentifiers, ScopeId, UnresolvedIdentifiers, UnresolvedType, UnresolvedTypes,
-    UnresolvedVariable,
+    Literal, Pattern, ResolvedIdentifiers, ScopeId, UnresolvedIdentifiers, UnresolvedType,
+    UnresolvedTypes, UnresolvedVariable,
 };
 
 pub struct ResolveIdentifiersContext<'a, 'b> {
@@ -152,7 +152,10 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 for arm in match_arms {
                     ctx.variable_lookup.push(Vec::new());
                     let pattern = match arm.pattern {
-                        UnresolvedVariable::New(name, ty) => {
+                        Pattern::Underscore(ty) => {
+                            Pattern::Underscore(ty::resolve(ty, ctx.types, ctx.type_lookup)?)
+                        }
+                        Pattern::Named(UnresolvedVariable::New(name, ty)) => {
                             let id = VariableId(ctx.variables.len());
                             let meta = name.simplify();
                             ctx.variable_lookup
@@ -160,9 +163,9 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                                 .unwrap()
                                 .push((name.item.clone(), id));
                             ctx.variables.push(Variable { name, ty });
-                            meta.replace(id)
+                            Pattern::Named(meta.replace(id))
                         }
-                        err @ UnresolvedVariable::Existing(_) => {
+                        err @ Pattern::Named(UnresolvedVariable::Existing(_)) => {
                             unreachable!("invalid match pattern: {:?}", err)
                         }
                     };

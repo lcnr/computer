@@ -1,0 +1,6 @@
+fn underscore() -> u8 {
+    match True: Bool {
+        _: True -> 4,
+        _: False -> 3,
+    }
+}
