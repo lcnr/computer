@@ -1,0 +1,10 @@
+# Mismatched types
+# found `Empty`
+# expected `u8`
+# (7:
+
+fn a() -> u8 {
+    if True {
+        4
+    }
+}

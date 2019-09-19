@@ -219,6 +219,36 @@ fn parse_match<'a>(
     Ok(Expression::Match((), keyword, Box::new(value), match_arms))
 }
 
+fn parse_if<'a>(
+    if_meta: Meta<'a, ()>,
+    iter: &mut TokenIter<'a>,
+) -> Result<Expression<'a>, CompileError> {
+    let expr = parse_expression(iter)?;
+    let expr = Expression::TypeRestriction(
+        Box::new(expr),
+        if_meta.replace(hir::UnresolvedType::Named("Bool".into())),
+    );
+    consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
+    let a = MatchArm {
+        pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named("True".into()))),
+        expr: parse_block(None, iter)?,
+    };
+    let b = MatchArm {
+        pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named("False".into()))),
+        expr: if try_consume_token(Token::Keyword(Keyword::Else), iter) {
+            consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
+            parse_block(None, iter)?
+        } else {
+            Expression::Lit(
+                (),
+                if_meta.clone().map(|_| hir::Literal::Unit("Empty".into())),
+            )
+        },
+    };
+
+    Ok(Expression::Match((), if_meta, Box::new(expr), vec![a, b]))
+}
+
 fn parse_variable_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, CompileError> {
     let name = expect_ident(iter.next().unwrap())?;
 
@@ -280,6 +310,7 @@ fn parse_binop_rhs<'a>(
         Token::Ident(v) => parse_ident_expr(start.replace(v), iter)?,
         Token::Integer(c) => Expression::Lit((), start.replace(hir::Literal::Integer(c))),
         Token::Keyword(Keyword::Match) => parse_match(start.simplify(), iter)?,
+        Token::Keyword(Keyword::If) => parse_if(start.simplify(), iter)?,
         Token::OpenBlock(BlockDelim::Parenthesis) => {
             let expr = parse_expression(iter)?;
             consume_token(Token::CloseBlock(BlockDelim::Parenthesis), iter)?;
@@ -300,6 +331,7 @@ fn parse_binop_rhs<'a>(
                 Token::Ident("".into()),
                 Token::Integer(0),
                 Token::Keyword(Keyword::Match),
+                Token::Keyword(Keyword::If),
                 Token::OpenBlock(BlockDelim::Parenthesis),
             ],
             &start,
@@ -419,7 +451,10 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
             let expr = parse_match(start.simplify(), iter)?;
             parse_binop(expr, iter)
         }
-
+        Token::Keyword(Keyword::If) => {
+            let expr = parse_if(start.simplify(), iter)?;
+            parse_binop(expr, iter)
+        }
         Token::Keyword(Keyword::Break) => {
             let mut next = iter.next().unwrap();
             let scope = if let Token::Scope(v) = mem::replace(&mut next.item, Token::Invalid) {
@@ -466,7 +501,14 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
         _ => CompileError::expected(
             &[
                 Token::OpenBlock(BlockDelim::Brace),
+                Token::Keyword(Keyword::Loop),
+                Token::Scope("".into()),
+                Token::OpenBlock(BlockDelim::Parenthesis),
                 Token::Keyword(Keyword::Let),
+                Token::Keyword(Keyword::Match),
+                Token::Keyword(Keyword::If),
+                Token::Keyword(Keyword::Break),
+                Token::Keyword(Keyword::Return),
                 Token::Ident("".into()),
                 Token::Integer(0),
             ],

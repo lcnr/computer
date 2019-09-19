@@ -1,0 +1,7 @@
+fn if_simple(a: Bool) -> u8 {
+    if a {
+        3
+    } else {
+        4
+    }
+}

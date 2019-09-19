@@ -12,6 +12,10 @@ pub enum Keyword {
     Struct,
     /// `match`
     Match,
+    /// `if`
+    If,
+    /// `else`
+    Else,
     /// `loop`
     Loop,
     /// `break`
@@ -27,6 +31,8 @@ impl fmt::Display for Keyword {
             Keyword::Let => write!(f, "let"),
             Keyword::Struct => write!(f, "struct"),
             Keyword::Match => write!(f, "match"),
+            Keyword::If => write!(f, "if"),
+            Keyword::Else => write!(f, "else"),
             Keyword::Loop => write!(f, "loop"),
             Keyword::Break => write!(f, "loop"),
             Keyword::Return => write!(f, "return"),
@@ -73,6 +79,9 @@ pub enum Operator {
 }
 
 impl Operator {
+    /// the result must be greater than 0
+    /// as 0 is used in case there is no previous
+    /// binop
     pub fn priority(self) -> u32 {
         match self {
             Operator::Lt => 10,
@@ -306,6 +315,8 @@ impl<'a, 'b: 'a> TokenIter<'b> {
             "let" => self.new_token(Token::Keyword(Keyword::Let), origin),
             "struct" => self.new_token(Token::Keyword(Keyword::Struct), origin),
             "match" => self.new_token(Token::Keyword(Keyword::Match), origin),
+            "if" => self.new_token(Token::Keyword(Keyword::If), origin),
+            "else" => self.new_token(Token::Keyword(Keyword::Else), origin),
             "loop" => self.new_token(Token::Keyword(Keyword::Loop), origin),
             "break" => self.new_token(Token::Keyword(Keyword::Break), origin),
             "return" => self.new_token(Token::Keyword(Keyword::Return), origin),

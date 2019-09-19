@@ -84,11 +84,23 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             },
             Expression::Lit((), lit) => {
                 let meta = lit.simplify();
-                let lit = match lit.item {
-                    Literal::Integer(v) => meta.replace(Literal::Integer(v)),
-                    Literal::Unit(_) => unreachable!("Typed literal during identifier resolution"),
-                };
-                Expression::Lit((), lit)
+                match lit.item {
+                    Literal::Integer(v) => Expression::Lit((), meta.replace(Literal::Integer(v))),
+                    Literal::Unit(ty) => {
+                        if let Some(&ty) = ctx.type_lookup.get(&ty) {
+                            if let ty::Kind::Unit = ctx.types[ty.0].kind {
+                                Expression::Lit((), meta.replace(Literal::Unit(ty)))
+                            } else {
+                                unimplemented!()
+                            }
+                        } else {
+                            CompileError::new(
+                                &meta,
+                                format_args!("Cannot find value `{}` in this scope", ty),
+                            )?
+                        }
+                    }
+                }
             }
             Expression::Binop((), op, rhs, lhs) => Expression::Binop(
                 (),
