@@ -1,6 +1,21 @@
-use crate::*;
+use crate::{
+    binop::ExtendedBinop, Action, BlockId, Mir, MirState, Object, StepId, Terminator, Type, TypeId,
+};
 
 use std::fmt::{Display, Formatter, Result};
+
+impl Display for ExtendedBinop {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            ExtendedBinop::Add => write!(f, "add"),
+            ExtendedBinop::Sub => write!(f, "sub"),
+            ExtendedBinop::Mul => write!(f, "mul"),
+            ExtendedBinop::Div => write!(f, "div"),
+            ExtendedBinop::Lt => write!(f, "lt"),
+            ExtendedBinop::BitOr => write!(f, "bitor"),
+        }
+    }
+}
 
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
@@ -55,7 +70,7 @@ impl Display for Object {
     }
 }
 
-impl Display for Mir {
+impl<M: MirState> Display for Mir<M> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         for (i, ty) in self.types.iter().enumerate() {
             writeln!(f, "type %{}: {}", i, ty)?;
@@ -91,12 +106,7 @@ impl Display for Mir {
                         }
 
                         Action::FieldAccess(s, a) => writeln!(f, "${}.{}", s.0, a.0),
-                        Action::Add(a, b) => writeln!(f, "add ${} ${}", a.0, b.0),
-                        Action::Sub(a, b) => writeln!(f, "sub ${} ${}", a.0, b.0),
-                        Action::Mul(a, b) => writeln!(f, "mul ${} ${}", a.0, b.0),
-                        Action::Div(a, b) => writeln!(f, "div ${} ${}", a.0, b.0),
-                        Action::Lt(a, b) => writeln!(f, "cmp ${} < ${}", a.0, b.0),
-                        Action::BitOr(a, b) => writeln!(f, "bitor ${} $ {}", a.0, b.0),
+                        Action::Binop(kind, a, b) => writeln!(f, "{} ${} $ {}", kind, a.0, b.0),
                     }?;
                 }
 

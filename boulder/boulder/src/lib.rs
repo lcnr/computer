@@ -1,6 +1,6 @@
 use diagnostics::CompileError;
 
-pub fn compile(src: &str) -> Result<mir::Mir, CompileError> {
+pub fn compile(src: &str) -> Result<mir::Mir<mir::InitialMirState>, CompileError> {
     let hir = parse::parse(&src)?;
     let hir = hir.resolve_types()?;
     let hir = hir.resolve_identifiers()?;

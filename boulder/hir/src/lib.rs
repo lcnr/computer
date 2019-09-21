@@ -320,7 +320,7 @@ impl<'a> Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unresolved
 }
 
 impl<'a> Hir<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId, TypeId> {
-    pub fn to_mir(self) -> Result<Mir, CompileError> {
+    pub fn to_mir(self) -> Result<Mir<mir::InitialMirState>, CompileError> {
         let types: Vec<_> = self.types.into_iter().map(|t| t.to_mir()).collect();
 
         let function_definitions = self

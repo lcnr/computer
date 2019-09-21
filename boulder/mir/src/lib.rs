@@ -1,5 +1,9 @@
-use std::ops::{Index, IndexMut};
+use std::{
+    fmt,
+    ops::{Index, IndexMut},
+};
 
+pub mod binop;
 mod display;
 pub mod optimize;
 pub mod validate;
@@ -46,6 +50,17 @@ impl StepId {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct InitialMirState;
+
+impl MirState for InitialMirState {
+    type Binop = binop::ExtendedBinop;
+}
+
+pub trait MirState: fmt::Debug + Clone {
+    type Binop: binop::Binop<Self>;
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BlockId(pub usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -59,54 +74,49 @@ pub enum Terminator {
 }
 
 #[derive(Debug, Clone)]
-pub enum Action {
+pub enum Action<M: MirState> {
     Extend(StepId),
     LoadInput(usize),
     LoadConstant(Object),
     CallFunction(FunctionId, Vec<StepId>),
     FieldAccess(StepId, FieldId),
-    Add(StepId, StepId),
-    Sub(StepId, StepId),
-    Mul(StepId, StepId),
-    Div(StepId, StepId),
-    Lt(StepId, StepId),
-    BitOr(StepId, StepId),
+    Binop(M::Binop, StepId, StepId),
 }
 
 #[derive(Debug, Clone)]
-pub struct Step {
+pub struct Step<M: MirState> {
     pub ty: TypeId,
-    pub action: Action,
+    pub action: Action<M>,
 }
 
-impl Step {
-    pub fn new(ty: TypeId, action: Action) -> Self {
+impl<M: MirState> Step<M> {
+    pub fn new(ty: TypeId, action: Action<M>) -> Self {
         Self { ty, action }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct Function {
+pub struct Function<M: MirState> {
     pub name: Box<str>,
-    pub content: Vec<Block>,
+    pub content: Vec<Block<M>>,
     pub ret: TypeId,
 }
 
-impl Index<BlockId> for Function {
-    type Output = Block;
+impl<M: MirState> Index<BlockId> for Function<M> {
+    type Output = Block<M>;
 
     fn index(&self, id: BlockId) -> &Self::Output {
         &self.content[id.0]
     }
 }
 
-impl IndexMut<BlockId> for Function {
+impl<M: MirState> IndexMut<BlockId> for Function<M> {
     fn index_mut(&mut self, id: BlockId) -> &mut Self::Output {
         &mut self.content[id.0]
     }
 }
 
-impl Function {
+impl<M: MirState> Function<M> {
     pub fn new(name: Box<str>, ret: TypeId) -> Self {
         Self {
             name,
@@ -131,27 +141,27 @@ impl Function {
 }
 
 #[derive(Debug, Clone)]
-pub struct Block {
+pub struct Block<M: MirState> {
     pub input: Vec<TypeId>,
-    pub content: Vec<Step>,
+    pub content: Vec<Step<M>>,
     pub terminator: Terminator,
 }
 
-impl Index<StepId> for Block {
-    type Output = Step;
+impl<M: MirState> Index<StepId> for Block<M> {
+    type Output = Step<M>;
 
     fn index(&self, id: StepId) -> &Self::Output {
         &self.content[id.0]
     }
 }
 
-impl IndexMut<StepId> for Block {
+impl<M: MirState> IndexMut<StepId> for Block<M> {
     fn index_mut(&mut self, id: StepId) -> &mut Self::Output {
         &mut self.content[id.0]
     }
 }
 
-impl Block {
+impl<M: MirState> Block<M> {
     pub fn new() -> Self {
         Self {
             input: Vec::new(),
@@ -160,7 +170,7 @@ impl Block {
         }
     }
 
-    pub fn add_step(&mut self, ty: TypeId, action: Action) -> StepId {
+    pub fn add_step(&mut self, ty: TypeId, action: Action<M>) -> StepId {
         let step = Step { ty, action };
         let id = StepId(self.content.len());
         self.content.push(step);
@@ -185,12 +195,12 @@ impl Block {
 }
 
 #[derive(Debug, Clone)]
-pub struct Mir {
+pub struct Mir<M: MirState> {
     pub types: Vec<Type>,
-    pub functions: Vec<Function>,
+    pub functions: Vec<Function<M>>,
 }
 
-impl Mir {
+impl<M: MirState> Mir<M> {
     pub fn step_count(&self) -> usize {
         self.functions
             .iter()
@@ -200,7 +210,7 @@ impl Mir {
     }
 }
 
-impl Index<TypeId> for Mir {
+impl<M: MirState> Index<TypeId> for Mir<M> {
     type Output = Type;
 
     fn index(&self, id: TypeId) -> &Self::Output {
@@ -208,21 +218,21 @@ impl Index<TypeId> for Mir {
     }
 }
 
-impl IndexMut<TypeId> for Mir {
+impl<M: MirState> IndexMut<TypeId> for Mir<M> {
     fn index_mut(&mut self, id: TypeId) -> &mut Self::Output {
         &mut self.types[id.0]
     }
 }
 
-impl Index<FunctionId> for Mir {
-    type Output = Function;
+impl<M: MirState> Index<FunctionId> for Mir<M> {
+    type Output = Function<M>;
 
     fn index(&self, id: FunctionId) -> &Self::Output {
         &self.functions[id.0]
     }
 }
 
-impl IndexMut<FunctionId> for Mir {
+impl<M: MirState> IndexMut<FunctionId> for Mir<M> {
     fn index_mut(&mut self, id: FunctionId) -> &mut Self::Output {
         &mut self.functions[id.0]
     }

@@ -27,7 +27,7 @@ pub fn initialized_mir_block(
     variables: &[TypeId],
     var_lookup: &mut [Option<mir::StepId>],
     temporaries: &mut [Temporary],
-    func: &mut mir::Function,
+    func: &mut mir::Function<mir::InitialMirState>,
 ) {
     let block = &mut func[id];
     for (i, var) in var_lookup
@@ -52,12 +52,12 @@ pub struct ToMirContext<'a> {
     pub scopes: &'a mut Vec<(mir::BlockId, mir::TypeId, Vec<ExitScopeMeta>)>,
     pub temporaries: &'a mut Vec<Temporary>,
     pub curr: &'a mut mir::BlockId,
-    pub func: &'a mut mir::Function,
+    pub func: &'a mut mir::Function<mir::InitialMirState>,
 }
 
 impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
     pub fn to_mir<'b>(self, ctx: &mut ToMirContext<'b>) -> Result<mir::StepId, CompileError> {
-        use mir::{Action, Object, Terminator};
+        use mir::{binop::ExtendedBinop, Action, Object, Terminator};
         match self {
             Expression::Block(ty, _scope, mut v) => Ok(if let Some(last) = v.pop() {
                 let end = ctx.func.add_block();
@@ -146,12 +146,12 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 Ok(ctx.func[*ctx.curr].add_step(
                     ty.to_mir(),
                     match op.item {
-                        Binop::Add => Action::Add(a, b),
-                        Binop::Sub => Action::Sub(a, b),
-                        Binop::Mul => Action::Mul(a, b),
-                        Binop::Div => Action::Div(a, b),
-                        Binop::BitOr => Action::BitOr(a, b),
-                        Binop::Lt => Action::Lt(a, b),
+                        Binop::Add => Action::Binop(ExtendedBinop::Add, a, b),
+                        Binop::Sub => Action::Binop(ExtendedBinop::Sub, a, b),
+                        Binop::Mul => Action::Binop(ExtendedBinop::Mul, a, b),
+                        Binop::Div => Action::Binop(ExtendedBinop::Div, a, b),
+                        Binop::BitOr => Action::Binop(ExtendedBinop::BitOr, a, b),
+                        Binop::Lt => Action::Binop(ExtendedBinop::Lt, a, b),
                     },
                 ))
             }

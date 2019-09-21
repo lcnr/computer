@@ -1,6 +1,6 @@
 use std::{fmt, mem, ops::Drop};
 
-use crate::{ty::*, Action, FunctionId, Mir, Terminator, Type, TypeId};
+use crate::{binop::Binop, Action, FunctionId, Mir, MirState, Terminator, Type, TypeId};
 
 struct PanicDisplay<'a>(&'a str, &'a dyn fmt::Display);
 
@@ -10,7 +10,7 @@ impl Drop for PanicDisplay<'_> {
     }
 }
 
-impl Mir {
+impl<M: MirState> Mir<M> {
     /// check if the MIR is well formed
     pub fn validate(&self) {
         for ty in 0..self.types.len() {
@@ -70,24 +70,11 @@ impl Mir {
                             panic!("field access on invalid type: {:?}", block[id].ty);
                         }
                     }
-                    &Action::Add(a, b)
-                    | &Action::Sub(a, b)
-                    | &Action::Mul(a, b)
-                    | &Action::Div(a, b) => {
+                    &Action::Binop(ref kind, a, b) => {
                         assert!(a.0 < step_id);
                         assert!(b.0 < step_id);
-                        assert_eq!(block[a].ty, block[b].ty);
-                        assert_eq!(block[a].ty, step.ty);
-                        // TODO: check if values are integers
-                    }
-                    &Action::Lt(a, b) => {
-                        assert!(a.0 < step_id);
-                        assert!(b.0 < step_id);
-                        assert_eq!(block[a].ty, block[b].ty);
-                        // TODO: check if values are integers
-                        assert_eq!(BOOL_TYPE_ID, step.ty);
-                    }
-                    _ => (), // TODO: validate
+                        kind.validate(step, &block[a], &block[b]);
+                    } // TODO: validate
                 }
                 mem::forget(step_panic);
             }

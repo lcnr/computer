@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use super::*;
 
-impl Mir {
+impl<M: MirState> Mir<M> {
     /// remove blocks where an input is unreachable
     pub fn kill_uninhabited(&mut self) {
         let types = &mut self.types;
@@ -106,19 +106,14 @@ impl Terminator {
     }
 }
 
-impl Action {
+impl<M: MirState> Action<M> {
     pub fn update_step_ids<F>(&mut self, mut f: F)
     where
         F: FnMut(&mut StepId),
     {
         match self {
             Action::Extend(id) | Action::FieldAccess(id, _) => f(id),
-            Action::Add(a, b)
-            | Action::Sub(a, b)
-            | Action::Mul(a, b)
-            | Action::Div(a, b)
-            | Action::Lt(a, b)
-            | Action::BitOr(a, b) => {
+            Action::Binop(_kind, a, b) => {
                 f(a);
                 f(b);
             }
@@ -141,7 +136,7 @@ impl Action {
     }
 }
 
-impl Function {
+impl<M: MirState> Function<M> {
     pub fn remove_block(&mut self, id: BlockId) {
         self.content.remove(id.0);
         for block in self.content.iter_mut() {
@@ -150,7 +145,7 @@ impl Function {
     }
 }
 
-impl Block {
+impl<M: MirState> Block<M> {
     /// Removes a step from this block, this leads to undefined behavior if the step is still referenced.
     ///
     /// Consider `replace_step` if the step is still needed in some action.
