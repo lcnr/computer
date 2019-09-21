@@ -4,8 +4,8 @@ use crate::{
     expr::{Expression, MatchArm},
     func::FunctionDefinition,
     ty::{self, solver::TypeSolver, Type, TypeId},
-    Binop, Literal, Pattern, ResolvedIdentifiers, ResolvedTypes, ResolvingTypes, UnresolvedType,
-    UnresolvedTypes, ScopeId,
+    Binop, Literal, Pattern, ResolvedIdentifiers, ResolvedTypes, ResolvingTypes, ScopeId,
+    UnresolvedType, UnresolvedTypes,
 };
 
 pub struct TypeConstraintsContext<'a, 'b, 'c> {
@@ -41,7 +41,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 } else {
                     ctx.solver.add_extension(expr_id, id);
                 }
-                
+
                 Expression::Block(id, meta, content)
             }
             Expression::Variable((), var) => {
