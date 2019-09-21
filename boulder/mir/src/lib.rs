@@ -7,6 +7,7 @@ pub mod binop;
 mod display;
 pub mod optimize;
 pub mod validate;
+pub mod to_asm;
 
 #[allow(dead_code)]
 mod ty {

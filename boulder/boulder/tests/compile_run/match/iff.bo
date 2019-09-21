@@ -1,13 +1,13 @@
-# fn invert(b: Bool) -> Bool {
-#    if b {
-#        False: Bool
-#    } else {
-#        True: Bool
-#    }: Bool
-#}
+fn invert(b: Bool) -> Bool {
+    if b {
+        False
+    } else {
+        True
+    }: Bool
+}
 
 fn iff() -> u32 {
-    if True: Bool {
+    if invert(True) {
         3
     } else {
         4

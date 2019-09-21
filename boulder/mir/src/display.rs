@@ -136,14 +136,14 @@ impl<M: MirState> Display for Mir<M> {
                                     if let Some(arg) = arg {
                                         write!(f, "${}, ", arg.0)?;
                                     } else {
-                                        write!(f, "$self")?;
+                                        write!(f, "self, ")?;
                                     }
                                 }
 
                                 if let Some(arg) = last {
-                                    write!(f, "${}, ", arg.0)?;
+                                    write!(f, "${}", arg.0)?;
                                 } else {
-                                    write!(f, "$self")?;
+                                    write!(f, "self")?;
                                 }
                             }
                             write!(f, ")")
