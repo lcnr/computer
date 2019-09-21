@@ -29,7 +29,7 @@ impl<'a> IdentifierState for UnresolvedIdentifiers<'a> {
 #[derive(Debug, Clone)]
 pub struct ResolvedIdentifiers<'a>(PhantomData<&'a str>);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScopeId(pub usize);
 
 impl<'a> IdentifierState for ResolvedIdentifiers<'a> {

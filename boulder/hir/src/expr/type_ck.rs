@@ -5,13 +5,13 @@ use crate::{
     func::FunctionDefinition,
     ty::{self, solver::TypeSolver, Type, TypeId},
     Binop, Literal, Pattern, ResolvedIdentifiers, ResolvedTypes, ResolvingTypes, UnresolvedType,
-    UnresolvedTypes,
+    UnresolvedTypes, ScopeId,
 };
 
 pub struct TypeConstraintsContext<'a, 'b, 'c> {
     pub functions: &'c [FunctionDefinition<'a, TypeId>],
     pub variables: &'c [solver::EntityId],
-    pub scopes: &'c mut Vec<(solver::EntityId, bool)>,
+    pub scopes: &'c mut Vec<(solver::EntityId, usize)>,
     pub solver: &'c mut TypeSolver<'a, 'b>,
 }
 
@@ -23,7 +23,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
         Ok(match self {
             Expression::Block((), meta, v) => {
                 let id = ctx.solver.add_unbound(meta.simplify());
-                ctx.scopes.push((id, false));
+                ctx.scopes.push((id, 0));
                 let content = v
                     .into_iter()
                     .map(|expr| expr.type_constraints(ctx))
@@ -35,8 +35,13 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     ctx.solver.add_typed(ty::EMPTY_ID, meta.simplify())
                 };
 
-                ctx.solver.add_extension(expr_id, id);
-                ctx.scopes.pop();
+                let (_, count) = ctx.scopes.pop().unwrap();
+                if count == 0 && meta.item != ScopeId(0) {
+                    ctx.solver.add_equality(expr_id, id);
+                } else {
+                    ctx.solver.add_extension(expr_id, id);
+                }
+                
                 Expression::Block(id, meta, content)
             }
             Expression::Variable((), var) => {
@@ -168,13 +173,13 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 }
 
                 let id = ctx.solver.add_unbound(meta.simplify());
-                ctx.scopes.push((id, false));
+                ctx.scopes.push((id, 0));
                 let content = v
                     .into_iter()
                     .map(|expr| expr.type_constraints(ctx))
                     .collect::<Result<Vec<_>, CompileError>>()?;
 
-                if !ctx.scopes.pop().unwrap().1 {
+                if ctx.scopes.pop().unwrap().1 == 0 {
                     ctx.solver
                         .override_entity(id, ty::NEVER_ID, meta.simplify());
                 };
@@ -184,7 +189,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 let expr = expr.type_constraints(ctx)?;
                 ctx.solver
                     .add_extension(expr.id(), ctx.scopes[scope_id.item.0].0);
-                ctx.scopes[scope_id.item.0].1 = true;
+                ctx.scopes[scope_id.item.0].1 += 1;
 
                 Expression::Break(
                     ctx.solver.add_typed(ty::NEVER_ID, scope_id.simplify()),
