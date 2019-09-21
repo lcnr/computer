@@ -11,16 +11,16 @@ fn iff() -> u32 {
         3
     } else {
         4
-    }: Bool + if True {
+    } + if True {
         5
     } else {
         6
-    }: Bool
+    }
 }
 
 fn iff_empty() -> u32 {
-    let x = if True {
-        7
+    let x: u32 | Empty = if True {
+        7: u32
     };
 
     match x {
