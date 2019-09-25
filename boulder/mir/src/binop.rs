@@ -31,3 +31,27 @@ impl<M: MirState> Binop<M> for ExtendedBinop {
         }
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+pub enum ReducedBinop {
+    Add,
+    Sub,
+    Lt,
+    BitOr,
+}
+
+impl<M: MirState> Binop<M> for ReducedBinop {
+    fn validate(&self, this: &Step<M>, a: &Step<M>, b: &Step<M>) {
+        match self {
+            Self::Add | Self::Sub => {
+                assert_eq!(a.ty, b.ty);
+                assert_eq!(a.ty, this.ty);
+            }
+            Self::Lt => {
+                assert_eq!(a.ty, b.ty);
+                // TODO: check `this.ty == Bool`
+            }
+            Self::BitOr => unimplemented!("bitor"),
+        }
+    }
+}

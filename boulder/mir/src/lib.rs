@@ -5,25 +5,13 @@ use std::{
 
 pub mod binop;
 mod display;
+pub mod meta;
 pub mod optimize;
 pub mod to_asm;
 pub mod traits;
 pub mod validate;
 
-use traits::UpdateStepIds;
-
-pub trait MirState: fmt::Debug + Clone {
-    type StepMeta: UpdateStepIds + fmt::Debug + Clone;
-    type Binop: binop::Binop<Self>;
-}
-
-#[derive(Debug, Clone)]
-pub struct InitialMirState;
-
-impl MirState for InitialMirState {
-    type StepMeta = ();
-    type Binop = binop::ExtendedBinop;
-}
+use traits::{MirState, UpdateStepIds};
 
 #[allow(dead_code)]
 mod ty {

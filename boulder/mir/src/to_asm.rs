@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use crate::{Function, InitialMirState, Mir, Type};
+use crate::{traits::InitialMirState, Function, Mir, Type};
 
 impl Mir<InitialMirState> {
     pub fn to_asm(self) -> String {

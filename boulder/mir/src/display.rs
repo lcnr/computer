@@ -1,5 +1,6 @@
 use crate::{
-    binop::ExtendedBinop, Action, BlockId, Mir, MirState, Object, StepId, Terminator, Type, TypeId,
+    binop::{ExtendedBinop, ReducedBinop},
+    Action, BlockId, Mir, MirState, Object, StepId, Terminator, Type, TypeId,
 };
 
 use std::fmt::{Display, Formatter, Result};
@@ -7,12 +8,23 @@ use std::fmt::{Display, Formatter, Result};
 impl Display for ExtendedBinop {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            ExtendedBinop::Add => write!(f, "add"),
-            ExtendedBinop::Sub => write!(f, "sub"),
-            ExtendedBinop::Mul => write!(f, "mul"),
-            ExtendedBinop::Div => write!(f, "div"),
-            ExtendedBinop::Lt => write!(f, "lt"),
-            ExtendedBinop::BitOr => write!(f, "bitor"),
+            Self::Add => write!(f, "add"),
+            Self::Sub => write!(f, "sub"),
+            Self::Mul => write!(f, "mul"),
+            Self::Div => write!(f, "div"),
+            Self::Lt => write!(f, "lt"),
+            Self::BitOr => write!(f, "bitor"),
+        }
+    }
+}
+
+impl Display for ReducedBinop {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            Self::Add => write!(f, "add"),
+            Self::Sub => write!(f, "sub"),
+            Self::Lt => write!(f, "lt"),
+            Self::BitOr => write!(f, "bitor"),
         }
     }
 }

@@ -27,7 +27,7 @@ pub fn initialized_mir_block(
     variables: &[TypeId],
     var_lookup: &mut [Option<mir::StepId>],
     temporaries: &mut [Temporary],
-    func: &mut mir::Function<mir::InitialMirState>,
+    func: &mut mir::Function<mir::traits::InitialMirState>,
 ) {
     let block = &mut func[id];
     for (i, var) in var_lookup
@@ -52,7 +52,7 @@ pub struct ToMirContext<'a> {
     pub scopes: &'a mut Vec<(mir::BlockId, mir::TypeId, Vec<ExitScopeMeta>)>,
     pub temporaries: &'a mut Vec<Temporary>,
     pub curr: &'a mut mir::BlockId,
-    pub func: &'a mut mir::Function<mir::InitialMirState>,
+    pub func: &'a mut mir::Function<mir::traits::InitialMirState>,
 }
 
 impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
