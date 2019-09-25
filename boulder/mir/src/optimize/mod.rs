@@ -71,69 +71,6 @@ impl Terminator {
             }
         });
     }
-
-    pub fn update_step_ids<F>(&mut self, mut f: F)
-    where
-        F: FnMut(&mut StepId),
-    {
-        match self {
-            Terminator::Return(id) => f(id),
-            Terminator::Goto(_, args) => {
-                for arg in args {
-                    f(arg);
-                }
-            }
-            Terminator::Match(id, arms) => {
-                f(id);
-                for arm in arms {
-                    for arg in arm.2.iter_mut() {
-                        if let Some(arg) = arg.as_mut() {
-                            f(arg);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /// shift all step ids for which the condition `self >= after` holds
-    pub fn shift_step_ids(&mut self, after: StepId, by: isize) {
-        self.update_step_ids(|id| {
-            if *id >= after {
-                *id = StepId((id.0 as isize + by) as usize);
-            }
-        });
-    }
-}
-
-impl<M: MirState> Action<M> {
-    pub fn update_step_ids<F>(&mut self, mut f: F)
-    where
-        F: FnMut(&mut StepId),
-    {
-        match self {
-            Action::Extend(id) | Action::FieldAccess(id, _) => f(id),
-            Action::Binop(_kind, a, b) => {
-                f(a);
-                f(b);
-            }
-            Action::CallFunction(_, args) => {
-                for arg in args {
-                    f(arg);
-                }
-            }
-            Action::LoadConstant(_) | Action::LoadInput(_) => (),
-        }
-    }
-
-    /// shift all step ids for which the condition `self >= after` holds
-    pub fn shift_step_ids(&mut self, after: StepId, by: isize) {
-        self.update_step_ids(|id| {
-            if *id >= after {
-                *id = StepId((id.0 as isize + by) as usize);
-            }
-        });
-    }
 }
 
 impl<M: MirState> Function<M> {
@@ -160,7 +97,7 @@ impl<M: MirState> Block<M> {
 
     /// Remove `previous` from this block, updating all reference to this step to `new`
     pub fn replace_step(&mut self, previous: StepId, new: StepId) {
-        let replacer = |id: &mut StepId| {
+        let mut replacer = |id: &mut StepId| {
             *id = match (*id).cmp(&previous) {
                 Ordering::Less => *id,
                 Ordering::Equal => {
@@ -176,8 +113,8 @@ impl<M: MirState> Block<M> {
 
         self.content.remove(previous.0);
         for c in self.content[previous.0..].iter_mut() {
-            c.action.update_step_ids(replacer);
+            c.action.update_step_ids(&mut replacer);
         }
-        self.terminator.update_step_ids(replacer);
+        self.terminator.update_step_ids(&mut replacer);
     }
 }

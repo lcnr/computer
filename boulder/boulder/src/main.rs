@@ -24,7 +24,13 @@ pub fn main() {
 
             if let Ok(res) = boulder::compile(&src) {
                 if let Ok(mut file) = File::create(output) {
-                    write!(file, "{}", res).unwrap();
+                    writeln!(file, "v2.0 raw").expect("error while writing to file");
+                    for bytes in res.chunks(4) {
+                        for b in bytes {
+                            write!(file, "{:02x} ", b).expect("error while writing to file");
+                        }
+                        write!(file, "\n").expect("error while writing to file");
+                    }
                     println!("Successfully compiled `{}` to `{}`", input, output);
                 } else {
                     eprintln!("unable to create file: {}", output);

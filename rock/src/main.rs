@@ -22,7 +22,7 @@ pub fn main() {
                 println!("Error while reading {}: {:?}", input, err);
             }
 
-            if let Ok(data) = rock::codegen(&src, &mut rock::DebugLogger) {
+            if let Ok(data) = rock::compile(&src, &mut rock::DebugLogger) {
                 if let Ok(mut file) = File::create(output) {
                     writeln!(file, "v2.0 raw").expect("error while writing to file");
                     for bytes in data.chunks(4) {

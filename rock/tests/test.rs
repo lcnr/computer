@@ -43,7 +43,7 @@ fn compile_fail() -> Result<(), std::io::Error> {
             };
 
             let content = match panic::catch_unwind(AssertUnwindSafe(|| {
-                rock::codegen(&content, &mut output)
+                rock::compile(&content, &mut output)
             })) {
                 Ok(c) => c,
                 Err(e) => {
@@ -106,7 +106,7 @@ fn compile_run() {
             };
 
             let result = match panic::catch_unwind(AssertUnwindSafe(|| {
-                rock::codegen(&content, &mut output)
+                rock::compile(&content, &mut output)
             })) {
                 Ok(c) => c,
                 Err(e) => {

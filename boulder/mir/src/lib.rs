@@ -6,8 +6,24 @@ use std::{
 pub mod binop;
 mod display;
 pub mod optimize;
-pub mod validate;
 pub mod to_asm;
+pub mod traits;
+pub mod validate;
+
+use traits::UpdateStepIds;
+
+pub trait MirState: fmt::Debug + Clone {
+    type StepMeta: UpdateStepIds + fmt::Debug + Clone;
+    type Binop: binop::Binop<Self>;
+}
+
+#[derive(Debug, Clone)]
+pub struct InitialMirState;
+
+impl MirState for InitialMirState {
+    type StepMeta = ();
+    type Binop = binop::ExtendedBinop;
+}
 
 #[allow(dead_code)]
 mod ty {
@@ -51,17 +67,6 @@ impl StepId {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct InitialMirState;
-
-impl MirState for InitialMirState {
-    type Binop = binop::ExtendedBinop;
-}
-
-pub trait MirState: fmt::Debug + Clone {
-    type Binop: binop::Binop<Self>;
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BlockId(pub usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -88,11 +93,16 @@ pub enum Action<M: MirState> {
 pub struct Step<M: MirState> {
     pub ty: TypeId,
     pub action: Action<M>,
+    pub meta: M::StepMeta,
 }
 
-impl<M: MirState> Step<M> {
+impl<M: MirState<StepMeta = ()>> Step<M> {
     pub fn new(ty: TypeId, action: Action<M>) -> Self {
-        Self { ty, action }
+        Self {
+            meta: (),
+            ty,
+            action,
+        }
     }
 }
 
@@ -162,17 +172,9 @@ impl<M: MirState> IndexMut<StepId> for Block<M> {
     }
 }
 
-impl<M: MirState> Block<M> {
-    pub fn new() -> Self {
-        Self {
-            input: Vec::new(),
-            content: Vec::new(),
-            terminator: Terminator::Return(StepId::invalid()),
-        }
-    }
-
+impl<M: MirState<StepMeta = ()>> Block<M> {
     pub fn add_step(&mut self, ty: TypeId, action: Action<M>) -> StepId {
-        let step = Step { ty, action };
+        let step = Step::new(ty, action);
         let id = StepId(self.content.len());
         self.content.push(step);
         id
@@ -182,6 +184,16 @@ impl<M: MirState> Block<M> {
         let id = self.add_step(ty, Action::LoadInput(self.input.len()));
         self.input.push(ty);
         id
+    }
+}
+
+impl<M: MirState> Block<M> {
+    pub fn new() -> Self {
+        Self {
+            input: Vec::new(),
+            content: Vec::new(),
+            terminator: Terminator::Return(StepId::invalid()),
+        }
     }
 
     pub fn add_terminator(&mut self, terminator: Terminator) {

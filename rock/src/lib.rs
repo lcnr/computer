@@ -199,7 +199,7 @@ impl Logger for DebugLogger {
     }
 }
 
-pub fn codegen<L: Logger>(src: &str, logger: &mut L) -> Result<Vec<u8>, CodeGenError> {
+pub fn compile<L: Logger>(src: &str, logger: &mut L) -> Result<Vec<u8>, CodeGenError> {
     let mut blocks = parse(src, logger)?;
     resolve(&mut blocks, logger)?;
 

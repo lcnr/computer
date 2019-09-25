@@ -1,6 +1,6 @@
 use diagnostics::CompileError;
 
-pub fn compile(src: &str) -> Result<mir::Mir<mir::InitialMirState>, CompileError> {
+pub fn compile(src: &str) -> Result<Vec<u8>, CompileError> {
     let hir = parse::parse(&src)?;
     let hir = hir.resolve_types()?;
     let hir = hir.resolve_identifiers()?;
@@ -14,5 +14,5 @@ pub fn compile(src: &str) -> Result<mir::Mir<mir::InitialMirState>, CompileError
     mir.remove_noop_extend();
     dbg!(mir.step_count());
     mir.validate();
-    Ok(mir)
+    Ok(rock::compile(&mir.to_asm(), &mut rock::DebugLogger).unwrap())
 }
