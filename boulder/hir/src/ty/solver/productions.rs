@@ -55,7 +55,7 @@ impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for FieldAcc
             let allowed_objects =
                 EntityState::Bound(self.field_types.iter().map(|&(o, _)| o).collect());
             let expected_str = TypeSolver::ty_error_str(ctx.types, &allowed_objects);
-            let found_str = &ctx.types[origin.value.0].name.item;
+            let found_str = &ctx.types[origin.value].name.item;
             CompileError::build(
                 ctx.meta.get(&target.id).unwrap(),
                 format_args!(
@@ -103,7 +103,7 @@ impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for FieldAcc
             let allowed_targets =
                 EntityState::Bound(self.field_types.iter().map(|&(_, f)| f).collect());
             let expected_str = TypeSolver::ty_error_str(ctx.types, &allowed_targets);
-            let found_str = &ctx.types[target.value.0].name.item;
+            let found_str = &ctx.types[target.value].name.item;
             CompileError::build(
                 ctx.meta.get(&target.id).unwrap(),
                 format_args!(
@@ -136,7 +136,7 @@ impl Equality {
             Ok(())
         } else {
             let unsolved_str = TypeSolver::ty_error_str(ctx.types, unsolved.state);
-            let solved_str = format!("`{}`", &ctx.types[solved.value.0].name.item);
+            let solved_str = format!("`{}`", &ctx.types[solved.value].name.item);
 
             let (found_str, expected_str) = if flip_error {
                 (solved_str, unsolved_str)
@@ -194,7 +194,7 @@ impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for Extensio
             Ok(())
         } else {
             let expected_str = TypeSolver::ty_error_str(ctx.types, target.state);
-            let found_str = &ctx.types[origin.value.0].name.item;
+            let found_str = &ctx.types[origin.value].name.item;
             CompileError::build(
                 ctx.meta.get(&target.id).unwrap(),
                 format_args!(
@@ -221,7 +221,7 @@ impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for Extensio
             Ok(())
         } else {
             let expected_str = TypeSolver::ty_error_str(ctx.types, origin.state);
-            let found_str = &ctx.types[target.value.0].name.item;
+            let found_str = &ctx.types[target.value].name.item;
             CompileError::build(
                 ctx.meta.get(&target.id).unwrap(),
                 format_args!(

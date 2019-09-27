@@ -1,19 +1,21 @@
 use std::convert::{identity, TryFrom};
 
+use tindex::{TSlice, TVec};
+
 use diagnostics::CompileError;
 
 use crate::{
-    expr::Expression,
-    func::FunctionDefinition,
+    expr::Expression, ScopeId,
+    func::{FunctionId, FunctionDefinition},
     ty::{self, TypeId},
-    Binop, Literal, Pattern, ResolvedIdentifiers, ResolvedTypes,
+    Binop, Literal, Pattern, ResolvedIdentifiers, ResolvedTypes, VariableId,
 };
 
 #[derive(Debug)]
 pub struct ExitScopeMeta {
     origin: mir::BlockId,
     expr: mir::StepId,
-    variables: Vec<Option<mir::StepId>>,
+    variables: TVec<VariableId, Option<mir::StepId>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -24,8 +26,8 @@ pub struct Temporary {
 
 pub fn initialized_mir_block(
     id: mir::BlockId,
-    variables: &[TypeId],
-    var_lookup: &mut [Option<mir::StepId>],
+    variables: &TSlice<VariableId, TypeId>,
+    var_lookup: &mut TSlice<VariableId, Option<mir::StepId>>,
     temporaries: &mut [Temporary],
     func: &mut mir::Function<mir::traits::InitialMirState>,
 ) {
@@ -35,7 +37,7 @@ pub fn initialized_mir_block(
         .enumerate()
         .filter_map(|(i, v)| v.as_mut().map(|v| (i, v)))
     {
-        *var = block.add_input(variables[i].to_mir());
+        *var = block.add_input(variables[VariableId::from(i)].to_mir());
     }
 
     for temp in temporaries.iter_mut() {
@@ -45,11 +47,11 @@ pub fn initialized_mir_block(
 
 #[derive(Debug)]
 pub struct ToMirContext<'a> {
-    pub types: &'a [mir::Type],
-    pub variable_types: &'a [TypeId],
-    pub function_definitions: &'a [FunctionDefinition<'a, TypeId>],
-    pub var_lookup: &'a mut Vec<Option<mir::StepId>>,
-    pub scopes: &'a mut Vec<(mir::BlockId, mir::TypeId, Vec<ExitScopeMeta>)>,
+    pub types: &'a TSlice<mir::TypeId, mir::Type>,
+    pub variable_types: &'a TVec<VariableId, TypeId>,
+    pub function_definitions: &'a TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
+    pub var_lookup: &'a mut TVec<VariableId, Option<mir::StepId>>,
+    pub scopes: &'a mut TVec<ScopeId, (mir::BlockId, mir::TypeId, Vec<ExitScopeMeta>)>,
     pub temporaries: &'a mut Vec<Temporary>,
     pub curr: &'a mut mir::BlockId,
     pub func: &'a mut mir::Function<mir::traits::InitialMirState>,
@@ -57,7 +59,7 @@ pub struct ToMirContext<'a> {
 
 impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
     pub fn to_mir<'b>(self, ctx: &mut ToMirContext<'b>) -> Result<mir::StepId, CompileError> {
-        use mir::{binop::ExtendedBinop, Action, Object, Terminator};
+        use mir::{Action, Object, Terminator};
         match self {
             Expression::Block(ty, _scope, mut v) => Ok(if let Some(last) = v.pop() {
                 let end = ctx.func.add_block();
@@ -107,7 +109,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 ctx.func[*ctx.curr].add_step(ty.to_mir(), Action::LoadConstant(Object::Unit))
             }),
             Expression::Variable(ty, var) => {
-                if let Some(step) = ctx.var_lookup[var.0] {
+                if let Some(step) = ctx.var_lookup[var.item] {
                     assert_eq!(ty.to_mir(), ctx.func[*ctx.curr][step].ty);
                     Ok(step)
                 } else {
@@ -120,7 +122,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
             }
             Expression::Lit(ty, lit) => {
                 let type_id = ty.to_mir();
-                let ty = &ctx.types[type_id.0];
+                let ty = &ctx.types[type_id];
                 let obj = match &lit.item {
                     &Literal::Integer(i) => match ty {
                         mir::Type::U8 => u8::try_from(i).map(|i| Object::U8(i)),
@@ -146,12 +148,12 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 Ok(ctx.func[*ctx.curr].add_step(
                     ty.to_mir(),
                     match op.item {
-                        Binop::Add => Action::Binop(ExtendedBinop::Add, a, b),
-                        Binop::Sub => Action::Binop(ExtendedBinop::Sub, a, b),
-                        Binop::Mul => Action::Binop(ExtendedBinop::Mul, a, b),
-                        Binop::Div => Action::Binop(ExtendedBinop::Div, a, b),
-                        Binop::BitOr => Action::Binop(ExtendedBinop::BitOr, a, b),
-                        Binop::Lt => Action::Binop(ExtendedBinop::Lt, a, b),
+                        Binop::Add => Action::Binop(mir::binop::Binop::Add, a, b),
+                        Binop::Sub => Action::Binop(mir::binop::Binop::Sub, a, b),
+                        Binop::Mul => Action::Binop(mir::binop::Binop::Mul, a, b),
+                        Binop::Div => Action::Binop(mir::binop::Binop::Div, a, b),
+                        Binop::BitOr => Action::Binop(mir::binop::Binop::BitOr, a, b),
+                        Binop::Lt => Action::Binop(mir::binop::Binop::Lt, a, b),
                     },
                 ))
             }
@@ -164,8 +166,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 let expr = expr.to_mir(ctx)?;
                 let block = &mut ctx.func[*ctx.curr];
                 let extension =
-                    block.add_step(ctx.variable_types[var.0].to_mir(), Action::Extend(expr));
-                ctx.var_lookup[var.0] = Some(extension);
+                    block.add_step(ctx.variable_types[var.item].to_mir(), Action::Extend(expr));
+                ctx.var_lookup[var.item] = Some(extension);
                 assert_eq!(ty, ty::EMPTY_ID);
                 Ok(block.add_step(ty.to_mir(), Action::LoadConstant(Object::Unit)))
             }
@@ -176,7 +178,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                     .map(|(i, arg)| {
                         let arg = arg.to_mir(ctx)?;
                         Ok(ctx.func[*ctx.curr].add_step(
-                            ctx.function_definitions[id.0].args[i].item.to_mir(),
+                            ctx.function_definitions[id.item].args[i].item.to_mir(),
                             Action::Extend(arg),
                         ))
                     })
@@ -197,7 +199,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 let mut arms = Vec::new();
                 let mut arms_data = Vec::new();
                 for arm in match_arms {
-                    let mut available_variables = ctx.var_lookup.to_vec();
+                    let mut available_variables = ctx.var_lookup.clone();
                     let mut temporaries = ctx.temporaries.clone();
 
                     let mut id = ctx.func.add_block();
@@ -221,8 +223,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                     let ty = match arm.pattern {
                         Pattern::Underscore(ty) => ty.to_mir(),
                         Pattern::Named(name) => {
-                            let ty = ctx.variable_types[name.0].to_mir();
-                            available_variables[name.0] = Some(ctx.func[id].add_input(ty));
+                            let ty = ctx.variable_types[name.item].to_mir();
+                            available_variables[name.item] = Some(ctx.func[id].add_input(ty));
                             args.push(None);
                             ty
                         }
@@ -248,14 +250,14 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
 
                 let mut initialized_variables = if let Some((first, rest)) = arms_data.split_first()
                 {
-                    rest.iter().fold(first.2.to_vec(), |mut lookup, arm| {
+                    rest.iter().fold(first.2.clone(), |mut lookup, arm| {
                         for (v, arm) in lookup.iter_mut().zip(&arm.2) {
                             *v = v.and(*arm)
                         }
                         lookup
                     })
                 } else {
-                    ctx.var_lookup.to_vec()
+                    ctx.var_lookup.clone()
                 };
 
                 let id = ctx.func.add_block();
@@ -325,7 +327,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 ));
 
                 let (_, _, exits) = ctx.scopes.pop().unwrap();
-                *ctx.var_lookup = vec![Some(mir::StepId::invalid()); ctx.var_lookup.len()];
+                *ctx.var_lookup = tvec![Some(mir::StepId::invalid()); ctx.var_lookup.len()];
                 for exit in exits.iter() {
                     for (v, ex) in ctx.var_lookup.iter_mut().zip(&exit.variables) {
                         *v = ex.and(*v);
@@ -359,7 +361,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
             Expression::Break(ty, scope_id, expr) => {
                 let expr = expr.to_mir(ctx)?;
                 let expr = ctx.func[*ctx.curr]
-                    .add_step(ctx.scopes[scope_id.item.0].1, Action::Extend(expr));
+                    .add_step(ctx.scopes[scope_id.item].1, Action::Extend(expr));
                 let origin = *ctx.curr;
 
                 *ctx.curr = ctx.func.add_block();
@@ -372,7 +374,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 );
                 let step = ctx.func[*ctx.curr].add_input(ty.to_mir());
 
-                ctx.scopes[scope_id.0].2.push(ExitScopeMeta {
+                ctx.scopes[scope_id.item].2.push(ExitScopeMeta {
                     origin,
                     expr,
                     variables: ctx.var_lookup.clone(),

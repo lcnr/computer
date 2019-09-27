@@ -7,4 +7,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+tindex = { git = "https://github.com/lcnr/tindex.git" }
+
 rock = { path = "../../rock"}

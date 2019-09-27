@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
+use tindex::{TSlice, TVec};
+
 use diagnostics::{CompileError, Meta};
 
-use solver::{ConstraintSolver, EntityId, ProductionId, Solution, SolveError};
+use solver::{ConstraintSolver, EntityId, ProductionId, SolveError};
 
 mod productions;
 
@@ -12,7 +14,7 @@ use productions::*;
 
 #[derive(Debug)]
 pub struct Context<'a, 'b> {
-    pub types: &'b mut Vec<Type<'a, TypeId>>,
+    pub types: &'b mut TVec<TypeId, Type<'a, TypeId>>,
     pub type_lookup: &'b mut HashMap<Box<str>, TypeId>,
     pub meta: HashMap<EntityId, Meta<'a, ()>>,
 }
@@ -33,7 +35,7 @@ impl EntityState {
     fn simplify_restriction(
         supertypes: Vec<TypeId>,
         subtypes: Vec<TypeId>,
-        types: &mut Vec<Type<TypeId>>,
+        types: &mut TVec<TypeId, Type<TypeId>>,
         lookup: &mut HashMap<Box<str>, TypeId>,
     ) -> Self {
         if supertypes.len() == 1 {
@@ -51,7 +53,7 @@ impl EntityState {
     pub fn try_subtype(
         &mut self,
         mut restriction: Vec<TypeId>,
-        types: &mut Vec<Type<TypeId>>,
+        types: &mut TVec<TypeId, Type<TypeId>>,
         lookup: &mut HashMap<Box<str>, TypeId>,
     ) -> bool {
         match &self {
@@ -100,7 +102,7 @@ impl EntityState {
     pub fn try_supertype(
         &mut self,
         restriction: Vec<TypeId>,
-        types: &mut Vec<Type<TypeId>>,
+        types: &mut TVec<TypeId, Type<TypeId>>,
         lookup: &mut HashMap<Box<str>, TypeId>,
     ) -> bool {
         match &self {
@@ -157,7 +159,7 @@ impl EntityState {
         }
     }
 
-    pub fn try_bind(&mut self, ty: Vec<TypeId>, types: &[Type<TypeId>]) -> bool {
+    pub fn try_bind(&mut self, ty: Vec<TypeId>, types: &TSlice<TypeId, Type<TypeId>>) -> bool {
         match self {
             state @ EntityState::Unbound => {
                 *state = EntityState::Bound(ty);
@@ -170,7 +172,7 @@ impl EntityState {
                 let mut allowed_types = Vec::new();
                 for ty in ty {
                     let e;
-                    let e = match &types[ty.0].kind {
+                    let e = match &types[ty].kind {
                         Kind::Sum(e) => e,
                         _ => {
                             e = vec![ty];
@@ -236,7 +238,6 @@ impl solver::EntityState for EntityState {
 pub struct TypeSolver<'a, 'b> {
     solver: ConstraintSolver<Context<'a, 'b>, EntityState, CompileError>,
     empty: TypeId,
-    all: Vec<TypeId>,
     integers: Vec<TypeId>,
     fields: HashMap<Box<str>, (ProductionId, Vec<TypeId>)>,
     equality: ProductionId,
@@ -245,10 +246,9 @@ pub struct TypeSolver<'a, 'b> {
 
 impl<'a, 'b> TypeSolver<'a, 'b> {
     pub fn new(
-        types: &'b mut Vec<Type<'a, TypeId>>,
+        types: &'b mut TVec<TypeId, Type<'a, TypeId>>,
         type_lookup: &'b mut HashMap<Box<str>, TypeId>,
     ) -> Self {
-        let all = (0..types.len()).map(|t| TypeId(t)).collect();
         let empty = TypeId(types.iter().position(|t| &*t.name.item == "Empty").unwrap());
         let integers = types
             .iter()
@@ -296,7 +296,6 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         Self {
             solver,
             empty,
-            all,
             integers,
             fields,
             equality,
@@ -304,7 +303,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         }
     }
 
-    fn ty_error_str(types: &[Type<'a, TypeId>], expected: &EntityState) -> String {
+    fn ty_error_str(types: &TSlice<TypeId, Type<'a, TypeId>>, expected: &EntityState) -> String {
         match expected {
             EntityState::Unbound => "any type".into(),
             EntityState::Restricted {
@@ -312,39 +311,39 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
                 subtypes,
             } => {
                 let sup = match supertypes.as_slice() {
-                    [] => String::new(),
-                    [one] => format!("`{}`", types[one.0].name.item),
-                    [one, two] => format!(
+                    &[] => String::new(),
+                    &[one] => format!("`{}`", types[one].name.item),
+                    &[one, two] => format!(
                         "a combination of `{}` or `{}`",
-                        types[one.0].name.item, types[two.0].name.item
+                        types[one].name.item, types[two].name.item
                     ),
-                    [one, two, three] => format!(
+                    &[one, two, three] => format!(
                         "a combination of `{}`, `{}` or `{}`",
-                        types[one.0].name.item, types[two.0].name.item, types[three.0].name.item
+                        types[one].name.item, types[two].name.item, types[three].name.item
                     ),
                     _ => format!(
                         "a combination of `{}`, `{}` or {} more",
-                        types[supertypes[0].0].name.item,
-                        types[supertypes[1].0].name.item,
+                        types[supertypes[0]].name.item,
+                        types[supertypes[1]].name.item,
                         supertypes.len() - 2
                     ),
                 };
 
                 let sub = match subtypes.as_slice() {
-                    [] => String::new(),
-                    [one] => format!("containing `{}`", types[one.0].name.item),
-                    [one, two] => format!(
+                    &[] => String::new(),
+                    &[one] => format!("containing `{}`", types[one].name.item),
+                    &[one, two] => format!(
                         "containing `{}` or `{}`",
-                        types[one.0].name.item, types[two.0].name.item
+                        types[one].name.item, types[two].name.item
                     ),
-                    [one, two, three] => format!(
+                    &[one, two, three] => format!(
                         "containing `{}`, `{}` or `{}`",
-                        types[one.0].name.item, types[two.0].name.item, types[three.0].name.item
+                        types[one].name.item, types[two].name.item, types[three].name.item
                     ),
                     _ => format!(
                         "containing `{}`, `{}` or {} more",
-                        types[subtypes[0].0].name.item,
-                        types[subtypes[1].0].name.item,
+                        types[subtypes[0]].name.item,
+                        types[subtypes[1]].name.item,
                         subtypes.len() - 2
                     ),
                 };
@@ -357,20 +356,20 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
                 }
             }
             EntityState::Bound(v) => match v.as_slice() {
-                [] => unreachable!("expected no types"),
-                [one] => format!("`{}`", types[one.0].name.item),
-                [one, two] => format!(
+                &[] => unreachable!("expected no types"),
+                &[one] => format!("`{}`", types[one].name.item),
+                &[one, two] => format!(
                     "either `{}` or `{}`",
-                    types[one.0].name.item, types[two.0].name.item
+                    types[one].name.item, types[two].name.item
                 ),
-                [one, two, three] => format!(
+                &[one, two, three] => format!(
                     "one of `{}`, `{}` or `{}`",
-                    types[one.0].name.item, types[two.0].name.item, types[three.0].name.item
+                    types[one].name.item, types[two].name.item, types[three].name.item
                 ),
                 _ => format!(
                     "one of `{}`, `{}` or {} more",
-                    types[v[0].0].name.item,
-                    types[v[1].0].name.item,
+                    types[v[0]].name.item,
+                    types[v[1]].name.item,
                     v.len() - 2
                 ),
             },
@@ -439,7 +438,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         self.solver.context()
     }
 
-    pub fn types(&mut self) -> &mut Vec<Type<'a, TypeId>> {
+    pub fn types(&mut self) -> &mut TVec<TypeId, Type<'a, TypeId>> {
         self.solver.context().types
     }
 
@@ -447,7 +446,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         self.solver.context().type_lookup
     }
 
-    pub fn solve(mut self) -> Result<Solution<TypeId>, CompileError> {
+    pub fn solve(mut self) -> Result<TVec<EntityId, TypeId>, CompileError> {
         match self.solver.solve() {
             Ok(solution) => Ok(solution),
             Err(SolveError::UnsolvedEntities(entities)) => {

@@ -1,17 +1,19 @@
+use tindex::{TVec, TSlice};
+
 use diagnostics::{CompileError, Span};
 
 use crate::{
     expr::{Expression, MatchArm},
-    func::FunctionDefinition,
+    func::{FunctionDefinition, VariableId},
     ty::{self, solver::TypeSolver, Type, TypeId},
-    Binop, Literal, Pattern, ResolvedIdentifiers, ResolvedTypes, ResolvingTypes, ScopeId,
-    UnresolvedType, UnresolvedTypes,
+    Binop, FunctionId, Literal, Pattern, ResolvedIdentifiers, ResolvedTypes, ResolvingTypes,
+    ScopeId, UnresolvedType, UnresolvedTypes,
 };
 
 pub struct TypeConstraintsContext<'a, 'b, 'c> {
-    pub functions: &'c [FunctionDefinition<'a, TypeId>],
-    pub variables: &'c [solver::EntityId],
-    pub scopes: &'c mut Vec<(solver::EntityId, usize)>,
+    pub functions: &'c TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
+    pub variables: &'c TSlice<VariableId, solver::EntityId>,
+    pub scopes: &'c mut TVec<ScopeId, (solver::EntityId, usize)>,
     pub solver: &'c mut TypeSolver<'a, 'b>,
 }
 
@@ -46,7 +48,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             }
             Expression::Variable((), var) => {
                 let id = ctx.solver.add_unbound(var.simplify());
-                ctx.solver.add_equality(ctx.variables[var.0], id);
+                ctx.solver.add_equality(ctx.variables[var.item], id);
                 Expression::Variable(id, var)
             }
             Expression::Lit((), lit) => {
@@ -89,12 +91,12 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             Expression::Assignment((), var, expr) => {
                 let span = var.span().simplify().append(expr.span());
                 let expr = expr.type_constraints(ctx)?;
-                let var_id = ctx.variables[var.0];
+                let var_id = ctx.variables[var.item];
                 ctx.solver.add_extension(expr.id(), var_id);
                 Expression::Assignment(ctx.solver.add_empty(span), var, Box::new(expr))
             }
             Expression::FunctionCall((), name, args) => {
-                let definition = &ctx.functions[name.0];
+                let definition = &ctx.functions[name.item];
                 let args = args
                     .into_iter()
                     .map(|expr| expr.type_constraints(ctx))
@@ -149,7 +151,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     .into_iter()
                     .map(|arm| {
                         let id = match &arm.pattern {
-                            Pattern::Named(named) => ctx.variables[named.item.0],
+                            Pattern::Named(named) => ctx.variables[named.item],
                             Pattern::Underscore(ty) => ctx.solver.add_typed(ty.item, ty.simplify()),
                         };
 
@@ -188,8 +190,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             Expression::Break((), scope_id, expr) => {
                 let expr = expr.type_constraints(ctx)?;
                 ctx.solver
-                    .add_extension(expr.id(), ctx.scopes[scope_id.item.0].0);
-                ctx.scopes[scope_id.item.0].1 += 1;
+                    .add_extension(expr.id(), ctx.scopes[scope_id.item].0);
+                ctx.scopes[scope_id.item].1 += 1;
 
                 Expression::Break(
                     ctx.solver.add_typed(ty::NEVER_ID, scope_id.simplify()),
@@ -255,8 +257,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
 
     pub fn insert_types(
         self,
-        types: &[Type<'a, TypeId>],
-        type_result: &solver::Solution<TypeId>,
+        types: &TSlice<TypeId, Type<'a, TypeId>>,
+        type_result: &TSlice<solver::EntityId, TypeId>,
     ) -> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
         match self {
             Expression::Block(id, meta, v) => {
@@ -295,7 +297,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
                     type_result[id],
                     Box::new(obj.insert_types(types, type_result)),
                     field.map(|field| {
-                        types[obj_ty.0]
+                        types[obj_ty]
                             .get_field(&field)
                             .expect("type check: invalid field")
                     }),

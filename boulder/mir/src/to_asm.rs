@@ -1,6 +1,8 @@
 use std::fmt::Write;
 
-use crate::{traits::InitialMirState, Function, Mir, Type};
+use tindex::TSlice;
+
+use crate::{traits::InitialMirState, Function, Mir, Type, TypeId};
 
 impl Mir<InitialMirState> {
     pub fn to_asm(self) -> String {
@@ -13,12 +15,12 @@ impl Mir<InitialMirState> {
 }
 
 impl Function<InitialMirState> {
-    pub fn to_asm(self, types: &[Type]) -> String {
+    pub fn to_asm(self, types: &TSlice<TypeId, Type>) -> String {
         let mut asm = format!("{}:\n", self.name);
 
-        for (id, block) in self.content.iter().enumerate() {
+        for (id, block) in self.blocks.iter().enumerate() {
             write!(asm, ".block{}:", id).unwrap();
-            for step in block.content.iter() {}
+            for step in block.steps.iter() {}
         }
 
         dbg!(asm)

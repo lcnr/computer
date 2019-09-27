@@ -1,6 +1,8 @@
-use diagnostics::{CompileError, Meta};
-
 use std::collections::HashMap;
+
+use tindex::{TIndex, TSlice, TVec};
+
+use diagnostics::{CompileError, Meta};
 
 use crate::{
     expr::{Expression, ResolveIdentifiersContext, ToMirContext, TypeConstraintsContext},
@@ -11,14 +13,38 @@ use crate::{
 };
 
 #[derive(Debug, Clone, Copy)]
-pub struct VariableId(pub usize);
+pub struct VariableId(usize);
+
+impl From<usize> for VariableId {
+    fn from(v: usize) -> Self {
+        Self(v)
+    }
+}
+
+impl TIndex for VariableId {
+    fn as_index(self) -> usize {
+        self.0
+    }
+}
 
 #[derive(Debug, Clone, Copy)]
-pub struct FunctionId(pub usize);
+pub struct FunctionId(usize);
+
+impl From<usize> for FunctionId {
+    fn from(v: usize) -> Self {
+        Self(v)
+    }
+}
+
+impl TIndex for FunctionId {
+    fn as_index(self) -> usize {
+        self.0
+    }
+}
 
 impl FunctionId {
     pub fn to_mir(self) -> mir::FunctionId {
-        mir::FunctionId(self.0)
+        self.0.into()
     }
 }
 
@@ -39,7 +65,7 @@ pub struct FunctionDefinition<'a, T> {
 pub struct Function<'a, V: IdentifierState, N: TypeState, T> {
     pub name: Meta<'a, Box<str>>,
     pub arguments: Vec<VariableId>,
-    pub variables: Vec<Variable<'a, T>>,
+    pub variables: TVec<VariableId, Variable<'a, T>>,
     pub ret: Meta<'a, T>,
     pub body: Expression<'a, V, N>,
 }
@@ -51,7 +77,7 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
             name,
             arguments: Vec::new(),
             ret: ret_meta.replace(Some(UnresolvedType::Named("Empty".into()))),
-            variables: Vec::new(),
+            variables: TVec::new(),
             body: Expression::Block((), Meta::default(), Vec::new()),
         }
     }
@@ -111,7 +137,7 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
     pub fn resolve_identifiers(
         mut self,
         function_lookup: &HashMap<Box<str>, Meta<'a, FunctionId>>,
-        types: &mut Vec<Type<'a, TypeId>>,
+        types: &mut TVec<TypeId, Type<'a, TypeId>>,
         type_lookup: &mut HashMap<Box<str>, TypeId>,
     ) -> Result<
         Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType<'a>>>,
@@ -126,7 +152,7 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
                 .collect(),
         );
 
-        let mut scope_lookup = Vec::new();
+        let mut scope_lookup = TVec::new();
 
         let body = self
             .body
@@ -152,7 +178,7 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
 impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType<'a>>> {
     pub fn definition(
         &self,
-        types: &mut Vec<Type<'a, TypeId>>,
+        types: &mut TVec<TypeId, Type<'a, TypeId>>,
         type_lookup: &mut HashMap<Box<str>, TypeId>,
     ) -> Result<FunctionDefinition<'a, TypeId>, CompileError> {
         Ok(FunctionDefinition {
@@ -161,8 +187,8 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
             args: self
                 .arguments
                 .iter()
-                .map(|arg| {
-                    let variable = &self.variables[arg.0];
+                .map(|&arg| {
+                    let variable = &self.variables[arg];
                     ty::resolve(variable.ty.clone().map(|t| t.unwrap()), types, type_lookup)
                 })
                 .collect::<Result<Vec<Meta<'a, TypeId>>, CompileError>>()?,
@@ -171,8 +197,8 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
 
     pub fn resolve_expr_types<'b>(
         self,
-        function_lookup: &[FunctionDefinition<'a, TypeId>],
-        types: &mut Vec<Type<'a, TypeId>>,
+        function_lookup: &TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
+        types: &mut TVec<TypeId, Type<'a, TypeId>>,
         type_lookup: &mut HashMap<Box<str>, TypeId>,
     ) -> Result<Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId>, CompileError>
     {
@@ -200,12 +226,12 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
                     None => solver.add_unbound(variable.name.simplify()),
                 })
             })
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Result<TVec<_, _>, _>>()?;
 
         let body = self.body.type_constraints(&mut TypeConstraintsContext {
             functions: function_lookup,
             variables: &variables,
-            scopes: &mut Vec::new(),
+            scopes: &mut TVec::new(),
             solver: &mut solver,
         })?;
         let body_id = body.id();
@@ -239,35 +265,37 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
             args: self
                 .arguments
                 .iter()
-                .map(|arg| self.variables[arg.0].ty.clone())
+                .map(|&arg| self.variables[arg].ty.clone())
                 .collect(),
         }
     }
 
     pub fn to_mir(
         self,
-        types: &[mir::Type],
-        function_definitions: &[FunctionDefinition<'a, TypeId>],
+        types: &TSlice<mir::TypeId, mir::Type>,
+        function_definitions: &TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
     ) -> Result<mir::Function<mir::traits::InitialMirState>, CompileError> {
         let mut func = mir::Function::new(self.name.item, self.ret.to_mir());
         let mut id = func.add_block();
         let start = &mut func[id];
 
-        let mut variables: Vec<Option<mir::StepId>> =
+        let mut variables: TVec<VariableId, Option<mir::StepId>> =
             std::iter::repeat(None).take(self.variables.len()).collect();
-        for (i, arg) in self.arguments.iter().enumerate() {
-            let id = start.add_input(self.variables[arg.0].ty.to_mir());
+        for (i, &arg) in self.arguments.iter().enumerate() {
+            let i = VariableId(i);
+            let id = start.add_input(self.variables[arg].ty.to_mir());
             variables[i] = Some(id);
         }
 
-        let variable_types: Vec<TypeId> = self.variables.iter().map(|v| v.ty.item).collect();
+        let variable_types: TVec<VariableId, TypeId> =
+            self.variables.iter().map(|v| v.ty.item).collect();
 
         let ret = self.body.to_mir(&mut ToMirContext {
             types,
             variable_types: &variable_types,
             function_definitions,
             var_lookup: &mut variables,
-            scopes: &mut Vec::new(),
+            scopes: &mut TVec::new(),
             temporaries: &mut Vec::new(),
             curr: &mut id,
             func: &mut func,

@@ -17,7 +17,14 @@ impl UpdateStepIds for () {
     fn update_step_ids(&mut self, _: &mut dyn FnMut(&mut StepId)) {}
 }
 
-impl<M: MirState> UpdateStepIds for Action<M> {
+impl<M: MirState> UpdateStepIds for Step<M> {
+    fn update_step_ids(&mut self, f: &mut dyn FnMut(&mut StepId)) {
+        self.meta.update_step_ids(f);
+        self.action.update_step_ids(f);
+    }
+}
+
+impl UpdateStepIds for Action {
     fn update_step_ids(&mut self, f: &mut dyn FnMut(&mut StepId)) {
         match self {
             Action::Extend(id) | Action::FieldAccess(id, _) => f(id),

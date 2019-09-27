@@ -9,8 +9,8 @@ impl<M: MirState> Mir<M> {
 
         for func in self.functions.iter_mut() {
             let mut to_remove = Vec::new();
-            for (i, block) in func.content.iter_mut().enumerate() {
-                if block.input.iter().any(|i| types[i.0] == Type::Uninhabited) {
+            for (i, block) in func.blocks.iter_mut().enumerate() {
+                if block.input.iter().any(|&input| types[input] == Type::Uninhabited) {
                     to_remove.push(BlockId(i));
                 }
             }
@@ -23,9 +23,9 @@ impl<M: MirState> Mir<M> {
     /// remove all `Action::Extend` which do not change the type
     pub fn remove_noop_extend(&mut self) {
         for func in self.functions.iter_mut() {
-            for block in func.content.iter_mut() {
+            for block in func.blocks.iter_mut() {
                 let mut i = StepId(0);
-                while i.0 < block.content.len() {
+                while i.0 < block.steps.len() {
                     if let Action::Extend(e) = block[i].action {
                         if block[e].ty == block[i].ty {
                             block.replace_step(i, e);
@@ -75,8 +75,8 @@ impl Terminator {
 
 impl<M: MirState> Function<M> {
     pub fn remove_block(&mut self, id: BlockId) {
-        self.content.remove(id.0);
-        for block in self.content.iter_mut() {
+        self.blocks.remove(id);
+        for block in self.blocks.iter_mut() {
             block.terminator.shift_block_ids(id, -1);
         }
     }
@@ -87,8 +87,8 @@ impl<M: MirState> Block<M> {
     ///
     /// Consider `replace_step` if the step is still needed in some action.
     pub fn remove_step(&mut self, id: StepId) {
-        self.content.remove(id.0);
-        for c in self.content[id.0..].iter_mut() {
+        self.steps.remove(id);
+        for c in self.steps[id..].iter_mut() {
             c.action.shift_step_ids(id, -1);
         }
 
@@ -111,8 +111,8 @@ impl<M: MirState> Block<M> {
             }
         };
 
-        self.content.remove(previous.0);
-        for c in self.content[previous.0..].iter_mut() {
+        self.steps.remove(previous);
+        for c in self.steps[previous..].iter_mut() {
             c.action.update_step_ids(&mut replacer);
         }
         self.terminator.update_step_ids(&mut replacer);

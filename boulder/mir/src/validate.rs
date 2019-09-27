@@ -31,9 +31,9 @@ impl<M: MirState> Mir<M> {
         let func_panic = PanicDisplay("function: ", &func.0);
 
         let func = &self[func];
-        for (block_id, block) in func.content.iter().enumerate() {
+        for (block_id, block) in func.blocks.iter().enumerate() {
             let block_panic = PanicDisplay("block: ", &block_id);
-            for (step_id, step) in block.content.iter().enumerate() {
+            for (step_id, step) in block.steps.iter().enumerate() {
                 let step_panic = PanicDisplay("step: ", &step_id);
                 match &step.action {
                     &Action::Extend(s) => {
@@ -64,7 +64,7 @@ impl<M: MirState> Mir<M> {
                     &Action::FieldAccess(id, field) => {
                         assert!(id.0 < step_id);
                         if let Type::Struct(ty) = &self[block[id].ty] {
-                            let field_ty = ty[field.0];
+                            let field_ty = ty[field];
                             assert_eq!(field_ty, step.ty);
                         } else {
                             panic!("field access on invalid type: {:?}", block[id].ty);

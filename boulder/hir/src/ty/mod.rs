@@ -1,15 +1,29 @@
+use std::collections::HashSet;
+
+use tindex::{TIndex, TSlice};
+
 use super::*;
 
 pub mod solver;
 
-use std::collections::HashSet;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TypeId(pub usize);
+pub struct TypeId(usize);
 
 impl TypeId {
     pub fn to_mir(self) -> mir::TypeId {
-        mir::TypeId(self.0)
+        self.0.into()
+    }
+}
+
+impl From<usize> for TypeId {
+    fn from(v: usize) -> Self {
+        Self(v)
+    }
+}
+
+impl TIndex for TypeId {
+    fn as_index(self) -> usize {
+        self.0
     }
 }
 
@@ -28,7 +42,7 @@ pub struct Type<'a, T> {
 impl<'a> Type<'a, UnresolvedType<'a>> {
     pub fn resolve(
         self,
-        types: &mut Vec<Type<'a, TypeId>>,
+        types: &mut TVec<TypeId, Type<'a, TypeId>>,
         lookup: &mut HashMap<Box<str>, TypeId>,
     ) -> Result<(), CompileError> {
         let id = *lookup.get(&self.name.item).unwrap();
@@ -69,14 +83,14 @@ impl<'a> Type<'a, UnresolvedType<'a>> {
             }
             Kind::Sum(v) => Kind::Sum(v),
         };
-        types[id.0].kind = kind;
+        types[id].kind = kind;
         Ok(())
     }
 }
 
 pub fn resolve<'a>(
     unresolved: Meta<'a, UnresolvedType<'a>>,
-    types: &mut Vec<Type<'a, TypeId>>,
+    types: &mut TVec<TypeId, Type<'a, TypeId>>,
     lookup: &mut HashMap<Box<str>, TypeId>,
 ) -> Result<Meta<'a, TypeId>, CompileError> {
     Ok(match &unresolved.item {
@@ -112,7 +126,7 @@ pub fn resolve<'a>(
 }
 
 pub fn build_sum_ty<'a>(
-    types: &mut Vec<Type<'a, TypeId>>,
+    types: &mut TVec<TypeId, Type<'a, TypeId>>,
     lookup: &mut HashMap<Box<str>, TypeId>,
     cases: &[TypeId],
 ) -> TypeId {
@@ -127,41 +141,39 @@ pub fn build_sum_ty<'a>(
     if values.len() == 1 {
         values[0]
     } else {
-        let (first, rest) = values
+        let (&first, rest) = values
             .split_first()
             .expect("trying to build an empty sum type");
-        let (type_name, resolved_type_name) = rest.iter().fold(
+        let (type_name, resolved_type_name) = rest.iter().copied().fold(
             (
                 format!("{}", first.0),
-                format!("{}", types[first.0].name.item),
+                format!("{}", types[first].name.item),
             ),
             |(s, r), ty| {
                 (
                     format!("{} | {}", s, ty.0),
-                    format!("{} | {}", r, types[ty.0].name.item),
+                    format!("{} | {}", r, types[ty].name.item),
                 )
             },
         );
 
         *lookup.entry(type_name.into()).or_insert_with(|| {
-            let id = TypeId(types.len());
             types.push(Type {
                 name: Meta::fake(resolved_type_name.into()),
                 kind: Kind::Sum(values),
-            });
-            id
+            })
         })
     }
 }
 
 /// returns all possible types, removing duplicates
 pub fn flatten_sum_ty(
-    types: &[Type<TypeId>],
+    types: &TSlice<TypeId, Type<TypeId>>,
     ty: TypeId,
     visited: &mut HashSet<TypeId>,
 ) -> Vec<TypeId> {
     if visited.insert(ty) {
-        if let Kind::Sum(cases) = &types[ty.0].kind {
+        if let Kind::Sum(cases) = &types[ty].kind {
             let mut cases = cases
                 .iter()
                 .flat_map(|&t| flatten_sum_ty(types, t, visited))
@@ -177,7 +189,7 @@ pub fn flatten_sum_ty(
     }
 }
 
-pub fn check_recursive_ty(types: &[Type<TypeId>]) -> Result<(), CompileError> {
+pub fn check_recursive_ty(types: &TSlice<TypeId, Type<TypeId>>) -> Result<(), CompileError> {
     let mut result = Ok(());
     for (id, t) in types.iter().enumerate() {
         if t.contains(TypeId(id), types, &mut HashSet::new()) {
@@ -191,21 +203,21 @@ pub fn check_recursive_ty(types: &[Type<TypeId>]) -> Result<(), CompileError> {
     result
 }
 
-pub fn subtypes(ty: TypeId, types: &[Type<TypeId>]) -> Vec<TypeId> {
-    if let Kind::Sum(t) = &types[ty.0].kind {
+pub fn subtypes(ty: TypeId, types: &TSlice<TypeId, Type<TypeId>>) -> Vec<TypeId> {
+    if let Kind::Sum(t) = &types[ty].kind {
         t.clone()
     } else {
         vec![ty]
     }
 }
 
-pub fn is_subtype(ty: TypeId, of: TypeId, types: &[Type<TypeId>]) -> bool {
+pub fn is_subtype(ty: TypeId, of: TypeId, types: &TSlice<TypeId, Type<TypeId>>) -> bool {
     if ty == of {
         true
     } else {
-        match &types[of.0].kind {
+        match &types[of].kind {
             Kind::Sum(options) => {
-                if let Kind::Sum(t) = &types[ty.0].kind {
+                if let Kind::Sum(t) = &types[ty].kind {
                     t.iter().all(|ty| options.contains(ty))
                 } else {
                     options.contains(&ty)
@@ -221,7 +233,7 @@ impl<'a> Type<'a, TypeId> {
     pub fn contains(
         &self,
         ty: TypeId,
-        types: &[Type<'a, TypeId>],
+        types: &TSlice<TypeId, Type<'a, TypeId>>,
         visited: &mut HashSet<TypeId>,
     ) -> bool {
         match &self.kind {
@@ -234,7 +246,7 @@ impl<'a> Type<'a, TypeId> {
                     }
 
                     if visited.insert(field_id) {
-                        if types[field_id.0].contains(ty, types, visited) {
+                        if types[field_id].contains(ty, types, visited) {
                             return true;
                         }
                     }
@@ -248,7 +260,7 @@ impl<'a> Type<'a, TypeId> {
                     }
 
                     if visited.insert(case) {
-                        if types[case.0].contains(ty, types, visited) {
+                        if types[case].contains(ty, types, visited) {
                             return true;
                         }
                     }
@@ -292,11 +304,11 @@ impl<'a> Type<'a, TypeId> {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct FieldId(pub usize);
+pub struct FieldId(usize);
 
 impl FieldId {
     pub fn to_mir(self) -> mir::FieldId {
-        mir::FieldId(self.0)
+        self.0.into()
     }
 }
 

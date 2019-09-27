@@ -1,28 +1,16 @@
 use crate::{
-    binop::{ExtendedBinop, ReducedBinop},
-    Action, BlockId, Mir, MirState, Object, StepId, Terminator, Type, TypeId,
+    binop::Binop, Action, BlockId, Mir, MirState, Object, StepId, Terminator, Type, TypeId,
 };
 
 use std::fmt::{Display, Formatter, Result};
 
-impl Display for ExtendedBinop {
+impl Display for Binop {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Self::Add => write!(f, "add"),
             Self::Sub => write!(f, "sub"),
             Self::Mul => write!(f, "mul"),
             Self::Div => write!(f, "div"),
-            Self::Lt => write!(f, "lt"),
-            Self::BitOr => write!(f, "bitor"),
-        }
-    }
-}
-
-impl Display for ReducedBinop {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        match self {
-            Self::Add => write!(f, "add"),
-            Self::Sub => write!(f, "sub"),
             Self::Lt => write!(f, "lt"),
             Self::BitOr => write!(f, "bitor"),
         }
@@ -90,7 +78,7 @@ impl<M: MirState> Display for Mir<M> {
 
         for (i, func) in self.functions.iter().enumerate() {
             writeln!(f, "fn {}[#{}]:", func.name, i)?;
-            for (i, block) in func.content.iter().enumerate() {
+            for (i, block) in func.blocks.iter().enumerate() {
                 write!(f, "  block ~{}(", i)?;
                 if let Some((last, start)) = block.input.split_last() {
                     for (i, arg) in start.iter().enumerate() {
@@ -100,7 +88,7 @@ impl<M: MirState> Display for Mir<M> {
                 }
                 writeln!(f, "):")?;
 
-                for (i, step) in block.content.iter().enumerate() {
+                for (i, step) in block.steps.iter().enumerate() {
                     write!(f, "    ${}: %{} := ", i, step.ty.0)?;
                     match &step.action {
                         Action::Extend(id) => writeln!(f, "extend ${}", id.0),

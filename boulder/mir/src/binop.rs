@@ -1,13 +1,9 @@
 use std::fmt;
 
-use crate::{MirState, Step};
-
-pub trait Binop<M: MirState>: fmt::Display + fmt::Debug + Clone {
-    fn validate(&self, this: &Step<M>, a: &Step<M>, b: &Step<M>);
-}
+use crate::{traits::UpdateStepIds, Action, Block, Function, Mir, MirState, Step, StepId};
 
 #[derive(Debug, Clone, Copy)]
-pub enum ExtendedBinop {
+pub enum Binop {
     Add,
     Sub,
     Mul,
@@ -16,8 +12,8 @@ pub enum ExtendedBinop {
     BitOr,
 }
 
-impl<M: MirState> Binop<M> for ExtendedBinop {
-    fn validate(&self, this: &Step<M>, a: &Step<M>, b: &Step<M>) {
+impl Binop {
+    pub fn validate<M: MirState>(&self, this: &Step<M>, a: &Step<M>, b: &Step<M>) {
         match self {
             Self::Add | Self::Sub | Self::Mul | Self::Div => {
                 assert_eq!(a.ty, b.ty);
@@ -32,26 +28,20 @@ impl<M: MirState> Binop<M> for ExtendedBinop {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum ReducedBinop {
-    Add,
-    Sub,
-    Lt,
-    BitOr,
-}
+impl<M: MirState<StepMeta = ()>> Mir<M> {
+    pub fn reduce_binops(&mut self) {
+        for function in self.functions.iter_mut() {
+            for block in function.blocks.iter_mut() {
+                let mut i = StepId(0);
+                while i.0 < block.steps.len() {
+                    match &block.steps[i].action {
+                        Action::Binop(Binop::Mul, a, b) => {}
+                        _ => (),
+                    }
 
-impl<M: MirState> Binop<M> for ReducedBinop {
-    fn validate(&self, this: &Step<M>, a: &Step<M>, b: &Step<M>) {
-        match self {
-            Self::Add | Self::Sub => {
-                assert_eq!(a.ty, b.ty);
-                assert_eq!(a.ty, this.ty);
+                    i.0 += 1;
+                }
             }
-            Self::Lt => {
-                assert_eq!(a.ty, b.ty);
-                // TODO: check `this.ty == Bool`
-            }
-            Self::BitOr => unimplemented!("bitor"),
         }
     }
 }
