@@ -1,6 +1,8 @@
 use std::cmp::Ordering;
 
-use super::*;
+use crate::{
+    traits::UpdateStepIds, Action, Block, BlockId, Function, Mir, StepId, Terminator, Type,
+};
 
 impl Mir {
     /// remove blocks where an input is unreachable

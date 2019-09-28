@@ -1,9 +1,10 @@
+use shared_id::TypeId;
+
 use diagnostics::CompileError;
 
 use crate::ty::{
     self,
     solver::{Context, EntityState, TypeSolver},
-    TypeId,
 };
 
 use solver::{Entity, Production, SolvedEntity};

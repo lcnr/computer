@@ -1,8 +1,12 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
-use tindex::TSlice;
+use tindex::{TSlice, TVec};
 
-use super::*;
+use shared_id::{FieldId, TypeId};
+
+use diagnostics::{CompileError, Meta};
+
+use crate::UnresolvedType;
 
 pub mod solver;
 

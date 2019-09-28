@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use tindex::{TSlice, TVec};
 
-use shared_id::EMPTY_TYPE_ID;
+use shared_id::{TypeId, EMPTY_TYPE_ID};
 
 use diagnostics::{CompileError, Meta};
 
@@ -10,9 +10,9 @@ use solver::{ConstraintSolver, EntityId, ProductionId, SolveError};
 
 mod productions;
 
-use crate::ty::{self, Kind, Type, TypeId};
+use crate::ty::{self, Kind, Type};
 
-use productions::*;
+use productions::{Equality, Extension, FieldAccess};
 
 #[derive(Debug)]
 pub struct Context<'a, 'b> {

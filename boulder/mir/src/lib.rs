@@ -1,6 +1,4 @@
-use std::{
-    ops::{Index, IndexMut},
-};
+use std::ops::{Index, IndexMut};
 
 use tindex::TVec;
 
@@ -14,7 +12,6 @@ pub mod traits;
 pub mod validate;
 
 use binop::Binop;
-use traits::UpdateStepIds;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
