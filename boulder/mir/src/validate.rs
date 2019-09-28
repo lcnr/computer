@@ -1,6 +1,10 @@
 use std::{fmt, mem, ops::Drop};
 
-use crate::{binop::Binop, Action, FunctionId, Mir, MirState, Terminator, Type, TypeId};
+use tindex::TIndex;
+
+use shared_id::{FunctionId, TypeId};
+
+use crate::{Action, Mir, Terminator, Type};
 
 struct PanicDisplay<'a>(&'a str, &'a dyn fmt::Display);
 
@@ -10,15 +14,15 @@ impl Drop for PanicDisplay<'_> {
     }
 }
 
-impl<M: MirState> Mir<M> {
+impl Mir {
     /// check if the MIR is well formed
     pub fn validate(&self) {
         for ty in 0..self.types.len() {
-            self.validate_type(TypeId(ty));
+            self.validate_type(ty.into());
         }
 
         for func in 0..self.functions.len() {
-            self.validate_function(FunctionId(func));
+            self.validate_function(func.into());
         }
     }
 
@@ -28,7 +32,8 @@ impl<M: MirState> Mir<M> {
 
     pub fn validate_function(&self, func: FunctionId) {
         let hir_panic = PanicDisplay("\n", self);
-        let func_panic = PanicDisplay("function: ", &func.0);
+        let func_panic = func.as_index();
+        let func_panic = PanicDisplay("function: ", &func_panic);
 
         let func = &self[func];
         for (block_id, block) in func.blocks.iter().enumerate() {

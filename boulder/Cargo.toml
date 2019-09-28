@@ -4,7 +4,9 @@ members = [
     "solver",
     "boulder",
     "diagnostics",
+    "shared_id",
     "parse",
     "hir",
     "mir",
+    "lir",
 ]

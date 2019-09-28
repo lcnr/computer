@@ -1,6 +1,4 @@
-use std::fmt;
-
-use crate::{traits::UpdateStepIds, Action, Block, Function, Mir, MirState, Step, StepId};
+use crate::{Action, Mir, Step, StepId};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Binop {
@@ -13,7 +11,7 @@ pub enum Binop {
 }
 
 impl Binop {
-    pub fn validate<M: MirState>(&self, this: &Step<M>, a: &Step<M>, b: &Step<M>) {
+    pub fn validate(&self, this: &Step, a: &Step, b: &Step) {
         match self {
             Self::Add | Self::Sub | Self::Mul | Self::Div => {
                 assert_eq!(a.ty, b.ty);
@@ -28,14 +26,14 @@ impl Binop {
     }
 }
 
-impl<M: MirState<StepMeta = ()>> Mir<M> {
+impl Mir {
     pub fn reduce_binops(&mut self) {
         for function in self.functions.iter_mut() {
             for block in function.blocks.iter_mut() {
                 let mut i = StepId(0);
                 while i.0 < block.steps.len() {
                     match &block.steps[i].action {
-                        Action::Binop(Binop::Mul, a, b) => {}
+                        Action::Binop(Binop::Mul, _a, _b) => {}
                         _ => (),
                     }
 

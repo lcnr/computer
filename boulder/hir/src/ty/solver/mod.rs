@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use tindex::{TSlice, TVec};
 
+use shared_id::EMPTY_TYPE_ID;
+
 use diagnostics::{CompileError, Meta};
 
 use solver::{ConstraintSolver, EntityId, ProductionId, SolveError};
@@ -249,13 +251,13 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         types: &'b mut TVec<TypeId, Type<'a, TypeId>>,
         type_lookup: &'b mut HashMap<Box<str>, TypeId>,
     ) -> Self {
-        let empty = TypeId(types.iter().position(|t| &*t.name.item == "Empty").unwrap());
+        let empty = EMPTY_TYPE_ID;
         let integers = types
             .iter()
             .enumerate()
             .filter_map(|(i, ty)| {
                 if ["u8", "u16", "u32"].contains(&&*ty.name.item) {
-                    Some(TypeId(i))
+                    Some(TypeId::from(i))
                 } else {
                     None
                 }
@@ -268,7 +270,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
                 fields
                     .entry(field.name.item.clone())
                     .or_default()
-                    .push((TypeId(i), field.ty.item))
+                    .push((TypeId::from(i), field.ty.item))
             }
         }
 

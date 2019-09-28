@@ -1,8 +1,10 @@
-use crate::{
-    binop::Binop, Action, BlockId, Mir, MirState, Object, StepId, Terminator, Type, TypeId,
-};
-
 use std::fmt::{Display, Formatter, Result};
+
+use tindex::TIndex;
+
+use shared_id::{FunctionId, TypeId};
+
+use crate::{binop::Binop, Action, BlockId, Mir, Object, StepId, Terminator, Type};
 
 impl Display for Binop {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
@@ -29,9 +31,9 @@ impl Display for Type {
                 write!(f, "struct(")?;
                 if let Some((last, start)) = fields.split_last() {
                     for arg in start.iter() {
-                        write!(f, "%{}, ", arg.0)?;
+                        write!(f, "{}, ", arg)?;
                     }
-                    write!(f, "%{}", last.0)?;
+                    write!(f, "{}", last)?;
                 }
                 write!(f, ")")
             }
@@ -39,9 +41,9 @@ impl Display for Type {
                 write!(f, "sum(")?;
                 if let Some((last, start)) = cases.split_last() {
                     for arg in start.iter() {
-                        write!(f, "%{} | ", arg.0)?;
+                        write!(f, "{} | ", arg)?;
                     }
-                    write!(f, "%{}", last.0)?;
+                    write!(f, "{}", last)?;
                 }
                 write!(f, ")")
             }
@@ -70,32 +72,34 @@ impl Display for Object {
     }
 }
 
-impl<M: MirState> Display for Mir<M> {
+impl Display for Mir {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         for (i, ty) in self.types.iter().enumerate() {
-            writeln!(f, "type %{}: {}", i, ty)?;
+            let id: TypeId = i.into();
+            writeln!(f, "type {}: {}", id, ty)?;
         }
 
         for (i, func) in self.functions.iter().enumerate() {
-            writeln!(f, "fn {}[#{}]:", func.name, i)?;
+            let func_id: FunctionId = i.into();
+            writeln!(f, "fn {}[{}]:", func.name, func_id)?;
             for (i, block) in func.blocks.iter().enumerate() {
                 write!(f, "  block ~{}(", i)?;
                 if let Some((last, start)) = block.input.split_last() {
                     for (i, arg) in start.iter().enumerate() {
-                        write!(f, "!{}: %{}, ", i, arg.0)?;
+                        write!(f, "!{}: {}, ", i, arg)?;
                     }
-                    write!(f, "!{}: %{}", start.len(), last.0)?;
+                    write!(f, "!{}: {}", start.len(), last)?;
                 }
                 writeln!(f, "):")?;
 
                 for (i, step) in block.steps.iter().enumerate() {
-                    write!(f, "    ${}: %{} := ", i, step.ty.0)?;
+                    write!(f, "    ${}: {} := ", i, step.ty)?;
                     match &step.action {
                         Action::Extend(id) => writeln!(f, "extend ${}", id.0),
                         Action::LoadConstant(obj) => writeln!(f, "load {}", obj),
                         Action::LoadInput(i) => writeln!(f, "load !{}", i),
                         Action::CallFunction(i, args) => {
-                            write!(f, "call #{}(", i.0)?;
+                            write!(f, "call {}(", i)?;
                             if let Some((last, start)) = args.split_last() {
                                 for arg in start.iter() {
                                     write!(f, "${}, ", arg.0)?;
@@ -105,8 +109,8 @@ impl<M: MirState> Display for Mir<M> {
                             writeln!(f, ")")
                         }
 
-                        Action::FieldAccess(s, a) => writeln!(f, "${}.{}", s.0, a.0),
-                        Action::Binop(kind, a, b) => writeln!(f, "{} ${} $ {}", kind, a.0, b.0),
+                        Action::FieldAccess(s, a) => writeln!(f, "${}.{}", s.0, a.as_index()),
+                        Action::Binop(kind, a, b) => writeln!(f, "{} ${} ${}", kind, a.0, b.0),
                     }?;
                 }
 
@@ -130,7 +134,7 @@ impl<M: MirState> Display for Mir<M> {
                             BlockId,
                             Vec<Option<StepId>>,
                         )| {
-                            write!(f, "%{} -> ~{}(", ty.0, block.0)?;
+                            write!(f, "{} -> ~{}(", ty, block.0)?;
                             if let Some((last, start)) = args.split_last() {
                                 for arg in start.iter() {
                                     if let Some(arg) = arg {

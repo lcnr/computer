@@ -2,7 +2,7 @@ use std::cmp::Ordering;
 
 use super::*;
 
-impl<M: MirState> Mir<M> {
+impl Mir {
     /// remove blocks where an input is unreachable
     pub fn kill_uninhabited(&mut self) {
         let types = &mut self.types;
@@ -10,7 +10,11 @@ impl<M: MirState> Mir<M> {
         for func in self.functions.iter_mut() {
             let mut to_remove = Vec::new();
             for (i, block) in func.blocks.iter_mut().enumerate() {
-                if block.input.iter().any(|&input| types[input] == Type::Uninhabited) {
+                if block
+                    .input
+                    .iter()
+                    .any(|&input| types[input] == Type::Uninhabited)
+                {
                     to_remove.push(BlockId(i));
                 }
             }
@@ -73,7 +77,7 @@ impl Terminator {
     }
 }
 
-impl<M: MirState> Function<M> {
+impl Function {
     pub fn remove_block(&mut self, id: BlockId) {
         self.blocks.remove(id);
         for block in self.blocks.iter_mut() {
@@ -82,7 +86,7 @@ impl<M: MirState> Function<M> {
     }
 }
 
-impl<M: MirState> Block<M> {
+impl Block {
     /// Removes a step from this block, this leads to undefined behavior if the step is still referenced.
     ///
     /// Consider `replace_step` if the step is still needed in some action.

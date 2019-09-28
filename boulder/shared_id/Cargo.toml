@@ -1,5 +1,5 @@
 [package]
-name = "mir"
+name = "shared_id"
 version = "0.1.0"
 authors = ["lcnr/Bastian Kauschke <bastian_kauschke@hotmail.de>"]
 edition = "2018"
@@ -8,6 +8,3 @@ edition = "2018"
 
 [dependencies]
 tindex = { git = "https://github.com/lcnr/tindex.git" }
-
-rock = { path = "../../rock" }
-shared_id = { path = "../shared_id" }

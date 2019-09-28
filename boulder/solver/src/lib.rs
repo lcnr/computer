@@ -1,4 +1,4 @@
-use std::{fmt, hash::Hash, ops::Index};
+use std::{fmt, hash::Hash};
 
 use tindex::{TIndex, TVec};
 

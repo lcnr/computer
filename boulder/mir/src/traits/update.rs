@@ -1,4 +1,4 @@
-use crate::{Action, MirState, Step, StepId, Terminator};
+use crate::{Action, Step, StepId, Terminator};
 
 pub trait UpdateStepIds {
     fn update_step_ids(&mut self, f: &mut dyn FnMut(&mut StepId));
@@ -17,9 +17,8 @@ impl UpdateStepIds for () {
     fn update_step_ids(&mut self, _: &mut dyn FnMut(&mut StepId)) {}
 }
 
-impl<M: MirState> UpdateStepIds for Step<M> {
+impl UpdateStepIds for Step {
     fn update_step_ids(&mut self, f: &mut dyn FnMut(&mut StepId)) {
-        self.meta.update_step_ids(f);
         self.action.update_step_ids(f);
     }
 }

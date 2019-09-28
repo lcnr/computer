@@ -1,37 +1,10 @@
 use std::collections::HashSet;
 
-use tindex::{TIndex, TSlice};
+use tindex::TSlice;
 
 use super::*;
 
 pub mod solver;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TypeId(usize);
-
-impl TypeId {
-    pub fn to_mir(self) -> mir::TypeId {
-        self.0.into()
-    }
-}
-
-impl From<usize> for TypeId {
-    fn from(v: usize) -> Self {
-        Self(v)
-    }
-}
-
-impl TIndex for TypeId {
-    fn as_index(self) -> usize {
-        self.0
-    }
-}
-
-pub const EMPTY_ID: TypeId = TypeId(0);
-pub const NEVER_ID: TypeId = TypeId(1);
-pub const TRUE_ID: TypeId = TypeId(2);
-pub const FALSE_ID: TypeId = TypeId(3);
-pub const BOOL_ID: TypeId = TypeId(4);
 
 #[derive(Debug, Clone)]
 pub struct Type<'a, T> {
@@ -145,13 +118,10 @@ pub fn build_sum_ty<'a>(
             .split_first()
             .expect("trying to build an empty sum type");
         let (type_name, resolved_type_name) = rest.iter().copied().fold(
-            (
-                format!("{}", first.0),
-                format!("{}", types[first].name.item),
-            ),
+            (format!("{}", first), format!("{}", types[first].name.item)),
             |(s, r), ty| {
                 (
-                    format!("{} | {}", s, ty.0),
+                    format!("{} | {}", s, ty),
                     format!("{} | {}", r, types[ty].name.item),
                 )
             },
@@ -192,7 +162,7 @@ pub fn flatten_sum_ty(
 pub fn check_recursive_ty(types: &TSlice<TypeId, Type<TypeId>>) -> Result<(), CompileError> {
     let mut result = Ok(());
     for (id, t) in types.iter().enumerate() {
-        if t.contains(TypeId(id), types, &mut HashSet::new()) {
+        if t.contains(id.into(), types, &mut HashSet::new()) {
             result = CompileError::new(
                 &t.name,
                 format_args!("Recursive type `{}` has infinite size", t.name.item),
@@ -280,9 +250,11 @@ impl<'a> Type<'a, TypeId> {
 
     pub fn get_field(&self, name: &Box<str>) -> Option<FieldId> {
         if let Kind::Struct(v) = &self.kind {
-            Some(FieldId(
-                v.binary_search_by(|probe| probe.name.cmp(name)).ok()?,
-            ))
+            Some(
+                v.binary_search_by(|probe| probe.name.cmp(name))
+                    .ok()?
+                    .into(),
+            )
         } else {
             None
         }
@@ -296,19 +268,10 @@ impl<'a> Type<'a, TypeId> {
             Kind::U16 => mir::Type::U16,
             Kind::U32 => mir::Type::U32,
             Kind::Struct(fields) => {
-                mir::Type::Struct(fields.into_iter().map(|m| m.ty.item.to_mir()).collect())
+                mir::Type::Struct(fields.into_iter().map(|m| m.ty.item).collect())
             }
-            Kind::Sum(cases) => mir::Type::Sum(cases.into_iter().map(|t| t.to_mir()).collect()),
+            Kind::Sum(cases) => mir::Type::Sum(cases),
         }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct FieldId(usize);
-
-impl FieldId {
-    pub fn to_mir(self) -> mir::FieldId {
-        self.0.into()
     }
 }
 

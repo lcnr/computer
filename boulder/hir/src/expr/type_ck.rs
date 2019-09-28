@@ -1,11 +1,13 @@
-use tindex::{TVec, TSlice};
+use tindex::{TSlice, TVec};
+
+use shared_id::{TypeId, BOOL_TYPE_ID, EMPTY_TYPE_ID, NEVER_TYPE_ID};
 
 use diagnostics::{CompileError, Span};
 
 use crate::{
     expr::{Expression, MatchArm},
     func::{FunctionDefinition, VariableId},
-    ty::{self, solver::TypeSolver, Type, TypeId},
+    ty::{self, solver::TypeSolver, Type},
     Binop, FunctionId, Literal, Pattern, ResolvedIdentifiers, ResolvedTypes, ResolvingTypes,
     ScopeId, UnresolvedType, UnresolvedTypes,
 };
@@ -34,7 +36,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 let expr_id = if let Some(last) = content.last() {
                     last.id()
                 } else {
-                    ctx.solver.add_typed(ty::EMPTY_ID, meta.simplify())
+                    ctx.solver.add_typed(EMPTY_TYPE_ID, meta.simplify())
                 };
 
                 let (_, count) = ctx.scopes.pop().unwrap();
@@ -78,7 +80,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                         let integer = ctx.solver.add_integer(op.simplify());
                         ctx.solver.add_equality(a.id(), b.id());
                         ctx.solver.add_equality(a.id(), integer);
-                        let id = ctx.solver.add_typed(ty::BOOL_ID, op.simplify());
+                        let id = ctx.solver.add_typed(BOOL_TYPE_ID, op.simplify());
                         Expression::Binop(id, op, Box::new(a), Box::new(b))
                     }
                 }
@@ -183,7 +185,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
 
                 if ctx.scopes.pop().unwrap().1 == 0 {
                     ctx.solver
-                        .override_entity(id, ty::NEVER_ID, meta.simplify());
+                        .override_entity(id, NEVER_TYPE_ID, meta.simplify());
                 };
                 Expression::Loop(id, meta, content)
             }
@@ -194,7 +196,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 ctx.scopes[scope_id.item].1 += 1;
 
                 Expression::Break(
-                    ctx.solver.add_typed(ty::NEVER_ID, scope_id.simplify()),
+                    ctx.solver.add_typed(NEVER_TYPE_ID, scope_id.simplify()),
                     scope_id,
                     Box::new(expr),
                 )

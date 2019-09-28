@@ -1,30 +1,20 @@
 use std::{
-    fmt,
     ops::{Index, IndexMut},
 };
 
 use tindex::TVec;
 
+use shared_id::{FieldId, FunctionId, TypeId};
+
 pub mod binop;
 mod display;
 mod index;
-pub mod meta;
 pub mod optimize;
-pub mod to_asm;
 pub mod traits;
 pub mod validate;
 
 use binop::Binop;
-use traits::{MirState, UpdateStepIds};
-
-#[allow(dead_code)]
-mod ty {
-    use super::TypeId;
-
-    pub const EMPTY_TYPE_ID: TypeId = TypeId(0);
-    pub const NEVER_TYPE_ID: TypeId = TypeId(1);
-    pub const BOOL_TYPE_ID: TypeId = TypeId(4);
-}
+use traits::UpdateStepIds;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
@@ -46,11 +36,6 @@ pub enum Object {
     Struct(Vec<Object>),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct TypeId(usize);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct FieldId(usize);
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct StepId(usize);
 
@@ -62,8 +47,6 @@ impl StepId {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BlockId(usize);
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct FunctionId(usize);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Terminator {
@@ -83,44 +66,39 @@ pub enum Action {
 }
 
 #[derive(Debug, Clone)]
-pub struct Step<M: MirState> {
+pub struct Step {
     pub ty: TypeId,
     pub action: Action,
-    pub meta: M::StepMeta,
 }
 
-impl<M: MirState<StepMeta = ()>> Step<M> {
+impl Step {
     pub fn new(ty: TypeId, action: Action) -> Self {
-        Self {
-            meta: (),
-            ty,
-            action,
-        }
+        Self { ty, action }
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct Function<M: MirState> {
+pub struct Function {
     pub name: Box<str>,
-    pub blocks: TVec<BlockId, Block<M>>,
+    pub blocks: TVec<BlockId, Block>,
     pub ret: TypeId,
 }
 
-impl<M: MirState> Index<BlockId> for Function<M> {
-    type Output = Block<M>;
+impl Index<BlockId> for Function {
+    type Output = Block;
 
     fn index(&self, id: BlockId) -> &Self::Output {
         &self.blocks[id]
     }
 }
 
-impl<M: MirState> IndexMut<BlockId> for Function<M> {
+impl IndexMut<BlockId> for Function {
     fn index_mut(&mut self, id: BlockId) -> &mut Self::Output {
         &mut self.blocks[id]
     }
 }
 
-impl<M: MirState> Function<M> {
+impl Function {
     pub fn new(name: Box<str>, ret: TypeId) -> Self {
         Self {
             name,
@@ -145,27 +123,27 @@ impl<M: MirState> Function<M> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Block<M: MirState> {
+pub struct Block {
     pub input: Vec<TypeId>,
-    pub steps: TVec<StepId, Step<M>>,
+    pub steps: TVec<StepId, Step>,
     pub terminator: Terminator,
 }
 
-impl<M: MirState> Index<StepId> for Block<M> {
-    type Output = Step<M>;
+impl Index<StepId> for Block {
+    type Output = Step;
 
     fn index(&self, id: StepId) -> &Self::Output {
         &self.steps[id]
     }
 }
 
-impl<M: MirState> IndexMut<StepId> for Block<M> {
+impl IndexMut<StepId> for Block {
     fn index_mut(&mut self, id: StepId) -> &mut Self::Output {
         &mut self.steps[id]
     }
 }
 
-impl<M: MirState<StepMeta = ()>> Block<M> {
+impl Block {
     pub fn add_step(&mut self, ty: TypeId, action: Action) -> StepId {
         let step = Step::new(ty, action);
         self.steps.push(step)
@@ -178,7 +156,7 @@ impl<M: MirState<StepMeta = ()>> Block<M> {
     }
 }
 
-impl<M: MirState> Block<M> {
+impl Block {
     pub fn new() -> Self {
         Self {
             input: Vec::new(),
@@ -199,12 +177,12 @@ impl<M: MirState> Block<M> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Mir<M: MirState> {
+pub struct Mir {
     pub types: TVec<TypeId, Type>,
-    pub functions: TVec<FunctionId, Function<M>>,
+    pub functions: TVec<FunctionId, Function>,
 }
 
-impl<M: MirState> Mir<M> {
+impl Mir {
     pub fn step_count(&self) -> usize {
         self.functions
             .iter()
@@ -214,7 +192,7 @@ impl<M: MirState> Mir<M> {
     }
 }
 
-impl<M: MirState> Index<TypeId> for Mir<M> {
+impl Index<TypeId> for Mir {
     type Output = Type;
 
     fn index(&self, id: TypeId) -> &Self::Output {
@@ -222,21 +200,21 @@ impl<M: MirState> Index<TypeId> for Mir<M> {
     }
 }
 
-impl<M: MirState> IndexMut<TypeId> for Mir<M> {
+impl IndexMut<TypeId> for Mir {
     fn index_mut(&mut self, id: TypeId) -> &mut Self::Output {
         &mut self.types[id]
     }
 }
 
-impl<M: MirState> Index<FunctionId> for Mir<M> {
-    type Output = Function<M>;
+impl Index<FunctionId> for Mir {
+    type Output = Function;
 
     fn index(&self, id: FunctionId) -> &Self::Output {
         &self.functions[id]
     }
 }
 
-impl<M: MirState> IndexMut<FunctionId> for Mir<M> {
+impl IndexMut<FunctionId> for Mir {
     fn index_mut(&mut self, id: FunctionId) -> &mut Self::Output {
         &mut self.functions[id]
     }

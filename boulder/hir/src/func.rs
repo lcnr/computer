@@ -2,14 +2,16 @@ use std::collections::HashMap;
 
 use tindex::{TIndex, TSlice, TVec};
 
+use shared_id::{FunctionId, TypeId};
+
 use diagnostics::{CompileError, Meta};
 
 use crate::{
     expr::{Expression, ResolveIdentifiersContext, ToMirContext, TypeConstraintsContext},
     ty,
     ty::solver::TypeSolver,
-    IdentifierState, ResolvedIdentifiers, ResolvedTypes, Type, TypeId, TypeState,
-    UnresolvedIdentifiers, UnresolvedType, UnresolvedTypes,
+    IdentifierState, ResolvedIdentifiers, ResolvedTypes, Type, TypeState, UnresolvedIdentifiers,
+    UnresolvedType, UnresolvedTypes,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -24,27 +26,6 @@ impl From<usize> for VariableId {
 impl TIndex for VariableId {
     fn as_index(self) -> usize {
         self.0
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct FunctionId(usize);
-
-impl From<usize> for FunctionId {
-    fn from(v: usize) -> Self {
-        Self(v)
-    }
-}
-
-impl TIndex for FunctionId {
-    fn as_index(self) -> usize {
-        self.0
-    }
-}
-
-impl FunctionId {
-    pub fn to_mir(self) -> mir::FunctionId {
-        self.0.into()
     }
 }
 
@@ -272,10 +253,10 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
 
     pub fn to_mir(
         self,
-        types: &TSlice<mir::TypeId, mir::Type>,
+        types: &TSlice<TypeId, mir::Type>,
         function_definitions: &TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
-    ) -> Result<mir::Function<mir::traits::InitialMirState>, CompileError> {
-        let mut func = mir::Function::new(self.name.item, self.ret.to_mir());
+    ) -> Result<mir::Function, CompileError> {
+        let mut func = mir::Function::new(self.name.item, self.ret.item);
         let mut id = func.add_block();
         let start = &mut func[id];
 
@@ -283,7 +264,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
             std::iter::repeat(None).take(self.variables.len()).collect();
         for (i, &arg) in self.arguments.iter().enumerate() {
             let i = VariableId(i);
-            let id = start.add_input(self.variables[arg].ty.to_mir());
+            let id = start.add_input(self.variables[arg].ty.item);
             variables[i] = Some(id);
         }
 

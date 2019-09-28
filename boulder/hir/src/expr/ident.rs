@@ -2,12 +2,14 @@ use std::collections::HashMap;
 
 use tindex::TVec;
 
+use shared_id::{FunctionId, TypeId, EMPTY_TYPE_ID};
+
 use diagnostics::{CompileError, Meta};
 
 use crate::{
     expr::{Expression, MatchArm},
-    func::{FunctionId, Variable, VariableId},
-    ty::{self, Type, TypeId},
+    func::{Variable, VariableId},
+    ty::{self, Type},
     Literal, Pattern, ResolvedIdentifiers, ScopeId, UnresolvedIdentifiers, UnresolvedType,
     UnresolvedTypes, UnresolvedVariable,
 };
@@ -70,7 +72,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     }
                 }
                 UnresolvedVariable::New(name, type_name) => {
-                    let lit = name.replace(Literal::Unit(ty::EMPTY_ID));
+                    let lit = name.replace(Literal::Unit(EMPTY_TYPE_ID));
                     let id = ctx.variables.push(Variable {
                         name: name.clone(),
                         ty: type_name,

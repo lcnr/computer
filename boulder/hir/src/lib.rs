@@ -9,14 +9,16 @@ use std::{
 
 use tindex::{TIndex, TVec};
 
+use shared_id::{FieldId, FunctionId, TypeId, BOOL_TYPE_ID, FALSE_TYPE_ID, TRUE_TYPE_ID};
+
 use diagnostics::{CompileError, Meta};
 
 pub mod expr;
 pub mod func;
 pub mod ty;
 
-pub use func::{Function, FunctionDefinition, FunctionId, VariableId};
-pub use ty::{FieldId, Type, TypeId};
+pub use func::{Function, FunctionDefinition, VariableId};
+pub use ty::Type;
 
 use mir::Mir;
 
@@ -186,11 +188,16 @@ impl<'a>
             },
         ];
 
-        let type_lookup = types
+        let mut type_lookup = types
             .iter()
             .enumerate()
             .map(|(i, t)| (t.name.item.clone(), i.into()))
-            .collect();
+            .collect::<HashMap<_, _>>();
+
+        type_lookup.insert(
+            format!("{} | {}", TRUE_TYPE_ID, FALSE_TYPE_ID).into(),
+            BOOL_TYPE_ID,
+        );
 
         Self {
             functions: TVec::new(),
@@ -283,12 +290,7 @@ impl<'a>
             .functions
             .iter()
             .enumerate()
-            .map(|(i, f)| {
-                (
-                    f.name.item.clone(),
-                    f.name.replace(i.into()),
-                )
-            })
+            .map(|(i, f)| (f.name.item.clone(), f.name.replace(i.into())))
             .collect();
 
         let mut types = self.types;
@@ -335,7 +337,7 @@ impl<'a> Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unresolved
 }
 
 impl<'a> Hir<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId, TypeId> {
-    pub fn to_mir(self) -> Result<Mir<mir::traits::InitialMirState>, CompileError> {
+    pub fn to_mir(self) -> Result<Mir, CompileError> {
         let types: TVec<_, _> = self.types.into_iter().map(|t| t.to_mir()).collect();
 
         let function_definitions = self

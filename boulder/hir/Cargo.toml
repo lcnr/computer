@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 tindex = { git = "https://github.com/lcnr/tindex.git" }
+shared_id = { path = "../shared_id"}
 solver = { path = "../solver" }
 diagnostics = { path = "../diagnostics" }
 mir = { path = "../mir" }
