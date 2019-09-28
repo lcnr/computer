@@ -1,4 +1,4 @@
-use crate::{Action, Step, StepId, Terminator};
+use crate::{Action, Block, Step, StepId, Terminator};
 
 pub trait UpdateStepIds {
     fn update_step_ids(&mut self, f: &mut dyn FnMut(&mut StepId));
@@ -60,5 +60,15 @@ impl UpdateStepIds for Terminator {
                 }
             }
         }
+    }
+}
+
+impl UpdateStepIds for Block {
+    fn update_step_ids(&mut self, f: &mut dyn FnMut(&mut StepId)) {
+        for step in self.steps.iter_mut() {
+            step.update_step_ids(f);
+        }
+
+        self.terminator.update_step_ids(f)
     }
 }

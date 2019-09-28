@@ -1,4 +1,8 @@
-use std::ops::{Index, IndexMut};
+use std::{
+    collections::HashSet,
+    mem,
+    ops::{Index, IndexMut},
+};
 
 use tindex::TVec;
 
@@ -11,7 +15,7 @@ pub mod optimize;
 pub mod traits;
 pub mod validate;
 
-use binop::Binop;
+use crate::{binop::Binop, traits::UpdateStepIds};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
@@ -52,6 +56,12 @@ pub enum Terminator {
     Match(StepId, Vec<(TypeId, BlockId, Vec<Option<StepId>>)>),
 }
 
+impl Terminator {
+    fn invalid() -> Self {
+        Terminator::Return(StepId::invalid())
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Action {
     Extend(StepId),
@@ -71,6 +81,21 @@ pub struct Step {
 impl Step {
     pub fn new(ty: TypeId, action: Action) -> Self {
         Self { ty, action }
+    }
+
+    pub fn used_steps(&self, used: &mut HashSet<StepId>) {
+        match &self.action {
+            &Action::Extend(id) => mem::drop(used.insert(id)),
+            &Action::CallFunction(_, ref steps) => {
+                steps.iter().for_each(|&s| mem::drop(used.insert(s)))
+            }
+            &Action::FieldAccess(id, _) => mem::drop(used.insert(id)),
+            &Action::Binop(_, a, b) => {
+                used.insert(a);
+                used.insert(b);
+            }
+            &Action::LoadInput(_) | &Action::LoadConstant(_) => (),
+        }
     }
 }
 
@@ -105,9 +130,7 @@ impl Function {
     }
 
     pub fn add_block(&mut self) -> BlockId {
-        let id = BlockId(self.blocks.len());
-        self.blocks.push(Block::new());
-        id
+        self.blocks.push(Block::new())
     }
 
     pub fn args(&self) -> &[TypeId] {
@@ -116,6 +139,41 @@ impl Function {
         } else {
             &[]
         }
+    }
+
+    pub fn split_block(&mut self, block: BlockId, after: StepId) -> BlockId {
+        let mut used = HashSet::new();
+        for step in self[block].steps[after..].iter().skip(1) {
+            step.used_steps(&mut used);
+        }
+        let used = used
+            .iter()
+            .filter(|&&t| t <= after)
+            .copied()
+            .collect::<Vec<_>>();
+
+        let new = self.add_block();
+        for &step in used.iter() {
+            let ty = self[block][step].ty;
+            self[new].add_input(ty);
+        }
+
+        let mut content = self[block].steps.split_off(StepId(after.0 + 1));
+        self[new].steps.append(&mut content);
+        let terminator = mem::replace(&mut self[block].terminator, Terminator::invalid());
+        self.blocks[new].add_terminator(terminator);
+
+        self[new].update_step_ids(&mut |id| {
+            if *id > after {
+                id.0 = id.0 + used.len() - (after.0 + 1);
+            } else {
+                id.0 = used.iter().position(|i| id == i).unwrap();
+            }
+        });
+
+        self[block].terminator = Terminator::Goto(new, used);
+
+        new
     }
 }
 
@@ -158,17 +216,12 @@ impl Block {
         Self {
             input: Vec::new(),
             steps: TVec::new(),
-            terminator: Terminator::Return(StepId::invalid()),
+            terminator: Terminator::invalid(),
         }
     }
 
     pub fn add_terminator(&mut self, terminator: Terminator) {
-        assert_eq!(
-            self.terminator,
-            Terminator::Return(StepId::invalid()),
-            "{:?}",
-            self
-        );
+        assert_eq!(self.terminator, Terminator::invalid(), "{:?}", self);
         self.terminator = terminator;
     }
 }
