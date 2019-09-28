@@ -122,6 +122,7 @@ pub enum Binop {
     Div,
     Lt,
     BitOr,
+    BitAnd,
 }
 
 #[derive(Debug, Clone)]

@@ -145,17 +145,25 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 });
                 let b = b.to_mir(ctx)?;
                 let a = ctx.temporaries.pop().unwrap().step;
-                Ok(ctx.func[*ctx.curr].add_step(
-                    ty,
-                    match op.item {
-                        Binop::Add => Action::Binop(mir::binop::Binop::Add, a, b),
-                        Binop::Sub => Action::Binop(mir::binop::Binop::Sub, a, b),
-                        Binop::Mul => Action::Binop(mir::binop::Binop::Mul, a, b),
-                        Binop::Div => Action::Binop(mir::binop::Binop::Div, a, b),
-                        Binop::BitOr => Action::Binop(mir::binop::Binop::BitOr, a, b),
-                        Binop::Lt => Action::Binop(mir::binop::Binop::Lt, a, b),
-                    },
-                ))
+
+                let action = match op.item {
+                    Binop::Add => Action::Binop(mir::binop::Binop::Add, a, b),
+                    Binop::Sub => Action::Binop(mir::binop::Binop::Sub, a, b),
+                    Binop::Mul => Action::Binop(mir::binop::Binop::Mul, a, b),
+                    Binop::Div => Action::Binop(mir::binop::Binop::Div, a, b),
+                    Binop::BitOr => {
+                        let a = ctx.func[*ctx.curr].add_step(ty, Action::Extend(a));
+                        let b = ctx.func[*ctx.curr].add_step(ty, Action::Extend(b));
+                        Action::Binop(mir::binop::Binop::BitOr, a, b)
+                    }
+                    Binop::BitAnd => {
+                        let a = ctx.func[*ctx.curr].add_step(ty, Action::Extend(a));
+                        let b = ctx.func[*ctx.curr].add_step(ty, Action::Extend(b));
+                        Action::Binop(mir::binop::Binop::BitAnd, a, b)
+                    }
+                    Binop::Lt => Action::Binop(mir::binop::Binop::Lt, a, b),
+                };
+                Ok(ctx.func[*ctx.curr].add_step(ty, action))
             }
             Expression::Statement(ty, expr) => {
                 assert_eq!(ty, EMPTY_TYPE_ID);

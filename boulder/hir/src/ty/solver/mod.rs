@@ -378,6 +378,10 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         }
     }
 
+    pub fn integers(&self) -> &[TypeId] {
+        &self.integers
+    }
+
     fn add_entity(&mut self, state: EntityState, meta: Meta<'a, ()>) -> EntityId {
         let id = self.solver.add_entity(state);
         self.solver.context().meta.insert(id, meta);
@@ -385,12 +389,15 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
     }
 
     pub fn add_integer(&mut self, meta: Meta<'a, ()>) -> EntityId {
-        let id = self.add_entity(EntityState::Bound(self.integers.clone()), meta);
-        id
+        self.add_entity(EntityState::Bound(self.integers.clone()), meta)
     }
 
     pub fn add_empty(&mut self, meta: Meta<'a, ()>) -> EntityId {
         self.add_typed(self.empty, meta)
+    }
+
+    pub fn add_bound(&mut self, types: Vec<TypeId>, meta: Meta<'a, ()>) -> EntityId {
+        self.add_entity(EntityState::Bound(types), meta)
     }
 
     pub fn add_unbound(&mut self, meta: Meta<'a, ()>) -> EntityId {

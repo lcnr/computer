@@ -76,6 +76,8 @@ pub enum Operator {
     Lt,
     /// `|`
     BitOr,
+    /// `&`
+    BitAnd,
 }
 
 impl Operator {
@@ -86,6 +88,7 @@ impl Operator {
         match self {
             Operator::Lt => 10,
             Operator::BitOr => 20,
+            Operator::BitAnd => 21,
             Operator::Add => 30,
             Operator::Sub => 30,
             Operator::Mul => 40,
@@ -118,6 +121,9 @@ impl Operator {
             Operator::BitOr => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::BitOr), a.into(), b.into())
             }
+            Operator::BitAnd => {
+                crate::Expression::Binop((), meta.replace(hir::Binop::BitAnd), a.into(), b.into())
+            }
         }
     }
 }
@@ -131,6 +137,7 @@ impl fmt::Display for Operator {
             Operator::Div => write!(f, "/"),
             Operator::Lt => write!(f, "<"),
             Operator::BitOr => write!(f, "|"),
+            Operator::BitAnd => write!(f, "&"),
         }
     }
 }
@@ -229,7 +236,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
         c.is_whitespace()
             || match c {
                 ';' | ':' | '(' | ')' | '{' | '}' | '[' | ']' | ',' | '.' | '=' | '+' | '-'
-                | '*' | '/' | '|' | '\'' => true,
+                | '*' | '/' | '|' | '&' | '\'' => true,
                 _ => false,
             }
     }
@@ -487,6 +494,17 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                     } else {
                         self.new_token(
                             Token::Operator(Operator::BitOr),
+                            self.byte_offset - 1..self.byte_offset,
+                        )
+                    }
+                }
+                '&' => {
+                    self.advance();
+                    if self.current_char().map(|c| c == '&').unwrap_or(false) {
+                        unimplemented!()
+                    } else {
+                        self.new_token(
+                            Token::Operator(Operator::BitAnd),
                             self.byte_offset - 1..self.byte_offset,
                         )
                     }

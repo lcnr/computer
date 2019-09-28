@@ -8,6 +8,7 @@ pub enum Binop {
     Div,
     Lt,
     BitOr,
+    BitAnd,
 }
 
 impl Binop {
@@ -21,7 +22,10 @@ impl Binop {
                 assert_eq!(a.ty, b.ty);
                 // TODO: check `this.ty == Bool`
             }
-            Self::BitOr => unimplemented!("bitor"),
+            Self::BitOr | Self::BitAnd => {
+                assert_eq!(a.ty, b.ty);
+                assert_eq!(a.ty, this.ty);
+            }
         }
     }
 }

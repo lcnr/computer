@@ -1,0 +1,8 @@
+# Mismatched types
+# found `u16`
+# expected `u32`
+# (7:
+
+fn bitor_int(a: u16, b: u32) -> u32 {
+    a | b
+}

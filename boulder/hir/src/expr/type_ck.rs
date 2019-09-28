@@ -70,11 +70,19 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 let a = a.type_constraints(ctx)?;
                 let b = b.type_constraints(ctx)?;
                 match op.item {
-                    Binop::Add | Binop::Sub | Binop::Mul | Binop::Div | Binop::BitOr => {
+                    Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
                         let integer = ctx.solver.add_integer(op.simplify());
                         ctx.solver.add_equality(a.id(), b.id());
                         ctx.solver.add_equality(a.id(), integer);
                         Expression::Binop(a.id(), op, Box::new(a), Box::new(b))
+                    }
+                    Binop::BitOr | Binop::BitAnd => {
+                        let mut integers = ctx.solver.integers().to_vec();
+                        integers.push(BOOL_TYPE_ID);
+                        let v = ctx.solver.add_bound(integers, op.simplify());
+                        ctx.solver.add_extension(a.id(), v);
+                        ctx.solver.add_extension(b.id(), v);
+                        Expression::Binop(v, op, Box::new(a), Box::new(b))
                     }
                     Binop::Lt => {
                         let integer = ctx.solver.add_integer(op.simplify());

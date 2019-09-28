@@ -1,0 +1,8 @@
+# Mismatched types
+# found `True`
+# (6:
+# (7:
+
+fn bitand_ret_true(a: True, b: True) -> True {
+    a & b
+}

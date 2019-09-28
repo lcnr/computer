@@ -1,0 +1,12 @@
+fn bitand_int(a: u32, b: u32) -> u32 {
+    a & b + 4;
+    3 + b & a
+}
+
+fn bitand_bool(a: Bool, b: True) -> Bool {
+    a & b
+}
+
+fn bitand_bool2(a: False, b: True) -> Bool {
+    a & b
+}
