@@ -1,3 +1,5 @@
+use shared_id::BOOL_TYPE_ID;
+
 use crate::{Action, Mir, Step, StepId};
 
 #[derive(Debug, Clone, Copy)]
@@ -14,17 +16,13 @@ pub enum Binop {
 impl Binop {
     pub fn validate(&self, this: &Step, a: &Step, b: &Step) {
         match self {
-            Self::Add | Self::Sub | Self::Mul | Self::Div => {
+            Self::Add | Self::Sub | Self::Mul | Self::Div | Self::BitOr | Self::BitAnd => {
                 assert_eq!(a.ty, b.ty);
                 assert_eq!(a.ty, this.ty);
             }
             Self::Lt => {
                 assert_eq!(a.ty, b.ty);
-                // TODO: check `this.ty == Bool`
-            }
-            Self::BitOr | Self::BitAnd => {
-                assert_eq!(a.ty, b.ty);
-                assert_eq!(a.ty, this.ty);
+                assert_eq!(this.ty, BOOL_TYPE_ID);
             }
         }
     }
