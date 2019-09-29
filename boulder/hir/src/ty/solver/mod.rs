@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, iter};
 
-use tindex::{TSlice, TVec};
+use tindex::{bitset::TBitSet, TSlice, TVec};
 
 use shared_id::{TypeId, EMPTY_TYPE_ID};
 
@@ -18,32 +18,32 @@ use productions::{Equality, Extension, FieldAccess};
 pub struct Context<'a, 'b> {
     pub types: &'b mut TVec<TypeId, Type<'a, TypeId>>,
     pub type_lookup: &'b mut HashMap<Box<str>, TypeId>,
-    pub meta: HashMap<EntityId, Meta<'a, ()>>,
+    pub meta: TVec<EntityId, Meta<'a, ()>>,
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 enum EntityState {
     Unbound,
     Restricted {
         /// at most a combination of the listed types
-        supertypes: Vec<TypeId>,
+        supertypes: TBitSet<TypeId>,
         /// contains at least these subtypes
-        subtypes: Vec<TypeId>,
+        subtypes: TBitSet<TypeId>,
     },
-    Bound(Vec<TypeId>),
+    Bound(TBitSet<TypeId>),
 }
 
 impl EntityState {
     fn simplify_restriction(
-        supertypes: Vec<TypeId>,
-        subtypes: Vec<TypeId>,
+        supertypes: TBitSet<TypeId>,
+        subtypes: TBitSet<TypeId>,
         types: &mut TVec<TypeId, Type<TypeId>>,
         lookup: &mut HashMap<Box<str>, TypeId>,
     ) -> Self {
-        if supertypes.len() == 1 {
+        if supertypes.element_count() == 1 {
             EntityState::Bound(supertypes)
         } else if supertypes == subtypes {
-            EntityState::Bound(vec![ty::build_sum_ty(types, lookup, &supertypes)])
+            EntityState::Bound(iter::once(ty::build_sum_ty(types, lookup, &supertypes)).collect())
         } else {
             EntityState::Restricted {
                 supertypes,
@@ -54,14 +54,14 @@ impl EntityState {
 
     pub fn try_subtype(
         &mut self,
-        mut restriction: Vec<TypeId>,
+        mut restriction: TBitSet<TypeId>,
         types: &mut TVec<TypeId, Type<TypeId>>,
         lookup: &mut HashMap<Box<str>, TypeId>,
     ) -> bool {
         match &self {
             EntityState::Unbound => {
                 *self = EntityState::Restricted {
-                    supertypes: Vec::new(),
+                    supertypes: TBitSet::new(),
                     subtypes: restriction,
                 };
                 true
@@ -70,26 +70,23 @@ impl EntityState {
                 supertypes,
                 subtypes,
             } => {
-                if supertypes.is_empty() || !restriction.iter().any(|r| !supertypes.contains(r)) {
-                    restriction.extend(subtypes.iter().copied());
-                    restriction.sort();
-                    restriction.dedup();
+                if supertypes.is_empty() || !restriction.iter().any(|r| !supertypes.get(r)) {
+                    restriction.extend(subtypes.iter());
                     *self =
-                        Self::simplify_restriction(supertypes.to_vec(), restriction, types, lookup);
+                        Self::simplify_restriction(supertypes.clone(), restriction, types, lookup);
                     true
                 } else {
                     false
                 }
             }
             EntityState::Bound(v) => {
-                let allowed_types = v
+                let allowed_types: TBitSet<_> = v
                     .iter()
-                    .copied()
                     .filter(|&v| {
                         let subtypes = ty::subtypes(v, types);
-                        restriction.iter().all(|ty| subtypes.contains(ty))
+                        restriction.iter().all(|ty| subtypes.get(ty))
                     })
-                    .collect::<Vec<_>>();
+                    .collect();
 
                 if !allowed_types.is_empty() {
                     *self = EntityState::Bound(allowed_types);
@@ -103,7 +100,7 @@ impl EntityState {
 
     pub fn try_supertype(
         &mut self,
-        restriction: Vec<TypeId>,
+        restriction: TBitSet<TypeId>,
         types: &mut TVec<TypeId, Type<TypeId>>,
         lookup: &mut HashMap<Box<str>, TypeId>,
     ) -> bool {
@@ -111,7 +108,7 @@ impl EntityState {
             EntityState::Unbound => {
                 *self = EntityState::Restricted {
                     supertypes: restriction,
-                    subtypes: Vec::new(),
+                    subtypes: TBitSet::new(),
                 };
                 true
             }
@@ -119,37 +116,28 @@ impl EntityState {
                 supertypes,
                 subtypes,
             } => {
-                let mut allowed_types = if supertypes.is_empty() {
+                let allowed_types = if supertypes.is_empty() {
                     restriction
                 } else {
                     supertypes
                         .iter()
-                        .copied()
-                        .filter(|ty| restriction.contains(ty))
-                        .collect::<Vec<_>>()
+                        .filter(|&ty| restriction.get(ty))
+                        .collect()
                 };
 
-                allowed_types.sort();
-                allowed_types.dedup();
-                if !allowed_types.is_empty() && subtypes.iter().all(|ty| allowed_types.contains(ty))
-                {
+                if !allowed_types.is_empty() && subtypes.iter().all(|ty| allowed_types.get(ty)) {
                     *self =
-                        Self::simplify_restriction(allowed_types, subtypes.to_vec(), types, lookup);
+                        Self::simplify_restriction(allowed_types, subtypes.clone(), types, lookup);
                     true
                 } else {
                     false
                 }
             }
             EntityState::Bound(v) => {
-                let allowed_types = v
+                let allowed_types: TBitSet<_> = v
                     .iter()
-                    .copied()
-                    .filter(|&v| {
-                        ty::subtypes(v, types)
-                            .iter()
-                            .all(|ty| restriction.contains(ty))
-                    })
-                    .collect::<Vec<_>>();
+                    .filter(|&v| ty::subtypes(v, types).iter().all(|ty| restriction.get(ty)))
+                    .collect();
 
                 if !allowed_types.is_empty() {
                     *self = EntityState::Bound(allowed_types);
@@ -161,7 +149,7 @@ impl EntityState {
         }
     }
 
-    pub fn try_bind(&mut self, ty: Vec<TypeId>, types: &TSlice<TypeId, Type<TypeId>>) -> bool {
+    pub fn try_bind(&mut self, ty: TBitSet<TypeId>, types: &TSlice<TypeId, Type<TypeId>>) -> bool {
         match self {
             state @ EntityState::Unbound => {
                 *state = EntityState::Bound(ty);
@@ -171,25 +159,25 @@ impl EntityState {
                 supertypes,
                 subtypes,
             } => {
-                let mut allowed_types = Vec::new();
+                let mut allowed_types = TBitSet::new();
                 for ty in ty {
                     let e;
                     let e = match &types[ty].kind {
                         Kind::Sum(e) => e,
                         _ => {
-                            e = vec![ty];
+                            e = iter::once(ty).collect();
                             &e
                         }
                     };
 
                     let is_valid = if !supertypes.is_empty() {
-                        e.iter().all(|t| supertypes.contains(t))
+                        e.iter().all(|t| supertypes.get(t))
                     } else {
                         true
-                    } && subtypes.iter().fold(true, |s, t| s && e.contains(t));
+                    } && subtypes.iter().fold(true, |s, t| s && e.get(t));
 
                     if is_valid {
-                        allowed_types.push(ty);
+                        allowed_types.add(ty);
                     }
                 }
 
@@ -201,11 +189,7 @@ impl EntityState {
                 }
             }
             EntityState::Bound(ref mut v) => {
-                let allowed_types = v
-                    .iter()
-                    .copied()
-                    .filter(|t| ty.contains(t))
-                    .collect::<Vec<_>>();
+                let allowed_types: TBitSet<_> = v.iter().filter(|&t| ty.get(t)).collect();
                 if !allowed_types.is_empty() {
                     *self = EntityState::Bound(allowed_types);
                     true
@@ -223,13 +207,13 @@ impl solver::EntityState for EntityState {
     fn solved(&self) -> bool {
         match self {
             EntityState::Unbound | EntityState::Restricted { .. } => false,
-            EntityState::Bound(v) => v.len() == 1,
+            EntityState::Bound(v) => v.iter().skip(1).next().is_none(),
         }
     }
 
     fn solution(&self) -> TypeId {
         if let EntityState::Bound(ref v) = self {
-            v.last().copied().unwrap()
+            v.iter().next().unwrap()
         } else {
             unreachable!("{:?}", self);
         }
@@ -240,7 +224,7 @@ impl solver::EntityState for EntityState {
 pub struct TypeSolver<'a, 'b> {
     solver: ConstraintSolver<Context<'a, 'b>, EntityState, CompileError>,
     empty: TypeId,
-    integers: Vec<TypeId>,
+    integers: TBitSet<TypeId>,
     fields: HashMap<Box<str>, (ProductionId, Vec<TypeId>)>,
     equality: ProductionId,
     extension: ProductionId,
@@ -277,7 +261,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         let mut solver = ConstraintSolver::new(Context {
             types,
             type_lookup,
-            meta: HashMap::new(),
+            meta: TVec::new(),
         });
 
         let fields = fields
@@ -312,7 +296,8 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
                 supertypes,
                 subtypes,
             } => {
-                let sup = match supertypes.as_slice() {
+                let supertypes = supertypes.iter().collect::<Box<[_]>>();
+                let sup = match supertypes.as_ref() {
                     &[] => String::new(),
                     &[one] => format!("`{}`", types[one].name.item),
                     &[one, two] => format!(
@@ -331,7 +316,8 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
                     ),
                 };
 
-                let sub = match subtypes.as_slice() {
+                let subtypes = subtypes.iter().collect::<Box<[_]>>();
+                let sub = match subtypes.as_ref() {
                     &[] => String::new(),
                     &[one] => format!("containing `{}`", types[one].name.item),
                     &[one, two] => format!(
@@ -357,34 +343,37 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
                     (false, false) => unreachable!("empty restriction"),
                 }
             }
-            EntityState::Bound(v) => match v.as_slice() {
-                &[] => unreachable!("expected no types"),
-                &[one] => format!("`{}`", types[one].name.item),
-                &[one, two] => format!(
-                    "either `{}` or `{}`",
-                    types[one].name.item, types[two].name.item
-                ),
-                &[one, two, three] => format!(
-                    "one of `{}`, `{}` or `{}`",
-                    types[one].name.item, types[two].name.item, types[three].name.item
-                ),
-                _ => format!(
-                    "one of `{}`, `{}` or {} more",
-                    types[v[0]].name.item,
-                    types[v[1]].name.item,
-                    v.len() - 2
-                ),
-            },
+            EntityState::Bound(v) => {
+                let v = v.iter().collect::<Box<[_]>>();
+                match v.as_ref() {
+                    &[] => unreachable!("expected no types"),
+                    &[one] => format!("`{}`", types[one].name.item),
+                    &[one, two] => format!(
+                        "either `{}` or `{}`",
+                        types[one].name.item, types[two].name.item
+                    ),
+                    &[one, two, three] => format!(
+                        "one of `{}`, `{}` or `{}`",
+                        types[one].name.item, types[two].name.item, types[three].name.item
+                    ),
+                    _ => format!(
+                        "one of `{}`, `{}` or {} more",
+                        types[v[0]].name.item,
+                        types[v[1]].name.item,
+                        v.len() - 2
+                    ),
+                }
+            }
         }
     }
 
-    pub fn integers(&self) -> &[TypeId] {
+    pub fn integers(&self) -> &TBitSet<TypeId> {
         &self.integers
     }
 
     fn add_entity(&mut self, state: EntityState, meta: Meta<'a, ()>) -> EntityId {
         let id = self.solver.add_entity(state);
-        self.solver.context().meta.insert(id, meta);
+        assert_eq!(self.solver.context().meta.push(meta), id);
         id
     }
 
@@ -396,7 +385,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         self.add_typed(self.empty, meta)
     }
 
-    pub fn add_bound(&mut self, types: Vec<TypeId>, meta: Meta<'a, ()>) -> EntityId {
+    pub fn add_bound(&mut self, types: TBitSet<TypeId>, meta: Meta<'a, ()>) -> EntityId {
         self.add_entity(EntityState::Bound(types), meta)
     }
 
@@ -405,14 +394,14 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
     }
 
     pub fn add_typed(&mut self, ty: TypeId, meta: Meta<'a, ()>) -> EntityId {
-        let id = self.add_entity(EntityState::Bound(vec![ty]), meta);
+        let id = self.add_entity(EntityState::Bound(iter::once(ty).collect()), meta);
         id
     }
 
     pub fn override_entity(&mut self, id: EntityId, ty: TypeId, meta: Meta<'a, ()>) {
         self.solver
-            .override_entity_state(id, EntityState::Bound(vec![ty]));
-        self.solver.context().meta.insert(id, meta);
+            .override_entity_state(id, EntityState::Bound(iter::once(ty).collect()));
+        self.solver.context().meta[id] = meta;
     }
 
     pub fn add_equality(&mut self, origin: EntityId, target: EntityId) {
@@ -469,15 +458,15 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
                 };
                 rest.into_iter()
                     .fold(
-                        CompileError::build(ctx.meta.get(&start_id).unwrap(), msg).with_help(
-                            format_args!("could be {}", Self::ty_error_str(ctx.types, start_types)),
-                        ),
+                        CompileError::build(&ctx.meta[*start_id], msg).with_help(format_args!(
+                            "could be {}",
+                            Self::ty_error_str(ctx.types, start_types)
+                        )),
                         |err, (id, ty)| {
-                            err.with_location(ctx.meta.get(&id).unwrap())
-                                .with_help(format_args!(
-                                    "could be {}",
-                                    Self::ty_error_str(ctx.types, &ty)
-                                ))
+                            err.with_location(&ctx.meta[*id]).with_help(format_args!(
+                                "could be {}",
+                                Self::ty_error_str(ctx.types, &ty)
+                            ))
                         },
                     )
                     .build()

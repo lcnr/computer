@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::HashMap, iter};
 
-use tindex::{TSlice, TVec};
+use tindex::{bitset::TBitSet, TSlice, TVec};
 
 use shared_id::{FieldId, TypeId};
 
@@ -84,7 +84,7 @@ pub fn resolve<'a>(
                         )
                     }
                 })
-                .collect::<Result<Vec<_>, _>>()?;
+                .collect::<Result<TBitSet<_>, _>>()?;
 
             unresolved.replace(build_sum_ty(types, lookup, &type_ids))
         }
@@ -105,23 +105,21 @@ pub fn resolve<'a>(
 pub fn build_sum_ty<'a>(
     types: &mut TVec<TypeId, Type<'a, TypeId>>,
     lookup: &mut HashMap<Box<str>, TypeId>,
-    cases: &[TypeId],
+    cases: &TBitSet<TypeId>,
 ) -> TypeId {
-    let mut values = Vec::with_capacity(cases.len());
-    let visited = &mut HashSet::new();
-    for &case in cases {
-        values.append(&mut flatten_sum_ty(types, case, visited));
-        values.sort();
-        values.dedup();
+    let mut values = TBitSet::new();
+    let visited = &mut TBitSet::new();
+    for case in cases.iter() {
+        values.extend(flatten_sum_ty(types, case, visited));
     }
 
-    if values.len() == 1 {
-        values[0]
+    if values.element_count() == 1 {
+        values.iter().next().unwrap()
     } else {
-        let (&first, rest) = values
-            .split_first()
-            .expect("trying to build an empty sum type");
-        let (type_name, resolved_type_name) = rest.iter().copied().fold(
+        let mut iter = values.iter();
+
+        let first = iter.next().expect("trying to build an empty sum type");
+        let (type_name, resolved_type_name) = iter.fold(
             (format!("{}", first), format!("{}", types[first].name.item)),
             |(s, r), ty| {
                 (
@@ -144,29 +142,27 @@ pub fn build_sum_ty<'a>(
 pub fn flatten_sum_ty(
     types: &TSlice<TypeId, Type<TypeId>>,
     ty: TypeId,
-    visited: &mut HashSet<TypeId>,
-) -> Vec<TypeId> {
-    if visited.insert(ty) {
+    visited: &mut TBitSet<TypeId>,
+) -> TBitSet<TypeId> {
+    if !visited.get(ty) {
+        visited.add(ty);
         if let Kind::Sum(cases) = &types[ty].kind {
-            let mut cases = cases
-                .iter()
-                .flat_map(|&t| flatten_sum_ty(types, t, visited))
-                .collect::<Vec<TypeId>>();
-            cases.sort();
-            cases.dedup();
             cases
+                .iter()
+                .flat_map(|t| flatten_sum_ty(types, t, visited))
+                .collect()
         } else {
-            vec![ty]
+            iter::once(ty).collect()
         }
     } else {
-        Vec::new()
+        TBitSet::new()
     }
 }
 
 pub fn check_recursive_ty(types: &TSlice<TypeId, Type<TypeId>>) -> Result<(), CompileError> {
     let mut result = Ok(());
     for (id, t) in types.iter().enumerate() {
-        if t.contains(id.into(), types, &mut HashSet::new()) {
+        if t.contains(id.into(), types, &mut TBitSet::new()) {
             result = CompileError::new(
                 &t.name,
                 format_args!("Recursive type `{}` has infinite size", t.name.item),
@@ -177,11 +173,11 @@ pub fn check_recursive_ty(types: &TSlice<TypeId, Type<TypeId>>) -> Result<(), Co
     result
 }
 
-pub fn subtypes(ty: TypeId, types: &TSlice<TypeId, Type<TypeId>>) -> Vec<TypeId> {
+pub fn subtypes(ty: TypeId, types: &TSlice<TypeId, Type<TypeId>>) -> TBitSet<TypeId> {
     if let Kind::Sum(t) = &types[ty].kind {
         t.clone()
     } else {
-        vec![ty]
+        iter::once(ty).collect()
     }
 }
 
@@ -192,9 +188,9 @@ pub fn is_subtype(ty: TypeId, of: TypeId, types: &TSlice<TypeId, Type<TypeId>>) 
         match &types[of].kind {
             Kind::Sum(options) => {
                 if let Kind::Sum(t) = &types[ty].kind {
-                    t.iter().all(|ty| options.contains(ty))
+                    t.iter().all(|ty| options.get(ty))
                 } else {
-                    options.contains(&ty)
+                    options.get(ty)
                 }
             }
             _ => false,
@@ -208,7 +204,7 @@ impl<'a> Type<'a, TypeId> {
         &self,
         ty: TypeId,
         types: &TSlice<TypeId, Type<'a, TypeId>>,
-        visited: &mut HashSet<TypeId>,
+        visited: &mut TBitSet<TypeId>,
     ) -> bool {
         match &self.kind {
             Kind::Unit | Kind::Uninhabited | Kind::U8 | Kind::U16 | Kind::U32 => false,
@@ -219,7 +215,8 @@ impl<'a> Type<'a, TypeId> {
                         return true;
                     }
 
-                    if visited.insert(field_id) {
+                    if !visited.get(field_id) {
+                        visited.add(field_id);
                         if types[field_id].contains(ty, types, visited) {
                             return true;
                         }
@@ -228,12 +225,13 @@ impl<'a> Type<'a, TypeId> {
                 false
             }
             Kind::Sum(cases) => {
-                for &case in cases {
+                for case in cases.iter() {
                     if case == ty {
                         return true;
                     }
 
-                    if visited.insert(case) {
+                    if !visited.get(case) {
+                        visited.add(case);
                         if types[case].contains(ty, types, visited) {
                             return true;
                         }
@@ -274,7 +272,7 @@ impl<'a> Type<'a, TypeId> {
             Kind::Struct(fields) => {
                 mir::Type::Struct(fields.into_iter().map(|m| m.ty.item).collect())
             }
-            Kind::Sum(cases) => mir::Type::Sum(cases),
+            Kind::Sum(cases) => mir::Type::Sum(cases.iter().collect()),
         }
     }
 }
@@ -293,5 +291,5 @@ pub enum Kind<'a, T> {
     U16,
     U32,
     Struct(Vec<Field<'a, T>>),
-    Sum(Vec<TypeId>),
+    Sum(TBitSet<TypeId>),
 }

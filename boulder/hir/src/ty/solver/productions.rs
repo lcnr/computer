@@ -1,4 +1,10 @@
+use std::iter;
+
+use tindex::bitset::TBitSet;
+
 use shared_id::TypeId;
+
+use solver::{Entity, Production, SolvedEntity};
 
 use diagnostics::CompileError;
 
@@ -6,8 +12,6 @@ use crate::ty::{
     self,
     solver::{Context, EntityState, TypeSolver},
 };
-
-use solver::{Entity, Production, SolvedEntity};
 
 #[derive(Debug)]
 pub struct FieldAccess {
@@ -36,20 +40,25 @@ impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for FieldAcc
                 .iter()
                 .find_map(|&(o, f)| if o == origin.value { Some(f) } else { None })
         {
-            if target.state.try_bind(vec![value], ctx.types) {
+            if target
+                .state
+                .try_bind(iter::once(value).collect(), ctx.types)
+            {
                 Ok(())
             } else {
-                let expected_str =
-                    TypeSolver::ty_error_str(ctx.types, &EntityState::Bound(vec![value]));
+                let expected_str = TypeSolver::ty_error_str(
+                    ctx.types,
+                    &EntityState::Bound(iter::once(value).collect()),
+                );
                 let found_str = TypeSolver::ty_error_str(ctx.types, &target.state);
                 CompileError::build(
-                    ctx.meta.get(&target.id).unwrap(),
+                    &ctx.meta[target.id],
                     format_args!(
                         "Mismatched types: found `{}`, expected {}",
                         found_str, expected_str
                     ),
                 )
-                .with_location(ctx.meta.get(&origin.id).unwrap())
+                .with_location(&ctx.meta[origin.id])
                 .build()
             }
         } else {
@@ -58,7 +67,7 @@ impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for FieldAcc
             let expected_str = TypeSolver::ty_error_str(ctx.types, &allowed_objects);
             let found_str = &ctx.types[origin.value].name.item;
             CompileError::build(
-                ctx.meta.get(&target.id).unwrap(),
+                &ctx.meta[target.id],
                 format_args!(
                     "Mismatched types: found `{}`, expected {}",
                     found_str, expected_str
@@ -78,7 +87,7 @@ impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for FieldAcc
         origin: Entity<EntityState>,
         target: SolvedEntity<EntityState>,
     ) -> Result<(), CompileError> {
-        let values: Vec<_> = self
+        let values: TBitSet<_> = self
             .field_types
             .iter()
             .filter_map(|&(o, f)| if f == target.value { Some(o) } else { None })
@@ -93,7 +102,7 @@ impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for FieldAcc
                 let found_str = TypeSolver::ty_error_str(ctx.types, origin.state);
                 let expected_str = TypeSolver::ty_error_str(ctx.types, &allowed_objects);
                 CompileError::new(
-                    ctx.meta.get(&target.id).unwrap(),
+                    &ctx.meta[target.id],
                     format_args!(
                         "Mismatched types: found {}, expected {}",
                         found_str, expected_str
@@ -106,13 +115,13 @@ impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for FieldAcc
             let expected_str = TypeSolver::ty_error_str(ctx.types, &allowed_targets);
             let found_str = &ctx.types[target.value].name.item;
             CompileError::build(
-                ctx.meta.get(&target.id).unwrap(),
+                &ctx.meta[target.id],
                 format_args!(
                     "Mismatched types: found `{}`, expected {}",
                     found_str, expected_str
                 ),
             )
-            .with_location(&ctx.meta.get(&origin.id).unwrap())
+            .with_location(&ctx.meta[origin.id])
             .with_help(format_args!(
                 "No struct has a field `{}` with type `{}`",
                 self.field_name, found_str
@@ -133,7 +142,10 @@ impl Equality {
         unsolved: Entity<EntityState>,
         flip_error: bool,
     ) -> Result<(), CompileError> {
-        if unsolved.state.try_bind(vec![solved.value], ctx.types) {
+        if unsolved
+            .state
+            .try_bind(iter::once(solved.value).collect(), ctx.types)
+        {
             Ok(())
         } else {
             let unsolved_str = TypeSolver::ty_error_str(ctx.types, unsolved.state);
@@ -145,13 +157,13 @@ impl Equality {
                 (unsolved_str, solved_str)
             };
             CompileError::build(
-                ctx.meta.get(&solved.id).unwrap(),
+                &ctx.meta[solved.id],
                 format_args!(
                     "Mismatched types: found {}, expected {}",
                     found_str, expected_str
                 ),
             )
-            .with_location(&ctx.meta.get(&unsolved.id).unwrap())
+            .with_location(&ctx.meta[unsolved.id])
             .build()
         }
     }
@@ -197,13 +209,13 @@ impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for Extensio
             let expected_str = TypeSolver::ty_error_str(ctx.types, target.state);
             let found_str = &ctx.types[origin.value].name.item;
             CompileError::build(
-                ctx.meta.get(&target.id).unwrap(),
+                &ctx.meta[target.id],
                 format_args!(
                     "Mismatched types: found `{}`, expected {}",
                     found_str, expected_str
                 ),
             )
-            .with_location(&ctx.meta.get(&origin.id).unwrap())
+            .with_location(&ctx.meta[origin.id])
             .build()
         }
     }
@@ -224,13 +236,13 @@ impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for Extensio
             let expected_str = TypeSolver::ty_error_str(ctx.types, origin.state);
             let found_str = &ctx.types[target.value].name.item;
             CompileError::build(
-                ctx.meta.get(&target.id).unwrap(),
+                &ctx.meta[target.id],
                 format_args!(
                     "Mismatched types: found `{}`, expected {}",
                     found_str, expected_str
                 ),
             )
-            .with_location(&ctx.meta.get(&origin.id).unwrap())
+            .with_location(&ctx.meta[origin.id])
             .build()
         }
     }

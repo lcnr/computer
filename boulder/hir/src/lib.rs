@@ -3,7 +3,7 @@ extern crate tindex;
 
 use std::{
     collections::{hash_map::Entry, HashMap},
-    fmt,
+    fmt, iter,
     marker::PhantomData,
 };
 
@@ -173,7 +173,11 @@ impl<'a>
             },
             Type {
                 name: Meta::<'static, ()>::default().replace("Bool".into()),
-                kind: ty::Kind::Sum(vec![2.into(), 3.into()]),
+                kind: ty::Kind::Sum(
+                    iter::once(TRUE_TYPE_ID)
+                        .chain(iter::once(FALSE_TYPE_ID))
+                        .collect()
+                ),
             },
             Type {
                 name: Meta::<'static, ()>::default().replace("u8".into()),

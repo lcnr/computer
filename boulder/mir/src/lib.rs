@@ -1,10 +1,9 @@
 use std::{
-    collections::HashSet,
     mem,
     ops::{Index, IndexMut},
 };
 
-use tindex::TVec;
+use tindex::{TVec, bitset::TBitSet};
 
 use shared_id::{FieldId, FunctionId, TypeId};
 
@@ -83,16 +82,16 @@ impl Step {
         Self { ty, action }
     }
 
-    pub fn used_steps(&self, used: &mut HashSet<StepId>) {
+    pub fn used_steps(&self, used: &mut TBitSet<StepId>) {
         match &self.action {
-            &Action::Extend(id) => mem::drop(used.insert(id)),
+            &Action::Extend(id) => used.add(id),
             &Action::CallFunction(_, ref steps) => {
-                steps.iter().for_each(|&s| mem::drop(used.insert(s)))
+                steps.iter().for_each(|&s| used.add(s))
             }
-            &Action::FieldAccess(id, _) => mem::drop(used.insert(id)),
+            &Action::FieldAccess(id, _) => used.add(id),
             &Action::Binop(_, a, b) => {
-                used.insert(a);
-                used.insert(b);
+                used.add(a);
+                used.add(b);
             }
             &Action::LoadInput(_) | &Action::LoadConstant(_) => (),
         }
@@ -142,14 +141,13 @@ impl Function {
     }
 
     pub fn split_block(&mut self, block: BlockId, after: StepId) -> BlockId {
-        let mut used = HashSet::new();
+        let mut used = TBitSet::new();
         for step in self[block].steps[after..].iter().skip(1) {
             step.used_steps(&mut used);
         }
         let used = used
             .iter()
-            .filter(|&&t| t <= after)
-            .copied()
+            .filter(|&t| t <= after)
             .collect::<Vec<_>>();
 
         let new = self.add_block();

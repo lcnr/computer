@@ -92,9 +92,7 @@ impl<'ctx, C: fmt::Debug, T: fmt::Debug + EntityState, E> fmt::Debug for Constra
     }
 }
 
-impl<C: fmt::Debug, T: EntityState + Eq + Hash + Clone + std::fmt::Debug, E>
-    ConstraintSolver<C, T, E>
-{
+impl<C: fmt::Debug, T: EntityState + Eq + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
     pub fn new(context: C) -> Self {
         Self {
             entities: TVec::new(),

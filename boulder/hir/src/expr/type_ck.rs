@@ -77,8 +77,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                         Expression::Binop(a.id(), op, Box::new(a), Box::new(b))
                     }
                     Binop::BitOr | Binop::BitAnd => {
-                        let mut integers = ctx.solver.integers().to_vec();
-                        integers.push(BOOL_TYPE_ID);
+                        let mut integers = ctx.solver.integers().clone();
+                        integers.add(BOOL_TYPE_ID);
                         let v = ctx.solver.add_bound(integers, op.simplify());
                         ctx.solver.add_extension(a.id(), v);
                         ctx.solver.add_extension(b.id(), v);
