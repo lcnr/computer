@@ -3,7 +3,7 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-use tindex::{TVec, bitset::TBitSet};
+use tindex::{bitset::TBitSet, TVec};
 
 use shared_id::{FieldId, FunctionId, TypeId};
 
@@ -85,9 +85,7 @@ impl Step {
     pub fn used_steps(&self, used: &mut TBitSet<StepId>) {
         match &self.action {
             &Action::Extend(id) => used.add(id),
-            &Action::CallFunction(_, ref steps) => {
-                steps.iter().for_each(|&s| used.add(s))
-            }
+            &Action::CallFunction(_, ref steps) => steps.iter().for_each(|&s| used.add(s)),
             &Action::FieldAccess(id, _) => used.add(id),
             &Action::Binop(_, a, b) => {
                 used.add(a);
@@ -145,10 +143,7 @@ impl Function {
         for step in self[block].steps[after..].iter().skip(1) {
             step.used_steps(&mut used);
         }
-        let used = used
-            .iter()
-            .filter(|&t| t <= after)
-            .collect::<Vec<_>>();
+        let used = used.iter().filter(|&t| t <= after).collect::<Vec<_>>();
 
         let new = self.add_block();
         for &step in used.iter() {
