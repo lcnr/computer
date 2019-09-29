@@ -1,0 +1,9 @@
+# Mismatched types
+# found `u32`
+# expected `Bool`
+# (7:
+# (8:
+
+fn eq_output_int() -> u32 {
+    (7 == 4) + 3
+}

@@ -77,11 +77,20 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                         Expression::Binop(a.id(), op, Box::new(a), Box::new(b))
                     }
                     Binop::BitOr | Binop::BitAnd => {
-                        let mut integers = ctx.solver.integers().clone();
-                        integers.add(BOOL_TYPE_ID);
-                        let v = ctx.solver.add_bound(integers, op.simplify());
+                        let mut possible_types = ctx.solver.integers().clone();
+                        possible_types.add(BOOL_TYPE_ID);
+                        let v = ctx.solver.add_bound(possible_types, op.simplify());
                         ctx.solver.add_extension(a.id(), v);
                         ctx.solver.add_extension(b.id(), v);
+                        Expression::Binop(v, op, Box::new(a), Box::new(b))
+                    }
+                    Binop::Eq => {
+                        let mut possible_types = ctx.solver.integers().clone();
+                        possible_types.add(BOOL_TYPE_ID);
+                        let v = ctx.solver.add_bound(possible_types, op.simplify());
+                        ctx.solver.add_extension(a.id(), v);
+                        ctx.solver.add_extension(b.id(), v);
+                        let v = ctx.solver.add_typed(BOOL_TYPE_ID, op.simplify());
                         Expression::Binop(v, op, Box::new(a), Box::new(b))
                     }
                     Binop::Lt => {
@@ -342,6 +351,28 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
                 Box::new(expr.insert_types(types, type_result)),
             ),
             Expression::TypeRestriction(expr, _) => expr.insert_types(types, type_result),
+        }
+    }
+}
+
+
+impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
+    pub fn ty(&self) -> TypeId {
+        match self {
+            &Expression::Block(ty, _, _)
+            | &Expression::Variable(ty, _)
+            | &Expression::Lit(ty, _)
+            | &Expression::Binop(ty, _, _, _)
+            | &Expression::Statement(ty, _)
+            | &Expression::Assignment(ty, _, _)
+            | &Expression::FunctionCall(ty, _, _)
+            | &Expression::FieldAccess(ty, _, _)
+            | &Expression::Match(ty, _, _, _)
+            | &Expression::Loop(ty, _, _)
+            | &Expression::Break(ty, _, _) => ty,
+            &Expression::TypeRestriction(_, ()) => {
+                unreachable!("type restriction after type check")
+            }
         }
     }
 }

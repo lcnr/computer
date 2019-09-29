@@ -13,6 +13,7 @@ impl Display for Binop {
             Self::Sub => write!(f, "sub"),
             Self::Mul => write!(f, "mul"),
             Self::Div => write!(f, "div"),
+            Self::Eq => write!(f, "eq"),
             Self::Lt => write!(f, "lt"),
             Self::BitOr => write!(f, "bitor"),
             Self::BitAnd => write!(f, "bitand"),

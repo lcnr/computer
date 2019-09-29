@@ -8,6 +8,7 @@ pub enum Binop {
     Sub,
     Mul,
     Div,
+    Eq,
     Lt,
     BitOr,
     BitAnd,
@@ -20,7 +21,7 @@ impl Binop {
                 assert_eq!(a.ty, b.ty);
                 assert_eq!(a.ty, this.ty);
             }
-            Self::Lt => {
+            Self::Lt | Self::Eq => {
                 assert_eq!(a.ty, b.ty);
                 assert_eq!(this.ty, BOOL_TYPE_ID);
             }

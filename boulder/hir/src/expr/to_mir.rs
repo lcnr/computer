@@ -2,7 +2,7 @@ use std::convert::{identity, TryFrom};
 
 use tindex::{TSlice, TVec};
 
-use shared_id::{FunctionId, TypeId, EMPTY_TYPE_ID};
+use shared_id::{FunctionId, TypeId, EMPTY_TYPE_ID, TRUE_TYPE_ID, FALSE_TYPE_ID};
 
 use diagnostics::CompileError;
 
@@ -138,13 +138,15 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 Ok(ctx.func[*ctx.curr].add_step(type_id, Action::LoadConstant(obj)))
             }
             Expression::Binop(ty, op, a, b) => {
+                let a_ty = a.ty();
+                let b_ty = b.ty();
                 let a = a.to_mir(ctx)?;
                 ctx.temporaries.push(Temporary {
                     step: a,
                     ty: ctx.func[*ctx.curr][a].ty,
                 });
-                let b = b.to_mir(ctx)?;
-                let a = ctx.temporaries.pop().unwrap().step;
+                let mut b = b.to_mir(ctx)?;
+                let mut a = ctx.temporaries.pop().unwrap().step;
 
                 let action = match op.item {
                     Binop::Add => Action::Binop(mir::binop::Binop::Add, a, b),
@@ -160,6 +162,16 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                         let a = ctx.func[*ctx.curr].add_step(ty, Action::Extend(a));
                         let b = ctx.func[*ctx.curr].add_step(ty, Action::Extend(b));
                         Action::Binop(mir::binop::Binop::BitAnd, a, b)
+                    }
+                    Binop::Eq => {
+                        if a_ty == TRUE_TYPE_ID || a_ty == FALSE_TYPE_ID {
+                            a = ctx.func[*ctx.curr].add_step(ty, Action::Extend(a));
+                        }
+
+                        if b_ty == TRUE_TYPE_ID || b_ty == FALSE_TYPE_ID {
+                            b = ctx.func[*ctx.curr].add_step(ty, Action::Extend(b));
+                        }
+                        Action::Binop(mir::binop::Binop::Eq, a, b)
                     }
                     Binop::Lt => Action::Binop(mir::binop::Binop::Lt, a, b),
                 };

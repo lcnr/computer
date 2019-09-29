@@ -65,13 +65,14 @@ pub enum Operator {
     Gt,
     /// `>=`
     Gte,
-    /// `==`
-    Eq,
+    
     /// `!=`
     Neq,
     /// `<=`
     Lte,
     */
+    /// `==`
+    Eq,
     /// `<`
     Lt,
     /// `|`
@@ -86,7 +87,7 @@ impl Operator {
     /// binop
     pub fn priority(self) -> u32 {
         match self {
-            Operator::Lt => 10,
+            Operator::Lt | Operator::Eq => 10,
             Operator::BitOr => 20,
             Operator::BitAnd => 21,
             Operator::Add => 30,
@@ -115,6 +116,9 @@ impl Operator {
             Operator::Div => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::Div), a.into(), b.into())
             }
+            Operator::Eq => {
+                crate::Expression::Binop((), meta.replace(hir::Binop::Eq), a.into(), b.into())
+            }
             Operator::Lt => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::Lt), a.into(), b.into())
             }
@@ -135,6 +139,7 @@ impl fmt::Display for Operator {
             Operator::Sub => write!(f, "-"),
             Operator::Mul => write!(f, "*"),
             Operator::Div => write!(f, "/"),
+            Operator::Eq => write!(f, "=="),
             Operator::Lt => write!(f, "<"),
             Operator::BitOr => write!(f, "|"),
             Operator::BitAnd => write!(f, "&"),
@@ -513,7 +518,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                     self.advance();
                     if self.current_char().map(|c| c == '=').unwrap_or(false) {
                         self.advance();
-                        unimplemented!()
+                        self.new_token(Token::Operator(Operator::Eq), self.byte_offset - 2..self.byte_offset)
                     } else {
                         self.new_token(Token::Assignment, self.byte_offset - 1..self.byte_offset)
                     }

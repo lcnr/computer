@@ -1,0 +1,12 @@
+fn eq_int(a: u32, b: u32) -> Bool {
+    a == b + 4;
+    3 + b == a
+}
+
+fn eq_bool(a: Bool, b: True) -> Bool {
+    a == b
+}
+
+fn eq_bool2(a: False, b: True) -> Bool {
+    a == b
+}
