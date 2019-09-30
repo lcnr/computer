@@ -60,12 +60,14 @@ pub enum Operator {
     Mul,
     /// `/`
     Div,
+    /// `<<`
+    Shl,
     /*
     /// `>`
     Gt,
     /// `>=`
     Gte,
-    
+
     /// `!=`
     Neq,
     /// `<=`
@@ -90,8 +92,9 @@ impl Operator {
             Operator::Lt | Operator::Eq => 10,
             Operator::BitOr => 20,
             Operator::BitAnd => 21,
-            Operator::Add => 30,
-            Operator::Sub => 30,
+            Operator::Shl => 30,
+            Operator::Add => 35,
+            Operator::Sub => 35,
             Operator::Mul => 40,
             Operator::Div => 40,
         }
@@ -116,6 +119,9 @@ impl Operator {
             Operator::Div => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::Div), a.into(), b.into())
             }
+            Operator::Shl => {
+                crate::Expression::Binop((), meta.replace(hir::Binop::Shl), a.into(), b.into())
+            }
             Operator::Eq => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::Eq), a.into(), b.into())
             }
@@ -139,6 +145,7 @@ impl fmt::Display for Operator {
             Operator::Sub => write!(f, "-"),
             Operator::Mul => write!(f, "*"),
             Operator::Div => write!(f, "/"),
+            Operator::Shl => write!(f, "<<"),
             Operator::Eq => write!(f, "=="),
             Operator::Lt => write!(f, "<"),
             Operator::BitOr => write!(f, "|"),
@@ -516,9 +523,12 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                 }
                 '=' => {
                     self.advance();
-                    if self.current_char().map(|c| c == '=').unwrap_or(false) {
+                    if self.current_char().map_or(false, |c| c == '=') {
                         self.advance();
-                        self.new_token(Token::Operator(Operator::Eq), self.byte_offset - 2..self.byte_offset)
+                        self.new_token(
+                            Token::Operator(Operator::Eq),
+                            self.byte_offset - 2..self.byte_offset,
+                        )
                     } else {
                         self.new_token(Token::Assignment, self.byte_offset - 1..self.byte_offset)
                     }
@@ -526,7 +536,13 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                 '>' => unimplemented!(),
                 '<' => {
                     self.advance();
-                    if self.current_char().map(|c| c == '=').unwrap_or(false) {
+                    if self.current_char().map_or(false, |c| c == '<') {
+                        self.advance();
+                        self.new_token(
+                            Token::Operator(Operator::Shl),
+                            self.byte_offset - 2..self.byte_offset,
+                        )
+                    } else if self.current_char().map_or(false, |c| c == '=') {
                         unimplemented!()
                     } else {
                         self.new_token(

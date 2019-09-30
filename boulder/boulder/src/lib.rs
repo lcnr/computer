@@ -14,5 +14,8 @@ pub fn compile(src: &str) -> Result<mir::Mir, CompileError> {
     mir.remove_noop_extend();
     dbg!(mir.step_count());
     mir.validate();
+    mir.reduce_binops();
+    mir.validate();
+    dbg!(mir.step_count());
     Ok(mir)
 }

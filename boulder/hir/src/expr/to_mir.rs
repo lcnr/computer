@@ -2,7 +2,7 @@ use std::convert::{identity, TryFrom};
 
 use tindex::{TSlice, TVec};
 
-use shared_id::{FunctionId, TypeId, EMPTY_TYPE_ID, TRUE_TYPE_ID, FALSE_TYPE_ID};
+use shared_id::{FunctionId, TypeId, EMPTY_TYPE_ID, FALSE_TYPE_ID, TRUE_TYPE_ID};
 
 use diagnostics::CompileError;
 
@@ -153,6 +153,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                     Binop::Sub => Action::Binop(mir::binop::Binop::Sub, a, b),
                     Binop::Mul => Action::Binop(mir::binop::Binop::Mul, a, b),
                     Binop::Div => Action::Binop(mir::binop::Binop::Div, a, b),
+                    Binop::Shl => Action::Binop(mir::binop::Binop::Shl, a, b),
                     Binop::BitOr => {
                         let a = ctx.func[*ctx.curr].add_step(ty, Action::Extend(a));
                         let b = ctx.func[*ctx.curr].add_step(ty, Action::Extend(b));

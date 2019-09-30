@@ -1,4 +1,5 @@
 use std::{
+    convert::identity,
     mem,
     ops::{Index, IndexMut},
 };
@@ -24,10 +25,10 @@ pub enum Type {
     U16,
     U32,
     Struct(TVec<FieldId, TypeId>),
-    Sum(Vec<TypeId>),
+    Sum(TBitSet<TypeId>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Object {
     Unit,
     U8(u8),
@@ -59,9 +60,26 @@ impl Terminator {
     fn invalid() -> Self {
         Terminator::Return(StepId::invalid())
     }
+
+    pub fn used_steps(&self, used: &mut TBitSet<StepId>) {
+        match self {
+            &Terminator::Return(id) => used.add(id),
+            &Terminator::Goto(_, ref steps) => steps.iter().for_each(|&s| used.add(s)),
+            &Terminator::Match(step, ref arms) => {
+                used.add(step);
+                arms.iter().for_each(|arm| {
+                    arm.2
+                        .iter()
+                        .copied()
+                        .filter_map(identity)
+                        .for_each(|s| used.add(s))
+                });
+            }
+        }
+    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     Extend(StepId),
     LoadInput(usize),
@@ -71,7 +89,7 @@ pub enum Action {
     Binop(Binop, StepId, StepId),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Step {
     pub ty: TypeId,
     pub action: Action,
@@ -130,6 +148,11 @@ impl Function {
         self.blocks.push(Block::new())
     }
 
+    pub fn clone_block(&mut self, block: BlockId) -> BlockId {
+        let block = self[block].clone();
+        self.blocks.push(block)
+    }
+
     pub fn args(&self) -> &[TypeId] {
         if let Some(first) = self.blocks.first() {
             &first.input
@@ -143,6 +166,7 @@ impl Function {
         for step in self[block].steps[after..].iter().skip(1) {
             step.used_steps(&mut used);
         }
+        self[block].terminator.used_steps(&mut used);
         let used = used.iter().filter(|&t| t <= after).collect::<Vec<_>>();
 
         let new = self.add_block();
@@ -170,7 +194,7 @@ impl Function {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Block {
     pub input: Vec<TypeId>,
     pub steps: TVec<StepId, Step>,

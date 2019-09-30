@@ -11,6 +11,14 @@ pub trait UpdateStepIds {
             }
         });
     }
+
+    fn replace_step(&mut self, step: StepId, with: StepId) {
+        self.update_step_ids(&mut |id| {
+            if *id == step {
+                *id = with;
+            }
+        })
+    }
 }
 
 impl UpdateStepIds for () {

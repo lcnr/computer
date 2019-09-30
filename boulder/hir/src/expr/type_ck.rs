@@ -70,7 +70,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 let a = a.type_constraints(ctx)?;
                 let b = b.type_constraints(ctx)?;
                 match op.item {
-                    Binop::Add | Binop::Sub | Binop::Mul | Binop::Div => {
+                    Binop::Add | Binop::Sub | Binop::Mul | Binop::Div | Binop::Shl => {
                         let integer = ctx.solver.add_integer(op.simplify());
                         ctx.solver.add_equality(a.id(), b.id());
                         ctx.solver.add_equality(a.id(), integer);
@@ -354,7 +354,6 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
         }
     }
 }
-
 
 impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
     pub fn ty(&self) -> TypeId {

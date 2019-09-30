@@ -46,9 +46,9 @@ impl Mir {
                         if block[s].ty != step.ty {
                             if let &Type::Sum(ref v) = &self[step.ty] {
                                 if let &Type::Sum(ref s) = &self[block[s].ty] {
-                                    assert!(s.iter().all(|t| v.contains(t)));
+                                    assert!(s.iter().all(|t| v.get(t)));
                                 } else {
-                                    assert!(v.contains(&block[s].ty));
+                                    assert!(v.get(block[s].ty));
                                 }
                             } else {
                                 unreachable!("mismatched types");
@@ -100,12 +100,12 @@ impl Mir {
                         let target = &func[target];
                         assert_eq!(target.input.len(), args.len());
                         for i in 0..args.len() {
-                            if block[value].ty != block[value].ty {
+                            if block[value].ty != ty {
                                 if let &Type::Sum(ref s) = &self[block[value].ty] {
                                     if let &Type::Sum(ref v) = &self[ty] {
-                                        assert!(v.iter().all(|t| s.contains(t)));
+                                        assert!(v.iter().all(|t| s.get(t)));
                                     } else {
-                                        assert!(s.contains(&ty));
+                                        assert!(s.get(ty));
                                     }
                                 } else {
                                     unreachable!("mismatched types");

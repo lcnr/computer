@@ -120,6 +120,7 @@ pub enum Binop {
     Sub,
     Mul,
     Div,
+    Shl,
     Eq,
     Lt,
     BitOr,
