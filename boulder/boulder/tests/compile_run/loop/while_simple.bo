@@ -1,0 +1,7 @@
+fn while_simple() -> u32 {
+    let i = 0;
+    while i < 5 {
+        i = i + 1;
+    };
+    i
+}

@@ -1,6 +1,6 @@
-use diagnostics::{CompileError, Meta};
-
 use std::mem;
+
+use diagnostics::{CompileError, Meta};
 
 mod tokenize;
 
@@ -27,6 +27,7 @@ type Field<'a> = hir::ty::Field<'a, hir::UnresolvedType<'a>>;
 type MatchArm<'a> =
     hir::expr::MatchArm<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedTypes<'a>>;
 type Pattern<'a> = hir::Pattern<'a, hir::UnresolvedIdentifiers<'a>>;
+type Literal<'a> = hir::Literal<hir::UnresolvedIdentifiers<'a>>;
 
 pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
     let iter = &mut TokenIter::new(src);
@@ -239,10 +240,7 @@ fn parse_if<'a>(
             consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
             parse_block(None, iter)?
         } else {
-            Expression::Lit(
-                (),
-                if_meta.clone().map(|_| hir::Literal::Unit("Empty".into())),
-            )
+            Expression::Lit((), if_meta.replace(Literal::Unit("Empty".into())))
         },
     };
 
@@ -287,13 +285,56 @@ fn parse_binop_rhs<'a>(
             consume_token(Token::Colon, iter)?;
             let next = iter.next().unwrap();
             match next.item {
-                Token::OpenBlock(BlockDelim::Brace) => parse_block(Some(start.map(|_| v)), iter),
+                Token::OpenBlock(BlockDelim::Brace) => parse_block(Some(start.replace(v)), iter),
                 Token::Keyword(Keyword::Loop) => {
                     consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
                     if let Expression::Block((), scope, body) =
-                        parse_block(Some(start.map(|_| v)), iter)?
+                        parse_block(Some(start.replace(v)), iter)?
                     {
                         Ok(Expression::Loop((), scope, body))
+                    } else {
+                        unreachable!("parse_block returned an unexpected expression")
+                    }
+                }
+                Token::Keyword(Keyword::While) => {
+                    let expr = parse_expression(iter)?;
+                    consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
+                    let stay = MatchArm {
+                        pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named(
+                            "True".into(),
+                        ))),
+                        expr: Expression::Lit((), next.replace(Literal::Unit("Empty".into()))),
+                    };
+
+                    let empty_lit =
+                        Expression::Lit((), next.replace(Literal::Unit("Empty".into())));
+                    let exit = MatchArm {
+                        pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named(
+                            "False".into(),
+                        ))),
+                        expr: Expression::Break((), next.replace(None), Box::new(empty_lit)),
+                    };
+
+                    if let Expression::Block((), scope, mut body) =
+                        parse_block(Some(start.replace(v)), iter)?
+                    {
+                        let check = Expression::TypeRestriction(
+                            Box::new(Expression::Match(
+                                (),
+                                start.simplify(),
+                                Box::new(expr),
+                                vec![stay, exit],
+                            )),
+                            start.replace(hir::UnresolvedType::Sum(vec![
+                                start.replace("Empty".into()),
+                                start.replace("Never".into()),
+                            ])),
+                        );
+                        body.insert(0, Expression::Statement((), Box::new(check)));
+                        Ok(Expression::TypeRestriction(
+                            Box::new(Expression::Loop((), scope, body)),
+                            start.replace(hir::UnresolvedType::Named("Empty".into())),
+                        ))
                     } else {
                         unreachable!("parse_block returned an unexpected expression")
                     }
@@ -302,13 +343,14 @@ fn parse_binop_rhs<'a>(
                     &[
                         Token::OpenBlock(BlockDelim::Brace),
                         Token::Keyword(Keyword::Loop),
+                        Token::Keyword(Keyword::While),
                     ],
                     &next,
                 ),
             }?
         }
         Token::Ident(v) => parse_ident_expr(start.replace(v), iter)?,
-        Token::Integer(c) => Expression::Lit((), start.replace(hir::Literal::Integer(c))),
+        Token::Integer(c) => Expression::Lit((), start.replace(Literal::Integer(c))),
         Token::Keyword(Keyword::Match) => parse_match(start.simplify(), iter)?,
         Token::Keyword(Keyword::If) => parse_if(start.simplify(), iter)?,
         Token::OpenBlock(BlockDelim::Parenthesis) => {
@@ -325,6 +367,44 @@ fn parse_binop_rhs<'a>(
                 unreachable!("parse_block returned an unexpected expression")
             }
         }
+        Token::Keyword(Keyword::While) => {
+            let expr = parse_expression(iter)?;
+            consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
+            let stay = MatchArm {
+                pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named("True".into()))),
+                expr: Expression::Lit((), start.replace(Literal::Unit("Empty".into()))),
+            };
+
+            let empty_lit = Expression::Lit((), start.replace(Literal::Unit("Empty".into())));
+            let exit = MatchArm {
+                pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named(
+                    "False".into(),
+                ))),
+                expr: Expression::Break((), start.replace(None), Box::new(empty_lit)),
+            };
+
+            if let Expression::Block((), scope, mut body) = parse_block(None, iter)? {
+                let check = Expression::TypeRestriction(
+                    Box::new(Expression::Match(
+                        (),
+                        start.simplify(),
+                        Box::new(expr),
+                        vec![stay, exit],
+                    )),
+                    start.replace(hir::UnresolvedType::Sum(vec![
+                        start.replace("Empty".into()),
+                        start.replace("Never".into()),
+                    ])),
+                );
+                body.insert(0, Expression::Statement((), Box::new(check)));
+                Expression::TypeRestriction(
+                    Box::new(Expression::Loop((), scope, body)),
+                    start.replace(hir::UnresolvedType::Named("Empty".into())),
+                )
+            } else {
+                unreachable!("parse_block returned an unexpected expression")
+            }
+        }
         _ => CompileError::expected(
             &[
                 Token::Scope("".into()),
@@ -332,6 +412,8 @@ fn parse_binop_rhs<'a>(
                 Token::Integer(0),
                 Token::Keyword(Keyword::Match),
                 Token::Keyword(Keyword::If),
+                Token::Keyword(Keyword::Loop),
+                Token::Keyword(Keyword::While),
                 Token::OpenBlock(BlockDelim::Parenthesis),
             ],
             &start,
@@ -414,20 +496,107 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
                 unreachable!("parse_block returned an unexpected expression")
             }
         }
+        Token::Keyword(Keyword::While) => {
+            let expr = parse_expression(iter)?;
+            consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
+            let stay = MatchArm {
+                pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named("True".into()))),
+                expr: Expression::Lit((), start.replace(Literal::Unit("Empty".into()))),
+            };
+
+            let empty_lit = Expression::Lit((), start.replace(Literal::Unit("Empty".into())));
+            let exit = MatchArm {
+                pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named(
+                    "False".into(),
+                ))),
+                expr: Expression::Break((), start.replace(None), Box::new(empty_lit)),
+            };
+
+            if let Expression::Block((), scope, mut body) = parse_block(None, iter)? {
+                let check = Expression::TypeRestriction(
+                    Box::new(Expression::Match(
+                        (),
+                        start.simplify(),
+                        Box::new(expr),
+                        vec![stay, exit],
+                    )),
+                    start.replace(hir::UnresolvedType::Sum(vec![
+                        start.replace("Empty".into()),
+                        start.replace("Never".into()),
+                    ])),
+                );
+                body.insert(0, Expression::Statement((), Box::new(check)));
+                parse_binop(
+                    Expression::TypeRestriction(
+                        Box::new(Expression::Loop((), scope, body)),
+                        start.replace(hir::UnresolvedType::Named("Empty".into())),
+                    ),
+                    iter,
+                )
+            } else {
+                unreachable!("parse_block returned an unexpected expression")
+            }
+        }
         Token::Scope(v) => {
             consume_token(Token::Colon, iter)?;
             let next = iter.next().unwrap();
             match next.item {
                 Token::OpenBlock(BlockDelim::Brace) => {
-                    let block = parse_block(Some(start.map(|_| v)), iter)?;
+                    let block = parse_block(Some(start.replace(v)), iter)?;
                     parse_binop(block, iter)
                 }
                 Token::Keyword(Keyword::Loop) => {
                     consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
                     if let Expression::Block((), scope, body) =
-                        parse_block(Some(start.map(|_| v)), iter)?
+                        parse_block(Some(start.replace(v)), iter)?
                     {
                         parse_binop(Expression::Loop((), scope, body), iter)
+                    } else {
+                        unreachable!("parse_block returned an unexpected expression")
+                    }
+                }
+                Token::Keyword(Keyword::While) => {
+                    let expr = parse_expression(iter)?;
+                    consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
+                    let stay = MatchArm {
+                        pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named(
+                            "True".into(),
+                        ))),
+                        expr: Expression::Lit((), next.replace(Literal::Unit("Empty".into()))),
+                    };
+
+                    let empty_lit =
+                        Expression::Lit((), next.replace(Literal::Unit("Empty".into())));
+                    let exit = MatchArm {
+                        pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named(
+                            "False".into(),
+                        ))),
+                        expr: Expression::Break((), next.replace(None), Box::new(empty_lit)),
+                    };
+
+                    if let Expression::Block((), scope, mut body) =
+                        parse_block(Some(start.replace(v)), iter)?
+                    {
+                        let check = Expression::TypeRestriction(
+                            Box::new(Expression::Match(
+                                (),
+                                start.simplify(),
+                                Box::new(expr),
+                                vec![stay, exit],
+                            )),
+                            start.replace(hir::UnresolvedType::Sum(vec![
+                                start.replace("Empty".into()),
+                                start.replace("Never".into()),
+                            ])),
+                        );
+                        body.insert(0, Expression::Statement((), Box::new(check)));
+                        parse_binop(
+                            Expression::TypeRestriction(
+                                Box::new(Expression::Loop((), scope, body)),
+                                start.replace(hir::UnresolvedType::Named("Empty".into())),
+                            ),
+                            iter,
+                        )
                     } else {
                         unreachable!("parse_block returned an unexpected expression")
                     }
@@ -495,7 +664,7 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
             })
         }
         Token::Integer(c) => {
-            let expr = Expression::Lit((), start.replace(hir::Literal::Integer(c)));
+            let expr = Expression::Lit((), start.replace(Literal::Integer(c)));
             parse_binop(expr, iter)
         }
         _ => CompileError::expected(
@@ -541,7 +710,7 @@ fn parse_block<'a>(
                 name.map_or_else(
                     || {
                         Meta::empty(iter.source(), line, start..end)
-                            .map(|_| None)
+                            .replace(None)
                             .extend_left('{')
                     },
                     |v| v.map(|v| Some(v)),

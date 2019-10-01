@@ -1,0 +1,9 @@
+# Mismatched types
+# `u32`
+# `Empty`
+# (6:
+fn while_ty() -> u32 {
+    while False {
+        break 7;
+    }
+}
