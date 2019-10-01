@@ -62,9 +62,10 @@ pub enum Operator {
     Div,
     /// `<<`
     Shl,
+    /// `>>`
+    Shr,
     /*
-    /// `>`
-    Gt,
+
     /// `>=`
     Gte,
 
@@ -77,6 +78,8 @@ pub enum Operator {
     Eq,
     /// `<`
     Lt,
+    /// `>`
+    Gt,
     /// `|`
     BitOr,
     /// `&`
@@ -89,10 +92,10 @@ impl Operator {
     /// binop
     pub fn priority(self) -> u32 {
         match self {
-            Operator::Lt | Operator::Eq => 10,
+            Operator::Lt | Operator::Gt | Operator::Eq => 10,
             Operator::BitOr => 20,
             Operator::BitAnd => 21,
-            Operator::Shl => 30,
+            Operator::Shl | Operator::Shr => 30,
             Operator::Add => 35,
             Operator::Sub => 35,
             Operator::Mul => 40,
@@ -122,11 +125,17 @@ impl Operator {
             Operator::Shl => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::Shl), a.into(), b.into())
             }
+            Operator::Shr => {
+                crate::Expression::Binop((), meta.replace(hir::Binop::Shr), a.into(), b.into())
+            }
             Operator::Eq => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::Eq), a.into(), b.into())
             }
             Operator::Lt => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::Lt), a.into(), b.into())
+            }
+            Operator::Gt => {
+                crate::Expression::Binop((), meta.replace(hir::Binop::Gt), a.into(), b.into())
             }
             Operator::BitOr => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::BitOr), a.into(), b.into())
@@ -146,8 +155,10 @@ impl fmt::Display for Operator {
             Operator::Mul => write!(f, "*"),
             Operator::Div => write!(f, "/"),
             Operator::Shl => write!(f, "<<"),
+            Operator::Shr => write!(f, ">>"),
             Operator::Eq => write!(f, "=="),
             Operator::Lt => write!(f, "<"),
+            Operator::Gt => write!(f, ">"),
             Operator::BitOr => write!(f, "|"),
             Operator::BitAnd => write!(f, "&"),
         }
@@ -533,7 +544,23 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                         self.new_token(Token::Assignment, self.byte_offset - 1..self.byte_offset)
                     }
                 }
-                '>' => unimplemented!(),
+                '>' => {
+                    self.advance();
+                    if self.current_char().map_or(false, |c| c == '>') {
+                        self.advance();
+                        self.new_token(
+                            Token::Operator(Operator::Shr),
+                            self.byte_offset - 2..self.byte_offset,
+                        )
+                    } else if self.current_char().map_or(false, |c| c == '=') {
+                        unimplemented!()
+                    } else {
+                        self.new_token(
+                            Token::Operator(Operator::Gt),
+                            self.byte_offset - 1..self.byte_offset,
+                        )
+                    }
+                }
                 '<' => {
                     self.advance();
                     if self.current_char().map_or(false, |c| c == '<') {

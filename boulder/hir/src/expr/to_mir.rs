@@ -154,6 +154,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                     Binop::Mul => Action::Binop(mir::binop::Binop::Mul, a, b),
                     Binop::Div => Action::Binop(mir::binop::Binop::Div, a, b),
                     Binop::Shl => Action::Binop(mir::binop::Binop::Shl, a, b),
+                    Binop::Shr => Action::Binop(mir::binop::Binop::Shr, a, b),
                     Binop::BitOr => {
                         let a = ctx.func[*ctx.curr].add_step(ty, Action::Extend(a));
                         let b = ctx.func[*ctx.curr].add_step(ty, Action::Extend(b));
@@ -175,6 +176,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                         Action::Binop(mir::binop::Binop::Eq, a, b)
                     }
                     Binop::Lt => Action::Binop(mir::binop::Binop::Lt, a, b),
+                    Binop::Gt => Action::Binop(mir::binop::Binop::Gt, a, b),
                 };
                 Ok(ctx.func[*ctx.curr].add_step(ty, action))
             }

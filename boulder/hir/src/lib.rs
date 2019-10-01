@@ -121,8 +121,10 @@ pub enum Binop {
     Mul,
     Div,
     Shl,
+    Shr,
     Eq,
     Lt,
+    Gt,
     BitOr,
     BitAnd,
 }

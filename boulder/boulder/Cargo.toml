@@ -8,6 +8,7 @@ edition = "2018"
 diagnostics = { path = "../diagnostics" }
 parse = { path = "../parse"}
 mir = { path = "../mir" }
+bmi = { path = "../bmi" }
 rock = { path = "../../rock" }
 
 [dev-dependencies]

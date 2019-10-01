@@ -3,6 +3,7 @@
 members = [
     "solver",
     "boulder",
+    "bmi",
     "diagnostics",
     "shared_id",
     "parse",

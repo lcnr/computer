@@ -111,7 +111,7 @@ impl<C: fmt::Debug, T: EntityState + Eq + Clone + std::fmt::Debug, E> Constraint
     /// This function panics if `values` is empty.
     pub fn add_entity(&mut self, values: T) -> EntityId {
         let id = self.entities.push(values);
-        debug_assert_eq!(self.rules.push(Vec::new()), id);
+        assert_eq!(self.rules.push(Vec::new()), id);
         id
     }
 

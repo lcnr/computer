@@ -29,6 +29,7 @@ Other inspirations:
 ## Roadmap
 
 - lower multiplication and division to simpler operations
+- implement unions
 - replace sum types with unions
 - reduce replace all types with `u8`
 - generate assembly

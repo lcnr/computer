@@ -4,7 +4,7 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-use tindex::{bitset::TBitSet, TVec};
+use tindex::{bitset::TBitSet, TSlice, TVec};
 
 use shared_id::{FieldId, FunctionId, TypeId};
 
@@ -28,13 +28,30 @@ pub enum Type {
     Sum(TBitSet<TypeId>),
 }
 
+impl Type {
+    pub fn is_subtype(ty: TypeId, of: TypeId, types: &TSlice<TypeId, Type>) -> bool {
+        if ty == of {
+            true
+        } else if let &Type::Sum(ref options) = &types[of] {
+            if let &Type::Sum(ref t) = &types[ty] {
+                t.iter().all(|ty| options.get(ty))
+            } else {
+                options.get(ty)
+            }
+        } else {
+            false
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Object {
     Unit,
     U8(u8),
     U16(u16),
     U32(u32),
-    Struct(Vec<Object>),
+    Struct(TVec<FieldId, Object>),
+    Variant(TypeId, Box<Object>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

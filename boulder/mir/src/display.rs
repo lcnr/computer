@@ -14,8 +14,10 @@ impl Display for Binop {
             Self::Mul => write!(f, "mul"),
             Self::Div => write!(f, "div"),
             Self::Shl => write!(f, "shl"),
+            Self::Shr => write!(f, "shr"),
             Self::Eq => write!(f, "eq"),
             Self::Lt => write!(f, "lt"),
+            Self::Gt => write!(f, "gt"),
             Self::BitOr => write!(f, "bitor"),
             Self::BitAnd => write!(f, "bitand"),
         }
@@ -72,6 +74,7 @@ impl Display for Object {
                 }
                 write!(f, ")")
             }
+            Object::Variant(id, obj) => write!(f, "{}: {}", id, obj),
         }
     }
 }
