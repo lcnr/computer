@@ -1,4 +1,6 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, mem};
+
+use tindex::bitset::TBitSet;
 
 use crate::{
     traits::UpdateStepIds, Action, Block, BlockId, Function, Mir, StepId, Terminator, Type,
@@ -49,7 +51,92 @@ impl Mir {
     /// unify blocks if they are only found in sequence
     /// this simplifies future optimizations
     pub fn unify_blocks(&mut self) {
-        // TODO
+        for func in self.functions.iter_mut() {
+            let mut used = TBitSet::new();
+            used.add(BlockId::from(0));
+            let mut allowed = TBitSet::new();
+            for block in func.blocks.iter() {
+                match &block.terminator {
+                    &Terminator::Return(_) => (),
+                    &Terminator::Goto(block, _) => {
+                        allowed.set(block, !used.get(block));
+                        used.add(block);
+                    }
+                    &Terminator::Match(_, ref arms) => {
+                        for arm in arms.iter() {
+                            allowed.set(arm.1, !used.get(arm.1));
+                            used.add(arm.1);
+                        }
+                    }
+                }
+            }
+
+            let mut to_remove = TBitSet::new();
+            for i in 0..func.blocks.len() {
+                let id = BlockId::from(i);
+                if let &mut Terminator::Goto(block, ref mut goto_steps) = &mut func[id].terminator {
+                    if allowed.get(block) {
+                        let glue = mem::replace(goto_steps, Vec::new());
+                        let mut removed = mem::replace(&mut func[block], Block::new());
+                        removed.update_step_ids(&mut |step_id| {
+                            if let Some(&target_id) = glue.get(step_id.0) {
+                                *step_id = target_id;
+                            } else {
+                                step_id.0 = step_id.0 - glue.len() + func[id].steps.len();
+                            }
+                        });
+                        func[id].terminator = removed.terminator;
+                        func[id]
+                            .steps
+                            .extend_from_slice(&removed.steps[StepId::from(glue.len())..]);
+                        to_remove.add(block);
+                    }
+                }
+            }
+
+            for i in to_remove.iter().rev() {
+                func.remove_block(i);
+            }
+        }
+    }
+
+    pub fn remove_unused_steps(&mut self) {
+        for func in self.functions.iter_mut() {
+            let mut changing = true;
+            while changing {
+                changing = false;
+                for block in (0..func.blocks.len()).map(BlockId::from) {
+                    let mut used = TBitSet::new();
+                    func[block].terminator.used_steps(&mut used);
+                    let mut new_used = TBitSet::new();
+                    while new_used != used {
+                        for step in used.iter().rev() {
+                            new_used.add(step);
+                            func[block].steps[step].used_steps(&mut new_used);
+                        }
+                        mem::swap(&mut used, &mut new_used);
+                    }
+
+                    for step in (func[block].input.len()..func[block].steps.len())
+                        .rev()
+                        .map(StepId::from)
+                    {
+                        if !used.get(step) {
+                            func[block].remove_step(step);
+                        }
+                    }
+
+                    if block.0 != 0 {
+                        for i in (0..func[block].input.len()).rev() {
+                            if !used.get(StepId::from(i)) {
+                                changing = true;
+                                func.remove_block_input(block, i);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -84,6 +171,36 @@ impl Function {
         self.blocks.remove(id);
         for block in self.blocks.iter_mut() {
             block.terminator.shift_block_ids(id, -1);
+        }
+    }
+
+    pub fn remove_block_input(&mut self, id: BlockId, input: usize) {
+        self[id].input.remove(input);
+        for step in (0..self[id].steps.len()).map(StepId::from).rev() {
+            if let &mut Action::LoadInput(ref mut i) = &mut self[id][step].action {
+                if *i == input {
+                    self[id].remove_step(step);
+                } else if *i > input {
+                    *i -= 1;
+                }
+            }
+        }
+        for block in self.blocks.iter_mut() {
+            match &mut block.terminator {
+                &mut Terminator::Return(_) => (),
+                &mut Terminator::Goto(target, ref mut steps) => {
+                    if target == id {
+                        steps.remove(input);
+                    }
+                }
+                &mut Terminator::Match(_, ref mut arms) => {
+                    for &mut (_, block, ref mut steps) in arms.iter_mut() {
+                        if block == id {
+                            steps.remove(input);
+                        }
+                    }
+                }
+            }
         }
     }
 }

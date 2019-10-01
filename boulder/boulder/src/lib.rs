@@ -14,14 +14,24 @@ pub fn compile(src: &str) -> Result<mir::Mir, CompileError> {
     mir.remove_noop_extend();
     dbg!(mir.step_count());
     mir.validate();
+    mir.unify_blocks();
+    dbg!(mir.step_count());
+    mir.validate();
+    mir.remove_unused_steps();
+    dbg!(mir.step_count());
+    mir.validate();
     mir.reduce_binops();
+    dbg!(mir.step_count());
+    mir.validate();
     if false {
         use mir::Object;
         let mut bmi = bmi::BoulderMirInterpreter::new(&mir);
         println!("{}", mir);
-        println!("{:?}", bmi.execute_function(0.into(), &[]));
+        println!(
+            "{:?}",
+            bmi.execute_function(0.into(), &[Object::U32(39), Object::U32(4)])
+        );
     };
-    mir.validate();
-    dbg!(mir.step_count());
+
     Ok(mir)
 }
