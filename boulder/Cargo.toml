@@ -3,7 +3,7 @@
 members = [
     "solver",
     "boulder",
-    "bmi",
+    "mir_interpreter",
     "diagnostics",
     "shared_id",
     "parse",

@@ -1,3 +1,7 @@
+# fn gt(6) -> False
+# fn gt(7) -> False
+# fn gt(8) -> True
+
 fn gt(a: u32) -> Bool {
     a > 7
 }

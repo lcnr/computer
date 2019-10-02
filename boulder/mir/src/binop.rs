@@ -14,8 +14,8 @@ pub enum Binop {
     Shr,
     Eq,
     Neq,
-    Lt,
     Gt,
+    Gte,
     BitOr,
     BitAnd,
 }
@@ -34,7 +34,7 @@ impl Binop {
                 assert_eq!(a.ty, b.ty);
                 assert_eq!(a.ty, this.ty);
             }
-            Self::Lt | Self::Eq | Self::Neq | Self::Gt => {
+            Self::Eq | Self::Neq | Self::Gt | Self::Gte => {
                 assert_eq!(a.ty, b.ty);
                 assert_eq!(this.ty, BOOL_TYPE_ID);
             }
@@ -175,7 +175,7 @@ impl Mir {
                         .add_step(op_ty, Action::Binop(Binop::Add, curr_bit, one));
                     let n_bits = function[terminal].add_step(op_ty, n_bits_action);
                     let check = function[terminal]
-                        .add_step(BOOL_TYPE_ID, Action::Binop(Binop::Lt, curr_bit, n_bits));
+                        .add_step(BOOL_TYPE_ID, Action::Binop(Binop::Gt, n_bits, curr_bit));
                     if let Terminator::Goto(fin, steps) =
                         mem::replace(&mut function[terminal].terminator, Terminator::invalid())
                     {

@@ -257,6 +257,13 @@ impl Mir {
             .flat_map(|b| b.steps.iter())
             .count()
     }
+
+    pub fn get_function(&self, name: &str) -> Option<FunctionId> {
+        self.functions
+            .iter()
+            .position(|f| f.name.as_ref() == name)
+            .map(FunctionId::from)
+    }
 }
 
 impl Index<TypeId> for Mir {

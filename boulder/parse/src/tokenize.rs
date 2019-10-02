@@ -609,7 +609,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                     } else {
                         unimplemented!()
                     }
-                },
+                }
                 '\'' => self.parse_char_or_scope(),
                 _ => self.recover(self.byte_offset),
             }

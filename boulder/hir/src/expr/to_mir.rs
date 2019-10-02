@@ -185,10 +185,10 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                         }
                         Action::Binop(mir::binop::Binop::Neq, a, b)
                     }
-                    Binop::Lt => Action::Binop(mir::binop::Binop::Lt, a, b),
-                    Binop::Gte => Action::Binop(mir::binop::Binop::Lt, b, a),
                     Binop::Gt => Action::Binop(mir::binop::Binop::Gt, a, b),
-                    Binop::Lte => Action::Binop(mir::binop::Binop::Gt, b, a),
+                    Binop::Lt => Action::Binop(mir::binop::Binop::Gt, b, a),
+                    Binop::Gte => Action::Binop(mir::binop::Binop::Gte, b, a),
+                    Binop::Lte => Action::Binop(mir::binop::Binop::Gte, b, a),
                 };
                 Ok(ctx.func[*ctx.curr].add_step(ty, action))
             }

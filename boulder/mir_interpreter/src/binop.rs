@@ -143,16 +143,16 @@ impl<'a> BoulderMirInterpreter<'a> {
                 }
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
-            Binop::Lt => match (&steps[a], &steps[b]) {
-                (&Object::U8(x), &Object::U8(y)) => Ok(to_bool(x < y)),
-                (&Object::U16(x), &Object::U16(y)) => Ok(to_bool(x < y)),
-                (&Object::U32(x), &Object::U32(y)) => Ok(to_bool(x < y)),
-                _ => Err(InterpretError::InvalidOperation(function, block, step)),
-            },
             Binop::Gt => match (&steps[a], &steps[b]) {
                 (&Object::U8(x), &Object::U8(y)) => Ok(to_bool(x > y)),
                 (&Object::U16(x), &Object::U16(y)) => Ok(to_bool(x > y)),
                 (&Object::U32(x), &Object::U32(y)) => Ok(to_bool(x > y)),
+                _ => Err(InterpretError::InvalidOperation(function, block, step)),
+            },
+            Binop::Gte => match (&steps[a], &steps[b]) {
+                (&Object::U8(x), &Object::U8(y)) => Ok(to_bool(x >= y)),
+                (&Object::U16(x), &Object::U16(y)) => Ok(to_bool(x >= y)),
+                (&Object::U32(x), &Object::U32(y)) => Ok(to_bool(x >= y)),
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
             Binop::BitOr => match (&steps[a], &steps[b]) {
