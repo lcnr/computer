@@ -2,8 +2,21 @@
 
 ## Types
 
-Functions without an explicit return type return `struct Empty`, which is a type with size 0 and exactly 1 value: `Empty`.
-`;` changes the value of the previous expression to `Empty`, this means that multiple `;`.
+### Core types
+
+Three unsigned integers `uN` where n denotes the size in bits: `u8`, `u16`, `u32`.
+The unit type `Empty`, implicitly returned by functions and expressions terminated with `;`.
+Empty blocks, `while` loops and an a missing `else` also return `Empty`.
+
+### Unit types
+
+Unit types are created with `struct <name>;` and have size 0. They can be instantiated using `<name>`.
+
+### Struct
+
+Functions without an explicit return type return the unit type `Empty`.
+`;` changes the value of the previous expression to `Empty`,
+this means that multiple `;` in a row are valid.
 
 ## Side effects
 
@@ -16,6 +29,7 @@ Do not take UB lightly.
 
 The list of currently known UB:
 
-- integer overflow during addition and subtraction
-- endless loops or recursion must not be present if they do not contain side effects,
+- integer overflow during addition, substraction and multiplication
+- dividing by 0
+- endless loops or recursion,
     halting should be implemented using the `halt` intrinsic.

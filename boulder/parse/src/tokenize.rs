@@ -54,7 +54,7 @@ pub enum BlockDelim {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Operator {
+pub enum Binop {
     /// `+`
     Add,
     /// `-`
@@ -67,42 +67,38 @@ pub enum Operator {
     Shl,
     /// `>>`
     Shr,
-    /*
-
+    /// `>`
+    Gt,
     /// `>=`
     Gte,
-
+    /// `==`
+    Eq,
     /// `!=`
     Neq,
     /// `<=`
     Lte,
-    */
-    /// `==`
-    Eq,
     /// `<`
     Lt,
-    /// `>`
-    Gt,
     /// `|`
     BitOr,
     /// `&`
     BitAnd,
 }
 
-impl Operator {
+impl Binop {
     /// the result must be greater than 0
     /// as 0 is used in case there is no previous
     /// binop
     pub fn priority(self) -> u32 {
         match self {
-            Operator::Lt | Operator::Gt | Operator::Eq => 10,
-            Operator::BitOr => 20,
-            Operator::BitAnd => 21,
-            Operator::Shl | Operator::Shr => 30,
-            Operator::Add => 35,
-            Operator::Sub => 35,
-            Operator::Mul => 40,
-            Operator::Div => 40,
+            Binop::Gt | Binop::Gte | Binop::Eq | Binop::Neq | Binop::Lte | Binop::Lt => 10,
+            Binop::BitOr => 20,
+            Binop::BitAnd => 21,
+            Binop::Shl | Binop::Shr => 30,
+            Binop::Add => 35,
+            Binop::Sub => 35,
+            Binop::Mul => 40,
+            Binop::Div => 40,
         }
     }
 
@@ -113,57 +109,69 @@ impl Operator {
         b: crate::Expression<'a>,
     ) -> crate::Expression<'a> {
         match self {
-            Operator::Add => {
+            Binop::Add => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::Add), a.into(), b.into())
             }
-            Operator::Sub => {
+            Binop::Sub => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::Sub), a.into(), b.into())
             }
-            Operator::Mul => {
+            Binop::Mul => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::Mul), a.into(), b.into())
             }
-            Operator::Div => {
+            Binop::Div => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::Div), a.into(), b.into())
             }
-            Operator::Shl => {
+            Binop::Shl => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::Shl), a.into(), b.into())
             }
-            Operator::Shr => {
+            Binop::Shr => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::Shr), a.into(), b.into())
             }
-            Operator::Eq => {
-                crate::Expression::Binop((), meta.replace(hir::Binop::Eq), a.into(), b.into())
-            }
-            Operator::Lt => {
-                crate::Expression::Binop((), meta.replace(hir::Binop::Lt), a.into(), b.into())
-            }
-            Operator::Gt => {
+            Binop::Gt => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::Gt), a.into(), b.into())
             }
-            Operator::BitOr => {
+            Binop::Gte => {
+                crate::Expression::Binop((), meta.replace(hir::Binop::Gte), a.into(), b.into())
+            }
+            Binop::Eq => {
+                crate::Expression::Binop((), meta.replace(hir::Binop::Eq), a.into(), b.into())
+            }
+            Binop::Neq => {
+                crate::Expression::Binop((), meta.replace(hir::Binop::Neq), a.into(), b.into())
+            }
+            Binop::Lte => {
+                crate::Expression::Binop((), meta.replace(hir::Binop::Lte), a.into(), b.into())
+            }
+            Binop::Lt => {
+                crate::Expression::Binop((), meta.replace(hir::Binop::Lt), a.into(), b.into())
+            }
+            Binop::BitOr => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::BitOr), a.into(), b.into())
             }
-            Operator::BitAnd => {
+            Binop::BitAnd => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::BitAnd), a.into(), b.into())
             }
         }
     }
 }
 
-impl fmt::Display for Operator {
+impl fmt::Display for Binop {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Operator::Add => write!(f, "+"),
-            Operator::Sub => write!(f, "-"),
-            Operator::Mul => write!(f, "*"),
-            Operator::Div => write!(f, "/"),
-            Operator::Shl => write!(f, "<<"),
-            Operator::Shr => write!(f, ">>"),
-            Operator::Eq => write!(f, "=="),
-            Operator::Lt => write!(f, "<"),
-            Operator::Gt => write!(f, ">"),
-            Operator::BitOr => write!(f, "|"),
-            Operator::BitAnd => write!(f, "&"),
+            Binop::Add => write!(f, "+"),
+            Binop::Sub => write!(f, "-"),
+            Binop::Mul => write!(f, "*"),
+            Binop::Div => write!(f, "/"),
+            Binop::Shl => write!(f, "<<"),
+            Binop::Shr => write!(f, ">>"),
+            Binop::Gt => write!(f, ">"),
+            Binop::Gte => write!(f, ">="),
+            Binop::Eq => write!(f, "=="),
+            Binop::Neq => write!(f, "!="),
+            Binop::Lte => write!(f, "<="),
+            Binop::Lt => write!(f, "<"),
+            Binop::BitOr => write!(f, "|"),
+            Binop::BitAnd => write!(f, "&"),
         }
     }
 }
@@ -175,7 +183,7 @@ pub enum Token {
     Keyword(Keyword),
     OpenBlock(BlockDelim),
     CloseBlock(BlockDelim),
-    Operator(Operator),
+    Binop(Binop),
     Assignment,
     SemiColon,
     Colon,
@@ -201,7 +209,7 @@ impl fmt::Display for Token {
             Token::CloseBlock(BlockDelim::Parenthesis) => write!(f, ")"),
             Token::CloseBlock(BlockDelim::Bracket) => write!(f, "]"),
             Token::CloseBlock(BlockDelim::Brace) => write!(f, "}}"),
-            Token::Operator(o) => write!(f, "{}", o),
+            Token::Binop(o) => write!(f, "{}", o),
             Token::Assignment => write!(f, "="),
             Token::SemiColon => write!(f, ";"),
             Token::Colon => write!(f, ":"),
@@ -484,7 +492,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                 '+' => {
                     self.advance();
                     self.new_token(
-                        Token::Operator(Operator::Add),
+                        Token::Binop(Binop::Add),
                         self.byte_offset - 1..self.byte_offset,
                     )
                 }
@@ -495,7 +503,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                         self.new_token(Token::Arrow, self.byte_offset - 2..self.byte_offset)
                     } else {
                         self.new_token(
-                            Token::Operator(Operator::Sub),
+                            Token::Binop(Binop::Sub),
                             self.byte_offset - 1..self.byte_offset,
                         )
                     }
@@ -503,14 +511,14 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                 '*' => {
                     self.advance();
                     self.new_token(
-                        Token::Operator(Operator::Mul),
+                        Token::Binop(Binop::Mul),
                         self.byte_offset - 1..self.byte_offset,
                     )
                 }
                 '/' => {
                     self.advance();
                     self.new_token(
-                        Token::Operator(Operator::Div),
+                        Token::Binop(Binop::Div),
                         self.byte_offset - 1..self.byte_offset,
                     )
                 }
@@ -520,7 +528,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                         unimplemented!()
                     } else {
                         self.new_token(
-                            Token::Operator(Operator::BitOr),
+                            Token::Binop(Binop::BitOr),
                             self.byte_offset - 1..self.byte_offset,
                         )
                     }
@@ -531,7 +539,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                         unimplemented!()
                     } else {
                         self.new_token(
-                            Token::Operator(Operator::BitAnd),
+                            Token::Binop(Binop::BitAnd),
                             self.byte_offset - 1..self.byte_offset,
                         )
                     }
@@ -541,7 +549,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                     if self.current_char().map_or(false, |c| c == '=') {
                         self.advance();
                         self.new_token(
-                            Token::Operator(Operator::Eq),
+                            Token::Binop(Binop::Eq),
                             self.byte_offset - 2..self.byte_offset,
                         )
                     } else {
@@ -553,14 +561,18 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                     if self.current_char().map_or(false, |c| c == '>') {
                         self.advance();
                         self.new_token(
-                            Token::Operator(Operator::Shr),
+                            Token::Binop(Binop::Shr),
                             self.byte_offset - 2..self.byte_offset,
                         )
                     } else if self.current_char().map_or(false, |c| c == '=') {
-                        unimplemented!()
+                        self.advance();
+                        self.new_token(
+                            Token::Binop(Binop::Gte),
+                            self.byte_offset - 2..self.byte_offset,
+                        )
                     } else {
                         self.new_token(
-                            Token::Operator(Operator::Gt),
+                            Token::Binop(Binop::Gt),
                             self.byte_offset - 1..self.byte_offset,
                         )
                     }
@@ -570,19 +582,34 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                     if self.current_char().map_or(false, |c| c == '<') {
                         self.advance();
                         self.new_token(
-                            Token::Operator(Operator::Shl),
+                            Token::Binop(Binop::Shl),
                             self.byte_offset - 2..self.byte_offset,
                         )
                     } else if self.current_char().map_or(false, |c| c == '=') {
-                        unimplemented!()
+                        self.advance();
+                        self.new_token(
+                            Token::Binop(Binop::Lte),
+                            self.byte_offset - 2..self.byte_offset,
+                        )
                     } else {
                         self.new_token(
-                            Token::Operator(Operator::Lt),
+                            Token::Binop(Binop::Lt),
                             self.byte_offset - 1..self.byte_offset,
                         )
                     }
                 }
-                '!' => unimplemented!(),
+                '!' => {
+                    self.advance();
+                    if self.current_char().map_or(false, |c| c == '=') {
+                        self.advance();
+                        self.new_token(
+                            Token::Binop(Binop::Neq),
+                            self.byte_offset - 2..self.byte_offset,
+                        )
+                    } else {
+                        unimplemented!()
+                    }
+                },
                 '\'' => self.parse_char_or_scope(),
                 _ => self.recover(self.byte_offset),
             }

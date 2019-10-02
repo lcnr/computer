@@ -4,7 +4,7 @@ use diagnostics::{CompileError, Meta};
 
 mod tokenize;
 
-use tokenize::{BlockDelim, Keyword, Operator, Token, TokenIter};
+use tokenize::{Binop, BlockDelim, Keyword, Token, TokenIter};
 
 type Expression<'a> =
     hir::expr::Expression<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedTypes<'a>>;
@@ -138,10 +138,10 @@ fn parse_type<'a>(
 ) -> Result<Meta<'a, hir::UnresolvedType<'a>>, CompileError> {
     let first = expect_ident(iter.next().unwrap())?;
     let next = iter.next().unwrap();
-    if let Token::Operator(Operator::BitOr) = &next.item {
+    if let Token::Binop(Binop::BitOr) = &next.item {
         let mut parts = vec![first];
         let mut next = next;
-        while let Token::Operator(Operator::BitOr) = &next.item {
+        while let Token::Binop(Binop::BitOr) = &next.item {
             let component = expect_ident(iter.next().unwrap())?;
             parts.push(component);
             next = iter.next().unwrap();
@@ -422,9 +422,9 @@ fn parse_binop_rhs<'a>(
 
     let next = iter.next().unwrap();
     Ok(match &next.item {
-        Token::Operator(_) => {
+        Token::Binop(_) => {
             let mut next = next;
-            while let Token::Operator(op) = next.item {
+            while let Token::Binop(op) = next.item {
                 if op.priority() > priority {
                     expr = op.as_hir_expr(next, expr, parse_binop_rhs(op.priority(), iter)?);
                 } else {
@@ -453,7 +453,7 @@ fn parse_binop<'a>(
     let mut next = iter.next().unwrap();
     loop {
         match next.item {
-            Token::Operator(op) => {
+            Token::Binop(op) => {
                 lhs = op.as_hir_expr(next.simplify(), lhs, parse_binop_rhs(op.priority(), iter)?);
                 next = iter.next().unwrap();
             }
@@ -474,7 +474,7 @@ fn parse_binop<'a>(
         _ => {
             iter.step_back(check_expr_terminator(
                 next,
-                &[Token::Operator(Operator::Add), Token::Dot, Token::Colon],
+                &[Token::Binop(Binop::Add), Token::Dot, Token::Colon],
             )?);
             Ok(lhs)
         }
@@ -651,10 +651,7 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
                     if let Expression::Variable((), var) = expr {
                         Expression::Assignment((), var, Box::new(parse_expression(iter)?))
                     } else {
-                        Err(
-                            check_expr_terminator(next, &[Token::Operator(Operator::Add)])
-                                .unwrap_err(),
-                        )?
+                        Err(check_expr_terminator(next, &[Token::Binop(Binop::Add)]).unwrap_err())?
                     }
                 }
                 _ => {

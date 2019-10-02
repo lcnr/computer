@@ -127,6 +127,22 @@ impl<'a> BoulderMirInterpreter<'a> {
                 }
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
+            Binop::Neq => match (&steps[a], &steps[b]) {
+                (&Object::U8(x), &Object::U8(y)) => Ok(to_bool(x != y)),
+                (&Object::U16(x), &Object::U16(y)) => Ok(to_bool(x != y)),
+                (&Object::U32(x), &Object::U32(y)) => Ok(to_bool(x != y)),
+                (&Object::Variant(x, ref v), &Object::Variant(y, ref u)) => {
+                    if (v.as_ref() == &Object::Unit && u.as_ref() == &Object::Unit)
+                        && (x == TRUE_TYPE_ID || x == FALSE_TYPE_ID)
+                        && (y == TRUE_TYPE_ID || y == FALSE_TYPE_ID)
+                    {
+                        Ok(to_bool(x != y))
+                    } else {
+                        Err(InterpretError::InvalidOperation(function, block, step))
+                    }
+                }
+                _ => Err(InterpretError::InvalidOperation(function, block, step)),
+            },
             Binop::Lt => match (&steps[a], &steps[b]) {
                 (&Object::U8(x), &Object::U8(y)) => Ok(to_bool(x < y)),
                 (&Object::U16(x), &Object::U16(y)) => Ok(to_bool(x < y)),

@@ -175,8 +175,20 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                         }
                         Action::Binop(mir::binop::Binop::Eq, a, b)
                     }
+                    Binop::Neq => {
+                        if a_ty == TRUE_TYPE_ID || a_ty == FALSE_TYPE_ID {
+                            a = ctx.func[*ctx.curr].add_step(ty, Action::Extend(a));
+                        }
+
+                        if b_ty == TRUE_TYPE_ID || b_ty == FALSE_TYPE_ID {
+                            b = ctx.func[*ctx.curr].add_step(ty, Action::Extend(b));
+                        }
+                        Action::Binop(mir::binop::Binop::Neq, a, b)
+                    }
                     Binop::Lt => Action::Binop(mir::binop::Binop::Lt, a, b),
+                    Binop::Gte => Action::Binop(mir::binop::Binop::Lt, b, a),
                     Binop::Gt => Action::Binop(mir::binop::Binop::Gt, a, b),
+                    Binop::Lte => Action::Binop(mir::binop::Binop::Gt, b, a),
                 };
                 Ok(ctx.func[*ctx.curr].add_step(ty, action))
             }

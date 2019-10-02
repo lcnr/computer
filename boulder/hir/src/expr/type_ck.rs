@@ -84,7 +84,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                         ctx.solver.add_extension(b.id(), v);
                         Expression::Binop(v, op, Box::new(a), Box::new(b))
                     }
-                    Binop::Eq => {
+                    Binop::Eq | Binop::Neq => {
                         let mut possible_types = ctx.solver.integers().clone();
                         possible_types.add(BOOL_TYPE_ID);
                         let v = ctx.solver.add_bound(possible_types, op.simplify());
@@ -93,7 +93,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                         let v = ctx.solver.add_typed(BOOL_TYPE_ID, op.simplify());
                         Expression::Binop(v, op, Box::new(a), Box::new(b))
                     }
-                    Binop::Lt | Binop::Gt => {
+                    Binop::Gte | Binop::Gt | Binop::Lt | Binop::Lte => {
                         let integer = ctx.solver.add_integer(op.simplify());
                         ctx.solver.add_equality(a.id(), b.id());
                         ctx.solver.add_equality(a.id(), integer);

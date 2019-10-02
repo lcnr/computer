@@ -16,6 +16,7 @@ impl Display for Binop {
             Self::Shl => write!(f, "shl"),
             Self::Shr => write!(f, "shr"),
             Self::Eq => write!(f, "eq"),
+            Self::Neq => write!(f, "neq"),
             Self::Lt => write!(f, "lt"),
             Self::Gt => write!(f, "gt"),
             Self::BitOr => write!(f, "bitor"),
