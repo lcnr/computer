@@ -1,6 +1,5 @@
 use std::{
     convert::identity,
-    mem,
     ops::{Index, IndexMut},
 };
 
@@ -15,7 +14,7 @@ pub mod optimize;
 pub mod traits;
 pub mod validate;
 
-use crate::{binop::Binop, traits::UpdateStepIds};
+use crate::binop::Binop;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
@@ -66,6 +65,12 @@ impl StepId {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BlockId(usize);
 
+impl BlockId {
+    pub fn invalid() -> Self {
+        BlockId(std::usize::MAX)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Terminator {
     Return(StepId),
@@ -76,6 +81,16 @@ pub enum Terminator {
 impl Terminator {
     fn invalid() -> Self {
         Terminator::Return(StepId::invalid())
+    }
+
+    pub fn used_blocks(&self, used: &mut TBitSet<BlockId>) {
+        match self {
+            &Terminator::Return(_) => (),
+            &Terminator::Goto(block, _) => used.add(block),
+            &Terminator::Match(_, ref arms) => {
+                arms.iter().for_each(|arm| used.add(arm.1));
+            }
+        }
     }
 
     pub fn used_steps(&self, used: &mut TBitSet<StepId>) {
@@ -176,38 +191,6 @@ impl Function {
         } else {
             &[]
         }
-    }
-
-    pub fn split_block(&mut self, block: BlockId, after: StepId) -> BlockId {
-        let mut used = TBitSet::new();
-        for step in self[block].steps[after..].iter().skip(1) {
-            step.used_steps(&mut used);
-        }
-        self[block].terminator.used_steps(&mut used);
-        let used = used.iter().filter(|&t| t <= after).collect::<Vec<_>>();
-
-        let new = self.add_block();
-        for &step in used.iter() {
-            let ty = self[block][step].ty;
-            self[new].add_input(ty);
-        }
-
-        let mut content = self[block].steps.split_off(StepId(after.0 + 1));
-        self[new].steps.append(&mut content);
-        let terminator = mem::replace(&mut self[block].terminator, Terminator::invalid());
-        self.blocks[new].add_terminator(terminator);
-
-        self[new].update_step_ids(&mut |id| {
-            if *id > after {
-                id.0 = id.0 + used.len() - (after.0 + 1);
-            } else {
-                id.0 = used.iter().position(|i| id == i).unwrap();
-            }
-        });
-
-        self[block].terminator = Terminator::Goto(new, used);
-
-        new
     }
 }
 

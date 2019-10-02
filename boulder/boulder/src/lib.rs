@@ -12,6 +12,7 @@ pub fn compile(src: &str) -> Result<mir::Mir, CompileError> {
     dbg!(mir.step_count());
     mir.validate();
     mir.remove_noop_extend();
+
     dbg!(mir.step_count());
     mir.validate();
     mir.unify_blocks();
@@ -20,7 +21,10 @@ pub fn compile(src: &str) -> Result<mir::Mir, CompileError> {
     mir.remove_unused_steps();
     dbg!(mir.step_count());
     mir.validate();
-    mir.reduce_binops();
+    mir.remove_redirects();
+    dbg!(mir.step_count());
+    mir.validate();
+    //mir.reduce_binops();
     dbg!(mir.step_count());
     mir.validate();
     if false {
