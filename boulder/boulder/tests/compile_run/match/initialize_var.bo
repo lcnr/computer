@@ -1,3 +1,6 @@
+# fn init_var(42) -> 42
+# fn init_var() -> 0
+
 fn init_var(a: u32 | Empty) -> u32 {
     let x;
     match a {

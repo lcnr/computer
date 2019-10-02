@@ -1,3 +1,5 @@
+# fn break_empty() -> 7
+
 fn break_empty() -> u32 {
     { break Empty; }: Empty;
     7

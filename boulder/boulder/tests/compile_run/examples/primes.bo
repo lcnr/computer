@@ -1,3 +1,7 @@
+# fn is_prime(5) -> True
+# fn is_prime(1000) -> False
+# fn mod(5,3) -> 2
+
 fn is_prime(n: u32) -> Bool {
     if n < 2 {
         False

@@ -1,3 +1,6 @@
+# fn bool() -> True
+# fn arm() -> True
+
 fn bool() -> Bool {
     True
 }

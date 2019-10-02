@@ -1,3 +1,5 @@
+# fn test(A{a:2,b:40}) -> 42
+
 struct A {
     a: u32,
     b: u32,

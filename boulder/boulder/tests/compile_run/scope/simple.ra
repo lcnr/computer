@@ -1,3 +1,5 @@
+# fn simple_scope() -> 7
+
 fn simple_scope() -> u32 {
     {
         7

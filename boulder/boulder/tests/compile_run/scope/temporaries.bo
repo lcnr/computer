@@ -1,4 +1,7 @@
-fn temporaries() -> u32 {
+# fn temporaries(True) -> 26
+# fn temporaries(False) -> 33
+
+fn temporaries(True:Bool) -> u32 {
     7 + {
         5
     } + match True: Bool {

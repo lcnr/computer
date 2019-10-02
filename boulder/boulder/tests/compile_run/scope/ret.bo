@@ -1,3 +1,5 @@
+# fn ret() -> 7
+
 fn ret() -> u32 {
     return 7;
     5

@@ -1,3 +1,5 @@
+# fn test(A{field:41},1) -> 42
+
 struct A {
     field: u32
 }

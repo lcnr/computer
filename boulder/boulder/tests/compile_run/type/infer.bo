@@ -1,7 +1,17 @@
+# fn infer_type() -> 14
+# fn infer_type2() -> 14
+
 fn infer_type() -> u32 {
     let c = 7;
     let d = 12;
     let e = c + 3;
     let f = c * (d - e);
     f
+}
+
+fn infer_type2() -> u32 {
+    let c = 7;
+    let d = 12;
+    let e = c + 3;
+    c * (d - e)
 }

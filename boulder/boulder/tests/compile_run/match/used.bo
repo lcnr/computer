@@ -1,5 +1,8 @@
+# fn used_match(1, 2, 3) -> 5
+# fn used_match(1,2) -> 42
+
 fn used_match(a: u32, b: u32, c: u32 | Empty) -> u32 {
-    a + match c {
+    a + match c: u32 | Empty {
         value: u32 -> value + 1,
         nothing: Empty -> 42,
     }

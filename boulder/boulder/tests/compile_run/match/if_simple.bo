@@ -1,3 +1,6 @@
+# fn if_simple(True) -> 3
+# fn if_simple(False) -> 4
+
 fn if_simple(a: Bool) -> u8 {
     if a {
         3

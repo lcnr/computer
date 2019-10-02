@@ -1,3 +1,5 @@
+# fn break_var() -> 7
+
 fn break_var() -> u32 {
     let a = 7;
     {

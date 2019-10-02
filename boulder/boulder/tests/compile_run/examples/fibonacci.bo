@@ -1,3 +1,6 @@
+# fn fibonacci(5) -> 8
+# fn fibonacci(27) -> 1
+
 fn fibonacci(a: u32) -> u32 {
     if a < 2 {
         1

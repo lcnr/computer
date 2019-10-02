@@ -1,3 +1,6 @@
+# fn extend(42) -> 42
+# fn extend(266) -> 266
+
 fn extend(a: u32) -> u32 | u16 {
     a
 }

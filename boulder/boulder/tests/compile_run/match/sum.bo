@@ -1,3 +1,5 @@
+# fn test() -> Empty
+
 struct A;
 struct B;
 struct C;

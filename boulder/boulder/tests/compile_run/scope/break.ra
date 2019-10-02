@@ -1,3 +1,5 @@
+# fn scoped() -> 7
+
 fn scoped() -> u32 {
     'block: {
         {

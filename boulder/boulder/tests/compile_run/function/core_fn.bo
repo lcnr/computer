@@ -1,3 +1,17 @@
+# fn empty() -> Empty
+# fn empty_explicit() -> Empty
+# fn const() -> 12
+# fn identity(2) -> 2
+# fn identity(58923) -> 58923
+# fn identity_comma(56) -> 56
+# fn add(3) -> 4
+# fn add_rev(5) -> 6
+# fn add_identical(2) -> 4
+# fn paranthesis_a(1,1) -> 1
+# fn paranthesis_b(1,1) -> 0
+# fn assignment(1) -> 3
+# fn variable_shadow(1) -> 2
+
 fn empty() {}
 fn empty_explicit() -> Empty {}
 fn const() -> u32 { 12 }

@@ -1,3 +1,5 @@
+# fn if_empty() -> 7
+
 fn if_empty() -> u32 {
     let x: u32 | Empty = if True {
         7: u32

@@ -1,3 +1,5 @@
+# fn test(Unit{}) -> Unit
+
 struct Unit;
 
 fn test(a: Unit) -> Unit {

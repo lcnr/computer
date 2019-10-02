@@ -1,4 +1,7 @@
-fn underscore() -> u8 {
+# fn underscore(True) -> 4
+# fn underscore(False) -> 3
+
+fn underscore(True:Bool) -> u8 {
     match True: Bool {
         _: True -> 4,
         _: False -> 3,

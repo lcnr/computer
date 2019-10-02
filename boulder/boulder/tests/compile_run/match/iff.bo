@@ -1,3 +1,7 @@
+# fn invert(True) -> False
+# fn iff() -> 9
+# fn iff_empty() -> 7
+
 fn invert(b: Bool) -> Bool {
     if b {
         False

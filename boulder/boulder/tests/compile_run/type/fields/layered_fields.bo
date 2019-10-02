@@ -1,3 +1,5 @@
+# fn access(A{b:B{b:1, c:C{b:42}}}) -> 42
+
 struct A {
     b: B,
 }
