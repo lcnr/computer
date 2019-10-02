@@ -1,3 +1,5 @@
+# fn many_loops() -> 14
+
 fn many_loops() -> u32 {
     let a = loop {
         break 4;

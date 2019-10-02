@@ -1,3 +1,7 @@
+# fn bitor_int(7, 10) -> 15
+# fn bitor_bool(True, True) -> True
+# fn bitor_bool(False, True) -> True
+# fn bitor_bool2(False, True) -> True
 fn bitor_int(a: u32, b: u32) -> u32 {
     a | b + 4;
     3 + b | a

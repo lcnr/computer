@@ -1,3 +1,6 @@
+# fn break_sum(0) -> True
+# fn break_sum(1) -> False
+
 fn break_sum(a: u32) -> Bool {
     loop {
         match a < 1 {
