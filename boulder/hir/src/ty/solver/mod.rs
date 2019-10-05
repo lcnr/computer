@@ -26,28 +26,28 @@ enum EntityState {
     Unbound,
     Restricted {
         /// at most a combination of the listed types
-        supertypes: TBitSet<TypeId>,
-        /// contains at least these subtypes
-        subtypes: TBitSet<TypeId>,
+        upper_limit: TBitSet<TypeId>,
+        /// contains at least these lower_limit
+        lower_limit: TBitSet<TypeId>,
     },
     Bound(TBitSet<TypeId>),
 }
 
 impl EntityState {
     fn simplify_restriction(
-        supertypes: TBitSet<TypeId>,
-        subtypes: TBitSet<TypeId>,
+        upper_limit: TBitSet<TypeId>,
+        lower_limit: TBitSet<TypeId>,
         types: &mut TVec<TypeId, Type<TypeId>>,
         lookup: &mut HashMap<Box<str>, TypeId>,
     ) -> Self {
-        if supertypes.element_count() == 1 {
-            EntityState::Bound(supertypes)
-        } else if supertypes == subtypes {
-            EntityState::Bound(iter::once(ty::build_sum_ty(types, lookup, &supertypes)).collect())
+        if upper_limit.element_count() == 1 {
+            EntityState::Bound(upper_limit)
+        } else if upper_limit == lower_limit {
+            EntityState::Bound(iter::once(ty::build_sum_ty(types, lookup, &upper_limit)).collect())
         } else {
             EntityState::Restricted {
-                supertypes,
-                subtypes,
+                upper_limit,
+                lower_limit,
             }
         }
     }
@@ -61,19 +61,19 @@ impl EntityState {
         match &self {
             EntityState::Unbound => {
                 *self = EntityState::Restricted {
-                    supertypes: TBitSet::new(),
-                    subtypes: restriction,
+                    upper_limit: TBitSet::new(),
+                    lower_limit: restriction,
                 };
                 true
             }
             EntityState::Restricted {
-                supertypes,
-                subtypes,
+                upper_limit,
+                lower_limit,
             } => {
-                if supertypes.is_empty() || !restriction.iter().any(|r| !supertypes.get(r)) {
-                    restriction.extend(subtypes.iter());
+                if upper_limit.is_empty() || !restriction.iter().any(|r| !upper_limit.get(r)) {
+                    restriction.extend(lower_limit.iter());
                     *self =
-                        Self::simplify_restriction(supertypes.clone(), restriction, types, lookup);
+                        Self::simplify_restriction(upper_limit.clone(), restriction, types, lookup);
                     true
                 } else {
                     false
@@ -83,8 +83,8 @@ impl EntityState {
                 let allowed_types: TBitSet<_> = v
                     .iter()
                     .filter(|&v| {
-                        let subtypes = ty::subtypes(v, types);
-                        restriction.iter().all(|ty| subtypes.get(ty))
+                        let lower_limit = ty::subtypes(v, types);
+                        restriction.iter().all(|ty| lower_limit.get(ty))
                     })
                     .collect();
 
@@ -107,27 +107,31 @@ impl EntityState {
         match &self {
             EntityState::Unbound => {
                 *self = EntityState::Restricted {
-                    supertypes: restriction,
-                    subtypes: TBitSet::new(),
+                    upper_limit: restriction,
+                    lower_limit: TBitSet::new(),
                 };
                 true
             }
             EntityState::Restricted {
-                supertypes,
-                subtypes,
+                upper_limit,
+                lower_limit,
             } => {
-                let allowed_types = if supertypes.is_empty() {
+                let allowed_types = if upper_limit.is_empty() {
                     restriction
                 } else {
-                    supertypes
+                    upper_limit
                         .iter()
                         .filter(|&ty| restriction.get(ty))
                         .collect()
                 };
 
-                if !allowed_types.is_empty() && subtypes.iter().all(|ty| allowed_types.get(ty)) {
-                    *self =
-                        Self::simplify_restriction(allowed_types, subtypes.clone(), types, lookup);
+                if !allowed_types.is_empty() && lower_limit.iter().all(|ty| allowed_types.get(ty)) {
+                    *self = Self::simplify_restriction(
+                        allowed_types,
+                        lower_limit.clone(),
+                        types,
+                        lookup,
+                    );
                     true
                 } else {
                     false
@@ -156,8 +160,8 @@ impl EntityState {
                 true
             }
             EntityState::Restricted {
-                supertypes,
-                subtypes,
+                upper_limit,
+                lower_limit,
             } => {
                 let mut allowed_types = TBitSet::new();
                 for ty in ty {
@@ -170,11 +174,11 @@ impl EntityState {
                         }
                     };
 
-                    let is_valid = if !supertypes.is_empty() {
-                        e.iter().all(|t| supertypes.get(t))
+                    let is_valid = if !upper_limit.is_empty() {
+                        e.iter().all(|t| upper_limit.get(t))
                     } else {
                         true
-                    } && subtypes.iter().fold(true, |s, t| s && e.get(t));
+                    } && lower_limit.iter().fold(true, |s, t| s && e.get(t));
 
                     if is_valid {
                         allowed_types.add(ty);
@@ -293,11 +297,11 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         match expected {
             EntityState::Unbound => "any type".into(),
             EntityState::Restricted {
-                supertypes,
-                subtypes,
+                upper_limit,
+                lower_limit,
             } => {
-                let supertypes = supertypes.iter().collect::<Box<[_]>>();
-                let sup = match supertypes.as_ref() {
+                let upper_limit = upper_limit.iter().collect::<Box<[_]>>();
+                let sup = match upper_limit.as_ref() {
                     &[] => String::new(),
                     &[one] => format!("`{}`", types[one].name.item),
                     &[one, two] => format!(
@@ -310,14 +314,14 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
                     ),
                     _ => format!(
                         "a combination of `{}`, `{}` or {} more",
-                        types[supertypes[0]].name.item,
-                        types[supertypes[1]].name.item,
-                        supertypes.len() - 2
+                        types[upper_limit[0]].name.item,
+                        types[upper_limit[1]].name.item,
+                        upper_limit.len() - 2
                     ),
                 };
 
-                let subtypes = subtypes.iter().collect::<Box<[_]>>();
-                let sub = match subtypes.as_ref() {
+                let lower_limit = lower_limit.iter().collect::<Box<[_]>>();
+                let sub = match lower_limit.as_ref() {
                     &[] => String::new(),
                     &[one] => format!("containing `{}`", types[one].name.item),
                     &[one, two] => format!(
@@ -330,9 +334,9 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
                     ),
                     _ => format!(
                         "containing `{}`, `{}` or {} more",
-                        types[subtypes[0]].name.item,
-                        types[subtypes[1]].name.item,
-                        subtypes.len() - 2
+                        types[lower_limit[0]].name.item,
+                        types[lower_limit[1]].name.item,
+                        lower_limit.len() - 2
                     ),
                 };
 

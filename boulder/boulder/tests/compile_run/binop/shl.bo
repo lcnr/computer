@@ -1,4 +1,8 @@
-# fn shl() -> 384
 fn shl() -> u32 {
     (3 << 2 + 4) << 1
+}
+
+@test
+fn test() -> Bool {
+    shl() == 384
 }

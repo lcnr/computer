@@ -1,6 +1,6 @@
 use diagnostics::Meta;
 
-use crate::{Binop, IdentifierState, Literal, Pattern, TypeState};
+use crate::{Binop, IdentifierState, Literal, Pattern, TypeState, UnaryOperation};
 
 mod ident;
 mod to_mir;
@@ -21,6 +21,7 @@ pub enum Expression<'a, V: IdentifierState, N: TypeState> {
     Block(N::Type, V::Scope, Vec<Expression<'a, V, N>>),
     Variable(N::Type, V::Variable),
     Lit(N::Type, Meta<'a, Literal<V>>),
+    UnaryOperation(N::Type, Meta<'a, UnaryOperation>, Box<Expression<'a, V, N>>),
     Binop(
         N::Type,
         Meta<'a, Binop>,
@@ -54,6 +55,7 @@ where
             Expression::Block(_, scope, _) => scope.span().simplify(),
             Expression::Variable(_, var) => var.span(),
             Expression::Lit(_, lit) => lit.simplify(),
+            Expression::UnaryOperation(_, op, expr) => op.simplify().append(expr.span()),
             Expression::Binop(_, _op, a, b) => a.span().append(b.span()),
             Expression::Statement(_, expr) => expr.span().extend_right(';'),
             Expression::Assignment(_, var, expr) => var.span().simplify().append(expr.span()),

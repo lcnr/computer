@@ -13,6 +13,7 @@ pub mod solver;
 #[derive(Debug, Clone)]
 pub struct Type<'a, T> {
     pub name: Meta<'a, Box<str>>,
+    pub attributes: Vec<Meta<'a, Box<str>>>,
     pub kind: Kind<'a, T>,
 }
 
@@ -132,6 +133,7 @@ pub fn build_sum_ty<'a>(
         *lookup.entry(type_name.into()).or_insert_with(|| {
             types.push(Type {
                 name: Meta::fake(resolved_type_name.into()),
+                attributes: Vec::new(),
                 kind: Kind::Sum(values),
             })
         })

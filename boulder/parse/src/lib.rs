@@ -32,16 +32,34 @@ type Literal<'a> = hir::Literal<hir::UnresolvedIdentifiers<'a>>;
 pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
     let iter = &mut TokenIter::new(src);
     let mut hir = Hir::new();
+    let mut attributes = Vec::new();
     while let Some(mut token) = iter.next() {
         match mem::replace(&mut token.item, Token::Invalid) {
             Token::Keyword(Keyword::Function) => {
-                hir.add_function(parse_function(iter)?)?;
+                hir.add_function(parse_function(
+                    mem::replace(&mut attributes, Vec::new()),
+                    iter,
+                )?)?;
             }
             Token::Keyword(Keyword::Struct) => {
-                hir.add_type(parse_struct_decl(iter)?)?;
+                hir.add_type(parse_struct_decl(
+                    mem::replace(&mut attributes, Vec::new()),
+                    iter,
+                )?)?;
+            }
+            Token::Attribute(value) => {
+                attributes.push(token.replace(value));
             }
             Token::EOF => break,
-            _ => CompileError::expected(&[Token::Keyword(Keyword::Function), Token::EOF], &token)?,
+            _ => CompileError::expected(
+                &[
+                    Token::Keyword(Keyword::Struct),
+                    Token::Keyword(Keyword::Function),
+                    Token::Attribute("".into()),
+                    Token::EOF,
+                ],
+                &token,
+            )?,
         }
     }
 
@@ -220,6 +238,62 @@ fn parse_match<'a>(
     Ok(Expression::Match((), keyword, Box::new(value), match_arms))
 }
 
+fn desugar_logical_ops<'a>(
+    op: Binop,
+    meta: Meta<'a, ()>,
+    a: Expression<'a>,
+    b: Expression<'a>,
+) -> Expression<'a> {
+    let cond = Expression::TypeRestriction(
+        Box::new(a),
+        meta.replace(hir::UnresolvedType::Named("Bool".into())),
+    );
+
+    let (a, b) = match op {
+        Binop::And => (
+            MatchArm {
+                pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named("True".into()))),
+                expr: Expression::TypeRestriction(
+                    Box::new(b),
+                    meta.replace(hir::UnresolvedType::Named("Bool".into())),
+                ),
+            },
+            MatchArm {
+                pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named(
+                    "False".into(),
+                ))),
+                expr: Expression::Lit((), meta.replace(Literal::Unit("False".into()))),
+            },
+        ),
+        Binop::Or => (
+            MatchArm {
+                pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named("True".into()))),
+                expr: Expression::Lit((), meta.replace(Literal::Unit("True".into()))),
+            },
+            MatchArm {
+                pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named(
+                    "False".into(),
+                ))),
+                expr: Expression::TypeRestriction(
+                    Box::new(b),
+                    meta.replace(hir::UnresolvedType::Named("Bool".into())),
+                ),
+            },
+        ),
+        _ => unreachable!("invalid logical operation: {:?}", op),
+    };
+
+    Expression::TypeRestriction(
+        Box::new(Expression::Match(
+            (),
+            meta.clone(),
+            Box::new(cond),
+            vec![a, b],
+        )),
+        meta.replace(hir::UnresolvedType::Named("Bool".into())),
+    )
+}
+
 fn parse_if<'a>(
     if_meta: Meta<'a, ()>,
     iter: &mut TokenIter<'a>,
@@ -348,6 +422,14 @@ fn parse_binop_rhs<'a>(
                     &next,
                 ),
             }?
+        }
+        Token::Invert => {
+            let expr = parse_binop_rhs(std::u32::MAX, iter)?;
+            Expression::UnaryOperation(
+                (),
+                start.replace(hir::UnaryOperation::Invert),
+                Box::new(expr),
+            )
         }
         Token::Ident(v) => parse_ident_expr(start.replace(v), iter)?,
         Token::Integer(c) => Expression::Lit((), start.replace(Literal::Integer(c))),
@@ -643,6 +725,17 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
             start.replace(Some("fn".into())),
             Box::new(parse_expression(iter)?),
         )),
+        Token::Invert => {
+            let expr = parse_binop_rhs(std::u32::MAX, iter)?;
+            parse_binop(
+                Expression::UnaryOperation(
+                    (),
+                    start.replace(hir::UnaryOperation::Invert),
+                    Box::new(expr),
+                ),
+                iter,
+            )
+        }
         Token::Ident(v) => {
             let expr = parse_ident_expr(start.replace(v), iter)?;
             let next = iter.next().unwrap();
@@ -651,7 +744,7 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
                     if let Expression::Variable((), var) = expr {
                         Expression::Assignment((), var, Box::new(parse_expression(iter)?))
                     } else {
-                        Err(check_expr_terminator(next, &[Token::Binop(Binop::Add)]).unwrap_err())?
+                        Err(check_expr_terminator(next, &[Token::Assignment]).unwrap_err())?
                     }
                 }
                 _ => {
@@ -721,12 +814,16 @@ fn parse_block<'a>(
     }
 }
 
-fn parse_struct_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Type<'a>, CompileError> {
+fn parse_struct_decl<'a>(
+    attributes: Vec<Meta<'a, Box<str>>>,
+    iter: &mut TokenIter<'a>,
+) -> Result<Type<'a>, CompileError> {
     let name = expect_ident(iter.next().unwrap())?;
     let next = iter.next().unwrap();
     match &next.item {
         Token::SemiColon => Ok(Type {
             name,
+            attributes,
             kind: Kind::Unit,
         }),
         Token::OpenBlock(BlockDelim::Brace) => {
@@ -753,6 +850,7 @@ fn parse_struct_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Type<'a>, CompileEr
             }
             Ok(Type {
                 name,
+                attributes,
                 kind: Kind::Struct(fields),
             })
         }
@@ -764,8 +862,12 @@ fn parse_struct_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Type<'a>, CompileEr
 }
 
 // parse a function, `fn` should already be consumed
-fn parse_function<'a>(iter: &mut TokenIter<'a>) -> Result<Function<'a>, CompileError> {
+fn parse_function<'a>(
+    attributes: Vec<Meta<'a, Box<str>>>,
+    iter: &mut TokenIter<'a>,
+) -> Result<Function<'a>, CompileError> {
     let mut func = Function::new(expect_ident(iter.next().unwrap())?);
+    func.attributes = attributes;
 
     consume_token(Token::OpenBlock(BlockDelim::Parenthesis), iter)?;
     loop {

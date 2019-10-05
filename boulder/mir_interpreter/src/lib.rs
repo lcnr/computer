@@ -9,6 +9,7 @@ mod binop;
 #[derive(Debug, Clone)]
 pub enum InterpretError {
     InvalidOperation(FunctionId, BlockId, StepId),
+    InvalidUnaryOperationArguments(FunctionId, BlockId, StepId, Object),
     InvalidBinopArguments(FunctionId, BlockId, StepId, Object, Object),
     UnresolvedMatch(FunctionId, BlockId, TypeId),
 }
@@ -64,9 +65,15 @@ impl<'a> BoulderMirInterpreter<'a> {
                             Box::new(obj.clone()),
                         ),
                     },
+                    &Action::InitializeStruct(_, ref fields) => {
+                        Object::Struct(fields.iter().map(|&f| steps[f].clone()).collect())
+                    }
                     &Action::CallFunction(target_id, ref args) => {
                         let args: Vec<_> = args.iter().map(|&id| steps[id].clone()).collect();
                         self.execute_function(target_id, &args)?
+                    }
+                    &Action::UnaryOperation(op, expr) => {
+                        self.execute_unary_operation(&steps, id, curr_block, step_id, op, expr)?
                     }
                     &Action::Binop(binop, a, b) => {
                         self.execute_binop(&steps, id, curr_block, step_id, binop, a, b)?

@@ -4,7 +4,15 @@ use tindex::TIndex;
 
 use shared_id::{FunctionId, TypeId};
 
-use crate::{binop::Binop, Action, BlockId, Mir, Object, StepId, Terminator, Type};
+use crate::{binop::Binop, Action, BlockId, Mir, Object, StepId, Terminator, Type, UnaryOperation};
+
+impl Display for UnaryOperation {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            Self::Invert => write!(f, "invert"),
+        }
+    }
+}
 
 impl Display for Binop {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
@@ -106,6 +114,16 @@ impl Display for Mir {
                         Action::Extend(id) => writeln!(f, "extend ${}", id.0),
                         Action::LoadConstant(obj) => writeln!(f, "load {}", obj),
                         Action::LoadInput(i) => writeln!(f, "load !{}", i),
+                        Action::InitializeStruct(ty, fields) => {
+                            write!(f, "init {}(", ty)?;
+                            if let Some((last, start)) = fields.split_last() {
+                                for arg in start.iter() {
+                                    write!(f, "${}, ", arg.0)?;
+                                }
+                                write!(f, "${}", last.0)?;
+                            }
+                            writeln!(f, ")")
+                        }
                         Action::CallFunction(i, args) => {
                             write!(f, "call {}(", i)?;
                             if let Some((last, start)) = args.split_last() {
@@ -118,6 +136,7 @@ impl Display for Mir {
                         }
 
                         Action::FieldAccess(s, a) => writeln!(f, "${}.{}", s.0, a.as_index()),
+                        Action::UnaryOperation(kind, expr) => writeln!(f, "{} ${}", kind, expr.0),
                         Action::Binop(kind, a, b) => writeln!(f, "{} ${} ${}", kind, a.0, b.0),
                     }?;
                 }

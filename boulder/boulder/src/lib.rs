@@ -28,14 +28,8 @@ pub fn core_optimizations(mir: &mut Mir) {
 pub fn compile(src: &str) -> Result<Mir, CompileError> {
     let mut mir = compile_to_mir(src)?;
     core_optimizations(&mut mir);
-    //mir.reduce_binops();
+    mir.reduce_binops();
     mir.validate();
-    if true {
-        use mir::Object;
-        let mut bmi = mir_interpreter::BoulderMirInterpreter::new(&mir);
-        println!("{}", mir);
-        println!("{:?}", bmi.execute_function(0.into(), &[Object::U32(8)]));
-    };
-
+    println!("{}", mir);
     Ok(mir)
 }

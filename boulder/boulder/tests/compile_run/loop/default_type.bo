@@ -1,7 +1,11 @@
-# fn default_type() -> 7
 fn default_type() -> u8 {
     loop {
         return 7;
     };
     5
+}
+
+@test
+fn test() -> Bool {
+    default_type() == 7
 }

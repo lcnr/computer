@@ -16,3 +16,8 @@ fn eq_bool(a: Bool, b: True) -> Bool {
 fn eq_bool2(a: False, b: True) -> Bool {
     a == b
 }
+
+@test
+fn eq_int_test() -> Bool {
+    eq_int(7, 4) && !eq_int(8, 4)
+}

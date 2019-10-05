@@ -9,7 +9,7 @@ use crate::{
     func::{FunctionDefinition, VariableId},
     ty::{self, solver::TypeSolver, Type},
     Binop, FunctionId, Literal, Pattern, ResolvedIdentifiers, ResolvedTypes, ResolvingTypes,
-    ScopeId, UnresolvedType, UnresolvedTypes,
+    ScopeId, UnaryOperation, UnresolvedType, UnresolvedTypes,
 };
 
 pub struct TypeConstraintsContext<'a, 'b, 'c> {
@@ -63,6 +63,18 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     Literal::Unit(t) => {
                         let id = ctx.solver.add_typed(t, meta.simplify());
                         Expression::Lit(id, meta.replace(Literal::Unit(t)))
+                    }
+                }
+            }
+            Expression::UnaryOperation((), op, expr) => {
+                let expr = expr.type_constraints(ctx)?;
+                match op.item {
+                    UnaryOperation::Invert => {
+                        let mut possible_types = ctx.solver.integers().clone();
+                        possible_types.add(BOOL_TYPE_ID);
+                        let v = ctx.solver.add_bound(possible_types, op.simplify());
+                        ctx.solver.add_extension(expr.id(), v);
+                        Expression::UnaryOperation(v, op, Box::new(expr))
                     }
                 }
             }
@@ -243,6 +255,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             &Expression::Block(id, _, _)
             | &Expression::Variable(id, _)
             | &Expression::Lit(id, _)
+            | &Expression::UnaryOperation(id, _, _)
             | &Expression::Binop(id, _, _, _)
             | &Expression::Statement(id, _)
             | &Expression::Assignment(id, _, _)
@@ -262,6 +275,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             Expression::Block(id, _, _)
             | Expression::Variable(id, _)
             | Expression::Lit(id, _)
+            | Expression::UnaryOperation(id, _, _)
             | Expression::Binop(id, _, _, _)
             | Expression::Statement(id, _)
             | Expression::Assignment(id, _, _)
@@ -290,6 +304,10 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             }
             Expression::Variable(id, var) => Expression::Variable(type_result[id], var),
             Expression::Lit(id, lit) => Expression::Lit(type_result[id], lit),
+            Expression::UnaryOperation(id, op, expr) => {
+                let expr = expr.insert_types(types, type_result);
+                Expression::UnaryOperation(type_result[id], op, Box::new(expr))
+            }
             Expression::Binop(id, op, a, b) => {
                 let a = a.insert_types(types, type_result);
                 let b = b.insert_types(types, type_result);
@@ -361,6 +379,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
             &Expression::Block(ty, _, _)
             | &Expression::Variable(ty, _)
             | &Expression::Lit(ty, _)
+            | &Expression::UnaryOperation(ty, _, _)
             | &Expression::Binop(ty, _, _, _)
             | &Expression::Statement(ty, _)
             | &Expression::Assignment(ty, _, _)

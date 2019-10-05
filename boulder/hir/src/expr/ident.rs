@@ -105,6 +105,9 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     }
                 }
             }
+            Expression::UnaryOperation((), op, expr) => {
+                Expression::UnaryOperation((), op, Box::new(expr.resolve_identifiers(ctx)?))
+            }
             Expression::Binop((), op, rhs, lhs) => Expression::Binop(
                 (),
                 op,

@@ -8,7 +8,7 @@ use diagnostics::CompileError;
 
 use crate::{
     expr::Expression, func::FunctionDefinition, Binop, Literal, Pattern, ResolvedIdentifiers,
-    ResolvedTypes, ScopeId, VariableId,
+    ResolvedTypes, ScopeId, UnaryOperation, VariableId,
 };
 
 #[derive(Debug)]
@@ -110,8 +110,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
             }),
             Expression::Variable(ty, var) => {
                 if let Some(step) = ctx.var_lookup[var.item] {
-                    assert_eq!(ty, ctx.func[*ctx.curr][step].ty);
-                    Ok(step)
+                    Ok(ctx.func[*ctx.curr].add_step(ty, Action::Extend(step)))
                 } else {
                     let span = var.span_str();
                     CompileError::new(
@@ -123,19 +122,39 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
             Expression::Lit(ty, lit) => {
                 let type_id = ty;
                 let ty = &ctx.types[type_id];
-                let obj = match &lit.item {
-                    &Literal::Integer(i) => match ty {
-                        mir::Type::U8 => u8::try_from(i).map(|i| Object::U8(i)),
-                        mir::Type::U16 => u16::try_from(i).map(|i| Object::U16(i)),
-                        mir::Type::U32 => u32::try_from(i).map(|i| Object::U32(i)),
-                        ty => unreachable!("Unknown literal type: `{:?}`, {:?}", lit, ty),
+                Ok(match &lit.item {
+                    &Literal::Integer(i) => {
+                        let obj = match ty {
+                            mir::Type::U8 => u8::try_from(i).map(|i| Object::U8(i)),
+                            mir::Type::U16 => u16::try_from(i).map(|i| Object::U16(i)),
+                            mir::Type::U32 => u32::try_from(i).map(|i| Object::U32(i)),
+                            ty => unreachable!("Unknown literal type: `{:?}`, {:?}", lit, ty),
+                        }
+                        .or_else(|_| {
+                            CompileError::new(
+                                &lit,
+                                format_args!("Literal out of range for `{}`", ty),
+                            )
+                        })?;
+
+                        ctx.func[*ctx.curr].add_step(type_id, Action::LoadConstant(obj))
                     }
-                    .or_else(|_| {
-                        CompileError::new(&lit, format_args!("Literal out of range for `{}`", ty))
-                    })?,
-                    &Literal::Unit(_) => mir::Object::Unit,
-                };
-                Ok(ctx.func[*ctx.curr].add_step(type_id, Action::LoadConstant(obj)))
+                    &Literal::Unit(unit_id) => {
+                        let id = ctx.func[*ctx.curr]
+                            .add_step(unit_id, Action::LoadConstant(mir::Object::Unit));
+                        ctx.func[*ctx.curr].add_step(type_id, Action::Extend(id))
+                    }
+                })
+            }
+            Expression::UnaryOperation(ty, op, expr) => {
+                let expr = expr.to_mir(ctx)?;
+                ctx.func[*ctx.curr].add_step(ty, Action::Extend(expr));
+                match op.item {
+                    UnaryOperation::Invert => Ok(ctx.func[*ctx.curr].add_step(
+                        ty,
+                        Action::UnaryOperation(mir::UnaryOperation::Invert, expr),
+                    )),
+                }
             }
             Expression::Binop(ty, op, a, b) => {
                 let a_ty = a.ty();
@@ -224,9 +243,9 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 Ok(ctx.func[*ctx.curr].add_step(ty, Action::FieldAccess(obj, field.item)))
             }
             Expression::Match(ty_id, _, value, match_arms) => {
-                let old_block = *ctx.curr;
-
                 let value = value.to_mir(ctx)?;
+
+                let old_block = *ctx.curr;
 
                 let mut arms = Vec::new();
                 let mut arms_data = Vec::new();

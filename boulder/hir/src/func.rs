@@ -45,6 +45,7 @@ pub struct FunctionDefinition<'a, T> {
 #[derive(Debug, Clone)]
 pub struct Function<'a, V: IdentifierState, N: TypeState, T> {
     pub name: Meta<'a, Box<str>>,
+    pub attributes: Vec<Meta<'a, Box<str>>>,
     pub arguments: Vec<VariableId>,
     pub variables: TVec<VariableId, Variable<'a, T>>,
     pub ret: Meta<'a, T>,
@@ -56,6 +57,7 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
         let ret_meta = name.simplify();
         Self {
             name,
+            attributes: Vec::new(),
             arguments: Vec::new(),
             ret: ret_meta.replace(Some(UnresolvedType::Named("Empty".into()))),
             variables: TVec::new(),
@@ -148,6 +150,7 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
 
         Ok(Function {
             name: self.name,
+            attributes: self.attributes,
             arguments: self.arguments,
             ret: self.ret,
             variables: self.variables,
@@ -222,6 +225,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
         let body = body.insert_types(types, &solution);
         Ok(Function {
             name: self.name,
+            attributes: self.attributes,
             arguments: self.arguments,
             ret: self.ret.replace(solution[body_id]),
             variables: self
@@ -256,7 +260,11 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
         types: &TSlice<TypeId, mir::Type>,
         function_definitions: &TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
     ) -> Result<mir::Function, CompileError> {
-        let mut func = mir::Function::new(self.name.item, self.ret.item);
+        let mut func = mir::Function::new(
+            self.name.item,
+            self.attributes.into_iter().map(|v| v.item).collect(),
+            self.ret.item,
+        );
         let mut id = func.add_block();
         let start = &mut func[id];
 

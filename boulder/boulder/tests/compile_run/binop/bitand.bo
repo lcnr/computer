@@ -1,7 +1,3 @@
-# fn bitand_int(6, 7) -> 2
-# fn bitand_bool(True, True) -> True
-# fn bitand_bool(False, True) -> False
-# fn bitand_bool2(False, True) -> False
 fn bitand_int(a: u32, b: u32) -> u32 {
     a & b + 4;
     3 + b & a
@@ -13,4 +9,24 @@ fn bitand_bool(a: Bool, b: True) -> Bool {
 
 fn bitand_bool2(a: False, b: True) -> Bool {
     a & b
+}
+
+@test
+fn int_test() -> Bool {
+    bitand_int(6, 7) == 2
+}
+
+@test
+fn bool_true() -> Bool {
+    bitand_bool(True, True)
+}
+
+@test
+fn bool_false() -> Bool {
+    !bitand_bool(False, True)
+}
+
+@test
+fn bool2() -> Bool {
+    !bitand_bool2(False, True)
 }

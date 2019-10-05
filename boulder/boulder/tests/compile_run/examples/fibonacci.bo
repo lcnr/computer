@@ -1,10 +1,17 @@
-# fn fibonacci(5) -> 8
-# fn fibonacci(27) -> 1
-
 fn fibonacci(a: u32) -> u32 {
     if a < 2 {
         1
     } else {
         fibonacci(a - 1) + fibonacci(a - 2)
     }
+}
+
+@test
+fn five() -> Bool {
+    fibonacci(5) == 8
+}
+
+@test
+fn ten() -> Bool {
+    fibonacci(10) == 89
 }

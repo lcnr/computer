@@ -1,0 +1,4 @@
+# no_run
+fn block_break() {
+    ;
+}

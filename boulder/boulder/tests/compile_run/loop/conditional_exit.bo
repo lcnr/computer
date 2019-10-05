@@ -1,8 +1,3 @@
-# fn cond_exit(0) -> 0
-# fn cond_exit(3) -> 6
-# fn cond_exit(7) -> 28
-# fn cond_exit(100) -> 5050
-
 fn cond_exit(a: u32) -> u32 {
     let b = 0;
     loop {
@@ -16,4 +11,19 @@ fn cond_exit(a: u32) -> u32 {
     }: Empty;
 
     b
+}
+
+@test
+fn zero() -> Bool {
+    cond_exit(0) == 0
+}
+
+@test
+fn three() -> Bool {
+    cond_exit(3) == 6
+}
+
+@test
+fn one_hundred() -> Bool {
+    cond_exit(100) == 5050
 }

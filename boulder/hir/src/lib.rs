@@ -115,6 +115,11 @@ pub enum UnresolvedVariable<'a> {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub enum UnaryOperation {
+    Invert,
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum Binop {
     Add,
     Sub,
@@ -164,22 +169,27 @@ impl<'a>
         let types = tvec![
             Type {
                 name: Meta::<'static, ()>::default().replace("Empty".into()),
+                attributes: Vec::new(),
                 kind: ty::Kind::Unit,
             },
             Type {
                 name: Meta::<'static, ()>::default().replace("Never".into()),
+                attributes: Vec::new(),
                 kind: ty::Kind::Uninhabited,
             },
             Type {
                 name: Meta::<'static, ()>::default().replace("True".into()),
+                attributes: Vec::new(),
                 kind: ty::Kind::Unit,
             },
             Type {
                 name: Meta::<'static, ()>::default().replace("False".into()),
+                attributes: Vec::new(),
                 kind: ty::Kind::Unit,
             },
             Type {
                 name: Meta::<'static, ()>::default().replace("Bool".into()),
+                attributes: Vec::new(),
                 kind: ty::Kind::Sum(
                     iter::once(TRUE_TYPE_ID)
                         .chain(iter::once(FALSE_TYPE_ID))
@@ -188,14 +198,17 @@ impl<'a>
             },
             Type {
                 name: Meta::<'static, ()>::default().replace("u8".into()),
+                attributes: Vec::new(),
                 kind: ty::Kind::U8,
             },
             Type {
                 name: Meta::<'static, ()>::default().replace("u16".into()),
+                attributes: Vec::new(),
                 kind: ty::Kind::U16,
             },
             Type {
                 name: Meta::<'static, ()>::default().replace("u32".into()),
+                attributes: Vec::new(),
                 kind: ty::Kind::U32,
             },
         ];
@@ -271,6 +284,7 @@ impl<'a>
             .iter()
             .map(|ty| Type {
                 name: ty.name.clone(),
+                attributes: ty.attributes.clone(),
                 kind: ty::Kind::Struct(Vec::new()),
             })
             .collect::<TVec<_, _>>();

@@ -111,13 +111,20 @@ impl Terminator {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnaryOperation {
+    Invert,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     Extend(StepId),
     LoadInput(usize),
     LoadConstant(Object),
+    InitializeStruct(TypeId, TVec<FieldId, StepId>),
     CallFunction(FunctionId, Vec<StepId>),
     FieldAccess(StepId, FieldId),
+    UnaryOperation(UnaryOperation, StepId),
     Binop(Binop, StepId, StepId),
 }
 
@@ -135,8 +142,10 @@ impl Step {
     pub fn used_steps(&self, used: &mut TBitSet<StepId>) {
         match &self.action {
             &Action::Extend(id) => used.add(id),
+            &Action::InitializeStruct(_, ref fields) => fields.iter().for_each(|&s| used.add(s)),
             &Action::CallFunction(_, ref steps) => steps.iter().for_each(|&s| used.add(s)),
             &Action::FieldAccess(id, _) => used.add(id),
+            &Action::UnaryOperation(_, expr) => used.add(expr),
             &Action::Binop(_, a, b) => {
                 used.add(a);
                 used.add(b);
@@ -149,6 +158,7 @@ impl Step {
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: Box<str>,
+    pub attributes: Vec<Box<str>>,
     pub blocks: TVec<BlockId, Block>,
     pub ret: TypeId,
 }
@@ -168,9 +178,10 @@ impl IndexMut<BlockId> for Function {
 }
 
 impl Function {
-    pub fn new(name: Box<str>, ret: TypeId) -> Self {
+    pub fn new(name: Box<str>, attributes: Vec<Box<str>>, ret: TypeId) -> Self {
         Self {
             name,
+            attributes,
             blocks: TVec::new(),
             ret,
         }

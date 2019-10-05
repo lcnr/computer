@@ -1,6 +1,18 @@
-# fn lte(7) -> True
-# fn lte(6) -> True
-# fn lte(8) -> False
 fn lte(a: u32) -> Bool {
     a <= 7
+}
+
+@test
+fn tle_less() -> Bool {
+    lte(6) == True
+}
+
+@test
+fn tle_eq() -> Bool {
+    lte(7) == True
+}
+
+@test
+fn tle_gt() -> Bool {
+    lte(8) == False
 }

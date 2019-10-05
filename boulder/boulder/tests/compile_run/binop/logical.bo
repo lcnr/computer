@@ -1,0 +1,8 @@
+fn logical(a: Bool, b: True) -> Bool {
+    a && b || (a || False)
+}
+
+@test
+fn logical_test() -> Bool {
+    logical(True, True) && !logical(False, True)
+}

@@ -4,7 +4,7 @@ use tindex::TIndex;
 
 use shared_id::{FunctionId, TypeId};
 
-use crate::{Action, Mir, Terminator, Type};
+use crate::{Action, Mir, Object, Terminator, Type, UnaryOperation};
 
 struct PanicDisplay<'a>(&'a str, &'a dyn fmt::Display);
 
@@ -56,7 +56,29 @@ impl Mir {
                         }
                     }
                     &Action::LoadInput(v) => assert_eq!(block.input[v], step.ty),
-                    &Action::LoadConstant(_) => (), // TODO: check type of constant
+                    &Action::LoadConstant(ref c) => {
+                        match &self.types[step.ty] {
+                            &Type::Sum(ref options) => {
+                                if let &Object::Variant(id, _) = c {
+                                    assert!(options.get(id));
+                                } else {
+                                    unreachable!("sum type with non variant object");
+                                }
+                            }
+                            _ => (), // TODO
+                        }
+                    }
+                    &Action::InitializeStruct(struct_type, ref field_values) => {
+                        if let &Type::Struct(ref field_types) = &self.types[struct_type] {
+                            assert_eq!(field_values.len(), field_types.len());
+                            for (&v, &ty) in field_values.iter().zip(field_types.iter()) {
+                                assert!(v.0 < step_id);
+                                assert_eq!(block[v].ty, ty);
+                            }
+                        } else {
+                            unimplemented!("initialize struct with non struct type");
+                        }
+                    }
                     &Action::CallFunction(target_func, ref input) => {
                         let expected_input = self[target_func].args();
                         assert_eq!(expected_input.len(), input.len());
@@ -75,7 +97,16 @@ impl Mir {
                             panic!("field access on invalid type: {:?}", block[id].ty);
                         }
                     }
-                    &Action::Binop(ref kind, a, b) => {
+                    &Action::UnaryOperation(kind, expr) => {
+                        assert!(expr.0 < step_id);
+                        match kind {
+                            UnaryOperation::Invert => {
+                                assert_eq!(block[expr].ty, step.ty);
+                                // TODO: validate integer or bool
+                            }
+                        }
+                    }
+                    &Action::Binop(kind, a, b) => {
                         assert!(a.0 < step_id);
                         assert!(b.0 < step_id);
                         kind.validate(step, &block[a], &block[b]);

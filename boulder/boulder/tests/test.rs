@@ -12,13 +12,11 @@ use std::{
 
 use walkdir::WalkDir;
 
-use regex::Regex;
-
 use diagnostics::CompileError;
 
-use shared_id::{TypeId, BOOL_TYPE_ID, FALSE_TYPE_ID, TRUE_TYPE_ID};
+use shared_id::{FunctionId, BOOL_TYPE_ID, TRUE_TYPE_ID};
 
-use mir::{Mir, Object, Type};
+use mir::{Mir, Object};
 
 struct OutputShim {
     inner: Arc<Mutex<String>>,
@@ -118,71 +116,47 @@ fn compile_fail() {
     }
 }
 
-fn str_to_obj(mir: &Mir, s: &str, ty: TypeId) -> Object {
-    let s = s.trim();
-    match &mir[ty] {
-        &Type::U8 => Object::U8(s.parse().expect("parse u8")),
-        &Type::U16 => Object::U16(s.parse().expect("parse u16")),
-        &Type::U32 => Object::U32(s.parse().expect("parse u32")),
-        _ => {
-            if ty == TRUE_TYPE_ID {
-                assert_eq!(s, "True");
-                Object::Unit
-            } else if ty == FALSE_TYPE_ID {
-                assert_eq!(s, "False");
-                Object::Unit
-            } else if ty == BOOL_TYPE_ID {
-                if s == "True" {
-                    Object::Variant(TRUE_TYPE_ID, Box::new(Object::Unit))
-                } else if s == "False" {
-                    Object::Variant(FALSE_TYPE_ID, Box::new(Object::Unit))
-                } else {
-                    panic!("invalid Bool")
-                }
-            } else {
-                panic!("unknown type")
-            }
-        }
-    }
-}
-
-fn test_mir(
-    mir: &Mir,
-    test_regex: &Regex,
-    unit_tests: &[&str],
-    entry_path: impl fmt::Display,
-) -> bool {
+fn test_mir(mir: &Mir, entry_path: impl fmt::Display) -> bool {
     let mut bmi = mir_interpreter::BoulderMirInterpreter::new(mir);
     let mut check_count = 0;
-    for test in unit_tests {
-        match panic::catch_unwind(panic::AssertUnwindSafe(|| {
-            check_count += 1;
-            let captures = test_regex.captures(test).expect("invalid test string");
-            let fn_name = captures.get(1).unwrap();
-            let args = captures.get(2).unwrap();
-            let result = captures.get(3).unwrap();
-            let func = mir
-                .get_function(fn_name.as_str().trim())
-                .expect("unknown function name");
-            let args: Vec<_> = args
-                .as_str()
-                .split(",")
-                .zip(mir[func].args())
-                .map(|(arg, &ty)| str_to_obj(&mir, arg, ty))
-                .collect();
-
-            let result = str_to_obj(&mir, result.as_str(), mir[func].ret);
-            assert_eq!(
-                bmi.execute_function(func, &args)
-                    .expect("function execution error"),
-                result
+    for (id, test) in mir
+        .functions
+        .iter()
+        .enumerate()
+        .filter(|(_, func)| func.attributes.iter().any(|attr| attr.as_ref() == "test"))
+    {
+        check_count += 1;
+        if !test.args().is_empty() || test.ret != BOOL_TYPE_ID {
+            eprintln!(
+                "[boulder/{}]: invalid test function, expected `() -> Bool`: {}",
+                entry_path, test.name
             );
+        }
+
+        match panic::catch_unwind(panic::AssertUnwindSafe(|| {
+            bmi.execute_function(FunctionId::from(id), &[])
         })) {
-            Ok(()) => (),
+            Ok(Ok(obj)) => {
+                if let Object::Variant(TRUE_TYPE_ID, _) = &obj {
+                } else {
+                    eprintln!(
+                        "[boulder/{}]: unit test `{}` failed: {:?}",
+                        entry_path, test.name, obj
+                    );
+                    return false;
+                }
+            }
+            Ok(Err(err)) => {
+                eprintln!(
+                    "[boulder/{}]: interpreter during unit test `{}`: {:?}",
+                    entry_path, test.name, err
+                );
+                return false;
+            }
             Err(_) => {
                 eprintln!(
                     "[boulder/{}]: panic during unit test `{}`",
-                    entry_path, test
+                    entry_path, test.name
                 );
                 return false;
             }
@@ -202,9 +176,6 @@ fn test_mir(
 fn compile_run() {
     let mut count = 0;
     let mut success = 0;
-    let test_regex =
-        Regex::new(r#"fn ([[[:alnum:]]_]*)\(([[[:alpha:]]0-9, ]*)\) -> ([[[:alpha:]]0-9]*)"#)
-            .unwrap();
     for entry in WalkDir::new("tests/compile_run") {
         let entry = entry.unwrap();
         if entry.metadata().unwrap().is_file() {
@@ -213,12 +184,13 @@ fn compile_run() {
             let mut content = String::new();
             file.read_to_string(&mut content).unwrap();
 
-            // TODO: check the interpretation result
-            let unit_tests = content
+            let expected: Vec<_> = content
                 .lines()
                 .take_while(|l| l.starts_with("# "))
-                .map(|l| &l["# ".len()..])
-                .collect::<Vec<_>>();
+                .map(|l| l["# ".len()..].trim())
+                .collect();
+
+            let should_run = !expected.contains(&"no_run");
 
             let output = Arc::new(Mutex::new(String::new()));
             CompileError::set_output(Box::new(OutputShim {
@@ -239,17 +211,17 @@ fn compile_run() {
             };
             let output = output.lock().unwrap();
             if let Ok(mut mir) = mir {
-                if !test_mir(&mir, &test_regex, &unit_tests, entry.path().display()) {
+                if should_run && !test_mir(&mir, entry.path().display()) {
                     continue;
                 }
 
                 boulder::core_optimizations(&mut mir);
-                if !test_mir(&mir, &test_regex, &unit_tests, entry.path().display()) {
+                if should_run && !test_mir(&mir, entry.path().display()) {
                     continue;
                 }
 
                 mir.reduce_binops();
-                if !test_mir(&mir, &test_regex, &unit_tests, entry.path().display()) {
+                if should_run && !test_mir(&mir, entry.path().display()) {
                     continue;
                 }
                 success += 1;

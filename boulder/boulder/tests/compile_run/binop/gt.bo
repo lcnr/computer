@@ -1,7 +1,18 @@
-# fn gt(6) -> False
-# fn gt(7) -> False
-# fn gt(8) -> True
-
 fn gt(a: u32) -> Bool {
     a > 7
+}
+
+@test
+fn gt_lower() -> Bool {
+    !gt(6)
+}
+
+@test
+fn gt_equal() -> Bool {
+    !gt(7)
+}
+
+@test
+fn gt_greater() -> Bool {
+    gt(8)
 }

@@ -1,4 +1,8 @@
-# fn shr() -> 2
 fn shr() -> u32 {
     4 >> 1
+}
+
+@test
+fn test() -> Bool {
+    shr() == 2
 }

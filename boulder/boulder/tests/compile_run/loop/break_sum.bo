@@ -9,3 +9,13 @@ fn break_sum(a: u32) -> Bool {
         }: Never;
     }
 }
+
+@test
+fn break_zero() -> Bool {
+    break_sum(0)
+}
+
+@test
+fn break_one() -> Bool {
+    !break_sum(1)
+}

@@ -1,5 +1,3 @@
-# fn many_loops() -> 14
-
 fn many_loops() -> u32 {
     let a = loop {
         break 4;
@@ -11,4 +9,9 @@ fn many_loops() -> u32 {
     } + a + loop {
         break 2;
     }
+}
+
+@test
+fn test() -> Bool {
+    many_loops() == 14
 }

@@ -2,11 +2,44 @@ use tindex::TSlice;
 
 use shared_id::{FunctionId, FALSE_TYPE_ID, TRUE_TYPE_ID};
 
-use mir::{binop::Binop, BlockId, Object, StepId};
+use mir::{binop::Binop, BlockId, Object, StepId, UnaryOperation};
 
 use crate::{BoulderMirInterpreter, InterpretError};
 
+fn to_bool(b: bool) -> Object {
+    Object::Variant(
+        if b { TRUE_TYPE_ID } else { FALSE_TYPE_ID },
+        Box::new(Object::Unit),
+    )
+}
+
 impl<'a> BoulderMirInterpreter<'a> {
+    pub fn execute_unary_operation(
+        &mut self,
+        steps: &TSlice<StepId, Object>,
+        function: FunctionId,
+        block: BlockId,
+        step: StepId,
+        op: UnaryOperation,
+        expr: StepId,
+    ) -> Result<Object, InterpretError> {
+        match op {
+            UnaryOperation::Invert => match &steps[expr] {
+                &Object::U8(x) => Ok(Object::U8(!x)),
+                &Object::U16(x) => Ok(Object::U16(!x)),
+                &Object::U32(x) => Ok(Object::U32(!x)),
+                &Object::Variant(x, ref v) => {
+                    if v.as_ref() == &Object::Unit && (x == TRUE_TYPE_ID || x == FALSE_TYPE_ID) {
+                        Ok(to_bool(x == FALSE_TYPE_ID))
+                    } else {
+                        Err(InterpretError::InvalidOperation(function, block, step))
+                    }
+                }
+                _ => Err(InterpretError::InvalidOperation(function, block, step)),
+            },
+        }
+    }
+
     pub fn execute_binop(
         &mut self,
         steps: &TSlice<StepId, Object>,
@@ -17,13 +50,6 @@ impl<'a> BoulderMirInterpreter<'a> {
         a: StepId,
         b: StepId,
     ) -> Result<Object, InterpretError> {
-        fn to_bool(b: bool) -> Object {
-            Object::Variant(
-                if b { TRUE_TYPE_ID } else { FALSE_TYPE_ID },
-                Box::new(Object::Unit),
-            )
-        }
-
         let invalid_args = InterpretError::InvalidBinopArguments(
             function,
             block,

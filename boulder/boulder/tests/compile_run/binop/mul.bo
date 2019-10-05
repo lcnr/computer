@@ -2,3 +2,8 @@
 fn mul() -> u32 {
     9 * 11 + 3
 }
+
+@test
+fn test() -> Bool {
+    mul() == 102
+}

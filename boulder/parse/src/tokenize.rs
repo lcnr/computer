@@ -1,6 +1,6 @@
 use diagnostics::Meta;
 
-use std::{fmt, ops::Range};
+use std::ops::Range;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Keyword {
@@ -24,23 +24,6 @@ pub enum Keyword {
     Break,
     /// `return`
     Return,
-}
-
-impl fmt::Display for Keyword {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Keyword::Function => write!(f, "fn"),
-            Keyword::Let => write!(f, "let"),
-            Keyword::Struct => write!(f, "struct"),
-            Keyword::Match => write!(f, "match"),
-            Keyword::If => write!(f, "if"),
-            Keyword::Else => write!(f, "else"),
-            Keyword::Loop => write!(f, "loop"),
-            Keyword::While => write!(f, "while"),
-            Keyword::Break => write!(f, "loop"),
-            Keyword::Return => write!(f, "return"),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -83,6 +66,10 @@ pub enum Binop {
     BitOr,
     /// `&`
     BitAnd,
+    /// `||`
+    Or,
+    /// `&&`
+    And,
 }
 
 impl Binop {
@@ -91,6 +78,8 @@ impl Binop {
     /// binop
     pub fn priority(self) -> u32 {
         match self {
+            Binop::Or => 8,
+            Binop::And => 9,
             Binop::Gt | Binop::Gte | Binop::Eq | Binop::Neq | Binop::Lte | Binop::Lt => 10,
             Binop::BitOr => 20,
             Binop::BitAnd => 21,
@@ -151,27 +140,7 @@ impl Binop {
             Binop::BitAnd => {
                 crate::Expression::Binop((), meta.replace(hir::Binop::BitAnd), a.into(), b.into())
             }
-        }
-    }
-}
-
-impl fmt::Display for Binop {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Binop::Add => write!(f, "+"),
-            Binop::Sub => write!(f, "-"),
-            Binop::Mul => write!(f, "*"),
-            Binop::Div => write!(f, "/"),
-            Binop::Shl => write!(f, "<<"),
-            Binop::Shr => write!(f, ">>"),
-            Binop::Gt => write!(f, ">"),
-            Binop::Gte => write!(f, ">="),
-            Binop::Eq => write!(f, "=="),
-            Binop::Neq => write!(f, "!="),
-            Binop::Lte => write!(f, "<="),
-            Binop::Lt => write!(f, "<"),
-            Binop::BitOr => write!(f, "|"),
-            Binop::BitAnd => write!(f, "&"),
+            Binop::Or | Binop::And => crate::desugar_logical_ops(self, meta.simplify(), a, b),
         }
     }
 }
@@ -184,6 +153,7 @@ pub enum Token {
     OpenBlock(BlockDelim),
     CloseBlock(BlockDelim),
     Binop(Binop),
+    Invert,
     Assignment,
     SemiColon,
     Colon,
@@ -191,37 +161,12 @@ pub enum Token {
     Dot,
     Arrow,
     Underscore,
-    /// `'`
+    /// `'name`
     Scope(Box<str>),
+    /// `@name`
+    Attribute(Box<str>),
     Invalid,
     EOF,
-}
-
-impl fmt::Display for Token {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Token::Integer(v) => write!(f, "{}", v),
-            Token::Ident(v) => write!(f, "{}", v),
-            Token::Keyword(k) => write!(f, "{}", k),
-            Token::OpenBlock(BlockDelim::Parenthesis) => write!(f, "("),
-            Token::OpenBlock(BlockDelim::Bracket) => write!(f, "["),
-            Token::OpenBlock(BlockDelim::Brace) => write!(f, "{{"),
-            Token::CloseBlock(BlockDelim::Parenthesis) => write!(f, ")"),
-            Token::CloseBlock(BlockDelim::Bracket) => write!(f, "]"),
-            Token::CloseBlock(BlockDelim::Brace) => write!(f, "}}"),
-            Token::Binop(o) => write!(f, "{}", o),
-            Token::Assignment => write!(f, "="),
-            Token::SemiColon => write!(f, ";"),
-            Token::Colon => write!(f, ":"),
-            Token::Comma => write!(f, ","),
-            Token::Dot => write!(f, "."),
-            Token::Arrow => write!(f, "->"),
-            Token::Underscore => write!(f, "_"),
-            Token::Scope(v) => write!(f, "'{}", v),
-            Token::Invalid => write!(f, "<invalid token>"),
-            Token::EOF => write!(f, "<EOF>"),
-        }
-    }
 }
 
 pub struct TokenIter<'a> {
@@ -270,7 +215,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
         c.is_whitespace()
             || match c {
                 ';' | ':' | '(' | ')' | '{' | '}' | '[' | ']' | ',' | '.' | '=' | '+' | '-'
-                | '*' | '/' | '|' | '&' | '\'' => true,
+                | '*' | '/' | '|' | '&' | '\'' | '@' => true,
                 _ => false,
             }
     }
@@ -308,6 +253,28 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                     self.byte_offset += c.len_utf8();
                 }
             }
+        }
+    }
+
+    fn parse_attr(&mut self) -> Meta<'a, Token> {
+        let start = self.byte_offset;
+        // TODO: accept char literal
+        self.advance();
+        if self
+            .current_char()
+            .map_or(false, |first| first.is_alphabetic() || first == '_')
+        {
+            let mut ident = self.parse_ident();
+            ident.span.start -= 1;
+            ident.map(|i| {
+                if let Token::Ident(v) = i {
+                    Token::Attribute(v)
+                } else {
+                    unimplemented!("invalid attribute");
+                }
+            })
+        } else {
+            self.recover(start)
         }
     }
 
@@ -525,7 +492,11 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                 '|' => {
                     self.advance();
                     if self.current_char().map(|c| c == '|').unwrap_or(false) {
-                        unimplemented!()
+                        self.advance();
+                        self.new_token(
+                            Token::Binop(Binop::Or),
+                            self.byte_offset - 2..self.byte_offset,
+                        )
                     } else {
                         self.new_token(
                             Token::Binop(Binop::BitOr),
@@ -536,7 +507,11 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                 '&' => {
                     self.advance();
                     if self.current_char().map(|c| c == '&').unwrap_or(false) {
-                        unimplemented!()
+                        self.advance();
+                        self.new_token(
+                            Token::Binop(Binop::And),
+                            self.byte_offset - 2..self.byte_offset,
+                        )
                     } else {
                         self.new_token(
                             Token::Binop(Binop::BitAnd),
@@ -607,10 +582,11 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                             self.byte_offset - 2..self.byte_offset,
                         )
                     } else {
-                        unimplemented!()
+                        self.new_token(Token::Invert, self.byte_offset - 1..self.byte_offset)
                     }
                 }
                 '\'' => self.parse_char_or_scope(),
+                '@' => self.parse_attr(),
                 _ => self.recover(self.byte_offset),
             }
         }

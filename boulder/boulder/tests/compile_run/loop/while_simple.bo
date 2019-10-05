@@ -1,8 +1,12 @@
-# fn while_simple() -> 5
 fn while_simple() -> u32 {
     let i = 0;
     while i < 5 {
         i = i + 1;
     };
     i
+}
+
+@test
+fn test() -> Bool {
+    while_simple() == 5
 }
