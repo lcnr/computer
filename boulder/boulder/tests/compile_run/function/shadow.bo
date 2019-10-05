@@ -9,3 +9,8 @@ fn shadow(a: u32, b: u32) -> u32 {
     };
     a + b
 }
+
+@test
+fn test() -> Bool {
+    shadow(1, 2) == 32
+}

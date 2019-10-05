@@ -1,6 +1,10 @@
-# fn delayed() -> 7
 fn delayed() -> u32 {
     let x;
     x = 7;
     x
+}
+
+@test
+fn test() -> Bool {
+    delayed() == 7
 }

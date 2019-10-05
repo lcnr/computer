@@ -1,0 +1,34 @@
+fn invert(b: Bool) -> Bool {
+    if b { False } else { True }
+}
+
+fn if_chain() -> u32 {
+    if invert(True) {
+        3
+    } else {
+        4
+    } + if True {
+        5
+    } else {
+        6
+    }
+}
+
+fn if_empty() -> u32 {
+    let x: u32 | Empty = if False { 7: u32 };
+
+    match x {
+        n: u32 -> n,
+        _: Empty -> 8,
+    }
+}
+
+@test
+fn test_if_empty () -> Bool {
+    if_empty() == 8
+}
+
+@test
+fn test_chain() -> Bool {
+    if_chain() == 9
+}

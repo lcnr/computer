@@ -1,6 +1,9 @@
-# fn ret() -> 7
-
 fn ret() -> u32 {
     return 7;
     5
+}
+
+@test
+fn test() -> Bool {
+    ret() == 7
 }

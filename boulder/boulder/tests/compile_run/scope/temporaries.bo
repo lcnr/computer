@@ -1,11 +1,13 @@
-# fn temporaries(True) -> 26
-# fn temporaries(False) -> 33
-
-fn temporaries(True:Bool) -> u32 {
+fn temporaries() -> u32 {
     7 + {
         5
     } + match True: Bool {
         f: False -> 8 + { 4 },
         t: True -> { 2 } + 3,
     } + 9
+}
+
+@test
+fn test() -> Bool {
+    temporaries() == 26
 }

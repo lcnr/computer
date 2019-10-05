@@ -1,0 +1,11 @@
+struct A {
+    field: u32,
+}
+
+@test
+fn test() -> Bool {
+    let a: A = A {
+        field: 7
+    };
+    a.field < 8 && a.field > 6
+}

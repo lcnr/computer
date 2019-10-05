@@ -1,10 +1,17 @@
-# fn if_simple(True) -> 3
-# fn if_simple(False) -> 4
-
 fn if_simple(a: Bool) -> u8 {
     if a {
         3
     } else {
         4
     }
+}
+
+@test
+fn true() -> Bool {
+    if_simple(True) == 3
+}
+
+@test
+fn false() -> Bool {
+    if_simple(False) == 4
 }

@@ -519,7 +519,31 @@ fn parse_binop_rhs<'a>(
             expr
         }
         Token::Dot => {
-            Expression::FieldAccess((), Box::new(expr), expect_ident(iter.next().unwrap())?)
+            let mut next = next;
+            while let Token::Dot = next.item {
+                expr = Expression::FieldAccess(
+                    (),
+                    Box::new(expr),
+                    expect_ident(iter.next().unwrap())?,
+                );
+                next = iter.next().unwrap();
+            }
+
+            while let Token::Binop(op) = next.item {
+                if op.priority() > priority {
+                    expr = op.as_hir_expr(
+                        next,
+                        expr,
+                        parse_binop_rhs(op.priority(), iter, expecting_open_brace)?,
+                    );
+                } else {
+                    break;
+                }
+                next = iter.next().unwrap();
+            }
+            iter.step_back(next);
+
+            expr
         }
         Token::Colon => Expression::TypeRestriction(Box::new(expr), parse_type(iter)?),
         _ => {

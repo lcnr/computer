@@ -1,6 +1,5 @@
-# fn test() -> 24
-
-fn test() -> u8 {
+@test
+fn test() -> Bool {
     'block: {
         7
     } * 4 -
@@ -8,5 +7,5 @@ fn test() -> u8 {
         'inner: {
             4
         }
-    }
+    } == 24: u8
 }

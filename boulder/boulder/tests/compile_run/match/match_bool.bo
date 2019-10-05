@@ -1,9 +1,16 @@
-# fn test(True) -> True
-# fn test(False) -> False
-
 fn test(n: Bool) -> Bool {
     match n {
         t: True -> t,
         f: False -> f
     }
+}
+
+@test
+fn true() -> Bool {
+    test(True)
+}
+
+@test
+fn false() -> Bool {
+    !test(False)
 }

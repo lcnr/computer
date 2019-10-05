@@ -131,6 +131,7 @@ fn test_mir(mir: &Mir, entry_path: impl fmt::Display) -> bool {
                 "[boulder/{}]: invalid test function, expected `() -> Bool`: {}",
                 entry_path, test.name
             );
+            return false;
         }
 
         match panic::catch_unwind(panic::AssertUnwindSafe(|| {

@@ -1,7 +1,3 @@
-# fn divide(1,1) -> 1
-# fn divide(5,10) -> 0
-# fn divide(10,5) -> 2
-
 fn divide(a: u32, b: u32) -> u32 {
     let i = 0;
     let new_b: u32 = b;
@@ -21,4 +17,11 @@ fn divide(a: u32, b: u32) -> u32 {
     };
 
     result
+}
+
+@test
+fn test() -> Bool {
+    divide(1, 1) == 1 &&
+    divide(5, 10) == 0 &&
+    divide(10, 2) == 5
 }

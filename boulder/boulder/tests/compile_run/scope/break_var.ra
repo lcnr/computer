@@ -1,9 +1,12 @@
-# fn break_var() -> 7
-
 fn break_var() -> u32 {
     let a = 7;
     {
         break a;
         5
     }
+}
+
+@test
+fn test() -> Bool {
+    break_var() == 7
 }

@@ -1,10 +1,9 @@
-# fn bool() -> True
-# fn arm() -> True
-
+@test
 fn bool() -> Bool {
     True
 }
 
+@test
 fn arm() -> Bool {
     match bool() {
         t: True -> True,

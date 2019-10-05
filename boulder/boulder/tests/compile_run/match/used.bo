@@ -1,9 +1,11 @@
-# fn used_match(1, 2, 3) -> 5
-# fn used_match(1,2) -> 42
-
-fn used_match(a: u32, b: u32, c: u32 | Empty) -> u32 {
-    a + match c: u32 | Empty {
+fn used_match(a: u32, c: u32 | Empty) -> u32 {
+    a + match c {
         value: u32 -> value + 1,
-        nothing: Empty -> 42,
+        _: Empty -> 42,
     }
+}
+
+@test
+fn test() -> Bool {
+    used_match(3, 4) == 8
 }

@@ -1,4 +1,4 @@
-# fn test() -> Empty
+# no_run
 
 struct A;
 struct B;

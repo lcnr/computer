@@ -1,6 +1,3 @@
-# fn init_var(42) -> 42
-# fn init_var() -> 0
-
 fn init_var(a: u32 | Empty) -> u32 {
     let x;
     match a {
@@ -8,4 +5,14 @@ fn init_var(a: u32 | Empty) -> u32 {
         empty: Empty -> x = 0,
     }: Empty;
     x
+}
+
+@test
+fn empty() -> Bool {
+    init_var(Empty) == 0
+}
+
+@test
+fn u32() -> Bool {
+    init_var(42) == 42
 }

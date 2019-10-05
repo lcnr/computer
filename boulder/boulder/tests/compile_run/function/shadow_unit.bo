@@ -1,6 +1,9 @@
-# fn na() -> 7
-
 fn na() -> u32 {
     let True = 7;
     True
+}
+
+@test
+fn test() -> Bool {
+    na() == 7
 }

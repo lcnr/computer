@@ -1,9 +1,15 @@
-# fn match_fn(15) -> 42
-# fn match_fn(256) -> 256
-
 fn match_fn(value: u16 | u32) -> u32 {
     match value {
         unused: u16 -> 42,
         v: u32 -> v,
     }
+}
+
+@test
+fn u32() -> Bool {
+    match_fn(3: u32) == 3
+}
+
+fn u16() -> Bool {
+    match_fn(3: u16) == 42
 }

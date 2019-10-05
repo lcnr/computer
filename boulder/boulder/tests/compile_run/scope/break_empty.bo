@@ -1,6 +1,9 @@
-# fn break_empty() -> 7
-
 fn break_empty() -> u32 {
     { break Empty; }: Empty;
     7
+}
+
+@test
+fn test() -> Bool {
+    break_empty() == 7
 }
