@@ -1,0 +1,15 @@
+struct A {
+    a: u32 | Empty,
+}
+
+fn extend_field(a: A) -> u16 | u32 | Empty {
+    a.a
+}
+
+@test
+fn test() -> Bool {
+    match extend_field(A { a: Empty }) {
+        _: Empty -> True,
+        _: u16 | u32 -> False,
+    }
+}

@@ -68,8 +68,8 @@ impl Mir {
                             _ => (), // TODO
                         }
                     }
-                    &Action::InitializeStruct(struct_type, ref field_values) => {
-                        if let &Type::Struct(ref field_types) = &self.types[struct_type] {
+                    &Action::InitializeStruct(ref field_values) => {
+                        if let &Type::Struct(ref field_types) = &self.types[step.ty] {
                             assert_eq!(field_values.len(), field_types.len());
                             for (&v, &ty) in field_values.iter().zip(field_types.iter()) {
                                 assert!(v.0 < step_id);

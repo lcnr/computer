@@ -1,10 +1,13 @@
-# fn test(A{a:2,b:40}) -> 42
-
 struct A {
     a: u32,
     b: u32,
 }
 
-fn test(c: A) -> u32 {
+fn field_access(c: A) -> u32 {
     c.a + c.b
+}
+
+@test
+fn test() -> Bool {
+    field_access(A {a: 2, b: 40}) == 42
 }

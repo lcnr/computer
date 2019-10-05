@@ -1,10 +1,15 @@
-# fn test(A{a:42}) -> 42
-# fn test(A{a:Empty}) -> Empty
-
 struct A {
     a: u32 | Empty,
 }
 
-fn test(a: A) -> u32 | Empty {
+fn use_field(a: A) -> u32 | Empty {
     a.a
+}
+
+@test
+fn test() -> Bool {
+    match use_field(A { a: 7 }) {
+        a: u32 -> a == 7,
+        _: Empty -> False,
+    }
 }

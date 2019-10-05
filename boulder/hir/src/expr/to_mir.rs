@@ -224,6 +224,33 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 assert_eq!(ty, EMPTY_TYPE_ID);
                 Ok(block.add_step(ty, Action::LoadConstant(Object::Unit)))
             }
+            Expression::InitializeStruct(_, struct_kind, fields) => {
+                let temp_base = ctx.temporaries.len();
+                for (kind, expr) in fields.into_iter() {
+                    let id = expr.to_mir(ctx)?;
+                    let field_ty =
+                        if let &mir::Type::Struct(ref fields) = &ctx.types[struct_kind.item] {
+                            fields[kind.item]
+                        } else {
+                            unreachable!("invalid struct")
+                        };
+                    let id = ctx.func[*ctx.curr].add_step(field_ty, Action::Extend(id));
+                    ctx.temporaries.push(Temporary {
+                        step: id,
+                        ty: field_ty,
+                    });
+                }
+
+                Ok(ctx.func[*ctx.curr].add_step(
+                    struct_kind.item,
+                    Action::InitializeStruct(
+                        ctx.temporaries
+                            .drain(temp_base..)
+                            .map(|temp| temp.step)
+                            .collect(),
+                    ),
+                ))
+            }
             Expression::FunctionCall(ty, id, args) => {
                 let args = args
                     .into_iter()

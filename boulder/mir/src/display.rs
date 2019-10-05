@@ -114,8 +114,8 @@ impl Display for Mir {
                         Action::Extend(id) => writeln!(f, "extend ${}", id.0),
                         Action::LoadConstant(obj) => writeln!(f, "load {}", obj),
                         Action::LoadInput(i) => writeln!(f, "load !{}", i),
-                        Action::InitializeStruct(ty, fields) => {
-                            write!(f, "init {}(", ty)?;
+                        Action::InitializeStruct(fields) => {
+                            write!(f, "init {}(", step.ty)?;
                             if let Some((last, start)) = fields.split_last() {
                                 for arg in start.iter() {
                                     write!(f, "${}, ", arg.0)?;

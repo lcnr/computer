@@ -65,7 +65,7 @@ impl<'a> BoulderMirInterpreter<'a> {
                             Box::new(obj.clone()),
                         ),
                     },
-                    &Action::InitializeStruct(_, ref fields) => {
+                    &Action::InitializeStruct(ref fields) => {
                         Object::Struct(fields.iter().map(|&f| steps[f].clone()).collect())
                     }
                     &Action::CallFunction(target_id, ref args) => {

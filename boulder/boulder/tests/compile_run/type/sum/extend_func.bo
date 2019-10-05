@@ -1,0 +1,11 @@
+fn callee(a: u16 | Empty) { }
+
+fn caller(a: u16) {
+    callee(a)
+}
+
+@test
+fn test() -> Bool{
+    caller(7);
+    True
+}

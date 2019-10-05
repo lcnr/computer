@@ -121,7 +121,7 @@ pub enum Action {
     Extend(StepId),
     LoadInput(usize),
     LoadConstant(Object),
-    InitializeStruct(TypeId, TVec<FieldId, StepId>),
+    InitializeStruct(TVec<FieldId, StepId>),
     CallFunction(FunctionId, Vec<StepId>),
     FieldAccess(StepId, FieldId),
     UnaryOperation(UnaryOperation, StepId),
@@ -142,7 +142,7 @@ impl Step {
     pub fn used_steps(&self, used: &mut TBitSet<StepId>) {
         match &self.action {
             &Action::Extend(id) => used.add(id),
-            &Action::InitializeStruct(_, ref fields) => fields.iter().for_each(|&s| used.add(s)),
+            &Action::InitializeStruct(ref fields) => fields.iter().for_each(|&s| used.add(s)),
             &Action::CallFunction(_, ref steps) => steps.iter().for_each(|&s| used.add(s)),
             &Action::FieldAccess(id, _) => used.add(id),
             &Action::UnaryOperation(_, expr) => used.add(expr),

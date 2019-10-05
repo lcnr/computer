@@ -30,6 +30,11 @@ pub enum Expression<'a, V: IdentifierState, N: TypeState> {
     ),
     Statement(N::Type, Box<Expression<'a, V, N>>),
     Assignment(N::Type, V::Variable, Box<Expression<'a, V, N>>),
+    InitializeStruct(
+        N::Type,
+        Meta<'a, V::Type>,
+        Vec<(N::Field, Expression<'a, V, N>)>,
+    ),
     FunctionCall(N::Type, V::Function, Vec<Expression<'a, V, N>>),
     FieldAccess(N::Type, Box<Expression<'a, V, N>>, N::Field),
     Match(
@@ -59,6 +64,7 @@ where
             Expression::Binop(_, _op, a, b) => a.span().append(b.span()),
             Expression::Statement(_, expr) => expr.span().extend_right(';'),
             Expression::Assignment(_, var, expr) => var.span().simplify().append(expr.span()),
+            Expression::InitializeStruct(_, name, _) => name.span(),
             Expression::FunctionCall(_, name, _args) => name.span(),
             Expression::FieldAccess(_, _, field) => field.span().extend_left('.'),
             Expression::Match(_, meta, _, _) => meta.clone(),

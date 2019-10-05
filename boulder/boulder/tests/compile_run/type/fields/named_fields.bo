@@ -1,10 +1,15 @@
-# fn test(A{a:42,b:0}) -> A
-
 struct A {
     a: u32,
     b: u32,
 }
 
-fn test(a: A) -> A {
+fn mov(a: A) -> A {
     a
+}
+
+@test
+fn test() -> Bool {
+    match mov(A {a: 42, b: 0}) {
+        a: A -> a.a == 42 && a.b == 0,
+    }
 }

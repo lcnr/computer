@@ -1,6 +1,11 @@
-# fn extend(42) -> 42
-# fn extend(266) -> 266
-
 fn extend(a: u32) -> u32 | u16 {
     a
+}
+
+@test
+fn test() -> Bool {
+    match extend(42) {
+        a: u32 -> a == 42,
+        b: u16 -> False,
+    }
 }

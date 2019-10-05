@@ -1,8 +1,4 @@
-# fn test() -> Empty
-# fn true() -> True
-# fn false() -> False
-
-fn test() {
+fn empty() {
     let u = Empty;
     u
 }
@@ -13,4 +9,9 @@ fn true() -> Bool {
 
 fn false() -> Bool {
     False
+}
+
+@test
+fn test() -> Bool {
+    true() != false()
 }

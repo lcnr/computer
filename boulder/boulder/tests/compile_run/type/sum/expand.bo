@@ -1,5 +1,0 @@
-# fn test() -> 7
-
-fn test() -> u32 | Empty {
-    7
-}

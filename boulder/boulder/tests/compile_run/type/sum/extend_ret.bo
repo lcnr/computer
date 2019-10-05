@@ -1,0 +1,11 @@
+fn extend() -> u32 | Empty {
+    7
+}
+
+@test
+fn test() -> Bool {
+    match extend() {
+        a: u32 -> a == 7,
+        _: Empty -> False,
+    }
+}

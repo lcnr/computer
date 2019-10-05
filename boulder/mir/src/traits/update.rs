@@ -41,7 +41,7 @@ impl UpdateStepIds for Action {
                 f(a);
                 f(b);
             }
-            Action::InitializeStruct(_, fields) => {
+            Action::InitializeStruct(fields) => {
                 for field in fields {
                     f(field);
                 }

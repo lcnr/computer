@@ -1,8 +1,13 @@
-# fn test(Unit{}) -> Unit
-
 struct Unit;
 
-fn test(a: Unit) -> Unit {
+fn use_unit(a: Unit) -> Unit {
     let b = a;
     b
+}
+
+@test
+fn test() -> Bool {
+    match use_unit(Unit) {
+        _: Unit -> True: Bool,
+    }
 }

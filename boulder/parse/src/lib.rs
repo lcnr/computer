@@ -133,18 +133,16 @@ fn parse_pattern<'a>(iter: &mut TokenIter<'a>) -> Result<Pattern<'a>, CompileErr
 fn check_expr_terminator<'a>(
     tok: Meta<'a, Token>,
     prev_checked: &[Token],
+    expecting_open_brace: bool,
 ) -> Result<Meta<'a, Token>, CompileError> {
     match tok.item {
-        Token::Comma
-        | Token::SemiColon
-        | Token::CloseBlock(_)
-        | Token::OpenBlock(BlockDelim::Brace) => Ok(tok),
+        Token::Comma | Token::SemiColon | Token::CloseBlock(_) => Ok(tok),
+        Token::OpenBlock(BlockDelim::Brace) if expecting_open_brace => Ok(tok),
         _ => {
-            let mut expected = vec![
-                Token::SemiColon,
-                Token::CloseBlock(BlockDelim::Brace),
-                Token::OpenBlock(BlockDelim::Brace),
-            ];
+            let mut expected = vec![Token::SemiColon, Token::CloseBlock(BlockDelim::Brace)];
+            if expecting_open_brace {
+                expected.push(Token::OpenBlock(BlockDelim::Brace));
+            }
             expected.extend_from_slice(prev_checked);
             CompileError::expected(&expected, &tok)
         }
@@ -180,13 +178,14 @@ fn parse_type<'a>(
 fn parse_ident_expr<'a>(
     ident: Meta<'a, Box<str>>,
     iter: &mut TokenIter<'a>,
+    expecting_open_brace: bool,
 ) -> Result<Expression<'a>, CompileError> {
     let next = iter.next().unwrap();
     Ok(match next.item {
         Token::OpenBlock(BlockDelim::Parenthesis) => {
             let mut args = Vec::new();
             while !try_consume_token(Token::CloseBlock(BlockDelim::Parenthesis), iter) {
-                args.push(parse_expression(iter)?);
+                args.push(parse_expression(iter, false)?);
 
                 if !try_consume_token(Token::Comma, iter)
                     && !peek_token(Token::CloseBlock(BlockDelim::Parenthesis), iter)
@@ -199,6 +198,30 @@ fn parse_ident_expr<'a>(
             }
             Expression::FunctionCall((), ident, args)
         }
+        Token::OpenBlock(BlockDelim::Brace) => {
+            if expecting_open_brace {
+                iter.step_back(next);
+                Expression::Variable((), hir::UnresolvedVariable::Existing(ident))
+            } else {
+                let mut fields = Vec::new();
+                while !try_consume_token(Token::CloseBlock(BlockDelim::Brace), iter) {
+                    let field_name = expect_ident(iter.next().unwrap())?;
+                    consume_token(Token::Colon, iter)?;
+                    let expr = parse_expression(iter, false)?;
+                    fields.push((field_name, expr));
+
+                    if !try_consume_token(Token::Comma, iter)
+                        && !peek_token(Token::CloseBlock(BlockDelim::Brace), iter)
+                    {
+                        CompileError::expected(
+                            &[Token::Comma, Token::CloseBlock(BlockDelim::Brace)],
+                            &iter.next().unwrap(),
+                        )?;
+                    }
+                }
+                Expression::InitializeStruct((), ident, fields)
+            }
+        }
         Token::Colon => {
             let var = Expression::Variable((), hir::UnresolvedVariable::Existing(ident));
             Expression::TypeRestriction(Box::new(var), parse_type(iter)?)
@@ -210,11 +233,12 @@ fn parse_ident_expr<'a>(
     })
 }
 
+/// the `match` is already consumed
 fn parse_match<'a>(
     keyword: Meta<'a, ()>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Expression<'a>, CompileError> {
-    let value = parse_expression(iter)?;
+    let value = parse_expression(iter, true)?;
     consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
     let mut match_arms = Vec::new();
     loop {
@@ -224,7 +248,7 @@ fn parse_match<'a>(
 
         let pattern = parse_pattern(iter)?;
         consume_token(Token::Arrow, iter)?;
-        let expr = parse_expression(iter)?;
+        let expr = parse_expression(iter, false)?;
 
         match_arms.push(MatchArm { pattern, expr });
 
@@ -294,11 +318,12 @@ fn desugar_logical_ops<'a>(
     )
 }
 
+/// the `if` is already consumed
 fn parse_if<'a>(
     if_meta: Meta<'a, ()>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Expression<'a>, CompileError> {
-    let expr = parse_expression(iter)?;
+    let expr = parse_expression(iter, true)?;
     let expr = Expression::TypeRestriction(
         Box::new(expr),
         if_meta.replace(hir::UnresolvedType::Named("Bool".into())),
@@ -321,7 +346,10 @@ fn parse_if<'a>(
     Ok(Expression::Match((), if_meta, Box::new(expr), vec![a, b]))
 }
 
-fn parse_variable_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, CompileError> {
+fn parse_variable_decl<'a>(
+    iter: &mut TokenIter<'a>,
+    expecting_open_brace: bool,
+) -> Result<Expression<'a>, CompileError> {
     let name = expect_ident(iter.next().unwrap())?;
 
     let ty = if try_consume_token(Token::Colon, iter) {
@@ -332,7 +360,7 @@ fn parse_variable_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, C
     .map_or_else(|| name.simplify().replace(None), |v| v.map(|t| Some(t)));
 
     if try_consume_token(Token::Assignment, iter) {
-        let input = parse_expression(iter)?;
+        let input = parse_expression(iter, expecting_open_brace)?;
         Ok(Expression::Assignment(
             (),
             hir::UnresolvedVariable::New(name, ty),
@@ -340,7 +368,11 @@ fn parse_variable_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, C
         ))
     } else {
         let tok = iter.next().unwrap();
-        iter.step_back(check_expr_terminator(tok, &[Token::Assignment])?);
+        iter.step_back(check_expr_terminator(
+            tok,
+            &[Token::Assignment],
+            expecting_open_brace,
+        )?);
         Ok(Expression::Variable(
             (),
             hir::UnresolvedVariable::New(name, ty),
@@ -348,10 +380,52 @@ fn parse_variable_decl<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, C
     }
 }
 
+fn parse_while<'a>(
+    name: Option<Meta<'a, Box<str>>>,
+    meta: Meta<'a, ()>,
+    iter: &mut TokenIter<'a>,
+) -> Result<Expression<'a>, CompileError> {
+    let expr = parse_expression(iter, true)?;
+    consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
+    let stay = MatchArm {
+        pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named("True".into()))),
+        expr: Expression::Lit((), meta.replace(Literal::Unit("Empty".into()))),
+    };
+
+    let empty_lit = Expression::Lit((), meta.replace(Literal::Unit("Empty".into())));
+    let exit = MatchArm {
+        pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named("False".into()))),
+        expr: Expression::Break((), meta.replace(None), Box::new(empty_lit)),
+    };
+
+    if let Expression::Block((), scope, mut body) = parse_block(name, iter)? {
+        let check = Expression::TypeRestriction(
+            Box::new(Expression::Match(
+                (),
+                meta.simplify(),
+                Box::new(expr),
+                vec![stay, exit],
+            )),
+            meta.replace(hir::UnresolvedType::Sum(vec![
+                meta.replace("Empty".into()),
+                meta.replace("Never".into()),
+            ])),
+        );
+        body.insert(0, Expression::Statement((), Box::new(check)));
+        Ok(Expression::TypeRestriction(
+            Box::new(Expression::Loop((), scope, body)),
+            meta.replace(hir::UnresolvedType::Named("Empty".into())),
+        ))
+    } else {
+        unreachable!("parse_block returned an unexpected expression")
+    }
+}
+
 /// parse the rhs of a binary operation, each binop must have a priority greater than `priority`.
 fn parse_binop_rhs<'a>(
     priority: u32,
     iter: &mut TokenIter<'a>,
+    expecting_open_brace: bool,
 ) -> Result<Expression<'a>, CompileError> {
     let mut start = iter.next().unwrap();
     let mut expr = match mem::replace(&mut start.item, Token::Invalid) {
@@ -371,47 +445,7 @@ fn parse_binop_rhs<'a>(
                     }
                 }
                 Token::Keyword(Keyword::While) => {
-                    let expr = parse_expression(iter)?;
-                    consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
-                    let stay = MatchArm {
-                        pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named(
-                            "True".into(),
-                        ))),
-                        expr: Expression::Lit((), next.replace(Literal::Unit("Empty".into()))),
-                    };
-
-                    let empty_lit =
-                        Expression::Lit((), next.replace(Literal::Unit("Empty".into())));
-                    let exit = MatchArm {
-                        pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named(
-                            "False".into(),
-                        ))),
-                        expr: Expression::Break((), next.replace(None), Box::new(empty_lit)),
-                    };
-
-                    if let Expression::Block((), scope, mut body) =
-                        parse_block(Some(start.replace(v)), iter)?
-                    {
-                        let check = Expression::TypeRestriction(
-                            Box::new(Expression::Match(
-                                (),
-                                start.simplify(),
-                                Box::new(expr),
-                                vec![stay, exit],
-                            )),
-                            start.replace(hir::UnresolvedType::Sum(vec![
-                                start.replace("Empty".into()),
-                                start.replace("Never".into()),
-                            ])),
-                        );
-                        body.insert(0, Expression::Statement((), Box::new(check)));
-                        Ok(Expression::TypeRestriction(
-                            Box::new(Expression::Loop((), scope, body)),
-                            start.replace(hir::UnresolvedType::Named("Empty".into())),
-                        ))
-                    } else {
-                        unreachable!("parse_block returned an unexpected expression")
-                    }
+                    parse_while(Some(start.replace(v)), next.simplify(), iter)
                 }
                 _ => CompileError::expected(
                     &[
@@ -424,19 +458,19 @@ fn parse_binop_rhs<'a>(
             }?
         }
         Token::Invert => {
-            let expr = parse_binop_rhs(std::u32::MAX, iter)?;
+            let expr = parse_binop_rhs(std::u32::MAX, iter, expecting_open_brace)?;
             Expression::UnaryOperation(
                 (),
                 start.replace(hir::UnaryOperation::Invert),
                 Box::new(expr),
             )
         }
-        Token::Ident(v) => parse_ident_expr(start.replace(v), iter)?,
+        Token::Ident(v) => parse_ident_expr(start.replace(v), iter, expecting_open_brace)?,
         Token::Integer(c) => Expression::Lit((), start.replace(Literal::Integer(c))),
         Token::Keyword(Keyword::Match) => parse_match(start.simplify(), iter)?,
         Token::Keyword(Keyword::If) => parse_if(start.simplify(), iter)?,
         Token::OpenBlock(BlockDelim::Parenthesis) => {
-            let expr = parse_expression(iter)?;
+            let expr = parse_expression(iter, false)?;
             consume_token(Token::CloseBlock(BlockDelim::Parenthesis), iter)?;
             expr
         }
@@ -449,44 +483,7 @@ fn parse_binop_rhs<'a>(
                 unreachable!("parse_block returned an unexpected expression")
             }
         }
-        Token::Keyword(Keyword::While) => {
-            let expr = parse_expression(iter)?;
-            consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
-            let stay = MatchArm {
-                pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named("True".into()))),
-                expr: Expression::Lit((), start.replace(Literal::Unit("Empty".into()))),
-            };
-
-            let empty_lit = Expression::Lit((), start.replace(Literal::Unit("Empty".into())));
-            let exit = MatchArm {
-                pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named(
-                    "False".into(),
-                ))),
-                expr: Expression::Break((), start.replace(None), Box::new(empty_lit)),
-            };
-
-            if let Expression::Block((), scope, mut body) = parse_block(None, iter)? {
-                let check = Expression::TypeRestriction(
-                    Box::new(Expression::Match(
-                        (),
-                        start.simplify(),
-                        Box::new(expr),
-                        vec![stay, exit],
-                    )),
-                    start.replace(hir::UnresolvedType::Sum(vec![
-                        start.replace("Empty".into()),
-                        start.replace("Never".into()),
-                    ])),
-                );
-                body.insert(0, Expression::Statement((), Box::new(check)));
-                Expression::TypeRestriction(
-                    Box::new(Expression::Loop((), scope, body)),
-                    start.replace(hir::UnresolvedType::Named("Empty".into())),
-                )
-            } else {
-                unreachable!("parse_block returned an unexpected expression")
-            }
-        }
+        Token::Keyword(Keyword::While) => parse_while(None, start.simplify(), iter)?,
         _ => CompileError::expected(
             &[
                 Token::Scope("".into()),
@@ -508,7 +505,11 @@ fn parse_binop_rhs<'a>(
             let mut next = next;
             while let Token::Binop(op) = next.item {
                 if op.priority() > priority {
-                    expr = op.as_hir_expr(next, expr, parse_binop_rhs(op.priority(), iter)?);
+                    expr = op.as_hir_expr(
+                        next,
+                        expr,
+                        parse_binop_rhs(op.priority(), iter, expecting_open_brace)?,
+                    );
                 } else {
                     break;
                 }
@@ -531,12 +532,17 @@ fn parse_binop_rhs<'a>(
 fn parse_binop<'a>(
     mut lhs: Expression<'a>,
     iter: &mut TokenIter<'a>,
+    expecting_open_brace: bool,
 ) -> Result<Expression<'a>, CompileError> {
     let mut next = iter.next().unwrap();
     loop {
         match next.item {
             Token::Binop(op) => {
-                lhs = op.as_hir_expr(next.simplify(), lhs, parse_binop_rhs(op.priority(), iter)?);
+                lhs = op.as_hir_expr(
+                    next.simplify(),
+                    lhs,
+                    parse_binop_rhs(op.priority(), iter, expecting_open_brace)?,
+                );
                 next = iter.next().unwrap();
             }
             Token::Dot => {
@@ -557,67 +563,38 @@ fn parse_binop<'a>(
             iter.step_back(check_expr_terminator(
                 next,
                 &[Token::Binop(Binop::Add), Token::Dot, Token::Colon],
+                expecting_open_brace,
             )?);
             Ok(lhs)
         }
     }
 }
 
-fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, CompileError> {
+fn parse_expression<'a>(
+    iter: &mut TokenIter<'a>,
+    expecting_open_brace: bool,
+) -> Result<Expression<'a>, CompileError> {
     let mut start = iter.next().unwrap();
     match mem::replace(&mut start.item, Token::Invalid) {
         Token::OpenBlock(BlockDelim::Brace) => {
             let block = parse_block(None, iter)?;
-            parse_binop(block, iter)
+            parse_binop(block, iter, expecting_open_brace)
         }
         Token::Keyword(Keyword::Loop) => {
             consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
             if let Expression::Block((), scope, body) = parse_block(None, iter)? {
-                parse_binop(Expression::Loop((), scope, body), iter)
+                parse_binop(
+                    Expression::Loop((), scope, body),
+                    iter,
+                    expecting_open_brace,
+                )
             } else {
                 unreachable!("parse_block returned an unexpected expression")
             }
         }
         Token::Keyword(Keyword::While) => {
-            let expr = parse_expression(iter)?;
-            consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
-            let stay = MatchArm {
-                pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named("True".into()))),
-                expr: Expression::Lit((), start.replace(Literal::Unit("Empty".into()))),
-            };
-
-            let empty_lit = Expression::Lit((), start.replace(Literal::Unit("Empty".into())));
-            let exit = MatchArm {
-                pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named(
-                    "False".into(),
-                ))),
-                expr: Expression::Break((), start.replace(None), Box::new(empty_lit)),
-            };
-
-            if let Expression::Block((), scope, mut body) = parse_block(None, iter)? {
-                let check = Expression::TypeRestriction(
-                    Box::new(Expression::Match(
-                        (),
-                        start.simplify(),
-                        Box::new(expr),
-                        vec![stay, exit],
-                    )),
-                    start.replace(hir::UnresolvedType::Sum(vec![
-                        start.replace("Empty".into()),
-                        start.replace("Never".into()),
-                    ])),
-                );
-                body.insert(0, Expression::Statement((), Box::new(check)));
-                parse_binop(
-                    Expression::TypeRestriction(
-                        Box::new(Expression::Loop((), scope, body)),
-                        start.replace(hir::UnresolvedType::Named("Empty".into())),
-                    ),
-                    iter,
-                )
-            } else {
-                unreachable!("parse_block returned an unexpected expression")
-            }
+            let expr = parse_while(None, start.simplify(), iter)?;
+            parse_binop(expr, iter, expecting_open_brace)
         }
         Token::Scope(v) => {
             consume_token(Token::Colon, iter)?;
@@ -625,63 +602,25 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
             match next.item {
                 Token::OpenBlock(BlockDelim::Brace) => {
                     let block = parse_block(Some(start.replace(v)), iter)?;
-                    parse_binop(block, iter)
+                    parse_binop(block, iter, expecting_open_brace)
                 }
                 Token::Keyword(Keyword::Loop) => {
                     consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
                     if let Expression::Block((), scope, body) =
                         parse_block(Some(start.replace(v)), iter)?
                     {
-                        parse_binop(Expression::Loop((), scope, body), iter)
+                        parse_binop(
+                            Expression::Loop((), scope, body),
+                            iter,
+                            expecting_open_brace,
+                        )
                     } else {
                         unreachable!("parse_block returned an unexpected expression")
                     }
                 }
                 Token::Keyword(Keyword::While) => {
-                    let expr = parse_expression(iter)?;
-                    consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
-                    let stay = MatchArm {
-                        pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named(
-                            "True".into(),
-                        ))),
-                        expr: Expression::Lit((), next.replace(Literal::Unit("Empty".into()))),
-                    };
-
-                    let empty_lit =
-                        Expression::Lit((), next.replace(Literal::Unit("Empty".into())));
-                    let exit = MatchArm {
-                        pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named(
-                            "False".into(),
-                        ))),
-                        expr: Expression::Break((), next.replace(None), Box::new(empty_lit)),
-                    };
-
-                    if let Expression::Block((), scope, mut body) =
-                        parse_block(Some(start.replace(v)), iter)?
-                    {
-                        let check = Expression::TypeRestriction(
-                            Box::new(Expression::Match(
-                                (),
-                                start.simplify(),
-                                Box::new(expr),
-                                vec![stay, exit],
-                            )),
-                            start.replace(hir::UnresolvedType::Sum(vec![
-                                start.replace("Empty".into()),
-                                start.replace("Never".into()),
-                            ])),
-                        );
-                        body.insert(0, Expression::Statement((), Box::new(check)));
-                        parse_binop(
-                            Expression::TypeRestriction(
-                                Box::new(Expression::Loop((), scope, body)),
-                                start.replace(hir::UnresolvedType::Named("Empty".into())),
-                            ),
-                            iter,
-                        )
-                    } else {
-                        unreachable!("parse_block returned an unexpected expression")
-                    }
+                    let expr = parse_while(Some(start.replace(v)), next.simplify(), iter)?;
+                    parse_binop(expr, iter, expecting_open_brace)
                 }
                 _ => CompileError::expected(
                     &[
@@ -693,18 +632,18 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
             }
         }
         Token::OpenBlock(BlockDelim::Parenthesis) => {
-            let expr = parse_expression(iter)?;
+            let expr = parse_expression(iter, false)?;
             consume_token(Token::CloseBlock(BlockDelim::Parenthesis), iter)?;
-            parse_binop(expr, iter)
+            parse_binop(expr, iter, expecting_open_brace)
         }
-        Token::Keyword(Keyword::Let) => parse_variable_decl(iter),
+        Token::Keyword(Keyword::Let) => parse_variable_decl(iter, expecting_open_brace),
         Token::Keyword(Keyword::Match) => {
             let expr = parse_match(start.simplify(), iter)?;
-            parse_binop(expr, iter)
+            parse_binop(expr, iter, expecting_open_brace)
         }
         Token::Keyword(Keyword::If) => {
             let expr = parse_if(start.simplify(), iter)?;
-            parse_binop(expr, iter)
+            parse_binop(expr, iter, expecting_open_brace)
         }
         Token::Keyword(Keyword::Break) => {
             let mut next = iter.next().unwrap();
@@ -717,16 +656,16 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
             Ok(Expression::Break(
                 (),
                 scope,
-                Box::new(parse_expression(iter)?),
+                Box::new(parse_expression(iter, expecting_open_brace)?),
             ))
         }
         Token::Keyword(Keyword::Return) => Ok(Expression::Break(
             (),
             start.replace(Some("fn".into())),
-            Box::new(parse_expression(iter)?),
+            Box::new(parse_expression(iter, expecting_open_brace)?),
         )),
         Token::Invert => {
-            let expr = parse_binop_rhs(std::u32::MAX, iter)?;
+            let expr = parse_binop_rhs(std::u32::MAX, iter, expecting_open_brace)?;
             parse_binop(
                 Expression::UnaryOperation(
                     (),
@@ -734,28 +673,38 @@ fn parse_expression<'a>(iter: &mut TokenIter<'a>) -> Result<Expression<'a>, Comp
                     Box::new(expr),
                 ),
                 iter,
+                expecting_open_brace,
             )
         }
         Token::Ident(v) => {
-            let expr = parse_ident_expr(start.replace(v), iter)?;
+            let expr = parse_ident_expr(start.replace(v), iter, expecting_open_brace)?;
             let next = iter.next().unwrap();
             Ok(match &next.item {
                 Token::Assignment => {
                     if let Expression::Variable((), var) = expr {
-                        Expression::Assignment((), var, Box::new(parse_expression(iter)?))
+                        Expression::Assignment(
+                            (),
+                            var,
+                            Box::new(parse_expression(iter, expecting_open_brace)?),
+                        )
                     } else {
-                        Err(check_expr_terminator(next, &[Token::Assignment]).unwrap_err())?
+                        Err(check_expr_terminator(
+                            next,
+                            &[Token::Assignment],
+                            expecting_open_brace,
+                        )
+                        .unwrap_err())?
                     }
                 }
                 _ => {
                     iter.step_back(next);
-                    parse_binop(expr, iter)?
+                    parse_binop(expr, iter, expecting_open_brace)?
                 }
             })
         }
         Token::Integer(c) => {
             let expr = Expression::Lit((), start.replace(Literal::Integer(c)));
-            parse_binop(expr, iter)
+            parse_binop(expr, iter, expecting_open_brace)
         }
         _ => CompileError::expected(
             &[
@@ -810,7 +759,7 @@ fn parse_block<'a>(
         }
 
         iter.step_back(tok);
-        block.push(parse_expression(iter)?);
+        block.push(parse_expression(iter, false)?);
     }
 }
 

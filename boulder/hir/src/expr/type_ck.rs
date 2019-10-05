@@ -126,6 +126,20 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 ctx.solver.add_extension(expr.id(), var_id);
                 Expression::Assignment(ctx.solver.add_empty(span), var, Box::new(expr))
             }
+            Expression::InitializeStruct((), kind, fields) => {
+                let res = ctx.solver.add_typed(kind.item, kind.simplify());
+                let fields = fields
+                    .into_iter()
+                    .map(|(name, expr)| {
+                        let expr = expr.type_constraints(ctx)?;
+                        let extended = ctx.solver.add_unbound(name.simplify());
+                        ctx.solver.add_extension(expr.id(), extended);
+                        ctx.solver.add_field_access(res, extended, &name)?;
+                        Ok((name, expr))
+                    })
+                    .collect::<Result<Vec<_>, CompileError>>()?;
+                Expression::InitializeStruct(res, kind, fields)
+            }
             Expression::FunctionCall((), name, args) => {
                 let definition = &ctx.functions[name.item];
                 let args = args
@@ -259,6 +273,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             | &Expression::Binop(id, _, _, _)
             | &Expression::Statement(id, _)
             | &Expression::Assignment(id, _, _)
+            | &Expression::InitializeStruct(id, _, _)
             | &Expression::FunctionCall(id, _, _)
             | &Expression::FieldAccess(id, _, _)
             | &Expression::Match(id, _, _, _)
@@ -279,6 +294,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             | Expression::Binop(id, _, _, _)
             | Expression::Statement(id, _)
             | Expression::Assignment(id, _, _)
+            | Expression::InitializeStruct(id, _, _)
             | Expression::FunctionCall(id, _, _)
             | Expression::FieldAccess(id, _, _)
             | Expression::Match(id, _, _, _)
@@ -320,6 +336,23 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             Expression::Assignment(id, var, expr) => {
                 let expr = expr.insert_types(types, type_result);
                 Expression::Assignment(type_result[id], var, Box::new(expr))
+            }
+            Expression::InitializeStruct(id, kind, fields) => {
+                let struct_ty = type_result[id];
+                let fields = fields
+                    .into_iter()
+                    .map(|(field, expr)| {
+                        (
+                            field.map(|field| {
+                                types[struct_ty]
+                                    .get_field(&field)
+                                    .expect("type check: invalid field")
+                            }),
+                            expr.insert_types(types, type_result),
+                        )
+                    })
+                    .collect();
+                Expression::InitializeStruct(struct_ty, kind, fields)
             }
             Expression::FunctionCall(id, name, args) => {
                 let args = args
@@ -383,6 +416,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
             | &Expression::Binop(ty, _, _, _)
             | &Expression::Statement(ty, _)
             | &Expression::Assignment(ty, _, _)
+            | &Expression::InitializeStruct(ty, _, _)
             | &Expression::FunctionCall(ty, _, _)
             | &Expression::FieldAccess(ty, _, _)
             | &Expression::Match(ty, _, _, _)

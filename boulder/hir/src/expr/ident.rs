@@ -147,6 +147,24 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             Expression::Statement((), expr) => {
                 Expression::Statement((), Box::new(expr.resolve_identifiers(ctx)?))
             }
+            Expression::InitializeStruct((), name, fields) => {
+                if let Some(&ty) = ctx.type_lookup.get(&name.item) {
+                    if let ty::Kind::Struct(_) = ctx.types[ty].kind {
+                        let fields = fields
+                            .into_iter()
+                            .map(|(name, expr)| Ok((name, expr.resolve_identifiers(ctx)?)))
+                            .collect::<Result<Vec<_>, _>>()?;
+                        Expression::InitializeStruct((), name.replace(ty), fields)
+                    } else {
+                        unimplemented!()
+                    }
+                } else {
+                    CompileError::new(
+                        &name,
+                        format_args!("Cannot find the type `{}` in this scope", name.item),
+                    )?
+                }
+            }
             Expression::FunctionCall((), name, args) => {
                 let mut new = Vec::new();
                 for expr in args {

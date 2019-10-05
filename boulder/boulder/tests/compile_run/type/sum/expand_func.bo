@@ -1,9 +1,0 @@
-# fn callee(42) -> Empty
-# fn callee() -> Empty
-# fn caller(42) -> Empty
-
-fn callee(a: u16 | Empty) { }
-
-fn caller(a: u16) {
-    callee(a)
-}
