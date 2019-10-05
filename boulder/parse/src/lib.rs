@@ -380,6 +380,34 @@ fn parse_variable_decl<'a>(
     }
 }
 
+fn parse_scope<'a>(
+    scope: Meta<'a, Box<str>>,
+    iter: &mut TokenIter<'a>,
+) -> Result<Expression<'a>, CompileError> {
+    consume_token(Token::Colon, iter)?;
+    let next = iter.next().unwrap();
+    match next.item {
+        Token::OpenBlock(BlockDelim::Brace) => parse_block(Some(scope), iter),
+        Token::Keyword(Keyword::Loop) => {
+            consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
+            if let Expression::Block((), scope, body) = parse_block(Some(scope), iter)? {
+                Ok(Expression::Loop((), scope, body))
+            } else {
+                unreachable!("parse_block returned an unexpected expression")
+            }
+        }
+        Token::Keyword(Keyword::While) => parse_while(Some(scope), next.simplify(), iter),
+        _ => CompileError::expected(
+            &[
+                Token::OpenBlock(BlockDelim::Brace),
+                Token::Keyword(Keyword::Loop),
+                Token::Keyword(Keyword::While),
+            ],
+            &next,
+        ),
+    }
+}
+
 fn parse_while<'a>(
     name: Option<Meta<'a, Box<str>>>,
     meta: Meta<'a, ()>,
@@ -429,34 +457,7 @@ fn parse_binop_rhs<'a>(
 ) -> Result<Expression<'a>, CompileError> {
     let mut start = iter.next().unwrap();
     let mut expr = match mem::replace(&mut start.item, Token::Invalid) {
-        Token::Scope(v) => {
-            consume_token(Token::Colon, iter)?;
-            let next = iter.next().unwrap();
-            match next.item {
-                Token::OpenBlock(BlockDelim::Brace) => parse_block(Some(start.replace(v)), iter),
-                Token::Keyword(Keyword::Loop) => {
-                    consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
-                    if let Expression::Block((), scope, body) =
-                        parse_block(Some(start.replace(v)), iter)?
-                    {
-                        Ok(Expression::Loop((), scope, body))
-                    } else {
-                        unreachable!("parse_block returned an unexpected expression")
-                    }
-                }
-                Token::Keyword(Keyword::While) => {
-                    parse_while(Some(start.replace(v)), next.simplify(), iter)
-                }
-                _ => CompileError::expected(
-                    &[
-                        Token::OpenBlock(BlockDelim::Brace),
-                        Token::Keyword(Keyword::Loop),
-                        Token::Keyword(Keyword::While),
-                    ],
-                    &next,
-                ),
-            }?
-        }
+        Token::Scope(v) => parse_scope(start.replace(v), iter)?,
         Token::Invert => {
             let expr = parse_binop_rhs(std::u32::MAX, iter, expecting_open_brace)?;
             Expression::UnaryOperation(
@@ -620,41 +621,11 @@ fn parse_expression<'a>(
             let expr = parse_while(None, start.simplify(), iter)?;
             parse_binop(expr, iter, expecting_open_brace)
         }
-        Token::Scope(v) => {
-            consume_token(Token::Colon, iter)?;
-            let next = iter.next().unwrap();
-            match next.item {
-                Token::OpenBlock(BlockDelim::Brace) => {
-                    let block = parse_block(Some(start.replace(v)), iter)?;
-                    parse_binop(block, iter, expecting_open_brace)
-                }
-                Token::Keyword(Keyword::Loop) => {
-                    consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
-                    if let Expression::Block((), scope, body) =
-                        parse_block(Some(start.replace(v)), iter)?
-                    {
-                        parse_binop(
-                            Expression::Loop((), scope, body),
-                            iter,
-                            expecting_open_brace,
-                        )
-                    } else {
-                        unreachable!("parse_block returned an unexpected expression")
-                    }
-                }
-                Token::Keyword(Keyword::While) => {
-                    let expr = parse_while(Some(start.replace(v)), next.simplify(), iter)?;
-                    parse_binop(expr, iter, expecting_open_brace)
-                }
-                _ => CompileError::expected(
-                    &[
-                        Token::OpenBlock(BlockDelim::Brace),
-                        Token::Keyword(Keyword::Loop),
-                    ],
-                    &next,
-                ),
-            }
-        }
+        Token::Scope(v) => parse_binop(
+            parse_scope(start.replace(v), iter)?,
+            iter,
+            expecting_open_brace,
+        ),
         Token::OpenBlock(BlockDelim::Parenthesis) => {
             let expr = parse_expression(iter, false)?;
             consume_token(Token::CloseBlock(BlockDelim::Parenthesis), iter)?;
