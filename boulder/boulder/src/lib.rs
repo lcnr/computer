@@ -31,5 +31,6 @@ pub fn compile(src: &str) -> Result<Mir, CompileError> {
     mir.reduce_binops();
     mir.validate();
     println!("{}", mir);
+    println!("steps: {}", mir.step_count());
     Ok(mir)
 }

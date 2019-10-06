@@ -17,10 +17,10 @@ start:
     add B;
     mov 0xff A;
     sub M1;
-    mov start A;    #return adress block (P2)
+    mov start A; #return adress block (P2)
     mov A mem;
-                    # push variables on stack
-    mov 1 A;
+    
+    mov 1 A; # push variables on stack
     add B;
     mov 0xff A;
     sub M1;
@@ -35,8 +35,7 @@ start:
     mov 0xff M2; 
     mov B mem;
     
-                    #function call
-    ljmp multiply;
+    ljmp multiply; #function call
     
 .return:
 jmp .return;

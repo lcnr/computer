@@ -27,3 +27,10 @@ fn variable_shadow(a: u32) -> u32 {
 fn ops() -> Bool {
     parenthesis_a(5, 2) == 6
 }
+
+@test
+fn run0() -> Bool {
+    match empty() {
+        _: Empty -> True: Bool,
+    }
+}
