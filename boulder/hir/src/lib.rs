@@ -41,6 +41,12 @@ pub enum UnresolvedVariable<'a> {
 }
 
 #[derive(Debug, Clone)]
+pub struct Attribute<'a> {
+    pub name: Meta<'a, &'a str>,
+    pub args: Vec<Meta<'a, &'a str>>,
+}
+
+#[derive(Debug, Clone)]
 pub enum Literal<V: IdentifierState> {
     Integer(u128),
     Unit(V::Type),

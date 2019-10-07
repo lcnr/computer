@@ -147,10 +147,10 @@ impl Binop {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum Token {
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Token<'a> {
     Integer(u128),
-    Ident(Box<str>),
+    Ident(&'a str),
     Keyword(Keyword),
     OpenBlock(BlockDelim),
     CloseBlock(BlockDelim),
@@ -164,9 +164,9 @@ pub enum Token {
     Arrow,
     Underscore,
     /// `'name`
-    Scope(Box<str>),
+    Scope(&'a str),
     /// `@name`
-    Attribute(Box<str>),
+    Attribute(&'a str),
     Invalid,
     EOF,
 }
@@ -186,7 +186,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
         }
     }
 
-    pub fn step_back(&mut self, undo: Meta<'a, Token>) {
+    pub fn step_back(&mut self, undo: Meta<'a, Token<'a>>) {
         self.line = undo.line;
         self.byte_offset = undo.span.start;
     }
@@ -203,7 +203,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
         self.src
     }
 
-    fn new_token(&self, tok: Token, origin: Range<usize>) -> Meta<'a, Token> {
+    fn new_token(&self, tok: Token<'a>, origin: Range<usize>) -> Meta<'a, Token<'a>> {
         Meta {
             item: tok,
             source: self.src,
@@ -228,7 +228,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
 
     /// returns an invalid token,
     /// recover never needs to skip a newline
-    fn recover(&mut self, tok_start: usize) -> Meta<'a, Token> {
+    fn recover(&mut self, tok_start: usize) -> Meta<'a, Token<'a>> {
         while let Some(c) = self.current_char() {
             if self.is_terminator(c) {
                 break;
@@ -258,7 +258,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
         }
     }
 
-    fn parse_attr(&mut self) -> Meta<'a, Token> {
+    fn parse_attr(&mut self) -> Meta<'a, Token<'a>> {
         let start = self.byte_offset;
         // TODO: accept char literal
         self.advance();
@@ -281,7 +281,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
     }
 
     /// expects the first character to be `'`
-    fn parse_char_or_scope(&mut self) -> Meta<'a, Token> {
+    fn parse_char_or_scope(&mut self) -> Meta<'a, Token<'a>> {
         let start = self.byte_offset;
         // TODO: accept char literal
         self.advance();
@@ -304,7 +304,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
     }
 
     /// expects that the first byte is already checked to be alphabetical
-    fn parse_ident(&mut self) -> Meta<'a, Token> {
+    fn parse_ident(&mut self) -> Meta<'a, Token<'a>> {
         let start = self.byte_offset;
         self.advance();
         while let Some(c) = self.current_char() {
@@ -335,7 +335,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
         }
     }
 
-    fn parse_num(&mut self) -> Meta<'a, Token> {
+    fn parse_num(&mut self) -> Meta<'a, Token<'a>> {
         // get num str
         let s = self.src[self.byte_offset..]
             .split(|c: char| self.is_terminator(c))
@@ -378,7 +378,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
         }
     }
 
-    fn next_token(&mut self) -> Meta<'a, Token> {
+    fn next_token(&mut self) -> Meta<'a, Token<'a>> {
         let first = if let Some(c) = self.current_char() {
             c
         } else {
@@ -596,9 +596,9 @@ impl<'a, 'b: 'a> TokenIter<'b> {
 }
 
 impl<'a> Iterator for TokenIter<'a> {
-    type Item = Meta<'a, Token>;
+    type Item = Meta<'a, Token<'a>>;
 
-    fn next(&mut self) -> Option<Meta<'a, Token>> {
+    fn next(&mut self) -> Option<Self::Item> {
         Some(self.next_token())
     }
 }

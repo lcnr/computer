@@ -6,14 +6,14 @@ use shared_id::{FieldId, TypeId};
 
 use diagnostics::{CompileError, Meta};
 
-use crate::UnresolvedType;
+use crate::{Attribute, UnresolvedType};
 
 pub mod solver;
 
 #[derive(Debug, Clone)]
 pub struct Type<'a, T> {
     pub name: Meta<'a, Box<str>>,
-    pub attributes: Vec<Meta<'a, Box<str>>>,
+    pub attributes: Vec<Attribute<'a>>,
     pub kind: Kind<'a, T>,
 }
 

@@ -12,9 +12,8 @@ use crate::{
         IdentifierState, ResolvedIdentifiers, ResolvedTypes, TypeState, UnresolvedIdentifiers,
         UnresolvedTypes,
     },
-    ty,
-    ty::solver::TypeSolver,
-    Type, UnresolvedType,
+    ty::{self, solver::TypeSolver},
+    Attribute, Type, UnresolvedType,
 };
 
 mod index;
@@ -41,7 +40,7 @@ pub struct FunctionDefinition<'a, T> {
 #[derive(Debug, Clone)]
 pub struct Function<'a, V: IdentifierState, N: TypeState, T> {
     pub name: Meta<'a, Box<str>>,
-    pub attributes: Vec<Meta<'a, Box<str>>>,
+    pub attributes: Vec<Attribute<'a>>,
     pub arguments: Vec<VariableId>,
     pub variables: TVec<VariableId, Variable<'a, T>>,
     pub ret: Meta<'a, T>,
@@ -258,7 +257,10 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
     ) -> Result<mir::Function, CompileError> {
         let mut func = mir::Function::new(
             self.name.item,
-            self.attributes.into_iter().map(|v| v.item).collect(),
+            self.attributes
+                .into_iter()
+                .map(|v| v.name.item.into())
+                .collect(), // TODO: mir attributes
             self.ret.item,
         );
         let mut id = func.add_block();

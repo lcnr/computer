@@ -6,6 +6,8 @@ mod tokenize;
 
 use tokenize::{Binop, BlockDelim, Keyword, Token, TokenIter};
 
+use hir::Attribute;
+
 type Expression<'a> = hir::expr::Expression<
     'a,
     hir::traits::UnresolvedIdentifiers<'a>,
@@ -39,8 +41,8 @@ pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
     let iter = &mut TokenIter::new(src);
     let mut hir = Hir::new();
     let mut attributes = Vec::new();
-    while let Some(mut token) = iter.next() {
-        match mem::replace(&mut token.item, Token::Invalid) {
+    while let Some(token) = iter.next() {
+        match token.item {
             Token::Keyword(Keyword::Function) => {
                 hir.add_function(parse_function(
                     mem::replace(&mut attributes, Vec::new()),
@@ -54,7 +56,7 @@ pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
                 )?)?;
             }
             Token::Attribute(value) => {
-                attributes.push(token.replace(value));
+                attributes.push(parse_attribute(token.replace(value), iter)?);
             }
             Token::EOF => break,
             _ => CompileError::expected(
@@ -102,7 +104,7 @@ fn consume_token(expected: Token, iter: &mut TokenIter) -> Result<(), CompileErr
     }
 }
 
-fn expect_ident<'a>(tok: Meta<'a, Token>) -> Result<Meta<'a, Box<str>>, CompileError> {
+fn expect_ident<'a>(tok: Meta<'a, Token<'a>>) -> Result<Meta<'a, &'a str>, CompileError> {
     let tok = tok.map(|t| {
         if let Token::Ident(value) = t {
             value
@@ -117,9 +119,31 @@ fn expect_ident<'a>(tok: Meta<'a, Token>) -> Result<Meta<'a, Box<str>>, CompileE
     }
 }
 
+fn parse_attribute<'a>(
+    name: Meta<'a, &'a str>,
+    iter: &mut TokenIter<'a>,
+) -> Result<Attribute<'a>, CompileError> {
+    let mut args = Vec::new();
+    if try_consume_token(Token::OpenBlock(BlockDelim::Parenthesis), iter) {
+        while !try_consume_token(Token::CloseBlock(BlockDelim::Parenthesis), iter) {
+            args.push(expect_ident(iter.next().unwrap())?);
+
+            if !try_consume_token(Token::Comma, iter)
+                && !peek_token(Token::CloseBlock(BlockDelim::Parenthesis), iter)
+            {
+                CompileError::expected(
+                    &[Token::Comma, Token::CloseBlock(BlockDelim::Parenthesis)],
+                    &iter.next().unwrap(),
+                )?;
+            }
+        }
+    }
+    Ok(Attribute { name, args })
+}
+
 fn parse_pattern<'a>(iter: &mut TokenIter<'a>) -> Result<Pattern<'a>, CompileError> {
-    let mut next = iter.next().unwrap();
-    let name = match mem::replace(&mut next.item, Token::Invalid) {
+    let next = iter.next().unwrap();
+    let name = match next.item {
         Token::Ident(v) => Some(next.replace(v)),
         Token::Underscore => None,
         _ => CompileError::expected(&[Token::Ident("".into()), Token::Underscore], &next)?,
@@ -128,7 +152,7 @@ fn parse_pattern<'a>(iter: &mut TokenIter<'a>) -> Result<Pattern<'a>, CompileErr
     let ty = parse_type(iter)?;
     if let Some(name) = name {
         Ok(Pattern::Named(hir::UnresolvedVariable::New(
-            name,
+            name.map(Into::into),
             ty.map(|t| Some(t)),
         )))
     } else {
@@ -137,10 +161,10 @@ fn parse_pattern<'a>(iter: &mut TokenIter<'a>) -> Result<Pattern<'a>, CompileErr
 }
 
 fn check_expr_terminator<'a>(
-    tok: Meta<'a, Token>,
-    prev_checked: &[Token],
+    tok: Meta<'a, Token<'a>>,
+    prev_checked: &[Token<'a>],
     expecting_open_brace: bool,
-) -> Result<Meta<'a, Token>, CompileError> {
+) -> Result<Meta<'a, Token<'a>>, CompileError> {
     match tok.item {
         Token::Comma | Token::SemiColon | Token::CloseBlock(_) => Ok(tok),
         Token::OpenBlock(BlockDelim::Brace) if expecting_open_brace => Ok(tok),
@@ -158,13 +182,13 @@ fn check_expr_terminator<'a>(
 fn parse_type<'a>(
     iter: &mut TokenIter<'a>,
 ) -> Result<Meta<'a, hir::UnresolvedType<'a>>, CompileError> {
-    let first = expect_ident(iter.next().unwrap())?;
+    let first = expect_ident(iter.next().unwrap())?.map(Into::into);
     let next = iter.next().unwrap();
     if let Token::Binop(Binop::BitOr) = &next.item {
-        let mut parts = vec![first];
+        let mut parts: Vec<Meta<'a, Box<str>>> = vec![first];
         let mut next = next;
         while let Token::Binop(Binop::BitOr) = &next.item {
-            let component = expect_ident(iter.next().unwrap())?;
+            let component = expect_ident(iter.next().unwrap())?.map(Into::into);
             parts.push(component);
             next = iter.next().unwrap();
         }
@@ -177,12 +201,12 @@ fn parse_type<'a>(
         Ok(meta.replace(hir::UnresolvedType::Sum(parts)))
     } else {
         iter.step_back(next);
-        Ok(first.map(|f| hir::UnresolvedType::Named(f)))
+        Ok(first.map(|f| hir::UnresolvedType::Named(f.into())))
     }
 }
 
 fn parse_ident_expr<'a>(
-    ident: Meta<'a, Box<str>>,
+    ident: Meta<'a, &'a str>,
     iter: &mut TokenIter<'a>,
     expecting_open_brace: bool,
 ) -> Result<Expression<'a>, CompileError> {
@@ -202,16 +226,16 @@ fn parse_ident_expr<'a>(
                     )?;
                 }
             }
-            Expression::FunctionCall((), ident, args)
+            Expression::FunctionCall((), ident.map(Into::into), args)
         }
         Token::OpenBlock(BlockDelim::Brace) => {
             if expecting_open_brace {
                 iter.step_back(next);
-                Expression::Variable((), hir::UnresolvedVariable::Existing(ident))
+                Expression::Variable((), hir::UnresolvedVariable::Existing(ident.map(Into::into)))
             } else {
                 let mut fields = Vec::new();
                 while !try_consume_token(Token::CloseBlock(BlockDelim::Brace), iter) {
-                    let field_name = expect_ident(iter.next().unwrap())?;
+                    let field_name = expect_ident(iter.next().unwrap())?.map(Into::into);
                     consume_token(Token::Colon, iter)?;
                     let expr = parse_expression(iter, false)?;
                     fields.push((field_name, expr));
@@ -225,16 +249,17 @@ fn parse_ident_expr<'a>(
                         )?;
                     }
                 }
-                Expression::InitializeStruct((), ident, fields)
+                Expression::InitializeStruct((), ident.map(Into::into), fields)
             }
         }
         Token::Colon => {
-            let var = Expression::Variable((), hir::UnresolvedVariable::Existing(ident));
+            let var =
+                Expression::Variable((), hir::UnresolvedVariable::Existing(ident.map(Into::into)));
             Expression::TypeRestriction(Box::new(var), parse_type(iter)?)
         }
         _ => {
             iter.step_back(next);
-            Expression::Variable((), hir::UnresolvedVariable::Existing(ident))
+            Expression::Variable((), hir::UnresolvedVariable::Existing(ident.map(Into::into)))
         }
     })
 }
@@ -356,7 +381,7 @@ fn parse_variable_decl<'a>(
     iter: &mut TokenIter<'a>,
     expecting_open_brace: bool,
 ) -> Result<Expression<'a>, CompileError> {
-    let name = expect_ident(iter.next().unwrap())?;
+    let name: Meta<'a, Box<str>> = expect_ident(iter.next().unwrap())?.map(Into::into);
 
     let ty = if try_consume_token(Token::Colon, iter) {
         Some(parse_type(iter)?)
@@ -387,7 +412,7 @@ fn parse_variable_decl<'a>(
 }
 
 fn parse_scope<'a>(
-    scope: Meta<'a, Box<str>>,
+    scope: Meta<'a, &'a str>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Expression<'a>, CompileError> {
     consume_token(Token::Colon, iter)?;
@@ -415,7 +440,7 @@ fn parse_scope<'a>(
 }
 
 fn parse_while<'a>(
-    name: Option<Meta<'a, Box<str>>>,
+    name: Option<Meta<'a, &'a str>>,
     meta: Meta<'a, ()>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Expression<'a>, CompileError> {
@@ -461,8 +486,8 @@ fn parse_binop_rhs<'a>(
     iter: &mut TokenIter<'a>,
     expecting_open_brace: bool,
 ) -> Result<Expression<'a>, CompileError> {
-    let mut start = iter.next().unwrap();
-    let mut expr = match mem::replace(&mut start.item, Token::Invalid) {
+    let start = iter.next().unwrap();
+    let mut expr = match start.item {
         Token::Scope(v) => parse_scope(start.replace(v), iter)?,
         Token::Invert => {
             let expr = parse_binop_rhs(std::u32::MAX, iter, expecting_open_brace)?;
@@ -531,7 +556,7 @@ fn parse_binop_rhs<'a>(
                 expr = Expression::FieldAccess(
                     (),
                     Box::new(expr),
-                    expect_ident(iter.next().unwrap())?,
+                    expect_ident(iter.next().unwrap())?.map(Into::into),
                 );
                 next = iter.next().unwrap();
             }
@@ -577,8 +602,11 @@ fn parse_binop<'a>(
                 next = iter.next().unwrap();
             }
             Token::Dot => {
-                lhs =
-                    Expression::FieldAccess((), Box::new(lhs), expect_ident(iter.next().unwrap())?);
+                lhs = Expression::FieldAccess(
+                    (),
+                    Box::new(lhs),
+                    expect_ident(iter.next().unwrap())?.map(Into::into),
+                );
                 next = iter.next().unwrap();
             }
             Token::Colon => {
@@ -605,8 +633,8 @@ fn parse_expression<'a>(
     iter: &mut TokenIter<'a>,
     expecting_open_brace: bool,
 ) -> Result<Expression<'a>, CompileError> {
-    let mut start = iter.next().unwrap();
-    match mem::replace(&mut start.item, Token::Invalid) {
+    let start = iter.next().unwrap();
+    match start.item {
         Token::OpenBlock(BlockDelim::Brace) => {
             let block = parse_block(None, iter)?;
             parse_binop(block, iter, expecting_open_brace)
@@ -647,8 +675,8 @@ fn parse_expression<'a>(
             parse_binop(expr, iter, expecting_open_brace)
         }
         Token::Keyword(Keyword::Break) => {
-            let mut next = iter.next().unwrap();
-            let scope = if let Token::Scope(v) = mem::replace(&mut next.item, Token::Invalid) {
+            let next = iter.next().unwrap();
+            let scope = if let Token::Scope(v) = next.item {
                 next.replace(Some(v))
             } else {
                 iter.step_back(next);
@@ -656,7 +684,7 @@ fn parse_expression<'a>(
             };
             Ok(Expression::Break(
                 (),
-                scope,
+                scope.map(|v| v.map(Into::into)),
                 Box::new(parse_expression(iter, expecting_open_brace)?),
             ))
         }
@@ -727,7 +755,7 @@ fn parse_expression<'a>(
 }
 
 fn parse_block<'a>(
-    name: Option<Meta<'a, Box<str>>>,
+    name: Option<Meta<'a, &'a str>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Expression<'a>, CompileError> {
     let mut block = Vec::new();
@@ -753,7 +781,7 @@ fn parse_block<'a>(
                             .replace(None)
                             .extend_left('{')
                     },
-                    |v| v.map(|v| Some(v)),
+                    |v| v.map(|v| Some(v.into())),
                 ),
                 block,
             ));
@@ -765,10 +793,10 @@ fn parse_block<'a>(
 }
 
 fn parse_struct_decl<'a>(
-    attributes: Vec<Meta<'a, Box<str>>>,
+    attributes: Vec<Attribute<'a>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Type<'a>, CompileError> {
-    let name = expect_ident(iter.next().unwrap())?;
+    let name = expect_ident(iter.next().unwrap())?.map(Into::into);
     let next = iter.next().unwrap();
     match &next.item {
         Token::SemiColon => Ok(Type {
@@ -783,7 +811,7 @@ fn parse_struct_decl<'a>(
                     break;
                 }
 
-                let name = expect_ident(iter.next().unwrap())?;
+                let name = expect_ident(iter.next().unwrap())?.map(Into::into);
                 consume_token(Token::Colon, iter)?;
                 let ty = parse_type(iter)?;
                 fields.push(Field { name, ty });
@@ -813,10 +841,10 @@ fn parse_struct_decl<'a>(
 
 // parse a function, `fn` should already be consumed
 fn parse_function<'a>(
-    attributes: Vec<Meta<'a, Box<str>>>,
+    attributes: Vec<Attribute<'a>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Function<'a>, CompileError> {
-    let mut func = Function::new(expect_ident(iter.next().unwrap())?);
+    let mut func = Function::new(expect_ident(iter.next().unwrap())?.map(Into::into));
     func.attributes = attributes;
 
     consume_token(Token::OpenBlock(BlockDelim::Parenthesis), iter)?;
@@ -828,7 +856,7 @@ fn parse_function<'a>(
 
         let arg_name = expect_ident(tok)?;
         consume_token(Token::Colon, iter)?;
-        func.add_argument(arg_name, parse_type(iter)?.map(|t| Some(t)))?;
+        func.add_argument(arg_name.map(Into::into), parse_type(iter)?.map(|t| Some(t)))?;
 
         let tok = iter.next().unwrap();
         if tok.item == Token::CloseBlock(BlockDelim::Parenthesis) {
