@@ -228,7 +228,9 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
             }
             Expression::InitializeStruct(_, struct_kind, fields) => {
                 let temp_base = ctx.temporaries.len();
+                let mut field_ids = Vec::new();
                 for (kind, expr) in fields.into_iter() {
+                    field_ids.push(kind.item);
                     let id = expr.to_mir(ctx)?;
                     let field_ty =
                         if let &mir::Type::Struct(ref fields) = &ctx.types[struct_kind.item] {
@@ -242,15 +244,18 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                         ty: field_ty,
                     });
                 }
+                let mut steps = ctx
+                    .temporaries
+                    .drain(temp_base..)
+                    .map(|temp| temp.step)
+                    .zip(field_ids)
+                    .collect::<Vec<_>>();
+
+                steps.sort_by_key(|&(_, field)| field);
 
                 Ok(ctx.func[*ctx.curr].add_step(
                     struct_kind.item,
-                    Action::InitializeStruct(
-                        ctx.temporaries
-                            .drain(temp_base..)
-                            .map(|temp| temp.step)
-                            .collect(),
-                    ),
+                    Action::InitializeStruct(steps.into_iter().map(|(step, _)| step).collect()),
                 ))
             }
             Expression::FunctionCall(ty, id, args) => {

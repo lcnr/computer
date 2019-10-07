@@ -1,6 +1,6 @@
-use tindex::{TSlice, TVec, bitset::TBitSet};
+use tindex::{bitset::TBitSet, TSlice, TVec};
 
-use shared_id::{TypeId, FieldId, BOOL_TYPE_ID, EMPTY_TYPE_ID, NEVER_TYPE_ID};
+use shared_id::{FieldId, TypeId, BOOL_TYPE_ID, EMPTY_TYPE_ID, NEVER_TYPE_ID};
 
 use diagnostics::{CompileError, Span};
 
@@ -360,12 +360,20 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
                 let fields = fields
                     .into_iter()
                     .map(|(field, expr)| {
-                        let field_id = types[struct_ty].get_field(&field.item).expect("type check: invalid field");
+                        let field_id = types[struct_ty]
+                            .get_field(&field.item)
+                            .expect("type check: invalid field");
                         if initialized_fields.get(field_id) {
-                            CompileError::new(&field, format_args!("Field `{}` specified more than once", field.item))
+                            CompileError::new(
+                                &field,
+                                format_args!("Field `{}` specified more than once", field.item),
+                            )
                         } else {
                             initialized_fields.add(field_id);
-                            Ok((field.replace(field_id), expr.insert_types(types, type_result)?))
+                            Ok((
+                                field.replace(field_id),
+                                expr.insert_types(types, type_result)?,
+                            ))
                         }
                     })
                     .collect::<Result<_, CompileError>>()?;
@@ -373,7 +381,14 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
                 let actual_fields = types[struct_ty].fields();
                 for i in (0..actual_fields.len()).map(FieldId::from) {
                     if !initialized_fields.get(i) {
-                        CompileError::new(&kind, format_args!("Missing field `{}` in initializer of `{}`", actual_fields[i].name.item, kind.span_str()))?
+                        CompileError::new(
+                            &kind,
+                            format_args!(
+                                "Missing field `{}` in initializer of `{}`",
+                                actual_fields[i].name.item,
+                                kind.span_str()
+                            ),
+                        )?
                     }
                 }
 
@@ -401,10 +416,12 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             Expression::Match(id, meta, expr, match_arms) => {
                 let match_arms = match_arms
                     .into_iter()
-                    .map(|arm| Ok(MatchArm {
-                        pattern: arm.pattern,
-                        expr: arm.expr.insert_types(types, type_result)?,
-                    }))
+                    .map(|arm| {
+                        Ok(MatchArm {
+                            pattern: arm.pattern,
+                            expr: arm.expr.insert_types(types, type_result)?,
+                        })
+                    })
                     .collect::<Result<_, _>>()?;
                 Expression::Match(
                     type_result[id],
