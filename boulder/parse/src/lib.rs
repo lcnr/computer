@@ -1,12 +1,14 @@
 use std::mem;
 
+use tindex::TVec;
+
 use diagnostics::{CompileError, Meta};
+
+use hir::Attribute;
 
 mod tokenize;
 
 use tokenize::{Binop, BlockDelim, Keyword, Token, TokenIter};
-
-use hir::Attribute;
 
 type Expression<'a> = hir::expr::Expression<
     'a,
@@ -805,7 +807,7 @@ fn parse_struct_decl<'a>(
             kind: Kind::Unit,
         }),
         Token::OpenBlock(BlockDelim::Brace) => {
-            let mut fields = Vec::new();
+            let mut fields = TVec::new();
             loop {
                 if try_consume_token(Token::CloseBlock(BlockDelim::Brace), iter) {
                     break;

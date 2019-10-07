@@ -173,6 +173,10 @@ impl<'a, T> Meta<'a, T> {
         }
     }
 
+    pub fn as_ref(&self) -> Meta<'a, &T> {
+        self.replace(&self.item)
+    }
+
     pub fn map<F, U>(self, f: F) -> Meta<'a, U>
     where
         F: FnOnce(T) -> U,

@@ -217,7 +217,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
         solver.override_entity(body_id, ret_ty.item, ret_ty.simplify());
         let solution = solver.solve()?;
 
-        let body = body.insert_types(types, &solution);
+        let body = body.insert_types(types, &solution)?;
         Ok(Function {
             name: self.name,
             attributes: self.attributes,

@@ -1,0 +1,16 @@
+# Struct `B` has no field named `fielt`
+# (14:
+
+struct A {
+    fielt: u32,
+}
+
+struct B {
+    field: u32,
+}
+
+fn test() -> B {
+    B {
+        fielt: 7,
+    }
+}

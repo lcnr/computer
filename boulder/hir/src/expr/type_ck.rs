@@ -1,6 +1,6 @@
-use tindex::{TSlice, TVec};
+use tindex::{TSlice, TVec, bitset::TBitSet};
 
-use shared_id::{TypeId, BOOL_TYPE_ID, EMPTY_TYPE_ID, NEVER_TYPE_ID};
+use shared_id::{TypeId, FieldId, BOOL_TYPE_ID, EMPTY_TYPE_ID, NEVER_TYPE_ID};
 
 use diagnostics::{CompileError, Span};
 
@@ -132,10 +132,27 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     .into_iter()
                     .map(|(name, expr)| {
                         let expr = expr.type_constraints(ctx)?;
-                        let extended = ctx.solver.add_unbound(name.simplify());
-                        ctx.solver.add_extension(expr.id(), extended);
-                        ctx.solver.add_field_access(res, extended, &name)?;
-                        Ok((name, expr))
+                        if let ty::Kind::Struct(ref fields) =
+                            &ctx.solver.ctx().types[kind.item].kind
+                        {
+                            if let Some(field) = fields.iter().find(|f| f.name.item == name.item) {
+                                let ty = field.ty.item;
+                                let field = ctx.solver.add_typed(ty, name.simplify());
+                                ctx.solver.add_extension(expr.id(), field);
+                                Ok((name, expr))
+                            } else {
+                                CompileError::new(
+                                    &name,
+                                    format_args!(
+                                        "Struct `{}` has no field named `{}`",
+                                        kind.span_str(),
+                                        name.item
+                                    ),
+                                )
+                            }
+                        } else {
+                            unreachable!("invalid struct initialization")
+                        }
                     })
                     .collect::<Result<Vec<_>, CompileError>>()?;
                 Expression::InitializeStruct(res, kind, fields)
@@ -308,64 +325,72 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
         self,
         types: &TSlice<TypeId, Type<'a, TypeId>>,
         type_result: &TSlice<solver::EntityId, TypeId>,
-    ) -> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
-        match self {
+    ) -> Result<Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>>, CompileError> {
+        Ok(match self {
             Expression::Block(id, meta, v) => {
                 let ty = type_result[id];
                 let content = v
                     .into_iter()
                     .map(|expr| expr.insert_types(types, type_result))
-                    .collect::<Vec<_>>();
+                    .collect::<Result<Vec<_>, _>>()?;
                 Expression::Block(ty, meta, content)
             }
             Expression::Variable(id, var) => Expression::Variable(type_result[id], var),
             Expression::Lit(id, lit) => Expression::Lit(type_result[id], lit),
             Expression::UnaryOperation(id, op, expr) => {
-                let expr = expr.insert_types(types, type_result);
+                let expr = expr.insert_types(types, type_result)?;
                 Expression::UnaryOperation(type_result[id], op, Box::new(expr))
             }
             Expression::Binop(id, op, a, b) => {
-                let a = a.insert_types(types, type_result);
-                let b = b.insert_types(types, type_result);
+                let a = a.insert_types(types, type_result)?;
+                let b = b.insert_types(types, type_result)?;
                 Expression::Binop(type_result[id], op, Box::new(a), Box::new(b))
             }
             Expression::Statement(id, expr) => {
-                let expr = expr.insert_types(types, type_result);
+                let expr = expr.insert_types(types, type_result)?;
                 Expression::Statement(type_result[id], Box::new(expr))
             }
             Expression::Assignment(id, var, expr) => {
-                let expr = expr.insert_types(types, type_result);
+                let expr = expr.insert_types(types, type_result)?;
                 Expression::Assignment(type_result[id], var, Box::new(expr))
             }
             Expression::InitializeStruct(id, kind, fields) => {
                 let struct_ty = type_result[id];
+                let mut initialized_fields = TBitSet::new();
                 let fields = fields
                     .into_iter()
                     .map(|(field, expr)| {
-                        (
-                            field.map(|field| {
-                                types[struct_ty]
-                                    .get_field(&field)
-                                    .expect("type check: invalid field")
-                            }),
-                            expr.insert_types(types, type_result),
-                        )
+                        let field_id = types[struct_ty].get_field(&field.item).expect("type check: invalid field");
+                        if initialized_fields.get(field_id) {
+                            CompileError::new(&field, format_args!("Field `{}` specified more than once", field.item))
+                        } else {
+                            initialized_fields.add(field_id);
+                            Ok((field.replace(field_id), expr.insert_types(types, type_result)?))
+                        }
                     })
-                    .collect();
+                    .collect::<Result<_, CompileError>>()?;
+
+                let actual_fields = types[struct_ty].fields();
+                for i in (0..actual_fields.len()).map(FieldId::from) {
+                    if !initialized_fields.get(i) {
+                        CompileError::new(&kind, format_args!("Missing field `{}` in initializer of `{}`", actual_fields[i].name.item, kind.span_str()))?
+                    }
+                }
+
                 Expression::InitializeStruct(struct_ty, kind, fields)
             }
             Expression::FunctionCall(id, name, args) => {
                 let args = args
                     .into_iter()
                     .map(|expr| expr.insert_types(types, type_result))
-                    .collect::<Vec<_>>();
+                    .collect::<Result<Vec<_>, _>>()?;
                 Expression::FunctionCall(type_result[id], name, args)
             }
             Expression::FieldAccess(id, obj, field) => {
                 let obj_ty = type_result[obj.id()];
                 Expression::FieldAccess(
                     type_result[id],
-                    Box::new(obj.insert_types(types, type_result)),
+                    Box::new(obj.insert_types(types, type_result)?),
                     field.map(|field| {
                         types[obj_ty]
                             .get_field(&field)
@@ -376,15 +401,15 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             Expression::Match(id, meta, expr, match_arms) => {
                 let match_arms = match_arms
                     .into_iter()
-                    .map(|arm| MatchArm {
+                    .map(|arm| Ok(MatchArm {
                         pattern: arm.pattern,
-                        expr: arm.expr.insert_types(types, type_result),
-                    })
-                    .collect();
+                        expr: arm.expr.insert_types(types, type_result)?,
+                    }))
+                    .collect::<Result<_, _>>()?;
                 Expression::Match(
                     type_result[id],
                     meta,
-                    Box::new(expr.insert_types(types, type_result)),
+                    Box::new(expr.insert_types(types, type_result)?),
                     match_arms,
                 )
             }
@@ -393,16 +418,16 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
                 let content = content
                     .into_iter()
                     .map(|expr| expr.insert_types(types, type_result))
-                    .collect::<Vec<_>>();
+                    .collect::<Result<Vec<_>, _>>()?;
                 Expression::Loop(ty, meta, content)
             }
             Expression::Break(id, scope_id, expr) => Expression::Break(
                 type_result[id],
                 scope_id,
-                Box::new(expr.insert_types(types, type_result)),
+                Box::new(expr.insert_types(types, type_result)?),
             ),
-            Expression::TypeRestriction(expr, _) => expr.insert_types(types, type_result),
-        }
+            Expression::TypeRestriction(expr, _) => expr.insert_types(types, type_result)?,
+        })
     }
 }
 

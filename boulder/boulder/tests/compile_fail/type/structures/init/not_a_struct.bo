@@ -1,0 +1,9 @@
+# Expected struct or union type
+# found `u32`
+# (6:
+
+fn test() -> u32 {
+    u32 {
+        field: 17,
+    }
+}

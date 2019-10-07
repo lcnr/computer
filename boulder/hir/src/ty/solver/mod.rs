@@ -254,7 +254,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
 
         let mut fields = HashMap::<Box<str>, Vec<(TypeId, TypeId)>>::new();
         for (i, ty) in types.iter().enumerate() {
-            for field in ty.fields() {
+            for field in ty.fields().iter() {
                 fields
                     .entry(field.name.item.clone())
                     .or_default()

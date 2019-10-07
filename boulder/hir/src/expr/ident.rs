@@ -156,7 +156,22 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                             .collect::<Result<Vec<_>, _>>()?;
                         Expression::InitializeStruct((), name.replace(ty), fields)
                     } else {
-                        unimplemented!()
+                        let kind_str = match ctx.types[ty].kind {
+                            ty::Kind::U8
+                            | ty::Kind::U16
+                            | ty::Kind::U32
+                            | ty::Kind::Uninhabited => "a builtin type",
+                            ty::Kind::Unit => "a unit type",
+                            ty::Kind::Sum(_) => "a sum type",
+                            ty::Kind::Struct(_) => unreachable!(),
+                        };
+
+                        CompileError::build(
+                            &name,
+                            format_args!("Expected struct or union type, found `{}`", name.item),
+                        )
+                        .with_help(format_args!("`{}` is {}", name.item, kind_str))
+                        .build()?
                     }
                 } else {
                     CompileError::new(

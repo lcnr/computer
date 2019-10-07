@@ -249,11 +249,11 @@ impl<'a> Type<'a, TypeId> {
         }
     }
 
-    pub fn fields(&self) -> &[Field<'a, TypeId>] {
+    pub fn fields(&self) -> &TSlice<FieldId, Field<'a, TypeId>> {
         if let Kind::Struct(v) = &self.kind {
             &v
         } else {
-            &[]
+            (&[] as &[_]).into()
         }
     }
 
@@ -297,6 +297,6 @@ pub enum Kind<'a, T> {
     U8,
     U16,
     U32,
-    Struct(Vec<Field<'a, T>>),
+    Struct(TVec<FieldId, Field<'a, T>>),
     Sum(TBitSet<TypeId>),
 }

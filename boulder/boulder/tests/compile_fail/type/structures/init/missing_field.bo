@@ -1,3 +1,6 @@
+# Missing field `b` in initializer of `A`
+# (9:
+
 struct A {
     b: u32,
 }

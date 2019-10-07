@@ -194,7 +194,7 @@ impl<'a>
             .map(|ty| Type {
                 name: ty.name.clone(),
                 attributes: ty.attributes.clone(),
-                kind: ty::Kind::Struct(Vec::new()),
+                kind: ty::Kind::Struct(TVec::new()),
             })
             .collect::<TVec<_, _>>();
 
