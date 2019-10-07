@@ -5,14 +5,16 @@ use shared_id::{FunctionId, TypeId};
 use diagnostics::{CompileError, Meta};
 
 use crate::{
+    attr::FunctionAttribute,
     expr::{Expression, ResolveIdentifiersContext, ToMirContext, TypeConstraintsContext},
+    mir_ctx::FunctionContextBuilder,
     module::Module,
     traits::{
         IdentifierState, ResolvedIdentifiers, ResolvedTypes, TypeState, UnresolvedIdentifiers,
         UnresolvedTypes,
     },
     ty::{self, solver::TypeSolver},
-    Attribute, Type, UnresolvedType,
+    Type, UnresolvedType,
 };
 
 mod index;
@@ -40,7 +42,7 @@ pub struct FunctionDefinition<'a, T> {
 pub struct Function<'a, V: IdentifierState, N: TypeState, T> {
     pub name: Meta<'a, Box<str>>,
     pub at: Vec<Box<str>>,
-    pub attributes: Vec<Attribute<'a>>,
+    pub attributes: Vec<Meta<'a, FunctionAttribute<'a>>>,
     pub arguments: Vec<VariableId>,
     pub variables: TVec<VariableId, Variable<'a, T>>,
     pub ret: Meta<'a, T>,
@@ -270,19 +272,18 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
         }
     }
 
+    fn create_function_context(&mut self) -> Result<mir::ctx::FunctionContext, CompileError> {
+        FunctionContextBuilder::build(self)
+    }
+
     pub fn to_mir(
-        self,
+        mut self,
         types: &TSlice<TypeId, mir::Type>,
         function_definitions: &TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
     ) -> Result<mir::Function, CompileError> {
-        let mut func = mir::Function::new(
-            self.name.item,
-            self.attributes
-                .into_iter()
-                .map(|v| v.name.item.into())
-                .collect(), // TODO: mir attributes
-            self.ret.item,
-        );
+        let function_context = self.create_function_context()?;
+
+        let mut func = mir::Function::new(self.name.item, function_context, self.ret.item);
         let mut id = func.add_block();
         let start = &mut func[id];
 

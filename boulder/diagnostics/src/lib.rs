@@ -58,6 +58,11 @@ impl CompileError {
         Self::build(meta, err).build()
     }
 
+    pub fn without_location<R, D: fmt::Display>(err: D) -> Result<R, Self> {
+        writeln!(OUTPUT.lock().unwrap(), "[ERROR]: {}", err).unwrap();
+        Err(CompileError(()))
+    }
+
     pub fn build<T, R, D: fmt::Display>(meta: &Meta<T>, err: D) -> CompileErrorBuilder<R> {
         writeln!(OUTPUT.lock().unwrap(), "[ERROR]: {}", err).unwrap();
         CompileErrorBuilder(PhantomData).with_location(meta)

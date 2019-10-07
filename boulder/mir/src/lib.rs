@@ -8,13 +8,17 @@ use tindex::{bitset::TBitSet, TSlice, TVec};
 use shared_id::{FieldId, FunctionId, TypeId};
 
 pub mod binop;
+pub mod ctx;
 mod display;
 mod index;
 pub mod optimize;
 pub mod traits;
 pub mod validate;
 
-use crate::binop::Binop;
+use crate::{
+    binop::Binop,
+    ctx::{Context, FunctionContext},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
@@ -158,7 +162,7 @@ impl Step {
 #[derive(Debug, Clone)]
 pub struct Function {
     pub name: Box<str>,
-    pub attributes: Vec<Box<str>>,
+    pub ctx: FunctionContext,
     pub blocks: TVec<BlockId, Block>,
     pub ret: TypeId,
 }
@@ -178,10 +182,10 @@ impl IndexMut<BlockId> for Function {
 }
 
 impl Function {
-    pub fn new(name: Box<str>, attributes: Vec<Box<str>>, ret: TypeId) -> Self {
+    pub fn new(name: Box<str>, ctx: FunctionContext, ret: TypeId) -> Self {
         Self {
             name,
-            attributes,
+            ctx,
             blocks: TVec::new(),
             ret,
         }
@@ -255,15 +259,10 @@ impl Block {
 }
 
 #[derive(Debug, Clone)]
-pub struct LangItems {
-    pub divide: FunctionId,
-}
-
-#[derive(Debug, Clone)]
 pub struct Mir {
     pub types: TVec<TypeId, Type>,
     pub functions: TVec<FunctionId, Function>,
-    pub lang_items: LangItems,
+    pub ctx: Context,
 }
 
 impl Mir {

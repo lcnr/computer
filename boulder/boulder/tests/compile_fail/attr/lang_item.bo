@@ -1,0 +1,8 @@
+# div8
+# more than once
+# (5:
+
+@lang_item(div8)
+fn liar(a: u8, b: u8) -> u8 {
+    a + b
+}

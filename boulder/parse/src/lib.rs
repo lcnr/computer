@@ -1,10 +1,8 @@
-use std::mem;
-
 use tindex::TVec;
 
 use diagnostics::{CompileError, Meta};
 
-use hir::Attribute;
+use hir::attr::{FunctionAttribute, TypeAttribute};
 
 mod tokenize;
 
@@ -71,12 +69,28 @@ pub fn parse_module<'a>(
                 at.pop();
             }
             Token::Keyword(Keyword::Function) => {
-                let func = parse_function(at, mem::replace(&mut attributes, Vec::new()), iter)?;
+                let func = parse_function(
+                    at,
+                    attributes
+                        .into_iter()
+                        .map(|(name, args)| FunctionAttribute::new(name, args))
+                        .collect::<Result<_, _>>()?,
+                    iter,
+                )?;
                 hir.add_function(&at, func)?;
+                attributes = Vec::new();
             }
             Token::Keyword(Keyword::Struct) => {
-                let ty = parse_struct_decl(at, mem::replace(&mut attributes, Vec::new()), iter)?;
+                let ty = parse_struct_decl(
+                    at,
+                    attributes
+                        .into_iter()
+                        .map(|(name, args)| TypeAttribute::new(name, args))
+                        .collect::<Result<_, _>>()?,
+                    iter,
+                )?;
                 hir.add_type(&at, ty)?;
+                attributes = Vec::new();
             }
             Token::Attribute(value) => {
                 attributes.push(parse_attribute(token.replace(value), iter)?);
@@ -148,7 +162,7 @@ fn expect_ident<'a>(tok: Meta<'a, Token<'a>>) -> Result<Meta<'a, &'a str>, Compi
 fn parse_attribute<'a>(
     name: Meta<'a, &'a str>,
     iter: &mut TokenIter<'a>,
-) -> Result<Attribute<'a>, CompileError> {
+) -> Result<(Meta<'a, &'a str>, Vec<Meta<'a, &'a str>>), CompileError> {
     let mut args = Vec::new();
     if try_consume_token(Token::OpenBlock(BlockDelim::Parenthesis), iter) {
         while !try_consume_token(Token::CloseBlock(BlockDelim::Parenthesis), iter) {
@@ -164,7 +178,8 @@ fn parse_attribute<'a>(
             }
         }
     }
-    Ok(Attribute { name, args })
+
+    Ok((name, args))
 }
 
 fn parse_pattern<'a>(iter: &mut TokenIter<'a>) -> Result<Pattern<'a>, CompileError> {
@@ -820,7 +835,7 @@ fn parse_block<'a>(
 
 fn parse_struct_decl<'a>(
     at: &mut Vec<Box<str>>,
-    attributes: Vec<Attribute<'a>>,
+    attributes: Vec<Meta<'a, TypeAttribute<'a>>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Type<'a>, CompileError> {
     let name = expect_ident(iter.next().unwrap())?.map(Into::into);
@@ -871,7 +886,7 @@ fn parse_struct_decl<'a>(
 // parse a function, `fn` should already be consumed
 fn parse_function<'a>(
     at: &mut Vec<Box<str>>,
-    attributes: Vec<Attribute<'a>>,
+    attributes: Vec<Meta<'a, FunctionAttribute<'a>>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Function<'a>, CompileError> {
     let mut func = Function::new(

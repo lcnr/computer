@@ -123,7 +123,7 @@ fn test_mir(mir: &Mir, entry_path: impl fmt::Display) -> bool {
         .functions
         .iter()
         .enumerate()
-        .filter(|(_, func)| func.attributes.iter().any(|attr| attr.as_ref() == "test"))
+        .filter(|(_, func)| func.ctx.is_test)
     {
         check_count += 1;
         if !test.args().is_empty() || test.ret != BOOL_TYPE_ID {

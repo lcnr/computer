@@ -6,7 +6,7 @@ use shared_id::{FieldId, TypeId};
 
 use diagnostics::{CompileError, Meta};
 
-use crate::{module::Module, Attribute, UnresolvedType};
+use crate::{attr::TypeAttribute, module::Module, UnresolvedType};
 
 pub mod solver;
 
@@ -14,7 +14,7 @@ pub mod solver;
 pub struct Type<'a, T> {
     pub name: Meta<'a, Box<str>>,
     pub at: Vec<Box<str>>,
-    pub attributes: Vec<Attribute<'a>>,
+    pub attributes: Vec<Meta<'a, TypeAttribute<'a>>>,
     pub kind: Kind<'a, T>,
 }
 

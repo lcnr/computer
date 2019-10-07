@@ -11,8 +11,10 @@ use diagnostics::{CompileError, Meta};
 
 use mir::Mir;
 
+pub mod attr;
 pub mod expr;
 pub mod func;
+mod mir_ctx;
 pub mod module;
 pub mod traits;
 pub mod ty;
@@ -37,12 +39,6 @@ pub enum UnresolvedType<'a> {
 pub enum UnresolvedVariable<'a> {
     Existing(Meta<'a, Box<str>>),
     New(Meta<'a, Box<str>>, Meta<'a, Option<UnresolvedType<'a>>>),
-}
-
-#[derive(Debug, Clone)]
-pub struct Attribute<'a> {
-    pub name: Meta<'a, &'a str>,
-    pub args: Vec<Meta<'a, &'a str>>,
 }
 
 #[derive(Debug, Clone)]
@@ -300,35 +296,16 @@ impl<'a> Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unresolved
 }
 
 impl<'a> Hir<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId, TypeId> {
-    pub fn to_mir(self) -> Result<Mir, CompileError> {
-        let types: TVec<_, _> = self.types.into_iter().map(|t| t.to_mir()).collect();
-
+    pub fn to_mir(mut self) -> Result<Mir, CompileError> {
         let function_definitions = self
             .functions
             .iter()
             .map(|f| f.definition())
             .collect::<TVec<_, _>>();
 
-        let lang_items = mir::LangItems {
-            divide: self
-                .functions
-                .iter()
-                .position(|f| {
-                    f.attributes.iter().any(|attr| {
-                        attr.name.item == "lang_item"
-                            && attr.args.iter().any(|a| a.item == "divide")
-                    })
-                })
-                .map_or_else(
-                    || {
-                        CompileError::new(
-                            &Meta::<'static, ()>::default(),
-                            "Missing lang item: `divide`",
-                        )
-                    },
-                    |p| Ok(FunctionId::from(p)),
-                )?,
-        };
+        let ctx = mir_ctx::ContextBuilder::build(&mut self, &function_definitions)?;
+
+        let types: TVec<_, _> = self.types.into_iter().map(|t| t.to_mir()).collect();
 
         let functions = self
             .functions
@@ -339,7 +316,7 @@ impl<'a> Hir<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId, TypeId> {
         Ok(Mir {
             types,
             functions,
-            lang_items,
+            ctx,
         })
     }
 }

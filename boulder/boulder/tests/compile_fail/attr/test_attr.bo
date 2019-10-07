@@ -1,0 +1,9 @@
+# Attribute `test` used more than once
+# (5:
+# (6:
+
+@test
+@test
+fn test() -> Bool {
+    True
+}
