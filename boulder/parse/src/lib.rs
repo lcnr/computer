@@ -6,28 +6,34 @@ mod tokenize;
 
 use tokenize::{Binop, BlockDelim, Keyword, Token, TokenIter};
 
-type Expression<'a> =
-    hir::expr::Expression<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedTypes<'a>>;
-type Function<'a> = hir::Function<
+type Expression<'a> = hir::expr::Expression<
     'a,
-    hir::UnresolvedIdentifiers<'a>,
-    hir::UnresolvedTypes<'a>,
+    hir::traits::UnresolvedIdentifiers<'a>,
+    hir::traits::UnresolvedTypes<'a>,
+>;
+type Function<'a> = hir::func::Function<
+    'a,
+    hir::traits::UnresolvedIdentifiers<'a>,
+    hir::traits::UnresolvedTypes<'a>,
     Option<hir::UnresolvedType<'a>>,
 >;
 type Hir<'a> = hir::Hir<
     'a,
-    hir::UnresolvedIdentifiers<'a>,
-    hir::UnresolvedTypes<'a>,
+    hir::traits::UnresolvedIdentifiers<'a>,
+    hir::traits::UnresolvedTypes<'a>,
     Option<hir::UnresolvedType<'a>>,
     hir::UnresolvedType<'a>,
 >;
-type Type<'a> = hir::Type<'a, hir::UnresolvedType<'a>>;
+type Type<'a> = hir::ty::Type<'a, hir::UnresolvedType<'a>>;
 type Kind<'a> = hir::ty::Kind<'a, hir::UnresolvedType<'a>>;
 type Field<'a> = hir::ty::Field<'a, hir::UnresolvedType<'a>>;
-type MatchArm<'a> =
-    hir::expr::MatchArm<'a, hir::UnresolvedIdentifiers<'a>, hir::UnresolvedTypes<'a>>;
-type Pattern<'a> = hir::Pattern<'a, hir::UnresolvedIdentifiers<'a>>;
-type Literal<'a> = hir::Literal<hir::UnresolvedIdentifiers<'a>>;
+type MatchArm<'a> = hir::expr::MatchArm<
+    'a,
+    hir::traits::UnresolvedIdentifiers<'a>,
+    hir::traits::UnresolvedTypes<'a>,
+>;
+type Pattern<'a> = hir::Pattern<'a, hir::traits::UnresolvedIdentifiers<'a>>;
+type Literal<'a> = hir::Literal<hir::traits::UnresolvedIdentifiers<'a>>;
 
 pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
     let iter = &mut TokenIter::new(src);

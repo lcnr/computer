@@ -3,38 +3,28 @@ extern crate tindex;
 
 use std::{
     collections::{hash_map::Entry, HashMap},
-    fmt, iter,
-    marker::PhantomData,
+    iter,
 };
 
 use tindex::{TIndex, TVec};
 
-use shared_id::{FieldId, FunctionId, TypeId, BOOL_TYPE_ID, FALSE_TYPE_ID, TRUE_TYPE_ID};
+use shared_id::{FunctionId, TypeId, BOOL_TYPE_ID, FALSE_TYPE_ID, TRUE_TYPE_ID};
 
 use diagnostics::{CompileError, Meta};
 
 pub mod expr;
 pub mod func;
+pub mod traits;
 pub mod ty;
 
-pub use func::{Function, FunctionDefinition, VariableId};
-pub use ty::Type;
+use func::{Function, VariableId};
+use traits::{
+    IdentifierState, ResolvedIdentifiers, ResolvedTypes, TypeState, UnresolvedIdentifiers,
+    UnresolvedTypes,
+};
+use ty::Type;
 
 use mir::Mir;
-
-#[derive(Debug, Clone)]
-pub struct UnresolvedIdentifiers<'a>(PhantomData<&'a str>);
-
-impl<'a> IdentifierState for UnresolvedIdentifiers<'a> {
-    type Variable = UnresolvedVariable<'a>;
-    type Function = Meta<'a, Box<str>>;
-    type Pattern = UnresolvedType<'a>;
-    type Scope = Meta<'a, Option<Box<str>>>;
-    type Type = Box<str>;
-}
-
-#[derive(Debug, Clone)]
-pub struct ResolvedIdentifiers<'a>(PhantomData<&'a str>);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ScopeId(usize);
@@ -49,55 +39,6 @@ impl TIndex for ScopeId {
     fn as_index(self) -> usize {
         self.0
     }
-}
-
-impl<'a> IdentifierState for ResolvedIdentifiers<'a> {
-    type Variable = Meta<'a, VariableId>;
-    type Function = Meta<'a, FunctionId>;
-    type Pattern = TypeId;
-    type Scope = Meta<'a, ScopeId>;
-    type Type = TypeId;
-}
-
-#[derive(Debug, Clone)]
-pub struct UnresolvedTypes<'a>(PhantomData<&'a str>);
-
-impl<'a> TypeState for UnresolvedTypes<'a> {
-    type Type = ();
-    type Field = Meta<'a, Box<str>>;
-    type Restriction = Meta<'a, UnresolvedType<'a>>;
-}
-
-#[derive(Debug, Clone)]
-pub struct ResolvingTypes<'a>(PhantomData<&'a str>);
-
-impl<'a> TypeState for ResolvingTypes<'a> {
-    type Type = solver::EntityId;
-    type Field = Meta<'a, Box<str>>;
-    type Restriction = ();
-}
-
-#[derive(Debug, Clone)]
-pub struct ResolvedTypes<'a>(PhantomData<&'a str>);
-
-impl<'a> TypeState for ResolvedTypes<'a> {
-    type Type = TypeId;
-    type Field = Meta<'a, FieldId>;
-    type Restriction = ();
-}
-
-pub trait TypeState: fmt::Debug + Clone {
-    type Type: fmt::Debug + Clone;
-    type Field: fmt::Debug + Clone;
-    type Restriction: fmt::Debug + Clone;
-}
-
-pub trait IdentifierState: fmt::Debug + Clone {
-    type Variable: fmt::Debug + Clone;
-    type Function: fmt::Debug + Clone;
-    type Pattern: fmt::Debug + Clone;
-    type Scope: fmt::Debug + Clone;
-    type Type: fmt::Debug + Clone;
 }
 
 #[derive(Debug, Clone)]

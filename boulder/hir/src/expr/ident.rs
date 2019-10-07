@@ -9,9 +9,9 @@ use diagnostics::{CompileError, Meta};
 use crate::{
     expr::{Expression, MatchArm},
     func::{Variable, VariableId},
+    traits::{ResolvedIdentifiers, UnresolvedIdentifiers, UnresolvedTypes},
     ty::{self, Type},
-    Literal, Pattern, ResolvedIdentifiers, ScopeId, UnresolvedIdentifiers, UnresolvedType,
-    UnresolvedTypes, UnresolvedVariable,
+    Literal, Pattern, ScopeId, UnresolvedType, UnresolvedVariable,
 };
 
 pub struct ResolveIdentifiersContext<'a, 'b> {

@@ -8,10 +8,13 @@ use diagnostics::{CompileError, Meta};
 
 use crate::{
     expr::{Expression, ResolveIdentifiersContext, ToMirContext, TypeConstraintsContext},
+    traits::{
+        IdentifierState, ResolvedIdentifiers, ResolvedTypes, TypeState, UnresolvedIdentifiers,
+        UnresolvedTypes,
+    },
     ty,
     ty::solver::TypeSolver,
-    IdentifierState, ResolvedIdentifiers, ResolvedTypes, Type, TypeState, UnresolvedIdentifiers,
-    UnresolvedType, UnresolvedTypes,
+    Type, UnresolvedType,
 };
 
 #[derive(Debug, Clone, Copy)]

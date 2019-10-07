@@ -7,9 +7,9 @@ use diagnostics::{CompileError, Span};
 use crate::{
     expr::{Expression, MatchArm},
     func::{FunctionDefinition, VariableId},
+    traits::{ResolvedIdentifiers, ResolvedTypes, ResolvingTypes, UnresolvedTypes},
     ty::{self, solver::TypeSolver, Type},
-    Binop, FunctionId, Literal, Pattern, ResolvedIdentifiers, ResolvedTypes, ResolvingTypes,
-    ScopeId, UnaryOperation, UnresolvedType, UnresolvedTypes,
+    Binop, FunctionId, Literal, Pattern, ScopeId, UnaryOperation, UnresolvedType,
 };
 
 pub struct TypeConstraintsContext<'a, 'b, 'c> {

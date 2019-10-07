@@ -1,6 +1,9 @@
 use diagnostics::Meta;
 
-use crate::{Binop, IdentifierState, Literal, Pattern, TypeState, UnaryOperation};
+use crate::{
+    traits::{IdentifierState, TypeState},
+    Binop, Literal, Pattern, UnaryOperation,
+};
 
 mod ident;
 mod to_mir;

@@ -7,8 +7,10 @@ use shared_id::{FunctionId, TypeId, EMPTY_TYPE_ID, FALSE_TYPE_ID, TRUE_TYPE_ID};
 use diagnostics::CompileError;
 
 use crate::{
-    expr::Expression, func::FunctionDefinition, Binop, Literal, Pattern, ResolvedIdentifiers,
-    ResolvedTypes, ScopeId, UnaryOperation, VariableId,
+    expr::Expression,
+    func::FunctionDefinition,
+    traits::{ResolvedIdentifiers, ResolvedTypes},
+    Binop, Literal, Pattern, ScopeId, UnaryOperation, VariableId,
 };
 
 #[derive(Debug)]
