@@ -1,0 +1,16 @@
+# (12:
+
+# is is not possible to initialize a struct in the value of a 
+# `match`, `if` or `while` expression, as this would potentially
+# require infinite backtracking
+
+struct A {
+    field: u32 | Empty
+}
+
+fn brace() -> u32 {
+    match A { field: 7 } {
+        i: u32 -> i,
+        _: Empty -> 42,
+    }
+}
