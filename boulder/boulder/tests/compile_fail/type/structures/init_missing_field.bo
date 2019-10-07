@@ -1,0 +1,9 @@
+struct A {
+    b: u32,
+}
+
+fn test() -> A {
+    A {
+        
+    }
+}

@@ -1,0 +1,12 @@
+# Recursive type `A` has infinite size
+# Recursive type `A` has infinite size
+# (6:
+# (10:
+
+struct A {
+    field: B,
+}
+
+struct B {
+    field: A | u16,
+}
