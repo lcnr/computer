@@ -1,0 +1,29 @@
+struct Struct {
+    outer: u32
+}
+
+mod a {
+    struct Struct {
+        middle: u32
+    }
+
+    mod b {
+        @test
+        fn inner_test() -> Bool {
+            let obj = Struct {
+                middle: 7,
+            };
+
+            obj.middle == 7
+        }
+    }
+}
+
+@test
+fn outer_test() -> Bool {
+    let obj = Struct {
+        outer: 13,
+    };
+
+    obj.outer == 13
+}

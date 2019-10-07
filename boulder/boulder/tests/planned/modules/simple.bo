@@ -1,0 +1,10 @@
+mod inner {
+    @test
+    fn inner() -> Bool {
+        outer(40) == 42
+    }
+}
+
+fn outer(a: u32) -> u32 {
+    a + 2
+}

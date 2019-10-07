@@ -13,6 +13,7 @@ use crate::{
 };
 
 pub struct TypeConstraintsContext<'a, 'b, 'c> {
+    pub at: &'c [Box<str>],
     pub functions: &'c TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
     pub variables: &'c TSlice<VariableId, solver::EntityId>,
     pub scopes: &'c mut TVec<ScopeId, (solver::EntityId, usize)>,
@@ -269,7 +270,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 } else {
                     let solver_ctx = ctx.solver.ctx();
 
-                    let ty = ty::resolve(ty, solver_ctx.types, solver_ctx.type_lookup)?;
+                    let ty = ty::resolve(ctx.at, ty, solver_ctx.types, solver_ctx.modules)?;
                     ctx.solver.add_typed(ty.item, meta)
                 };
                 ctx.solver.add_extension(expr.id(), expected);

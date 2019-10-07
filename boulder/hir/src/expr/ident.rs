@@ -1,26 +1,25 @@
-use std::collections::HashMap;
-
 use tindex::TVec;
 
-use shared_id::{FunctionId, TypeId, EMPTY_TYPE_ID};
+use shared_id::{TypeId, EMPTY_TYPE_ID};
 
 use diagnostics::{CompileError, Meta};
 
 use crate::{
     expr::{Expression, MatchArm},
     func::{ScopeId, Variable, VariableId},
+    module::Module,
     traits::{ResolvedIdentifiers, UnresolvedIdentifiers, UnresolvedTypes},
     ty::{self, Type},
     Literal, Pattern, UnresolvedType, UnresolvedVariable,
 };
 
 pub struct ResolveIdentifiersContext<'a, 'b> {
+    pub at: &'b [Box<str>],
     pub variables: &'b mut TVec<VariableId, Variable<'a, Option<UnresolvedType<'a>>>>,
     pub variable_lookup: &'b mut Vec<Vec<(Box<str>, VariableId)>>,
-    pub function_lookup: &'b HashMap<Box<str>, Meta<'a, FunctionId>>,
     pub scope_lookup: &'b mut TVec<ScopeId, Option<Box<str>>>,
     pub types: &'b mut TVec<TypeId, Type<'a, TypeId>>,
-    pub type_lookup: &'b mut HashMap<Box<str>, TypeId>,
+    pub modules: &'b mut Module,
 }
 
 impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
@@ -58,7 +57,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 UnresolvedVariable::Existing(name) => {
                     if let Some(id) = get_id(name.clone(), ctx.variable_lookup) {
                         Expression::Variable((), id)
-                    } else if let Some(&ty) = ctx.type_lookup.get(&name.item) {
+                    } else if let Some(ty) = ctx.modules.get_type(ctx.at, &name.item) {
                         if let ty::Kind::Unit = ctx.types[ty].kind {
                             Expression::Lit((), name.replace(Literal::Unit(ty)))
                         } else {
@@ -90,7 +89,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 match lit.item {
                     Literal::Integer(v) => Expression::Lit((), meta.replace(Literal::Integer(v))),
                     Literal::Unit(ty) => {
-                        if let Some(&ty) = ctx.type_lookup.get(&ty) {
+                        if let Some(ty) = ctx.modules.get_type(ctx.at, &ty) {
                             if let ty::Kind::Unit = ctx.types[ty].kind {
                                 Expression::Lit((), meta.replace(Literal::Unit(ty)))
                             } else {
@@ -148,7 +147,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 Expression::Statement((), Box::new(expr.resolve_identifiers(ctx)?))
             }
             Expression::InitializeStruct((), name, fields) => {
-                if let Some(&ty) = ctx.type_lookup.get(&name.item) {
+                if let Some(ty) = ctx.modules.get_type(ctx.at, &name.item) {
                     if let ty::Kind::Struct(_) = ctx.types[ty].kind {
                         let fields = fields
                             .into_iter()
@@ -186,8 +185,8 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     new.push(expr.resolve_identifiers(ctx)?);
                 }
 
-                if let Some(id) = ctx.function_lookup.get(&name.item) {
-                    Expression::FunctionCall((), name.replace(id.item), new)
+                if let Some(id) = ctx.modules.get_function(ctx.at, &name.item) {
+                    Expression::FunctionCall((), name.replace(id), new)
                 } else {
                     CompileError::new(
                         &name,
@@ -206,7 +205,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     ctx.variable_lookup.push(Vec::new());
                     let pattern = match arm.pattern {
                         Pattern::Underscore(ty) => {
-                            Pattern::Underscore(ty::resolve(ty, ctx.types, ctx.type_lookup)?)
+                            Pattern::Underscore(ty::resolve(ctx.at, ty, ctx.types, ctx.modules)?)
                         }
                         Pattern::Named(UnresolvedVariable::New(name, ty)) => {
                             let meta = name.simplify();

@@ -255,9 +255,15 @@ impl Block {
 }
 
 #[derive(Debug, Clone)]
+pub struct LangItems {
+    pub divide: FunctionId,
+}
+
+#[derive(Debug, Clone)]
 pub struct Mir {
     pub types: TVec<TypeId, Type>,
     pub functions: TVec<FunctionId, Function>,
+    pub lang_items: LangItems,
 }
 
 impl Mir {

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, iter};
+use std::iter;
 
 use tindex::{bitset::TBitSet, TSlice, TVec};
 
@@ -6,13 +6,14 @@ use shared_id::{FieldId, TypeId};
 
 use diagnostics::{CompileError, Meta};
 
-use crate::{Attribute, UnresolvedType};
+use crate::{module::Module, Attribute, UnresolvedType};
 
 pub mod solver;
 
 #[derive(Debug, Clone)]
 pub struct Type<'a, T> {
     pub name: Meta<'a, Box<str>>,
+    pub at: Vec<Box<str>>,
     pub attributes: Vec<Attribute<'a>>,
     pub kind: Kind<'a, T>,
 }
@@ -21,9 +22,10 @@ impl<'a> Type<'a, UnresolvedType<'a>> {
     pub fn resolve(
         self,
         types: &mut TVec<TypeId, Type<'a, TypeId>>,
-        lookup: &mut HashMap<Box<str>, TypeId>,
+        modules: &mut Module,
     ) -> Result<(), CompileError> {
-        let id = *lookup.get(&self.name.item).unwrap();
+        let at = self.at;
+        let id = modules.get_type(&at, &self.name.item).unwrap();
 
         let kind = match self.kind {
             Kind::Unit => Kind::Unit,
@@ -53,7 +55,7 @@ impl<'a> Type<'a, UnresolvedType<'a>> {
                         .map(|m| {
                             Ok(Field {
                                 name: m.name,
-                                ty: resolve(m.ty, types, lookup)?,
+                                ty: resolve(&at, m.ty, types, modules)?,
                             })
                         })
                         .collect::<Result<_, _>>()?,
@@ -67,16 +69,17 @@ impl<'a> Type<'a, UnresolvedType<'a>> {
 }
 
 pub fn resolve<'a>(
+    at: &[Box<str>],
     unresolved: Meta<'a, UnresolvedType<'a>>,
     types: &mut TVec<TypeId, Type<'a, TypeId>>,
-    lookup: &mut HashMap<Box<str>, TypeId>,
+    modules: &mut Module,
 ) -> Result<Meta<'a, TypeId>, CompileError> {
     Ok(match &unresolved.item {
         UnresolvedType::Sum(cases) => {
             let type_ids = cases
                 .into_iter()
                 .map(|c| {
-                    if let Some(&i) = lookup.get(&c.item) {
+                    if let Some(i) = modules.get_type(at, &c.item) {
                         Ok(i)
                     } else {
                         CompileError::new(
@@ -87,10 +90,10 @@ pub fn resolve<'a>(
                 })
                 .collect::<Result<TBitSet<_>, _>>()?;
 
-            unresolved.replace(build_sum_ty(types, lookup, &type_ids))
+            unresolved.replace(build_sum_ty(&type_ids, types, modules))
         }
         UnresolvedType::Named(ref name) => {
-            if let Some(&i) = lookup.get(&*name) {
+            if let Some(i) = modules.get_type(at, name) {
                 unresolved.replace(i)
             } else {
                 CompileError::new(
@@ -104,9 +107,9 @@ pub fn resolve<'a>(
 }
 
 pub fn build_sum_ty<'a>(
-    types: &mut TVec<TypeId, Type<'a, TypeId>>,
-    lookup: &mut HashMap<Box<str>, TypeId>,
     cases: &TBitSet<TypeId>,
+    types: &mut TVec<TypeId, Type<'a, TypeId>>,
+    modules: &mut Module,
 ) -> TypeId {
     let mut values = TBitSet::new();
     let visited = &mut TBitSet::new();
@@ -130,9 +133,10 @@ pub fn build_sum_ty<'a>(
             },
         );
 
-        *lookup.entry(type_name.into()).or_insert_with(|| {
+        *modules.types.entry(type_name.into()).or_insert_with(|| {
             types.push(Type {
                 name: Meta::fake(resolved_type_name.into()),
+                at: Vec::new(),
                 attributes: Vec::new(),
                 kind: Kind::Sum(values),
             })

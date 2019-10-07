@@ -46,16 +46,16 @@ pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
     while let Some(token) = iter.next() {
         match token.item {
             Token::Keyword(Keyword::Function) => {
-                hir.add_function(parse_function(
-                    mem::replace(&mut attributes, Vec::new()),
-                    iter,
-                )?)?;
+                hir.add_function(
+                    &[],
+                    parse_function(Vec::new(), mem::replace(&mut attributes, Vec::new()), iter)?,
+                )?;
             }
             Token::Keyword(Keyword::Struct) => {
-                hir.add_type(parse_struct_decl(
-                    mem::replace(&mut attributes, Vec::new()),
-                    iter,
-                )?)?;
+                hir.add_type(
+                    &[],
+                    parse_struct_decl(Vec::new(), mem::replace(&mut attributes, Vec::new()), iter)?,
+                )?;
             }
             Token::Attribute(value) => {
                 attributes.push(parse_attribute(token.replace(value), iter)?);
@@ -795,6 +795,7 @@ fn parse_block<'a>(
 }
 
 fn parse_struct_decl<'a>(
+    at: Vec<Box<str>>,
     attributes: Vec<Attribute<'a>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Type<'a>, CompileError> {
@@ -802,6 +803,7 @@ fn parse_struct_decl<'a>(
     let next = iter.next().unwrap();
     match &next.item {
         Token::SemiColon => Ok(Type {
+            at,
             name,
             attributes,
             kind: Kind::Unit,
@@ -829,6 +831,7 @@ fn parse_struct_decl<'a>(
                 }
             }
             Ok(Type {
+                at,
                 name,
                 attributes,
                 kind: Kind::Struct(fields),
@@ -843,10 +846,11 @@ fn parse_struct_decl<'a>(
 
 // parse a function, `fn` should already be consumed
 fn parse_function<'a>(
+    at: Vec<Box<str>>,
     attributes: Vec<Attribute<'a>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Function<'a>, CompileError> {
-    let mut func = Function::new(expect_ident(iter.next().unwrap())?.map(Into::into));
+    let mut func = Function::new(expect_ident(iter.next().unwrap())?.map(Into::into), at);
     func.attributes = attributes;
 
     consume_token(Token::OpenBlock(BlockDelim::Parenthesis), iter)?;

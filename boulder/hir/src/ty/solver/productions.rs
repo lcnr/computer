@@ -202,7 +202,7 @@ impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for Extensio
         if target.state.try_subtype(
             ty::subtypes(origin.value, ctx.types),
             ctx.types,
-            ctx.type_lookup,
+            ctx.modules,
         ) {
             Ok(())
         } else {
@@ -229,7 +229,7 @@ impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for Extensio
         if origin.state.try_supertype(
             ty::subtypes(target.value, ctx.types),
             ctx.types,
-            ctx.type_lookup,
+            ctx.modules,
         ) {
             Ok(())
         } else {

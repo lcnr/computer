@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use tindex::{TSlice, TVec};
 
 use shared_id::{FunctionId, TypeId};
@@ -8,6 +6,7 @@ use diagnostics::{CompileError, Meta};
 
 use crate::{
     expr::{Expression, ResolveIdentifiersContext, ToMirContext, TypeConstraintsContext},
+    module::Module,
     traits::{
         IdentifierState, ResolvedIdentifiers, ResolvedTypes, TypeState, UnresolvedIdentifiers,
         UnresolvedTypes,
@@ -40,6 +39,7 @@ pub struct FunctionDefinition<'a, T> {
 #[derive(Debug, Clone)]
 pub struct Function<'a, V: IdentifierState, N: TypeState, T> {
     pub name: Meta<'a, Box<str>>,
+    pub at: Vec<Box<str>>,
     pub attributes: Vec<Attribute<'a>>,
     pub arguments: Vec<VariableId>,
     pub variables: TVec<VariableId, Variable<'a, T>>,
@@ -48,10 +48,11 @@ pub struct Function<'a, V: IdentifierState, N: TypeState, T> {
 }
 
 impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType<'a>>> {
-    pub fn new(name: Meta<'a, Box<str>>) -> Self {
+    pub fn new(name: Meta<'a, Box<str>>, at: Vec<Box<str>>) -> Self {
         let ret_meta = name.simplify();
         Self {
             name,
+            at,
             attributes: Vec::new(),
             arguments: Vec::new(),
             ret: ret_meta.replace(Some(UnresolvedType::Named("Empty".into()))),
@@ -114,9 +115,8 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
 
     pub fn resolve_identifiers(
         mut self,
-        function_lookup: &HashMap<Box<str>, Meta<'a, FunctionId>>,
         types: &mut TVec<TypeId, Type<'a, TypeId>>,
-        type_lookup: &mut HashMap<Box<str>, TypeId>,
+        modules: &mut Module,
     ) -> Result<
         Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType<'a>>>,
         CompileError,
@@ -135,16 +135,17 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
         let body = self
             .body
             .resolve_identifiers(&mut ResolveIdentifiersContext {
+                at: &self.at,
                 variables: &mut self.variables,
                 variable_lookup: &mut variable_lookup,
-                function_lookup,
                 scope_lookup: &mut scope_lookup,
                 types,
-                type_lookup,
+                modules,
             })?;
 
         Ok(Function {
             name: self.name,
+            at: self.at,
             attributes: self.attributes,
             arguments: self.arguments,
             ret: self.ret,
@@ -158,17 +159,27 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
     pub fn definition(
         &self,
         types: &mut TVec<TypeId, Type<'a, TypeId>>,
-        type_lookup: &mut HashMap<Box<str>, TypeId>,
+        modules: &mut Module,
     ) -> Result<FunctionDefinition<'a, TypeId>, CompileError> {
         Ok(FunctionDefinition {
             name: self.name.simplify(),
-            ty: ty::resolve(self.ret.clone().map(|t| t.unwrap()), types, type_lookup)?,
+            ty: ty::resolve(
+                &self.at,
+                self.ret.clone().map(|t| t.unwrap()),
+                types,
+                modules,
+            )?,
             args: self
                 .arguments
                 .iter()
                 .map(|&arg| {
                     let variable = &self.variables[arg];
-                    ty::resolve(variable.ty.clone().map(|t| t.unwrap()), types, type_lookup)
+                    ty::resolve(
+                        &self.at,
+                        variable.ty.clone().map(|t| t.unwrap()),
+                        types,
+                        modules,
+                    )
                 })
                 .collect::<Result<Vec<Meta<'a, TypeId>>, CompileError>>()?,
         })
@@ -176,14 +187,20 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
 
     pub fn resolve_expr_types<'b>(
         self,
-        function_lookup: &TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
+        function_definitions: &TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
         types: &mut TVec<TypeId, Type<'a, TypeId>>,
-        type_lookup: &mut HashMap<Box<str>, TypeId>,
+        modules: &mut Module,
     ) -> Result<Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId>, CompileError>
     {
-        let ret_ty = ty::resolve(self.ret.clone().map(|t| t.unwrap()), types, type_lookup).unwrap();
+        let ret_ty = ty::resolve(
+            &self.at,
+            self.ret.clone().map(|t| t.unwrap()),
+            types,
+            modules,
+        )
+        .unwrap();
 
-        let mut solver = TypeSolver::new(types, type_lookup);
+        let mut solver = TypeSolver::new(types, modules);
         // constraints must not contain any entities right now,
         // as we want `VariableId`s to be equal to `EntityId`s
         let variables = self
@@ -195,9 +212,10 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
                     | Some(unresolved @ UnresolvedType::Named(_)) => {
                         let ctx = solver.ctx();
                         let ty = ty::resolve(
+                            &self.at,
                             variable.ty.clone().replace(unresolved.clone()),
                             ctx.types,
-                            ctx.type_lookup,
+                            ctx.modules,
                         )?;
                         solver.add_typed(ty.item, ty.simplify())
                     }
@@ -208,7 +226,8 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
             .collect::<Result<TVec<_, _>, _>>()?;
 
         let body = self.body.type_constraints(&mut TypeConstraintsContext {
-            functions: function_lookup,
+            at: &self.at,
+            functions: function_definitions,
             variables: &variables,
             scopes: &mut TVec::new(),
             solver: &mut solver,
@@ -220,6 +239,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
         let body = body.insert_types(types, &solution)?;
         Ok(Function {
             name: self.name,
+            at: self.at,
             attributes: self.attributes,
             arguments: self.arguments,
             ret: self.ret.replace(solution[body_id]),

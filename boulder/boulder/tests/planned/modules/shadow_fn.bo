@@ -1,0 +1,21 @@
+mod inner {
+    fn func() -> u32 {
+        7
+    }
+
+    @test
+    fn inner() -> u32 {
+        func()
+    }
+
+    mod even_further_beyond {
+        @test
+        @fn second() -> u32 {
+            func()
+        }
+    }
+}
+
+fn func() -> u32 {
+    6
+}

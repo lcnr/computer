@@ -1,10 +1,7 @@
 #[macro_use]
 extern crate tindex;
 
-use std::{
-    collections::{hash_map::Entry, HashMap},
-    iter,
-};
+use std::iter;
 
 use tindex::TVec;
 
@@ -12,19 +9,21 @@ use shared_id::{FunctionId, TypeId, BOOL_TYPE_ID, FALSE_TYPE_ID, TRUE_TYPE_ID};
 
 use diagnostics::{CompileError, Meta};
 
+use mir::Mir;
+
 pub mod expr;
 pub mod func;
+pub mod module;
 pub mod traits;
 pub mod ty;
 
 use func::{Function, VariableId};
+use module::Module;
 use traits::{
     IdentifierState, ResolvedIdentifiers, ResolvedTypes, TypeState, UnresolvedIdentifiers,
     UnresolvedTypes,
 };
 use ty::Type;
-
-use mir::Mir;
 
 #[derive(Debug, Clone)]
 pub enum UnresolvedType<'a> {
@@ -62,7 +61,7 @@ pub enum Pattern<'a, V: IdentifierState> {
 pub struct Hir<'a, V: IdentifierState, N: TypeState, T, MV> {
     functions: TVec<FunctionId, Function<'a, V, N, T>>,
     types: TVec<TypeId, Type<'a, MV>>,
-    type_lookup: HashMap<Box<str>, TypeId>,
+    modules: Module,
 }
 
 impl<'a>
@@ -78,26 +77,31 @@ impl<'a>
         let types = tvec![
             Type {
                 name: Meta::<'static, ()>::default().replace("Empty".into()),
+                at: Vec::new(),
                 attributes: Vec::new(),
                 kind: ty::Kind::Unit,
             },
             Type {
                 name: Meta::<'static, ()>::default().replace("Never".into()),
+                at: Vec::new(),
                 attributes: Vec::new(),
                 kind: ty::Kind::Uninhabited,
             },
             Type {
                 name: Meta::<'static, ()>::default().replace("True".into()),
+                at: Vec::new(),
                 attributes: Vec::new(),
                 kind: ty::Kind::Unit,
             },
             Type {
                 name: Meta::<'static, ()>::default().replace("False".into()),
+                at: Vec::new(),
                 attributes: Vec::new(),
                 kind: ty::Kind::Unit,
             },
             Type {
                 name: Meta::<'static, ()>::default().replace("Bool".into()),
+                at: Vec::new(),
                 attributes: Vec::new(),
                 kind: ty::Kind::Sum(
                     iter::once(TRUE_TYPE_ID)
@@ -107,41 +111,49 @@ impl<'a>
             },
             Type {
                 name: Meta::<'static, ()>::default().replace("u8".into()),
+                at: Vec::new(),
                 attributes: Vec::new(),
                 kind: ty::Kind::U8,
             },
             Type {
                 name: Meta::<'static, ()>::default().replace("u16".into()),
+                at: Vec::new(),
                 attributes: Vec::new(),
                 kind: ty::Kind::U16,
             },
             Type {
                 name: Meta::<'static, ()>::default().replace("u32".into()),
+                at: Vec::new(),
                 attributes: Vec::new(),
                 kind: ty::Kind::U32,
             },
         ];
 
-        let mut type_lookup = types
-            .iter()
-            .enumerate()
-            .map(|(i, t)| (t.name.item.clone(), i.into()))
-            .collect::<HashMap<_, _>>();
+        let mut modules = Module::new();
+        for (i, ty) in types.iter().enumerate() {
+            modules
+                .add_type(&[], ty.name.item.clone(), TypeId::from(i))
+                .unwrap();
+        }
 
-        type_lookup.insert(
-            format!("{} | {}", TRUE_TYPE_ID, FALSE_TYPE_ID).into(),
-            BOOL_TYPE_ID,
-        );
+        modules
+            .add_type(
+                &[],
+                format!("{} | {}", TRUE_TYPE_ID, FALSE_TYPE_ID).into(),
+                BOOL_TYPE_ID,
+            )
+            .unwrap();
 
         Self {
             functions: TVec::new(),
             types,
-            type_lookup,
+            modules,
         }
     }
 
     pub fn add_function(
         &mut self,
+        at: &[Box<str>],
         func: Function<
             'a,
             UnresolvedIdentifiers<'a>,
@@ -149,35 +161,40 @@ impl<'a>
             Option<UnresolvedType<'a>>,
         >,
     ) -> Result<(), CompileError> {
-        if self.functions.iter().any(|f| f.name.item == func.name.item) {
-            CompileError::new(
-                &func.name,
+        let name = func.name.item.clone();
+        let id = self.functions.push(func);
+        match self.modules.add_function(at, name, id) {
+            Ok(()) => Ok(()),
+            Err(other) => CompileError::build(
+                &self.functions[other].name,
                 format_args!(
-                    "Another function with the name {} is already defined",
-                    func.name.item
+                    "Defined multiple functions with the name `{}`",
+                    &self.functions[id].name.item
                 ),
             )
-        } else {
-            self.functions.push(func);
-            Ok(())
+            .with_location(&self.functions[id].name)
+            .build(),
         }
     }
 
-    pub fn add_type(&mut self, ty: Type<'a, UnresolvedType<'a>>) -> Result<(), CompileError> {
-        match self.type_lookup.entry(ty.name.item.clone()) {
-            Entry::Occupied(o) => {
-                let old = &self.types[*o.get()];
-                CompileError::build(
-                    &old.name,
-                    format_args!("Defined multiple types with the name `{}`", o.key()),
-                )
-                .with_location(&ty.name)
-                .build()
-            }
-            Entry::Vacant(entry) => {
-                entry.insert(self.types.push(ty));
-                Ok(())
-            }
+    pub fn add_type(
+        &mut self,
+        at: &[Box<str>],
+        ty: Type<'a, UnresolvedType<'a>>,
+    ) -> Result<(), CompileError> {
+        let name = ty.name.item.clone();
+        let id = self.types.push(ty);
+        match self.modules.add_type(at, name, id) {
+            Ok(()) => Ok(()),
+            Err(other) => CompileError::build(
+                &self.types[other].name,
+                format_args!(
+                    "Defined multiple types with the name `{}`",
+                    &self.types[id].name.item
+                ),
+            )
+            .with_location(&self.types[id].name)
+            .build(),
         }
     }
 
@@ -187,12 +204,13 @@ impl<'a>
         Hir<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType<'a>>, TypeId>,
         CompileError,
     > {
-        let mut type_lookup = self.type_lookup;
+        let mut modules = self.modules;
         let mut types = self
             .types
             .iter()
             .map(|ty| Type {
                 name: ty.name.clone(),
+                at: ty.at.clone(),
                 attributes: ty.attributes.clone(),
                 kind: ty::Kind::Struct(TVec::new()),
             })
@@ -200,14 +218,14 @@ impl<'a>
 
         self.types
             .into_iter()
-            .map(|t| t.resolve(&mut types, &mut type_lookup))
+            .map(|t| t.resolve(&mut types, &mut modules))
             .collect::<Result<Vec<()>, _>>()?;
 
         ty::check_recursive_ty(&types)?;
         Ok(Hir {
             functions: self.functions,
             types,
-            type_lookup,
+            modules,
         })
     }
 }
@@ -221,24 +239,17 @@ impl<'a>
         Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType<'a>>, TypeId>,
         CompileError,
     > {
-        let known_functions = self
-            .functions
-            .iter()
-            .enumerate()
-            .map(|(i, f)| (f.name.item.clone(), f.name.replace(i.into())))
-            .collect();
-
         let mut types = self.types;
-        let mut type_lookup = self.type_lookup;
+        let mut modules = self.modules;
 
         Ok(Hir {
             functions: self
                 .functions
                 .into_iter()
-                .map(|f| f.resolve_identifiers(&known_functions, &mut types, &mut type_lookup))
+                .map(|f| f.resolve_identifiers(&mut types, &mut modules))
                 .collect::<Result<TVec<_, _>, CompileError>>()?,
             types,
-            type_lookup,
+            modules,
         })
     }
 }
@@ -248,25 +259,25 @@ impl<'a> Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unresolved
         self,
     ) -> Result<Hir<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId, TypeId>, CompileError>
     {
-        let mut type_lookup = self.type_lookup;
+        let mut modules = self.modules;
         let mut types = self.types;
 
         let function_definitions = self
             .functions
             .iter()
-            .map(|f| f.definition(&mut types, &mut type_lookup))
+            .map(|f| f.definition(&mut types, &mut modules))
             .collect::<Result<TVec<_, _>, CompileError>>()?;
 
         let functions = self
             .functions
             .into_iter()
-            .map(|f| f.resolve_expr_types(&function_definitions, &mut types, &mut type_lookup))
+            .map(|f| f.resolve_expr_types(&function_definitions, &mut types, &mut modules))
             .collect::<Result<TVec<_, _>, CompileError>>()?;
 
         Ok(Hir {
             functions,
             types,
-            type_lookup,
+            modules,
         })
     }
 }
@@ -281,12 +292,37 @@ impl<'a> Hir<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId, TypeId> {
             .map(|f| f.definition())
             .collect::<TVec<_, _>>();
 
+        let lang_items = mir::LangItems {
+            divide: self
+                .functions
+                .iter()
+                .position(|f| {
+                    f.attributes.iter().any(|attr| {
+                        attr.name.item == "lang_item"
+                            && attr.args.iter().any(|a| a.item == "divide")
+                    })
+                })
+                .map_or_else(
+                    || {
+                        CompileError::new(
+                            &Meta::<'static, ()>::default(),
+                            "Missing lang item: `divide`",
+                        )
+                    },
+                    |p| Ok(FunctionId::from(p)),
+                )?,
+        };
+
         let functions = self
             .functions
             .into_iter()
             .map(|f| f.to_mir(&types, &function_definitions))
             .collect::<Result<TVec<_, _>, CompileError>>()?;
 
-        Ok(Mir { types, functions })
+        Ok(Mir {
+            types,
+            functions,
+            lang_items,
+        })
     }
 }

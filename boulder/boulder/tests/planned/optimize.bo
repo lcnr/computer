@@ -1,4 +1,4 @@
-# infinite loops are UB, this function is a noop
+# infinite loops are UB, therefore `a == 7` must hold and this function is a noop
 fn infinite_loop(a: u32) -> () {
     loop {
         if a == 7 {
