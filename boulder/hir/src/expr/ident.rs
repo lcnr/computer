@@ -19,7 +19,7 @@ pub struct ResolveIdentifiersContext<'a, 'b> {
     pub variable_lookup: &'b mut Vec<Vec<(Box<str>, VariableId)>>,
     pub scope_lookup: &'b mut TVec<ScopeId, Option<Box<str>>>,
     pub types: &'b mut TVec<TypeId, Type<'a, TypeId>>,
-    pub modules: &'b mut Module,
+    pub modules: &'b mut Module<'a>,
 }
 
 impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {

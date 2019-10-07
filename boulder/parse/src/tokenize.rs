@@ -6,6 +6,8 @@ use hir::expr::Binop as HirBinop;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Keyword {
+    /// `mod`
+    Module,
     /// `fn`
     Function,
     /// `let`
@@ -321,6 +323,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
         let origin = start..self.byte_offset;
         match &self.src[start..self.byte_offset] {
             "_" => self.new_token(Token::Underscore, origin),
+            "mod" => self.new_token(Token::Keyword(Keyword::Module), origin),
             "fn" => self.new_token(Token::Keyword(Keyword::Function), origin),
             "let" => self.new_token(Token::Keyword(Keyword::Let), origin),
             "struct" => self.new_token(Token::Keyword(Keyword::Struct), origin),

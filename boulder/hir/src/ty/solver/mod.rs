@@ -21,7 +21,7 @@ use productions::{Equality, Extension, FieldAccess};
 pub struct Context<'a, 'b> {
     pub types: &'b mut TVec<TypeId, Type<'a, TypeId>>,
     pub meta: TVec<EntityId, Meta<'a, ()>>,
-    pub modules: &'b mut Module,
+    pub modules: &'b mut Module<'a>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -41,7 +41,7 @@ impl EntityState {
         upper_limit: TBitSet<TypeId>,
         lower_limit: TBitSet<TypeId>,
         types: &mut TVec<TypeId, Type<TypeId>>,
-        modules: &mut Module,
+        modules: &mut Module<'_>,
     ) -> Self {
         if upper_limit.element_count() == 1 {
             EntityState::Bound(upper_limit)
@@ -59,7 +59,7 @@ impl EntityState {
         &mut self,
         mut restriction: TBitSet<TypeId>,
         types: &mut TVec<TypeId, Type<TypeId>>,
-        modules: &mut Module,
+        modules: &mut Module<'_>,
     ) -> bool {
         match &self {
             EntityState::Unbound => {
@@ -109,7 +109,7 @@ impl EntityState {
         &mut self,
         restriction: TBitSet<TypeId>,
         types: &mut TVec<TypeId, Type<TypeId>>,
-        modules: &mut Module,
+        modules: &mut Module<'_>,
     ) -> bool {
         match &self {
             EntityState::Unbound => {
@@ -242,7 +242,7 @@ pub struct TypeSolver<'a, 'b> {
 }
 
 impl<'a, 'b> TypeSolver<'a, 'b> {
-    pub fn new(types: &'b mut TVec<TypeId, Type<'a, TypeId>>, modules: &'b mut Module) -> Self {
+    pub fn new(types: &'b mut TVec<TypeId, Type<'a, TypeId>>, modules: &'b mut Module<'a>) -> Self {
         let empty = EMPTY_TYPE_ID;
         let integers = types
             .iter()
@@ -448,7 +448,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         self.solver.context().types
     }
 
-    pub fn modules(&mut self) -> &mut Module {
+    pub fn modules(&mut self) -> &mut Module<'a> {
         self.solver.context().modules
     }
 

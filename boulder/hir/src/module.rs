@@ -1,20 +1,44 @@
 use std::collections::hash_map::{Entry, HashMap};
 
+use diagnostics::Meta;
+
 use shared_id::{FunctionId, TypeId};
 
 #[derive(Debug, Clone)]
-pub struct Module {
+pub struct Module<'a> {
+    pub meta: Meta<'a, ()>,
     pub functions: HashMap<Box<str>, FunctionId>,
     pub types: HashMap<Box<str>, TypeId>,
-    pub modules: HashMap<Box<str>, Module>,
+    pub modules: HashMap<Box<str>, Module<'a>>,
 }
 
-impl Module {
-    pub fn new() -> Self {
+impl<'a> Module<'a> {
+    pub fn new(meta: Meta<'a, ()>) -> Self {
         Self {
+            meta,
             functions: HashMap::new(),
             types: HashMap::new(),
             modules: HashMap::new(),
+        }
+    }
+
+    pub fn add_module(
+        &mut self,
+        at: &[Box<str>],
+        name: Meta<'a, Box<str>>,
+    ) -> Result<(), Meta<'a, ()>> {
+        if let Some((first, rest)) = at.split_first() {
+            let inner = self.modules.get_mut(first).unwrap();
+            inner.add_module(rest, name)
+        } else {
+            let meta = name.simplify();
+            match self.modules.entry(name.item) {
+                Entry::Occupied(o) => Err(o.get().meta.clone()),
+                Entry::Vacant(entry) => {
+                    entry.insert(Module::new(meta));
+                    Ok(())
+                }
+            }
         }
     }
 

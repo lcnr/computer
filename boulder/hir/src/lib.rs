@@ -61,7 +61,7 @@ pub enum Pattern<'a, V: IdentifierState> {
 pub struct Hir<'a, V: IdentifierState, N: TypeState, T, MV> {
     functions: TVec<FunctionId, Function<'a, V, N, T>>,
     types: TVec<TypeId, Type<'a, MV>>,
-    modules: Module,
+    modules: Module<'a>,
 }
 
 impl<'a>
@@ -129,7 +129,7 @@ impl<'a>
             },
         ];
 
-        let mut modules = Module::new();
+        let mut modules = Module::new(Meta::fake(()));
         for (i, ty) in types.iter().enumerate() {
             modules
                 .add_type(&[], ty.name.item.clone(), TypeId::from(i))
@@ -148,6 +148,23 @@ impl<'a>
             functions: TVec::new(),
             types,
             modules,
+        }
+    }
+
+    pub fn add_module(
+        &mut self,
+        at: &[Box<str>],
+        module: Meta<'a, Box<str>>,
+    ) -> Result<(), CompileError> {
+        let err = module.clone();
+        match self.modules.add_module(at, module) {
+            Ok(()) => Ok(()),
+            Err(other) => CompileError::build(
+                &other,
+                format_args!("Defined multiple modules with the name `{}`", &err.item),
+            )
+            .with_location(&err)
+            .build(),
         }
     }
 

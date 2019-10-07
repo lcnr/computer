@@ -42,25 +42,48 @@ type Literal<'a> = hir::Literal<hir::traits::UnresolvedIdentifiers<'a>>;
 pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
     let iter = &mut TokenIter::new(src);
     let mut hir = Hir::new();
+    parse_module(&mut hir, &mut Vec::new(), iter)?;
+    consume_token(Token::EOF, iter)?;
+    Ok(hir)
+}
+
+pub fn parse_module<'a>(
+    hir: &mut Hir<'a>,
+    at: &mut Vec<Box<str>>,
+    iter: &mut TokenIter<'a>,
+) -> Result<(), CompileError> {
     let mut attributes = Vec::new();
     while let Some(token) = iter.next() {
         match token.item {
+            Token::Keyword(Keyword::Module) => {
+                let module_name = expect_ident(iter.next().unwrap())?;
+                let name = module_name.item.into();
+                hir.add_module(&at, module_name.map(Into::into))?;
+                at.push(name);
+                consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
+                parse_module(hir, at, iter)?;
+                consume_token(Token::CloseBlock(BlockDelim::Brace), iter)?;
+                at.pop();
+            }
             Token::Keyword(Keyword::Function) => {
                 hir.add_function(
                     &[],
-                    parse_function(Vec::new(), mem::replace(&mut attributes, Vec::new()), iter)?,
+                    parse_function(at, mem::replace(&mut attributes, Vec::new()), iter)?,
                 )?;
             }
             Token::Keyword(Keyword::Struct) => {
                 hir.add_type(
                     &[],
-                    parse_struct_decl(Vec::new(), mem::replace(&mut attributes, Vec::new()), iter)?,
+                    parse_struct_decl(at, mem::replace(&mut attributes, Vec::new()), iter)?,
                 )?;
             }
             Token::Attribute(value) => {
                 attributes.push(parse_attribute(token.replace(value), iter)?);
             }
-            Token::EOF => break,
+            Token::EOF | Token::CloseBlock(BlockDelim::Brace) => {
+                iter.step_back(token);
+                break;
+            }
             _ => CompileError::expected(
                 &[
                     Token::Keyword(Keyword::Struct),
@@ -73,7 +96,7 @@ pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
         }
     }
 
-    Ok(hir)
+    Ok(())
 }
 
 fn peek_token(expected: Token, iter: &mut TokenIter) -> bool {
@@ -795,7 +818,7 @@ fn parse_block<'a>(
 }
 
 fn parse_struct_decl<'a>(
-    at: Vec<Box<str>>,
+    at: &mut Vec<Box<str>>,
     attributes: Vec<Attribute<'a>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Type<'a>, CompileError> {
@@ -803,7 +826,7 @@ fn parse_struct_decl<'a>(
     let next = iter.next().unwrap();
     match &next.item {
         Token::SemiColon => Ok(Type {
-            at,
+            at: at.clone(),
             name,
             attributes,
             kind: Kind::Unit,
@@ -831,7 +854,7 @@ fn parse_struct_decl<'a>(
                 }
             }
             Ok(Type {
-                at,
+                at: at.clone(),
                 name,
                 attributes,
                 kind: Kind::Struct(fields),
@@ -846,11 +869,14 @@ fn parse_struct_decl<'a>(
 
 // parse a function, `fn` should already be consumed
 fn parse_function<'a>(
-    at: Vec<Box<str>>,
+    at: &mut Vec<Box<str>>,
     attributes: Vec<Attribute<'a>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Function<'a>, CompileError> {
-    let mut func = Function::new(expect_ident(iter.next().unwrap())?.map(Into::into), at);
+    let mut func = Function::new(
+        expect_ident(iter.next().unwrap())?.map(Into::into),
+        at.clone(),
+    );
     func.attributes = attributes;
 
     consume_token(Token::OpenBlock(BlockDelim::Parenthesis), iter)?;

@@ -116,7 +116,7 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
     pub fn resolve_identifiers(
         mut self,
         types: &mut TVec<TypeId, Type<'a, TypeId>>,
-        modules: &mut Module,
+        modules: &mut Module<'a>,
     ) -> Result<
         Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType<'a>>>,
         CompileError,
@@ -189,7 +189,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
         self,
         function_definitions: &TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
         types: &mut TVec<TypeId, Type<'a, TypeId>>,
-        modules: &mut Module,
+        modules: &mut Module<'a>,
     ) -> Result<Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId>, CompileError>
     {
         let ret_ty = ty::resolve(
