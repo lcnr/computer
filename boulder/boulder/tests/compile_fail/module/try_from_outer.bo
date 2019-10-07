@@ -1,0 +1,10 @@
+# Cannot find type `A` in this scope
+# (8:
+
+mod inner {
+    struct A;
+}
+
+fn test(a: A) -> A {
+    a
+}

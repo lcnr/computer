@@ -10,7 +10,7 @@ mod a {
     mod b {
         @test
         fn inner_test() -> Bool {
-            let obj = Struct {
+            let obj: Struct = Struct {
                 middle: 7,
             };
 
@@ -21,7 +21,7 @@ mod a {
 
 @test
 fn outer_test() -> Bool {
-    let obj = Struct {
+    let obj: Struct = Struct {
         outer: 13,
     };
 

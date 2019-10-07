@@ -10,7 +10,7 @@ fn is_prime_recurse(n: u32, i: u32) -> Bool {
     if i < 2 {
         True
     } else {
-        if mod(n,i) < 1{
+        if modulo(n,i) < 1{
             False
         } else {
             is_prime_recurse(n, i - 1)
@@ -18,7 +18,7 @@ fn is_prime_recurse(n: u32, i: u32) -> Bool {
     }
 }
 
-fn mod(n: u32, m: u32) -> u32 {
+fn modulo(n: u32, m: u32) -> u32 {
     n - (n/m * m)
 }
 

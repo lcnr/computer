@@ -43,6 +43,11 @@ pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
     let iter = &mut TokenIter::new(src);
     let mut hir = Hir::new();
     parse_module(&mut hir, &mut Vec::new(), iter)?;
+
+    // TODO: allow for no_std
+    let std = include_str!("../../_std/lib.bo");
+    hir.add_module(&[], Meta::fake("std".into())).unwrap();
+    parse_module(&mut hir, &mut vec!["std".into()], &mut TokenIter::new(std))?;
     consume_token(Token::EOF, iter)?;
     Ok(hir)
 }
@@ -66,16 +71,12 @@ pub fn parse_module<'a>(
                 at.pop();
             }
             Token::Keyword(Keyword::Function) => {
-                hir.add_function(
-                    &[],
-                    parse_function(at, mem::replace(&mut attributes, Vec::new()), iter)?,
-                )?;
+                let func = parse_function(at, mem::replace(&mut attributes, Vec::new()), iter)?;
+                hir.add_function(&at, func)?;
             }
             Token::Keyword(Keyword::Struct) => {
-                hir.add_type(
-                    &[],
-                    parse_struct_decl(at, mem::replace(&mut attributes, Vec::new()), iter)?,
-                )?;
+                let ty = parse_struct_decl(at, mem::replace(&mut attributes, Vec::new()), iter)?;
+                hir.add_type(&at, ty)?;
             }
             Token::Attribute(value) => {
                 attributes.push(parse_attribute(token.replace(value), iter)?);

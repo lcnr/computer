@@ -4,14 +4,14 @@ mod inner {
     }
 
     @test
-    fn inner() -> u32 {
-        func()
+    fn inner() -> Bool {
+        func() == 7
     }
 
     mod even_further_beyond {
         @test
-        fn second() -> u32 {
-            func()
+        fn second() -> Bool {
+            func() == 7
         }
     }
 }
