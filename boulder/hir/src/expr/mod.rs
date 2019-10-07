@@ -24,6 +24,7 @@ pub enum Binop {
     Sub,
     Mul,
     Div,
+    Rem,
     Shl,
     Shr,
     Gt,

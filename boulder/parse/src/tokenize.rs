@@ -50,6 +50,8 @@ pub enum Binop {
     Mul,
     /// `/`
     Div,
+    /// `%`
+    Rem,
     /// `<<`
     Shl,
     /// `>>`
@@ -88,10 +90,8 @@ impl Binop {
             Binop::BitOr => 20,
             Binop::BitAnd => 21,
             Binop::Shl | Binop::Shr => 30,
-            Binop::Add => 35,
-            Binop::Sub => 35,
-            Binop::Mul => 40,
-            Binop::Div => 40,
+            Binop::Add | Binop::Sub => 35,
+            Binop::Mul | Binop::Div | Binop::Rem => 40,
         }
     }
 
@@ -113,6 +113,9 @@ impl Binop {
             }
             Binop::Div => {
                 crate::Expression::Binop((), meta.replace(HirBinop::Div), a.into(), b.into())
+            }
+            Binop::Rem => {
+                crate::Expression::Binop((), meta.replace(HirBinop::Rem), a.into(), b.into())
             }
             Binop::Shl => {
                 crate::Expression::Binop((), meta.replace(HirBinop::Shl), a.into(), b.into())
@@ -491,6 +494,13 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                     self.advance();
                     self.new_token(
                         Token::Binop(Binop::Div),
+                        self.byte_offset - 1..self.byte_offset,
+                    )
+                }
+                '%' => {
+                    self.advance();
+                    self.new_token(
+                        Token::Binop(Binop::Rem),
                         self.byte_offset - 1..self.byte_offset,
                     )
                 }

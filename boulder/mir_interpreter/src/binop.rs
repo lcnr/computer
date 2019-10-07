@@ -107,6 +107,18 @@ impl<'a> BoulderMirInterpreter<'a> {
                 }
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
+            Binop::Rem => match (&steps[a], &steps[b]) {
+                (&Object::U8(x), &Object::U8(y)) => {
+                    x.checked_rem(y).map(|r| Object::U8(r)).ok_or(invalid_args)
+                }
+                (&Object::U16(x), &Object::U16(y)) => {
+                    x.checked_rem(y).map(|r| Object::U16(r)).ok_or(invalid_args)
+                }
+                (&Object::U32(x), &Object::U32(y)) => {
+                    x.checked_rem(y).map(|r| Object::U32(r)).ok_or(invalid_args)
+                }
+                _ => Err(InterpretError::InvalidOperation(function, block, step)),
+            },
             Binop::Shl => match (&steps[a], &steps[b]) {
                 (&Object::U8(x), &Object::U8(y)) => x
                     .checked_shl(y.into())

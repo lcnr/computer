@@ -174,6 +174,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                     Binop::Sub => Action::Binop(mir::binop::Binop::Sub, a, b),
                     Binop::Mul => Action::Binop(mir::binop::Binop::Mul, a, b),
                     Binop::Div => Action::Binop(mir::binop::Binop::Div, a, b),
+                    Binop::Rem => Action::Binop(mir::binop::Binop::Rem, a, b),
                     Binop::Shl => Action::Binop(mir::binop::Binop::Shl, a, b),
                     Binop::Shr => Action::Binop(mir::binop::Binop::Shr, a, b),
                     Binop::BitOr => {

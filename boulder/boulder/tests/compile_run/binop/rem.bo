@@ -1,0 +1,7 @@
+@test
+fn rem() -> Bool {
+    let a: u32 = 67;
+    let b: u32 = 7;
+
+    a == a / b * b + a % b
+}
