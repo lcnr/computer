@@ -4,7 +4,7 @@ use diagnostics::Meta;
 
 use shared_id::{FieldId, FunctionId, TypeId};
 
-use crate::{ScopeId, UnresolvedType, UnresolvedVariable, VariableId};
+use crate::{func::ScopeId, UnresolvedType, UnresolvedVariable, VariableId};
 
 pub trait IdentifierState: Debug + Clone {
     type Variable: Debug + Clone;

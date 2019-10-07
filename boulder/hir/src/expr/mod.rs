@@ -2,7 +2,7 @@ use diagnostics::Meta;
 
 use crate::{
     traits::{IdentifierState, TypeState},
-    Binop, Literal, Pattern, UnaryOperation,
+    Literal, Pattern,
 };
 
 mod ident;
@@ -12,6 +12,29 @@ mod type_ck;
 pub use ident::ResolveIdentifiersContext;
 pub use to_mir::ToMirContext;
 pub use type_ck::TypeConstraintsContext;
+
+#[derive(Debug, Clone, Copy)]
+pub enum UnaryOperation {
+    Invert,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Binop {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Shl,
+    Shr,
+    Gt,
+    Gte,
+    Eq,
+    Neq,
+    Lte,
+    Lt,
+    BitOr,
+    BitAnd,
+}
 
 #[derive(Debug, Clone)]
 pub struct MatchArm<'a, V: IdentifierState, N: TypeState> {

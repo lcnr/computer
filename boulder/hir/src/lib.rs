@@ -6,7 +6,7 @@ use std::{
     iter,
 };
 
-use tindex::{TIndex, TVec};
+use tindex::TVec;
 
 use shared_id::{FunctionId, TypeId, BOOL_TYPE_ID, FALSE_TYPE_ID, TRUE_TYPE_ID};
 
@@ -26,21 +26,6 @@ use ty::Type;
 
 use mir::Mir;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ScopeId(usize);
-
-impl From<usize> for ScopeId {
-    fn from(v: usize) -> Self {
-        Self(v)
-    }
-}
-
-impl TIndex for ScopeId {
-    fn as_index(self) -> usize {
-        self.0
-    }
-}
-
 #[derive(Debug, Clone)]
 pub enum UnresolvedType<'a> {
     /// `A | B | C`
@@ -53,29 +38,6 @@ pub enum UnresolvedType<'a> {
 pub enum UnresolvedVariable<'a> {
     Existing(Meta<'a, Box<str>>),
     New(Meta<'a, Box<str>>, Meta<'a, Option<UnresolvedType<'a>>>),
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum UnaryOperation {
-    Invert,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum Binop {
-    Add,
-    Sub,
-    Mul,
-    Div,
-    Shl,
-    Shr,
-    Gt,
-    Gte,
-    Eq,
-    Neq,
-    Lte,
-    Lt,
-    BitOr,
-    BitAnd,
 }
 
 #[derive(Debug, Clone)]

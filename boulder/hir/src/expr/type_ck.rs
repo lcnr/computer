@@ -5,11 +5,11 @@ use shared_id::{TypeId, BOOL_TYPE_ID, EMPTY_TYPE_ID, NEVER_TYPE_ID};
 use diagnostics::{CompileError, Span};
 
 use crate::{
-    expr::{Expression, MatchArm},
-    func::{FunctionDefinition, VariableId},
+    expr::{Binop, Expression, MatchArm, UnaryOperation},
+    func::{FunctionDefinition, ScopeId, VariableId},
     traits::{ResolvedIdentifiers, ResolvedTypes, ResolvingTypes, UnresolvedTypes},
     ty::{self, solver::TypeSolver, Type},
-    Binop, FunctionId, Literal, Pattern, ScopeId, UnaryOperation, UnresolvedType,
+    FunctionId, Literal, Pattern, UnresolvedType,
 };
 
 pub struct TypeConstraintsContext<'a, 'b, 'c> {
@@ -40,7 +40,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 };
 
                 let (_, count) = ctx.scopes.pop().unwrap();
-                if count == 0 && meta.item != ScopeId(0) {
+                if count == 0 && meta.item != ScopeId::from(0) {
                     ctx.solver.add_equality(expr_id, id);
                 } else {
                     ctx.solver.add_extension(expr_id, id);

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use tindex::{TIndex, TSlice, TVec};
+use tindex::{TSlice, TVec};
 
 use shared_id::{FunctionId, TypeId};
 
@@ -17,20 +17,13 @@ use crate::{
     Type, UnresolvedType,
 };
 
+mod index;
+
 #[derive(Debug, Clone, Copy)]
 pub struct VariableId(usize);
 
-impl From<usize> for VariableId {
-    fn from(v: usize) -> Self {
-        Self(v)
-    }
-}
-
-impl TIndex for VariableId {
-    fn as_index(self) -> usize {
-        self.0
-    }
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ScopeId(usize);
 
 #[derive(Debug, Clone)]
 pub struct Variable<'a, T> {

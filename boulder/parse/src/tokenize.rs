@@ -1,6 +1,8 @@
+use std::ops::Range;
+
 use diagnostics::Meta;
 
-use std::ops::Range;
+use hir::expr::Binop as HirBinop;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Keyword {
@@ -99,46 +101,46 @@ impl Binop {
     ) -> crate::Expression<'a> {
         match self {
             Binop::Add => {
-                crate::Expression::Binop((), meta.replace(hir::Binop::Add), a.into(), b.into())
+                crate::Expression::Binop((), meta.replace(HirBinop::Add), a.into(), b.into())
             }
             Binop::Sub => {
-                crate::Expression::Binop((), meta.replace(hir::Binop::Sub), a.into(), b.into())
+                crate::Expression::Binop((), meta.replace(HirBinop::Sub), a.into(), b.into())
             }
             Binop::Mul => {
-                crate::Expression::Binop((), meta.replace(hir::Binop::Mul), a.into(), b.into())
+                crate::Expression::Binop((), meta.replace(HirBinop::Mul), a.into(), b.into())
             }
             Binop::Div => {
-                crate::Expression::Binop((), meta.replace(hir::Binop::Div), a.into(), b.into())
+                crate::Expression::Binop((), meta.replace(HirBinop::Div), a.into(), b.into())
             }
             Binop::Shl => {
-                crate::Expression::Binop((), meta.replace(hir::Binop::Shl), a.into(), b.into())
+                crate::Expression::Binop((), meta.replace(HirBinop::Shl), a.into(), b.into())
             }
             Binop::Shr => {
-                crate::Expression::Binop((), meta.replace(hir::Binop::Shr), a.into(), b.into())
+                crate::Expression::Binop((), meta.replace(HirBinop::Shr), a.into(), b.into())
             }
             Binop::Gt => {
-                crate::Expression::Binop((), meta.replace(hir::Binop::Gt), a.into(), b.into())
+                crate::Expression::Binop((), meta.replace(HirBinop::Gt), a.into(), b.into())
             }
             Binop::Gte => {
-                crate::Expression::Binop((), meta.replace(hir::Binop::Gte), a.into(), b.into())
+                crate::Expression::Binop((), meta.replace(HirBinop::Gte), a.into(), b.into())
             }
             Binop::Eq => {
-                crate::Expression::Binop((), meta.replace(hir::Binop::Eq), a.into(), b.into())
+                crate::Expression::Binop((), meta.replace(HirBinop::Eq), a.into(), b.into())
             }
             Binop::Neq => {
-                crate::Expression::Binop((), meta.replace(hir::Binop::Neq), a.into(), b.into())
+                crate::Expression::Binop((), meta.replace(HirBinop::Neq), a.into(), b.into())
             }
             Binop::Lte => {
-                crate::Expression::Binop((), meta.replace(hir::Binop::Lte), a.into(), b.into())
+                crate::Expression::Binop((), meta.replace(HirBinop::Lte), a.into(), b.into())
             }
             Binop::Lt => {
-                crate::Expression::Binop((), meta.replace(hir::Binop::Lt), a.into(), b.into())
+                crate::Expression::Binop((), meta.replace(HirBinop::Lt), a.into(), b.into())
             }
             Binop::BitOr => {
-                crate::Expression::Binop((), meta.replace(hir::Binop::BitOr), a.into(), b.into())
+                crate::Expression::Binop((), meta.replace(HirBinop::BitOr), a.into(), b.into())
             }
             Binop::BitAnd => {
-                crate::Expression::Binop((), meta.replace(hir::Binop::BitAnd), a.into(), b.into())
+                crate::Expression::Binop((), meta.replace(HirBinop::BitAnd), a.into(), b.into())
             }
             Binop::Or | Binop::And => crate::desugar_logical_ops(self, meta.simplify(), a, b),
         }

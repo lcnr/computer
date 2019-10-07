@@ -468,7 +468,7 @@ fn parse_binop_rhs<'a>(
             let expr = parse_binop_rhs(std::u32::MAX, iter, expecting_open_brace)?;
             Expression::UnaryOperation(
                 (),
-                start.replace(hir::UnaryOperation::Invert),
+                start.replace(hir::expr::UnaryOperation::Invert),
                 Box::new(expr),
             )
         }
@@ -670,7 +670,7 @@ fn parse_expression<'a>(
             parse_binop(
                 Expression::UnaryOperation(
                     (),
-                    start.replace(hir::UnaryOperation::Invert),
+                    start.replace(hir::expr::UnaryOperation::Invert),
                     Box::new(expr),
                 ),
                 iter,

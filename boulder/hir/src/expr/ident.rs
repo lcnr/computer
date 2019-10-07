@@ -8,10 +8,10 @@ use diagnostics::{CompileError, Meta};
 
 use crate::{
     expr::{Expression, MatchArm},
-    func::{Variable, VariableId},
+    func::{ScopeId, Variable, VariableId},
     traits::{ResolvedIdentifiers, UnresolvedIdentifiers, UnresolvedTypes},
     ty::{self, Type},
-    Literal, Pattern, ScopeId, UnresolvedType, UnresolvedVariable,
+    Literal, Pattern, UnresolvedType, UnresolvedVariable,
 };
 
 pub struct ResolveIdentifiersContext<'a, 'b> {
@@ -234,7 +234,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                         .scope_lookup
                         .iter()
                         .enumerate()
-                        .filter_map(|(i, v)| v.as_ref().map(|v| (ScopeId(i), v)))
+                        .filter_map(|(i, v)| v.as_ref().map(|v| (ScopeId::from(i), v)))
                     {
                         if s == id {
                             return Ok(Expression::Break(
