@@ -10,7 +10,7 @@ mod inner {
 
     mod even_further_beyond {
         @test
-        @fn second() -> u32 {
+        fn second() -> u32 {
             func()
         }
     }
