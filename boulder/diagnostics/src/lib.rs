@@ -30,9 +30,10 @@ impl<R> Drop for CompileErrorBuilder<R> {
 impl<R> CompileErrorBuilder<R> {
     pub fn with_location<T>(self, meta: &Meta<T>) -> Self {
         let offset = meta.line_offset();
-        let pos = format!("({}:{}): ", meta.line, offset);
-        writeln!(OUTPUT.lock().unwrap(), "{}{}", pos, meta.line_str()).unwrap();
-        for _ in 0..(offset as usize + pos.len()) {
+        let pos = format!("{}:{}", meta.line, offset);
+        writeln!(OUTPUT.lock().unwrap(), "  --> {}:{}", meta.file, pos).unwrap();
+        writeln!(OUTPUT.lock().unwrap(), "({}): {}", pos, meta.line_str()).unwrap();
+        for _ in 0..(offset as usize + pos.len() + 4) {
             write!(OUTPUT.lock().unwrap(), " ").unwrap();
         }
         for _ in 0..meta.span.len().max(1) {
@@ -85,6 +86,7 @@ impl CompileError {
 pub struct Meta<'a, T> {
     pub item: T,
     pub span: Range<usize>,
+    pub file: &'a str,
     pub source: &'a str,
     pub line: u32,
 }
@@ -103,31 +105,23 @@ impl<T> DerefMut for Meta<'_, T> {
     }
 }
 
-impl<T: Default> Default for Meta<'static, T> {
-    fn default() -> Self {
-        Self {
-            item: Default::default(),
-            span: 0..0,
-            source: "",
-            line: 0,
-        }
-    }
-}
-
 impl<'a> Meta<'a, ()> {
-    pub fn empty(src: &'a str, line: u32, span: Range<usize>) -> Self {
+    pub fn empty(src: &'a str, file: &'a str, line: u32, span: Range<usize>) -> Self {
         Meta {
             item: (),
             span,
+            file,
             source: src,
             line: line,
         }
     }
 
     pub fn append(self, other: Self) -> Self {
+        assert_eq!(self.file, other.file);
         Meta {
             item: (),
             span: self.span.start..other.span.end,
+            file: self.file,
             source: self.source,
             line: self.line,
         }
@@ -139,18 +133,14 @@ impl<'a, T> Meta<'a, T> {
         Meta {
             item,
             span: 0..11,
+            file: &"<fake file>",
             source: &"<fake meta>",
             line: 0,
         }
     }
 
     pub fn simplify(&self) -> Meta<'a, ()> {
-        Meta {
-            item: (),
-            span: self.span.clone(),
-            source: self.source,
-            line: self.line,
-        }
+        self.replace(())
     }
 
     pub fn extend_left(self, to: char) -> Self {
@@ -173,6 +163,7 @@ impl<'a, T> Meta<'a, T> {
         Meta {
             item: new,
             span: self.span.clone(),
+            file: self.file,
             source: self.source,
             line: self.line,
         }
@@ -188,7 +179,8 @@ impl<'a, T> Meta<'a, T> {
     {
         Meta {
             item: f(self.item),
-            span: self.span,
+            span: self.span.clone(),
+            file: self.file,
             source: self.source,
             line: self.line,
         }
@@ -200,7 +192,8 @@ impl<'a, T> Meta<'a, T> {
     {
         Ok(Meta {
             item: f(self.item)?,
-            span: self.span,
+            span: self.span.clone(),
+            file: self.file,
             source: self.source,
             line: self.line,
         })
@@ -236,6 +229,7 @@ impl<'a, T: fmt::Debug> fmt::Debug for Meta<'a, T> {
         f.debug_struct("Meta")
             .field("item", &self.item)
             .field("span", &&self.source[self.span.clone()])
+            .field("file", &self.file)
             .field("line", &self.line)
             .finish()
     }

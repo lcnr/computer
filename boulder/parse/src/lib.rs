@@ -37,15 +37,15 @@ type MatchArm<'a> = hir::expr::MatchArm<
 type Pattern<'a> = hir::Pattern<'a, hir::traits::UnresolvedIdentifiers<'a>>;
 type Literal<'a> = hir::Literal<hir::traits::UnresolvedIdentifiers<'a>>;
 
-pub fn parse<'a>(src: &'a str) -> Result<Hir, CompileError> {
-    let iter = &mut TokenIter::new(src);
+pub fn parse<'a>(src: &'a str, file: &'a str) -> Result<Hir<'a>, CompileError> {
+    let iter = &mut TokenIter::new(src, file);
     let mut hir = Hir::new();
     parse_module(&mut hir, &mut Vec::new(), iter)?;
 
     // TODO: allow for no_std
     let std = include_str!("../../_std/lib.bo");
     hir.add_module(&[], Meta::fake("std".into())).unwrap();
-    parse_module(&mut hir, &mut vec!["std".into()], &mut TokenIter::new(std))?;
+    parse_module(&mut hir, &mut vec!["std".into()], &mut TokenIter::new(std, "/_std/lib.bo"))?;
     consume_token(Token::EOF, iter)?;
     Ok(hir)
 }
@@ -818,7 +818,7 @@ fn parse_block<'a>(
                 (),
                 name.map_or_else(
                     || {
-                        Meta::empty(iter.source(), line, start..end)
+                        Meta::empty(iter.source(), iter.file(), line, start..end)
                             .replace(None)
                             .extend_left('{')
                     },

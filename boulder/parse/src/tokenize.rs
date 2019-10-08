@@ -178,14 +178,16 @@ pub enum Token<'a> {
 
 pub struct TokenIter<'a> {
     src: &'a str,
+    file: &'a str,
     line: u32,
     byte_offset: usize,
 }
 
 impl<'a, 'b: 'a> TokenIter<'b> {
-    pub fn new(src: &'b str) -> Self {
+    pub fn new(src: &'b str, file: &'b str) -> Self {
         TokenIter {
             src,
+            file,
             line: 1,
             byte_offset: 0,
         }
@@ -208,10 +210,15 @@ impl<'a, 'b: 'a> TokenIter<'b> {
         self.src
     }
 
+    pub fn file(&self) -> &'b str {
+        self.file
+    }
+
     fn new_token(&self, tok: Token<'a>, origin: Range<usize>) -> Meta<'a, Token<'a>> {
         Meta {
             item: tok,
             source: self.src,
+            file: self.file,
             span: origin,
             line: self.line,
         }

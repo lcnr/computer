@@ -72,31 +72,31 @@ impl<'a>
     pub fn new() -> Self {
         let types = tvec![
             Type {
-                name: Meta::<'static, ()>::default().replace("Empty".into()),
+                name: Meta::fake("Empty".into()),
                 at: Vec::new(),
                 attributes: Vec::new(),
                 kind: ty::Kind::Unit,
             },
             Type {
-                name: Meta::<'static, ()>::default().replace("Never".into()),
+                name: Meta::fake("Never".into()),
                 at: Vec::new(),
                 attributes: Vec::new(),
                 kind: ty::Kind::Uninhabited,
             },
             Type {
-                name: Meta::<'static, ()>::default().replace("True".into()),
+                name: Meta::fake("True".into()),
                 at: Vec::new(),
                 attributes: Vec::new(),
                 kind: ty::Kind::Unit,
             },
             Type {
-                name: Meta::<'static, ()>::default().replace("False".into()),
+                name: Meta::fake("False".into()),
                 at: Vec::new(),
                 attributes: Vec::new(),
                 kind: ty::Kind::Unit,
             },
             Type {
-                name: Meta::<'static, ()>::default().replace("Bool".into()),
+                name: Meta::fake("Bool".into()),
                 at: Vec::new(),
                 attributes: Vec::new(),
                 kind: ty::Kind::Sum(
@@ -106,19 +106,19 @@ impl<'a>
                 ),
             },
             Type {
-                name: Meta::<'static, ()>::default().replace("u8".into()),
+                name: Meta::fake("u8".into()),
                 at: Vec::new(),
                 attributes: Vec::new(),
                 kind: ty::Kind::U8,
             },
             Type {
-                name: Meta::<'static, ()>::default().replace("u16".into()),
+                name: Meta::fake("u16".into()),
                 at: Vec::new(),
                 attributes: Vec::new(),
                 kind: ty::Kind::U16,
             },
             Type {
-                name: Meta::<'static, ()>::default().replace("u32".into()),
+                name: Meta::fake("u32".into()),
                 at: Vec::new(),
                 attributes: Vec::new(),
                 kind: ty::Kind::U32,

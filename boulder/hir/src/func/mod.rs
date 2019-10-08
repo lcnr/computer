@@ -59,7 +59,7 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
             arguments: Vec::new(),
             ret: ret_meta.replace(Some(UnresolvedType::Named("Empty".into()))),
             variables: TVec::new(),
-            body: Expression::Block((), Meta::default(), Vec::new()),
+            body: Expression::Block((), ret_meta.replace(Default::default()), Vec::new()),
         }
     }
 
