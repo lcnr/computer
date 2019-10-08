@@ -14,7 +14,5 @@ rock = { path = "../../rock" }
 [dev-dependencies]
 shared_id = { path = "../shared_id"}
 walkdir = "2.2.9"
-serial_test = "0.2"
-serial_test_derive = "0.2"
 
 
