@@ -227,37 +227,45 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 assert_eq!(ty, EMPTY_TYPE_ID);
                 Ok(block.add_step(ty, Action::LoadConstant(Object::Unit)))
             }
-            Expression::InitializeStruct(_, struct_kind, fields) => {
-                let temp_base = ctx.temporaries.len();
-                let mut field_ids = Vec::new();
-                for (kind, expr) in fields.into_iter() {
-                    field_ids.push(kind.item);
-                    let id = expr.to_mir(ctx)?;
-                    let field_ty =
-                        if let &mir::Type::Struct(ref fields) = &ctx.types[struct_kind.item] {
-                            fields[kind.item]
-                        } else {
-                            unreachable!("invalid struct")
-                        };
-                    let id = ctx.func[*ctx.curr].add_step(field_ty, Action::Extend(id));
-                    ctx.temporaries.push(Temporary {
-                        step: id,
-                        ty: field_ty,
-                    });
+            Expression::InitializeStruct(_, struct_kind, mut fields) => {
+                match &ctx.types[struct_kind.item] {
+                    &mir::Type::Struct(ref expected_fields) => {
+                        let temp_base = ctx.temporaries.len();
+                        let mut field_ids = Vec::new();
+                        for (kind, expr) in fields.into_iter() {
+                            field_ids.push(kind.item);
+                            let id = expr.to_mir(ctx)?;
+                            let field_ty = expected_fields[kind.item];
+                            let id = ctx.func[*ctx.curr].add_step(field_ty, Action::Extend(id));
+                            ctx.temporaries.push(Temporary {
+                                step: id,
+                                ty: field_ty,
+                            });
+                        }
+                        let mut steps = ctx
+                            .temporaries
+                            .drain(temp_base..)
+                            .map(|temp| temp.step)
+                            .zip(field_ids)
+                            .collect::<Vec<_>>();
+
+                        steps.sort_by_key(|&(_, field)| field);
+
+                        Ok(ctx.func[*ctx.curr].add_step(
+                            struct_kind.item,
+                            Action::InitializeStruct(
+                                steps.into_iter().map(|(step, _)| step).collect(),
+                            ),
+                        ))
+                    }
+                    &mir::Type::Union(_) => {
+                        let (kind, expr) = fields.pop().expect("single union field");
+                        let expr = expr.to_mir(ctx)?;
+                        Ok(ctx.func[*ctx.curr]
+                            .add_step(struct_kind.item, Action::InitializeUnion(expr, kind.item)))
+                    }
+                    _ => unreachable!("invalid struct/union"),
                 }
-                let mut steps = ctx
-                    .temporaries
-                    .drain(temp_base..)
-                    .map(|temp| temp.step)
-                    .zip(field_ids)
-                    .collect::<Vec<_>>();
-
-                steps.sort_by_key(|&(_, field)| field);
-
-                Ok(ctx.func[*ctx.curr].add_step(
-                    struct_kind.item,
-                    Action::InitializeStruct(steps.into_iter().map(|(step, _)| step).collect()),
-                ))
             }
             Expression::FunctionCall(ty, id, args) => {
                 let args = args
@@ -275,7 +283,15 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
             }
             Expression::FieldAccess(ty, obj, field) => {
                 let obj = obj.to_mir(ctx)?;
-                Ok(ctx.func[*ctx.curr].add_step(ty, Action::StructFieldAccess(obj, field.item)))
+                match ctx.types[ctx.func[*ctx.curr][obj].ty] {
+                    mir::Type::Struct(_) => Ok(ctx.func[*ctx.curr]
+                        .add_step(ty, Action::StructFieldAccess(obj, field.item))),
+                    mir::Type::Union(_) => {
+                        Ok(ctx.func[*ctx.curr]
+                            .add_step(ty, Action::UnionFieldAccess(obj, field.item)))
+                    }
+                    _ => unreachable!("invalid struct for field access"),
+                }
             }
             Expression::Match(ty_id, _, value, match_arms) => {
                 let value = value.to_mir(ctx)?;

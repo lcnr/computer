@@ -148,7 +148,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             }
             Expression::InitializeStruct((), name, fields) => {
                 if let Some(ty) = ctx.modules.get_type(ctx.at, &name.item) {
-                    if let ty::Kind::Struct(_) = ctx.types[ty].kind {
+                    if let ty::Kind::Struct(_) | ty::Kind::Union(_) = ctx.types[ty].kind {
                         let fields = fields
                             .into_iter()
                             .map(|(name, expr)| Ok((name, expr.resolve_identifiers(ctx)?)))
@@ -162,7 +162,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                             | ty::Kind::Uninhabited => "a builtin type",
                             ty::Kind::Unit => "a unit type",
                             ty::Kind::Sum(_) => "a sum type",
-                            ty::Kind::Struct(_) => unreachable!(),
+                            ty::Kind::Struct(_) | ty::Kind::Union(_) => unreachable!(),
                         };
 
                         CompileError::build(

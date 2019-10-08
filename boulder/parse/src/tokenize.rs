@@ -14,6 +14,8 @@ pub enum Keyword {
     Let,
     /// `struct`
     Struct,
+    /// `union`
+    Union,
     /// `match`
     Match,
     /// `if`
@@ -337,6 +339,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
             "fn" => self.new_token(Token::Keyword(Keyword::Function), origin),
             "let" => self.new_token(Token::Keyword(Keyword::Let), origin),
             "struct" => self.new_token(Token::Keyword(Keyword::Struct), origin),
+            "union" => self.new_token(Token::Keyword(Keyword::Union), origin),
             "match" => self.new_token(Token::Keyword(Keyword::Match), origin),
             "if" => self.new_token(Token::Keyword(Keyword::If), origin),
             "else" => self.new_token(Token::Keyword(Keyword::Else), origin),

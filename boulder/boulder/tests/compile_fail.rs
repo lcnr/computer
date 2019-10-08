@@ -84,7 +84,7 @@ fn compile_fail() -> Result<(), TestFailure> {
                 check_count += 1;
                 if !output.contains(expected) {
                     eprintln!(
-                        "[boulder/{}]: did not contain `{}`:\n{}",
+                        "[boulder/{}]: did not contain \"{}\":\n{}",
                         entry.path().display(),
                         expected,
                         output.trim(),

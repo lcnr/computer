@@ -80,6 +80,15 @@ impl Mir {
                             unimplemented!("initialize struct with non struct type");
                         }
                     }
+                    &Action::InitializeUnion(id, field) => {
+                        assert!(id < step_id);
+                        if let Type::Union(ref fields) = &self[step.ty] {
+                            let field_ty = fields[field];
+                            assert_eq!(field_ty, block[id].ty);
+                        } else {
+                            panic!("initialize union with invalid type: {:?}", block[id].ty);
+                        }
+                    }
                     &Action::CallFunction(target_func, ref input) => {
                         let expected_input = self[target_func].args();
                         assert_eq!(expected_input.len(), input.len());

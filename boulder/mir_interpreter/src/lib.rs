@@ -85,6 +85,9 @@ impl<'a> BoulderMirInterpreter<'a> {
                     &Action::InitializeStruct(ref fields) => {
                         Object::Struct(fields.iter().map(|&f| steps[f].clone()).collect())
                     }
+                    &Action::InitializeUnion(target, field) => {
+                        Object::Field(field, Box::new(steps[target].clone()))
+                    }
                     &Action::CallFunction(target_id, ref args) => {
                         let args: Vec<_> = args.iter().map(|&id| steps[id].clone()).collect();
                         self.execute_function(target_id, &args)?

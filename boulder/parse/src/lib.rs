@@ -101,6 +101,18 @@ pub fn parse_module<'a>(
                 hir.add_type(&at, ty)?;
                 attributes = Vec::new();
             }
+            Token::Keyword(Keyword::Union) => {
+                let ty = parse_union_decl(
+                    at,
+                    attributes
+                        .into_iter()
+                        .map(|(name, args)| TypeAttribute::new(name, args))
+                        .collect::<Result<_, _>>()?,
+                    iter,
+                )?;
+                hir.add_type(&at, ty)?;
+                attributes = Vec::new();
+            }
             Token::Attribute(value) => {
                 attributes.push(parse_attribute(token.replace(value), iter)?);
             }
@@ -111,6 +123,7 @@ pub fn parse_module<'a>(
             _ => CompileError::expected(
                 &[
                     Token::Keyword(Keyword::Struct),
+                    Token::Keyword(Keyword::Union),
                     Token::Keyword(Keyword::Function),
                     Token::Attribute("".into()),
                     Token::EOF,
@@ -920,6 +933,39 @@ fn parse_block<'a>(
         iter.step_back(tok);
         block.push(parse_expression(iter, false)?);
     }
+}
+
+fn parse_union_decl<'a>(
+    at: &mut Vec<Box<str>>,
+    attributes: Vec<Meta<'a, TypeAttribute<'a>>>,
+    iter: &mut TokenIter<'a>,
+) -> Result<Type<'a>, CompileError> {
+    let name = expect_ident(iter.next().unwrap())?.map(Into::into);
+    consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
+    let mut fields = TVec::new();
+    loop {
+        if try_consume_token(Token::CloseBlock(BlockDelim::Brace), iter) {
+            break;
+        }
+
+        let name = expect_ident(iter.next().unwrap())?.map(Into::into);
+        consume_token(Token::Colon, iter)?;
+        let ty = parse_type(iter)?;
+        fields.push(Field { name, ty });
+
+        let tok = iter.next().unwrap();
+        if tok.item == Token::CloseBlock(BlockDelim::Brace) {
+            break;
+        } else if tok.item != Token::Comma {
+            CompileError::expected(&[Token::Comma, Token::CloseBlock(BlockDelim::Brace)], &tok)?;
+        }
+    }
+    Ok(Type {
+        at: at.clone(),
+        name,
+        attributes,
+        kind: Kind::Union(fields),
+    })
 }
 
 fn parse_struct_decl<'a>(

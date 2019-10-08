@@ -136,6 +136,9 @@ impl Display for Mir {
                             }
                             writeln!(f, ")")
                         }
+                        Action::InitializeUnion(id, field) => {
+                            writeln!(f, "init {}(.{}: ${})", step.ty, field.as_index(), id.0)
+                        }
                         Action::CallFunction(i, args) => {
                             write!(f, "call {}(", i)?;
                             if let Some((last, start)) = args.split_last() {
@@ -148,7 +151,9 @@ impl Display for Mir {
                         }
 
                         Action::StructFieldAccess(s, a) => writeln!(f, "${}.{}", s.0, a.as_index()),
-                        Action::UnionFieldAccess(s, a) => writeln!(f, "${}.{}", s.0, a.as_index()),
+                        Action::UnionFieldAccess(s, a) => {
+                            writeln!(f, "${} as{}", s.0, a.as_index())
+                        }
                         Action::UnaryOperation(kind, expr) => writeln!(f, "{} ${}", kind, expr.0),
                         Action::Binop(kind, a, b) => writeln!(f, "{} ${} ${}", kind, a.0, b.0),
                     }?;

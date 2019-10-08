@@ -1,4 +1,4 @@
-# Struct `B` has no field named `fielt`
+# Type `B` has no field named `fielt`
 # (14:
 
 struct A {

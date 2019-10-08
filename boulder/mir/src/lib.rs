@@ -128,6 +128,7 @@ pub enum Action {
     LoadInput(usize),
     LoadConstant(Object),
     InitializeStruct(TVec<FieldId, StepId>),
+    InitializeUnion(StepId, FieldId),
     CallFunction(FunctionId, Vec<StepId>),
     StructFieldAccess(StepId, FieldId),
     UnionFieldAccess(StepId, FieldId),
@@ -150,6 +151,7 @@ impl Step {
         match &self.action {
             &Action::Extend(id)
             | &Action::StructFieldAccess(id, _)
+            | &Action::InitializeUnion(id, _)
             | &Action::UnionFieldAccess(id, _)
             | &Action::UnaryOperation(_, id) => used.add(id),
             &Action::InitializeStruct(ref fields) => fields.iter().for_each(|&s| used.add(s)),

@@ -27,40 +27,46 @@ impl<'a> Type<'a, UnresolvedType<'a>> {
         let at = self.at;
         let id = modules.get_type(&at, &self.name.item).unwrap();
 
+        fn union_or_struct<'a>(
+            at: &[Box<str>],
+            types: &mut TVec<TypeId, Type<'a, TypeId>>,
+            modules: &mut Module,
+            mut fields: TVec<FieldId, Field<'a, UnresolvedType<'a>>>,
+        ) -> Result<TVec<FieldId, Field<'a, TypeId>>, CompileError> {
+            fields.sort_by(|a, b| a.name.item.cmp(&b.name.item));
+            for window in fields.windows(2) {
+                if window[0].name.item == window[1].name.item {
+                    CompileError::build(
+                        &window[1].name,
+                        format_args!(
+                            "Identifier `{}` is bound more than once in this parameter list",
+                            &window[1].name.item,
+                        ),
+                    )
+                    .with_location(&window[0].name)
+                    .build()?;
+                }
+            }
+
+            fields
+                .into_iter()
+                .map(|m| {
+                    Ok(Field {
+                        name: m.name,
+                        ty: resolve(&at, m.ty, types, modules)?,
+                    })
+                })
+                .collect::<Result<_, _>>()
+        }
+
         let kind = match self.kind {
             Kind::Unit => Kind::Unit,
             Kind::Uninhabited => Kind::Uninhabited,
             Kind::U8 => Kind::U8,
             Kind::U16 => Kind::U16,
             Kind::U32 => Kind::U32,
-            Kind::Struct(mut fields) => {
-                fields.sort_by(|a, b| a.name.item.cmp(&b.name.item));
-                for window in fields.windows(2) {
-                    if window[0].name.item == window[1].name.item {
-                        CompileError::build(
-                            &window[1].name,
-                            format_args!(
-                                "Identifier `{}` is bound more than once in this parameter list",
-                                &window[1].name.item,
-                            ),
-                        )
-                        .with_location(&window[0].name)
-                        .build()?;
-                    }
-                }
-
-                Kind::Struct(
-                    fields
-                        .into_iter()
-                        .map(|m| {
-                            Ok(Field {
-                                name: m.name,
-                                ty: resolve(&at, m.ty, types, modules)?,
-                            })
-                        })
-                        .collect::<Result<_, _>>()?,
-                )
-            }
+            Kind::Struct(fields) => Kind::Struct(union_or_struct(&at, types, modules, fields)?),
+            Kind::Union(fields) => Kind::Union(union_or_struct(&at, types, modules, fields)?),
             Kind::Sum(v) => Kind::Sum(v),
         };
         types[id].kind = kind;
@@ -219,7 +225,7 @@ impl<'a> Type<'a, TypeId> {
     ) -> bool {
         match &self.kind {
             Kind::Unit | Kind::Uninhabited | Kind::U8 | Kind::U16 | Kind::U32 => false,
-            Kind::Struct(fields) => {
+            Kind::Struct(fields) | Kind::Union(fields) => {
                 for field in fields {
                     let field_id = field.ty.item;
                     if field_id == ty {
@@ -253,16 +259,8 @@ impl<'a> Type<'a, TypeId> {
         }
     }
 
-    pub fn fields(&self) -> &TSlice<FieldId, Field<'a, TypeId>> {
-        if let Kind::Struct(v) = &self.kind {
-            &v
-        } else {
-            (&[] as &[_]).into()
-        }
-    }
-
     pub fn get_field(&self, name: &Box<str>) -> Option<FieldId> {
-        if let Kind::Struct(v) = &self.kind {
+        if let Kind::Struct(v) | Kind::Union(v) = &self.kind {
             Some(
                 v.binary_search_by(|probe| probe.name.cmp(name))
                     .ok()?
@@ -283,6 +281,9 @@ impl<'a> Type<'a, TypeId> {
             Kind::Struct(fields) => {
                 mir::Type::Struct(fields.into_iter().map(|m| m.ty.item).collect())
             }
+            Kind::Union(fields) => {
+                mir::Type::Union(fields.into_iter().map(|m| m.ty.item).collect())
+            }
             Kind::Sum(cases) => mir::Type::Sum(cases.iter().collect()),
         }
     }
@@ -302,5 +303,6 @@ pub enum Kind<'a, T> {
     U16,
     U32,
     Struct(TVec<FieldId, Field<'a, T>>),
+    Union(TVec<FieldId, Field<'a, T>>),
     Sum(TBitSet<TypeId>),
 }

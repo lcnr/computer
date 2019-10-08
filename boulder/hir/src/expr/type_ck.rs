@@ -139,7 +139,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     .into_iter()
                     .map(|(name, expr)| {
                         let expr = expr.type_constraints(ctx)?;
-                        if let ty::Kind::Struct(ref fields) =
+                        if let ty::Kind::Struct(ref fields) | ty::Kind::Union(ref fields) =
                             &ctx.solver.ctx().types[kind.item].kind
                         {
                             if let Some(field) = fields.iter().find(|f| f.name.item == name.item) {
@@ -151,7 +151,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                                 CompileError::new(
                                     &name,
                                     format_args!(
-                                        "Struct `{}` has no field named `{}`",
+                                        "Type `{}` has no field named `{}`",
                                         kind.span_str(),
                                         name.item
                                     ),
@@ -385,18 +385,21 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
                     })
                     .collect::<Result<_, CompileError>>()?;
 
-                let actual_fields = types[struct_ty].fields();
-                for i in (0..actual_fields.len()).map(FieldId::from) {
-                    if !initialized_fields.get(i) {
-                        CompileError::new(
-                            &kind,
-                            format_args!(
-                                "Missing field `{}` in initializer of `{}`",
-                                actual_fields[i].name.item,
-                                kind.span_str()
-                            ),
-                        )?
+                if let &ty::Kind::Struct(ref expected_fields) = &types[struct_ty].kind {
+                    for i in (0..expected_fields.len()).map(FieldId::from) {
+                        if !initialized_fields.get(i) {
+                            CompileError::new(
+                                &kind,
+                                format_args!(
+                                    "Missing field `{}` in initializer of `{}`",
+                                    expected_fields[i].name.item,
+                                    kind.span_str()
+                                ),
+                            )?
+                        }
                     }
+                } else if initialized_fields.element_count() != 1 {
+                    CompileError::new(&kind, "Union expressions should have exactly one field")?;
                 }
 
                 Expression::InitializeStruct(struct_ty, kind, fields)

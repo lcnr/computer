@@ -258,7 +258,13 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
 
         let mut fields = HashMap::<Box<str>, Vec<(TypeId, TypeId)>>::new();
         for (i, ty) in types.iter().enumerate() {
-            for field in ty.fields().iter() {
+            let ty_fields: &TSlice<_, _> = if let Kind::Struct(v) | Kind::Union(v) = &ty.kind {
+                &v
+            } else {
+                (&[] as &[_]).into()
+            };
+
+            for field in ty_fields.iter() {
                 fields
                     .entry(field.name.item.clone())
                     .or_default()

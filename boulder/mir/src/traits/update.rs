@@ -37,7 +37,8 @@ impl UpdateStepIds for Action {
             Action::UnaryOperation(_, id)
             | Action::Extend(id)
             | Action::StructFieldAccess(id, _)
-            | Action::UnionFieldAccess(id, _) => f(id),
+            | Action::UnionFieldAccess(id, _)
+            | Action::InitializeUnion(id, _) => f(id),
             Action::Binop(_kind, a, b) => {
                 f(a);
                 f(b);
