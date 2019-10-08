@@ -1,0 +1,24 @@
+struct IsU8;
+struct IsU16;
+
+union Number {
+    u8: u8,
+    u16: u16,
+}
+
+fn check(tag: IsU8 | IsU16, value: Number) -> Bool {
+    match tag {
+        _: IsU8 -> value.u8 == 42,
+        _: IsU16 -> value.u16 == 69,
+    }
+}
+
+@test
+fn test_u8() -> Bool {
+    check(IsU8, Number { u8: 42 })
+}
+
+@test
+fn test_u16() -> Bool {
+    check(IsU16, Number { u16: 69 })
+}

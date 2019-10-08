@@ -1,0 +1,13 @@
+union A {
+    a: u32,
+    b: u16,
+}
+
+@test
+fn test() -> Bool {
+    let a: A = A {
+        a: 7,
+    };
+
+    a.a == 7
+}
