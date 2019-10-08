@@ -9,3 +9,8 @@ tindex = { git = "https://github.com/lcnr/tindex.git" }
 
 diagnostics = { path =  "../diagnostics" }
 hir = { path = "../hir" }
+
+[lib]
+test = false
+doctest = false
+bench = false

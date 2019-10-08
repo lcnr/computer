@@ -15,4 +15,16 @@ rock = { path = "../../rock" }
 shared_id = { path = "../shared_id"}
 walkdir = "2.2.9"
 
+[[bin]]
+name = "boulder"
+path = "src/main.rs"
+test = false
+doctest = false
+bench = false
+
+[lib]
+test = false
+doctest = false
+bench = false
+
 

@@ -11,3 +11,8 @@ tindex = { git = "https://github.com/lcnr/tindex.git" }
 
 rock = { path = "../../rock" }
 shared_id = { path = "../shared_id" }
+
+[lib]
+test = false
+doctest = false
+bench = false

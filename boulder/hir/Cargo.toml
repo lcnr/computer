@@ -10,3 +10,8 @@ shared_id = { path = "../shared_id"}
 solver = { path = "../solver" }
 diagnostics = { path = "../diagnostics" }
 mir = { path = "../mir" }
+
+[lib]
+test = false
+doctest = false
+bench = false

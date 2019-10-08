@@ -8,3 +8,8 @@ edition = "2018"
 
 [dependencies]
 tindex = { git = "https://github.com/lcnr/tindex.git" }
+
+[lib]
+test = false
+doctest = false
+bench = false

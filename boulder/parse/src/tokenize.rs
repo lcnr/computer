@@ -625,16 +625,3 @@ impl<'a> Iterator for TokenIter<'a> {
         Some(self.next_token())
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn scope() {
-        assert_eq!(
-            Token::Scope("a".into()),
-            TokenIter::new("'a", "").next().unwrap().item
-        );
-    }
-}
