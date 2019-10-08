@@ -1,6 +1,36 @@
 use diagnostics::{CompileError, Meta};
 
 #[derive(Debug, Clone)]
+pub enum ModuleAttribute<'a> {
+    Path(&'a str),
+    Str(&'a str),
+}
+
+impl<'a> ModuleAttribute<'a> {
+    pub fn new(
+        name: Meta<'a, &'a str>,
+        args: Vec<Meta<'a, &'a str>>,
+    ) -> Result<Meta<'a, Self>, CompileError> {
+        match name.item {
+            "path" => {
+                if args.len() == 1 {
+                    Ok(args[0].replace(Self::Path(args[0].item)))
+                } else {
+                    CompileError::new(
+                        &name,
+                        format_args!("Invalid path, expected 1 argument, found {}", args.len()),
+                    )
+                }
+            }
+            _ => CompileError::new(
+                &name,
+                format_args!("Unknown module attribute `{}`", name.item),
+            ),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum TypeAttribute<'a> {
     Str(&'a str),
 }
@@ -68,7 +98,10 @@ impl<'a> FunctionAttribute<'a> {
                 }
             }
             "test" => Ok(name.replace(FunctionAttribute::TestFn)),
-            _ => CompileError::new(&name, format_args!("Unknown attribute `{}`", name.item)),
+            _ => CompileError::new(
+                &name,
+                format_args!("Unknown function attribute `{}`", name.item),
+            ),
         }
     }
 }

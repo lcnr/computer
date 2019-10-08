@@ -1,8 +1,10 @@
+use std::{fs::File, io::Read, path::PathBuf};
+
 use tindex::TVec;
 
 use diagnostics::{CompileError, Meta};
 
-use hir::attr::{FunctionAttribute, TypeAttribute};
+use hir::attr::{FunctionAttribute, ModuleAttribute, TypeAttribute};
 
 mod tokenize;
 
@@ -45,7 +47,11 @@ pub fn parse<'a>(src: &'a str, file: &'a str) -> Result<Hir<'a>, CompileError> {
     // TODO: allow for no_std
     let std = include_str!("../../_std/lib.bo");
     hir.add_module(&[], Meta::fake("std".into())).unwrap();
-    parse_module(&mut hir, &mut vec!["std".into()], &mut TokenIter::new(std, "/_std/lib.bo"))?;
+    parse_module(
+        &mut hir,
+        &mut vec!["std".into()],
+        &mut TokenIter::new(std, "/_std/lib.bo"),
+    )?;
     consume_token(Token::EOF, iter)?;
     Ok(hir)
 }
@@ -59,14 +65,17 @@ pub fn parse_module<'a>(
     while let Some(token) = iter.next() {
         match token.item {
             Token::Keyword(Keyword::Module) => {
-                let module_name = expect_ident(iter.next().unwrap())?;
-                let name = module_name.item.into();
-                hir.add_module(&at, module_name.map(Into::into))?;
-                at.push(name);
-                consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
-                parse_module(hir, at, iter)?;
-                consume_token(Token::CloseBlock(BlockDelim::Brace), iter)?;
-                at.pop();
+                parse_module_decl(
+                    hir,
+                    token,
+                    at,
+                    attributes
+                        .into_iter()
+                        .map(|(name, args)| ModuleAttribute::new(name, args))
+                        .collect::<Result<_, _>>()?,
+                    iter,
+                )?;
+                attributes = Vec::new();
             }
             Token::Keyword(Keyword::Function) => {
                 let func = parse_function(
@@ -156,6 +165,86 @@ fn expect_ident<'a>(tok: Meta<'a, Token<'a>>) -> Result<Meta<'a, &'a str>, Compi
         CompileError::expected(&"Ident", &tok)
     } else {
         Ok(tok)
+    }
+}
+
+fn parse_module_decl<'a>(
+    hir: &mut Hir<'a>,
+    mod_tok: Meta<'a, Token<'a>>,
+    at: &mut Vec<Box<str>>,
+    attributes: Vec<Meta<'a, ModuleAttribute<'a>>>,
+    iter: &mut TokenIter<'a>,
+) -> Result<(), CompileError> {
+    let module_name = expect_ident(iter.next().unwrap())?;
+    let name = module_name.item.into();
+    hir.add_module(&at, module_name.map(Into::into))?;
+    at.push(name);
+    if try_consume_token(Token::OpenBlock(BlockDelim::Brace), iter) {
+        for attr in attributes {
+            match &attr.item {
+                &ModuleAttribute::Path(_) => {
+                    CompileError::new(&attr, "Invalid `path` attribute for inline module")?;
+                }
+                &ModuleAttribute::Str(_) => unreachable!(),
+            }
+        }
+
+        parse_module(hir, at, iter)?;
+        consume_token(Token::CloseBlock(BlockDelim::Brace), iter)?;
+        at.pop();
+        Ok(())
+    } else if try_consume_token(Token::SemiColon, iter) {
+        let mut path = None;
+        for attr in attributes {
+            match &attr.item {
+                &ModuleAttribute::Path(s) => {
+                    if let Some(old) = path {
+                        return CompileError::build(
+                            &old,
+                            "Attribute `path` used more than once on module",
+                        )
+                        .with_location(&attr)
+                        .build();
+                    } else {
+                        path = Some(attr.replace(s));
+                    }
+                }
+                &ModuleAttribute::Str(_) => unreachable!(),
+            }
+        }
+
+        if let Some(p) = path {
+            let mut path_buf = PathBuf::from(iter.file());
+            path_buf.set_file_name(p.item);
+            path_buf.set_extension("bo");
+            if let Ok(mut file) = File::open(&path_buf) {
+                let mut src = String::new();
+                if let Ok(_) = file.read_to_string(&mut src) {
+                    // TODO: add string storage
+                    let s = Box::leak(src.into_boxed_str());
+                    let f = Box::leak(path_buf.to_string_lossy().into_owned().into_boxed_str());
+                    let iter = &mut TokenIter::new(s, f);
+                    parse_module(hir, at, iter)?;
+                    consume_token(Token::EOF, iter)?;
+                    at.pop();
+                    return Ok(());
+                }
+            }
+
+            CompileError::new(
+                &p,
+                format_args!("Unable to open file `{}`", path_buf.display()),
+            )
+        } else {
+            CompileError::build(&mod_tok, "Missing `path` attribute on extern module")
+                .with_help("Consider adding `@path(<file>)`")
+                .build()?
+        }
+    } else {
+        CompileError::expected(
+            &[Token::OpenBlock(BlockDelim::Brace), Token::SemiColon],
+            &iter.next().unwrap(),
+        )
     }
 }
 

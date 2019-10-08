@@ -1,0 +1,6 @@
+# Attribute `path` used more than once
+# (4:
+# (5:
+@path(extern)
+@path(extern)
+mod extern;

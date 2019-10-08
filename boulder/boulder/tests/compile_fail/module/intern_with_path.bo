@@ -1,0 +1,9 @@
+# Invalid `path` attribute for inline module
+# (4:
+
+@path(intern)
+mod intern {
+    fn hey() -> Bool {
+        True
+    }
+}

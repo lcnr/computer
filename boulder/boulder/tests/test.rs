@@ -60,7 +60,9 @@ fn compile_fail() {
                 inner: output.clone(),
             }));
 
-            let content = match panic::catch_unwind(|| boulder::compile(&content)) {
+            let content = match panic::catch_unwind(|| {
+                boulder::compile(&content, &entry.path().to_string_lossy())
+            }) {
                 Ok(c) => c,
                 Err(_) => {
                     let output = output.lock().unwrap();
@@ -198,7 +200,9 @@ fn compile_run() {
                 inner: output.clone(),
             }));
 
-            let mir = match panic::catch_unwind(|| boulder::compile_to_mir(&content)) {
+            let mir = match panic::catch_unwind(|| {
+                boulder::compile_to_mir(&content, &entry.path().to_string_lossy())
+            }) {
                 Ok(c) => c,
                 Err(_) => {
                     let output = output.lock().unwrap();

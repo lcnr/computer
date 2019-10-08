@@ -631,7 +631,7 @@ mod tests {
     fn scope() {
         assert_eq!(
             Token::Scope("a".into()),
-            TokenIter::new("'a").next().unwrap().item
+            TokenIter::new("'a", "").next().unwrap().item
         );
     }
 }
