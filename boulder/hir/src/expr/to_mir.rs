@@ -275,7 +275,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
             }
             Expression::FieldAccess(ty, obj, field) => {
                 let obj = obj.to_mir(ctx)?;
-                Ok(ctx.func[*ctx.curr].add_step(ty, Action::FieldAccess(obj, field.item)))
+                Ok(ctx.func[*ctx.curr].add_step(ty, Action::StructFieldAccess(obj, field.item)))
             }
             Expression::Match(ty_id, _, value, match_arms) => {
                 let value = value.to_mir(ctx)?;

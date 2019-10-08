@@ -28,6 +28,7 @@ pub enum Type {
     U16,
     U32,
     Struct(TVec<FieldId, TypeId>),
+    Union(TVec<FieldId, TypeId>),
     Sum(TBitSet<TypeId>),
 }
 
@@ -55,6 +56,7 @@ pub enum Object {
     U32(u32),
     Struct(TVec<FieldId, Object>),
     Variant(TypeId, Box<Object>),
+    Field(FieldId, Box<Object>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -127,7 +129,8 @@ pub enum Action {
     LoadConstant(Object),
     InitializeStruct(TVec<FieldId, StepId>),
     CallFunction(FunctionId, Vec<StepId>),
-    FieldAccess(StepId, FieldId),
+    StructFieldAccess(StepId, FieldId),
+    UnionFieldAccess(StepId, FieldId),
     UnaryOperation(UnaryOperation, StepId),
     Binop(Binop, StepId, StepId),
 }
@@ -145,11 +148,12 @@ impl Step {
 
     pub fn used_steps(&self, used: &mut TBitSet<StepId>) {
         match &self.action {
-            &Action::Extend(id) => used.add(id),
+            &Action::Extend(id)
+            | &Action::StructFieldAccess(id, _)
+            | &Action::UnionFieldAccess(id, _)
+            | &Action::UnaryOperation(_, id) => used.add(id),
             &Action::InitializeStruct(ref fields) => fields.iter().for_each(|&s| used.add(s)),
             &Action::CallFunction(_, ref steps) => steps.iter().for_each(|&s| used.add(s)),
-            &Action::FieldAccess(id, _) => used.add(id),
-            &Action::UnaryOperation(_, expr) => used.add(expr),
             &Action::Binop(_, a, b) => {
                 used.add(a);
                 used.add(b);

@@ -34,9 +34,10 @@ impl UpdateStepIds for Step {
 impl UpdateStepIds for Action {
     fn update_step_ids(&mut self, f: &mut dyn FnMut(&mut StepId)) {
         match self {
-            Action::UnaryOperation(_, id) | Action::Extend(id) | Action::FieldAccess(id, _) => {
-                f(id)
-            }
+            Action::UnaryOperation(_, id)
+            | Action::Extend(id)
+            | Action::StructFieldAccess(id, _)
+            | Action::UnionFieldAccess(id, _) => f(id),
             Action::Binop(_kind, a, b) => {
                 f(a);
                 f(b);

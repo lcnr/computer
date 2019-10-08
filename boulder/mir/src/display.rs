@@ -52,6 +52,16 @@ impl Display for Type {
                 }
                 write!(f, ")")
             }
+            Type::Union(fields) => {
+                write!(f, "union(")?;
+                if let Some((last, start)) = fields.split_last() {
+                    for arg in start.iter() {
+                        write!(f, "{}, ", arg)?;
+                    }
+                    write!(f, "{}", last)?;
+                }
+                write!(f, ")")
+            }
             Type::Sum(cases) => {
                 write!(f, "sum(")?;
                 let mut iter = cases.iter();
@@ -85,6 +95,7 @@ impl Display for Object {
                 write!(f, ")")
             }
             Object::Variant(id, obj) => write!(f, "{}: {}", id, obj),
+            Object::Field(id, obj) => write!(f, ".{}: {}", id.as_index(), obj),
         }
     }
 }
@@ -136,7 +147,8 @@ impl Display for Mir {
                             writeln!(f, ")")
                         }
 
-                        Action::FieldAccess(s, a) => writeln!(f, "${}.{}", s.0, a.as_index()),
+                        Action::StructFieldAccess(s, a) => writeln!(f, "${}.{}", s.0, a.as_index()),
+                        Action::UnionFieldAccess(s, a) => writeln!(f, "${}.{}", s.0, a.as_index()),
                         Action::UnaryOperation(kind, expr) => writeln!(f, "{} ${}", kind, expr.0),
                         Action::Binop(kind, a, b) => writeln!(f, "{} ${} ${}", kind, a.0, b.0),
                     }?;

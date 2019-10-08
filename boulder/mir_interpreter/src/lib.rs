@@ -11,6 +11,7 @@ pub enum InterpretError {
     InvalidOperation(FunctionId, BlockId, StepId),
     InvalidUnaryOperationArguments(FunctionId, BlockId, StepId, Object),
     InvalidBinopArguments(FunctionId, BlockId, StepId, Object, Object),
+    InvalidUnionAccess(FunctionId, BlockId, StepId, Object),
     UnresolvedMatch(FunctionId, BlockId, TypeId),
 }
 
@@ -45,7 +46,7 @@ impl<'a> BoulderMirInterpreter<'a> {
                         }
                     }
                     &Action::LoadConstant(ref obj) => obj.clone(),
-                    &Action::FieldAccess(step, field) => {
+                    &Action::StructFieldAccess(step, field) => {
                         if let &Object::Struct(ref fields) = &steps[step] {
                             if let Some(field) = fields.get(field) {
                                 field.clone()
@@ -53,6 +54,22 @@ impl<'a> BoulderMirInterpreter<'a> {
                                 return Err(InterpretError::InvalidOperation(
                                     id, curr_block, step_id,
                                 ));
+                            }
+                        } else {
+                            return Err(InterpretError::InvalidOperation(id, curr_block, step_id));
+                        }
+                    }
+                    &Action::UnionFieldAccess(step, expected_id) => {
+                        if let &Object::Field(actual_id, ref actual_field) = &steps[step] {
+                            if expected_id != actual_id {
+                                return Err(InterpretError::InvalidUnionAccess(
+                                    id,
+                                    curr_block,
+                                    step_id,
+                                    steps[step].clone(),
+                                ));
+                            } else {
+                                (**actual_field).clone()
                             }
                         } else {
                             return Err(InterpretError::InvalidOperation(id, curr_block, step_id));

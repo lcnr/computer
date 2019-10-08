@@ -4,7 +4,7 @@ use tindex::TIndex;
 
 use shared_id::{FunctionId, TypeId};
 
-use crate::{Action, Mir, Object, Terminator, Type, UnaryOperation};
+use crate::{Action, Mir, Object, StepId, Terminator, Type, UnaryOperation};
 
 struct PanicDisplay<'a>(&'a str, &'a dyn fmt::Display);
 
@@ -39,10 +39,11 @@ impl Mir {
         for (block_id, block) in func.blocks.iter().enumerate() {
             let block_panic = PanicDisplay("block: ", &block_id);
             for (step_id, step) in block.steps.iter().enumerate() {
-                let step_panic = PanicDisplay("step: ", &step_id);
+                let step_id = StepId::from(step_id);
+                let step_panic = PanicDisplay("step: ", &step_id.0);
                 match &step.action {
                     &Action::Extend(s) => {
-                        assert!(s.0 < step_id);
+                        assert!(s < step_id);
                         if block[s].ty != step.ty {
                             if let &Type::Sum(ref v) = &self[step.ty] {
                                 if let &Type::Sum(ref s) = &self[block[s].ty] {
@@ -72,7 +73,7 @@ impl Mir {
                         if let &Type::Struct(ref field_types) = &self.types[step.ty] {
                             assert_eq!(field_values.len(), field_types.len());
                             for (&v, &ty) in field_values.iter().zip(field_types.iter()) {
-                                assert!(v.0 < step_id);
+                                assert!(v < step_id);
                                 assert_eq!(block[v].ty, ty);
                             }
                         } else {
@@ -83,13 +84,13 @@ impl Mir {
                         let expected_input = self[target_func].args();
                         assert_eq!(expected_input.len(), input.len());
                         for i in 0..expected_input.len() {
-                            assert!(input[i].0 < step_id);
+                            assert!(input[i] < step_id);
                             assert_eq!(expected_input[i], block[input[i]].ty);
                         }
                         assert_eq!(step.ty, self[target_func].ret);
                     }
-                    &Action::FieldAccess(id, field) => {
-                        assert!(id.0 < step_id);
+                    &Action::StructFieldAccess(id, field) => {
+                        assert!(id < step_id);
                         if let Type::Struct(ty) = &self[block[id].ty] {
                             let field_ty = ty[field];
                             assert_eq!(field_ty, step.ty);
@@ -97,8 +98,17 @@ impl Mir {
                             panic!("field access on invalid type: {:?}", block[id].ty);
                         }
                     }
+                    &Action::UnionFieldAccess(id, field) => {
+                        assert!(id < step_id);
+                        if let Type::Union(ty) = &self[block[id].ty] {
+                            let field_ty = ty[field];
+                            assert_eq!(field_ty, step.ty);
+                        } else {
+                            unreachable!("union field access on invalid type: {:?}", block[id].ty);
+                        }
+                    }
                     &Action::UnaryOperation(kind, expr) => {
-                        assert!(expr.0 < step_id);
+                        assert!(expr < step_id);
                         match kind {
                             UnaryOperation::Invert => {
                                 assert_eq!(block[expr].ty, step.ty);
@@ -107,8 +117,8 @@ impl Mir {
                         }
                     }
                     &Action::Binop(kind, a, b) => {
-                        assert!(a.0 < step_id);
-                        assert!(b.0 < step_id);
+                        assert!(a < step_id);
+                        assert!(b < step_id);
                         kind.validate(step, &block[a], &block[b]);
                     } // TODO: validate
                 }
