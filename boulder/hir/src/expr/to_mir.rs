@@ -95,7 +95,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                         .chain(ctx.temporaries.iter().map(|t| t.step))
                         .collect();
                     vars.push(exit.expr);
-                    ctx.func[exit.origin].add_terminator(Terminator::Goto(end, vars));
+                    ctx.func[exit.origin].add_terminator(Terminator::Goto(Some(end), vars));
                 }
 
                 initialized_mir_block(
@@ -334,7 +334,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                         }
                     };
 
-                    arms.push((ty, id, args));
+                    arms.push((ty, Some(id), args));
 
                     let expr_id = arm.expr.to_mir(&mut ToMirContext {
                         types: ctx.types,
@@ -384,7 +384,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                         .chain(temporaries.iter().map(|t| t.step))
                         .collect();
                     steps.push(step);
-                    block.add_terminator(Terminator::Goto(id, steps));
+                    block.add_terminator(Terminator::Goto(Some(id), steps));
                 }
 
                 ctx.func[old_block].add_terminator(Terminator::Match(value, arms));
@@ -395,7 +395,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
             Expression::Loop(ty, _scope, content) => Ok({
                 let block = ctx.func.add_block();
                 ctx.func[*ctx.curr].add_terminator(Terminator::Goto(
-                    block,
+                    Some(block),
                     ctx.var_lookup
                         .iter()
                         .copied()
@@ -420,7 +420,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 }
 
                 ctx.func[*ctx.curr].add_terminator(Terminator::Goto(
-                    block,
+                    Some(block),
                     ctx.var_lookup
                         .into_iter()
                         .zip(variables)
@@ -447,7 +447,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                         .collect();
                     vars.push(exit.expr);
                     let block = &mut ctx.func[exit.origin];
-                    block.add_terminator(Terminator::Goto(end, vars));
+                    block.add_terminator(Terminator::Goto(Some(end), vars));
                 }
 
                 initialized_mir_block(

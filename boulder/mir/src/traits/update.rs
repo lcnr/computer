@@ -60,7 +60,6 @@ impl UpdateStepIds for Action {
 impl UpdateStepIds for Terminator {
     fn update_step_ids(&mut self, f: &mut dyn FnMut(&mut StepId)) {
         match self {
-            Terminator::Return(id) => f(id),
             Terminator::Goto(_, args) => {
                 for arg in args {
                     f(arg);

@@ -15,8 +15,8 @@ pub mod binop;
 pub mod ctx;
 mod display;
 mod index;
-pub mod optimize;
 pub mod traits;
+pub mod transform;
 pub mod validate;
 
 use crate::{
@@ -83,29 +83,29 @@ impl BlockId {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Terminator {
-    Return(StepId),
-    Goto(BlockId, Vec<StepId>),
-    Match(StepId, Vec<(TypeId, BlockId, Vec<Option<StepId>>)>),
+    Goto(Option<BlockId>, Vec<StepId>),
+    Match(StepId, Vec<(TypeId, Option<BlockId>, Vec<Option<StepId>>)>),
 }
 
 impl Terminator {
     fn invalid() -> Self {
-        Terminator::Return(StepId::invalid())
+        Terminator::Goto(None, Vec::new())
     }
 
     pub fn used_blocks(&self, used: &mut TBitSet<BlockId>) {
         match self {
-            &Terminator::Return(_) => (),
-            &Terminator::Goto(block, _) => used.add(block),
+            &Terminator::Goto(None, _) => (),
+            &Terminator::Goto(Some(block), _) => used.add(block),
             &Terminator::Match(_, ref arms) => {
-                arms.iter().for_each(|arm| used.add(arm.1));
+                arms.iter()
+                    .filter_map(|&(_, t, _)| t)
+                    .for_each(|arm| used.add(arm));
             }
         }
     }
 
     pub fn used_steps(&self, used: &mut TBitSet<StepId>) {
         match self {
-            &Terminator::Return(id) => used.add(id),
             &Terminator::Goto(_, ref steps) => steps.iter().for_each(|&s| used.add(s)),
             &Terminator::Match(step, ref arms) => {
                 used.add(step);

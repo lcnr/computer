@@ -112,8 +112,8 @@ impl<'a> BoulderMirInterpreter<'a> {
             }
 
             match &self.mir[id][curr_block].terminator {
-                &Terminator::Return(id) => return Ok(steps.remove(id)),
-                &Terminator::Goto(block, ref input_steps) => {
+                &Terminator::Goto(None, ref ids) => return Ok(steps.remove(ids[0])),
+                &Terminator::Goto(Some(block), ref input_steps) => {
                     args_storage = input_steps.iter().map(|&id| steps[id].clone()).collect();
                     args = &args_storage;
                     curr_block = block;
@@ -132,8 +132,13 @@ impl<'a> BoulderMirInterpreter<'a> {
                                     })
                                     .collect();
                                 args = &args_storage;
-                                curr_block = block;
-                                continue 'outer;
+                                if let Some(block) = block {
+                                    curr_block = block;
+
+                                    continue 'outer;
+                                } else {
+                                    return Ok(args[0].clone());
+                                }
                             }
                         }
                     } else {
@@ -150,8 +155,12 @@ impl<'a> BoulderMirInterpreter<'a> {
                                     })
                                     .collect();
                                 args = &args_storage;
-                                curr_block = block;
-                                continue 'outer;
+                                if let Some(block) = block {
+                                    curr_block = block;
+                                    continue 'outer;
+                                } else {
+                                    return Ok(args[0].clone());
+                                }
                             }
                         }
                     }

@@ -320,7 +320,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
             curr: &mut id,
             func: &mut func,
         })?;
-        func[id].add_terminator(mir::Terminator::Return(ret));
+        func[id].add_terminator(mir::Terminator::Goto(None, vec![ret]));
 
         Ok(func)
     }

@@ -161,9 +161,13 @@ impl<'a> Display for Mir<'a> {
 
                 write!(f, "    ")?;
                 match &block.terminator {
-                    Terminator::Return(v) => writeln!(f, "return ${}", v.0),
                     Terminator::Goto(block, args) => {
-                        write!(f, "goto ~{}(", block.0)?;
+                        if let Some(block) = block {
+                            write!(f, "goto ~{}(", block.0)?;
+                        } else {
+                            write!(f, "return(")?;
+                        }
+
                         if let Some((last, start)) = args.split_last() {
                             for arg in start.iter() {
                                 write!(f, "${}, ", arg.0)?;
@@ -176,10 +180,15 @@ impl<'a> Display for Mir<'a> {
                         let write_arm = |f: &mut Formatter,
                                          (ty, block, args): &(
                             TypeId,
-                            BlockId,
+                            Option<BlockId>,
                             Vec<Option<StepId>>,
                         )| {
-                            write!(f, "{} -> ~{}(", ty, block.0)?;
+                            if let Some(block) = block {
+                                write!(f, "{} -> goto ~{}(", ty, block.0)?;
+                            } else {
+                                write!(f, "{} -> return(", ty)?;
+                            }
+
                             if let Some((last, start)) = args.split_last() {
                                 for arg in start.iter() {
                                     if let Some(arg) = arg {

@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, iter, mem};
+use std::{iter, mem};
 
 use tindex::bitset::TBitSet;
 
@@ -66,15 +66,17 @@ impl<'a> Mir<'a> {
             let mut allowed = TBitSet::new();
             for block in func.blocks.iter() {
                 match &block.terminator {
-                    &Terminator::Return(_) => (),
-                    &Terminator::Goto(block, _) => {
+                    &Terminator::Goto(None, _) => (),
+                    &Terminator::Goto(Some(block), _) => {
                         allowed.set(block, !used.get(block));
                         used.add(block);
                     }
                     &Terminator::Match(_, ref arms) => {
                         for arm in arms.iter() {
-                            allowed.set(arm.1, !used.get(arm.1));
-                            used.add(arm.1);
+                            if let Some(target) = arm.1 {
+                                allowed.set(target, !used.get(target));
+                                used.add(target);
+                            }
                         }
                     }
                 }
@@ -83,7 +85,9 @@ impl<'a> Mir<'a> {
             let mut to_remove = TBitSet::new();
             for i in 0..func.blocks.len() {
                 let id = BlockId::from(i);
-                if let &mut Terminator::Goto(block, ref mut goto_steps) = &mut func[id].terminator {
+                if let &mut Terminator::Goto(Some(block), ref mut goto_steps) =
+                    &mut func[id].terminator
+                {
                     if allowed.get(block) {
                         let glue = mem::replace(goto_steps, Vec::new());
                         let mut removed = mem::replace(&mut func[block], Block::new());
@@ -180,26 +184,30 @@ impl<'a> Mir<'a> {
         profile_scope!("Mir::remove_redirects");
         fn match_reduce(
             func: &mut Function,
-            arms: &mut Vec<(TypeId, BlockId, Vec<Option<StepId>>)>,
+            arms: &mut Vec<(TypeId, Option<BlockId>, Vec<Option<StepId>>)>,
             redirects: &TBitSet<BlockId>,
         ) -> bool {
             let mut changed = false;
             for arm in 0..arms.len() {
-                let target = arms[arm].1;
-                if redirects.get(target) {
-                    if let &Terminator::Goto(target, ref steps) = &func[target].terminator {
-                        changed = true;
-                        arms[arm].1 = target;
-                        arms[arm].2 = steps
-                            .iter()
-                            .map(|&step| {
-                                if let Action::LoadInput(v) = func[target][step].action {
-                                    arms[arm].2[v]
-                                } else {
-                                    unreachable!("redirect with unexpected action");
-                                }
-                            })
-                            .collect();
+                if let Some(target) = arms[arm].1 {
+                    if redirects.get(target) {
+                        match &func[target].terminator {
+                            &Terminator::Goto(next_block, ref steps) => {
+                                changed = true;
+                                arms[arm].1 = next_block;
+                                arms[arm].2 = steps
+                                    .iter()
+                                    .map(|&step| {
+                                        if let Action::LoadInput(v) = func[target][step].action {
+                                            arms[arm].2[v]
+                                        } else {
+                                            unreachable!("redirect with unexpected action");
+                                        }
+                                    })
+                                    .collect();
+                            }
+                            &Terminator::Match(_, _) => (),
+                        }
                     }
                 }
             }
@@ -221,7 +229,7 @@ impl<'a> Mir<'a> {
                 changed = false;
                 for i in (1..func.blocks.len()).map(BlockId::from) {
                     match &mut func[i].terminator {
-                        &mut Terminator::Goto(target, ref mut steps) => {
+                        &mut Terminator::Goto(Some(target), ref mut steps) => {
                             if redirects.get(target) {
                                 changed = true;
                                 let removed = mem::replace(steps, Vec::new());
@@ -241,7 +249,7 @@ impl<'a> Mir<'a> {
                             changed |= match_reduce(func, &mut arms, &redirects);
                             func[i].terminator = Terminator::Match(step, arms);
                         }
-                        &mut Terminator::Return(_) => (),
+                        &mut Terminator::Goto(None, _) => (),
                     }
                 }
             }
@@ -256,12 +264,12 @@ impl Terminator {
         F: FnMut(&mut BlockId),
     {
         match self {
-            Terminator::Return(_) => (),
-            Terminator::Goto(id, _) => f(id),
+            Terminator::Goto(None, _) => (),
+            Terminator::Goto(Some(id), _) => f(id),
             Terminator::Match(_, arms) => {
-                for arm in arms.iter_mut() {
-                    f(&mut arm.1);
-                }
+                arms.iter_mut()
+                    .filter_map(|&mut (_, ref mut t, _)| t.as_mut())
+                    .for_each(f);
             }
         }
     }
@@ -273,130 +281,5 @@ impl Terminator {
                 id.0 = (id.0 as isize + by) as usize;
             }
         });
-    }
-}
-
-impl<'a> Function<'a> {
-    pub fn remove_block(&mut self, id: BlockId) {
-        self.blocks.remove(id);
-        for block in self.blocks.iter_mut() {
-            block.terminator.shift_block_ids(id, -1);
-        }
-    }
-
-    pub fn swap_blocks(&mut self, a: BlockId, b: BlockId) {
-        for block in self.blocks.iter_mut() {
-            block.terminator.update_block_ids(|id| {
-                if *id == a {
-                    *id = b;
-                } else if *id == b {
-                    *id = a;
-                }
-            })
-        }
-        self.blocks.swap(a, b);
-    }
-
-    pub fn split_block(&mut self, block: BlockId, after: StepId) -> BlockId {
-        #[cfg(feature = "profiler")]
-        profile_scope!("Function::split_block");
-        let mut used = TBitSet::new();
-        for step in self[block].steps[after..].iter().skip(1) {
-            step.used_steps(&mut used);
-        }
-        self[block].terminator.used_steps(&mut used);
-        let used = used.iter().filter(|&t| t <= after).collect::<Vec<_>>();
-
-        let new = self.add_block();
-        for &step in used.iter() {
-            let ty = self[block][step].ty;
-            self[new].add_input(ty);
-        }
-
-        let mut content = self[block].steps.split_off(StepId(after.0 + 1));
-        self[new].steps.append(&mut content);
-        let terminator = mem::replace(&mut self[block].terminator, Terminator::invalid());
-        self.blocks[new].add_terminator(terminator);
-
-        self[new].update_step_ids(&mut |id| {
-            if *id > after {
-                id.0 = id.0 + used.len() - (after.0 + 1);
-            } else {
-                id.0 = used.iter().position(|i| id == i).unwrap();
-            }
-        });
-
-        self[block].terminator = Terminator::Goto(new, used);
-
-        new
-    }
-
-    pub fn remove_block_input(&mut self, id: BlockId, input: usize) {
-        #[cfg(feature = "profiler")]
-        profile_scope!("Function::remove_block_input");
-        self[id].input.remove(input);
-        for step in (0..self[id].steps.len()).map(StepId::from).rev() {
-            if let &mut Action::LoadInput(ref mut i) = &mut self[id][step].action {
-                if *i == input {
-                    self[id].remove_step(step);
-                } else if *i > input {
-                    *i -= 1;
-                }
-            }
-        }
-        for block in self.blocks.iter_mut() {
-            match &mut block.terminator {
-                &mut Terminator::Return(_) => (),
-                &mut Terminator::Goto(target, ref mut steps) => {
-                    if target == id {
-                        steps.remove(input);
-                    }
-                }
-                &mut Terminator::Match(_, ref mut arms) => {
-                    for &mut (_, block, ref mut steps) in arms.iter_mut() {
-                        if block == id {
-                            steps.remove(input);
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-impl Block {
-    /// Removes a step from this block, this leads to undefined behavior if the step is still referenced.
-    ///
-    /// Consider `replace_step` if the step is still needed in some action.
-    pub fn remove_step(&mut self, id: StepId) {
-        self.steps.remove(id);
-        for c in self.steps[id..].iter_mut() {
-            c.action.shift_step_ids(id, -1);
-        }
-
-        self.terminator.shift_step_ids(id, -1);
-    }
-
-    /// Remove `previous` from this block, updating all reference to this step to `new`
-    pub fn replace_step(&mut self, previous: StepId, new: StepId) {
-        let mut replacer = |id: &mut StepId| {
-            *id = match (*id).cmp(&previous) {
-                Ordering::Less => *id,
-                Ordering::Equal => {
-                    if new > previous {
-                        StepId(new.0 - 1)
-                    } else {
-                        new
-                    }
-                }
-                Ordering::Greater => StepId(id.0 - 1),
-            }
-        };
-
-        self.steps.remove(previous);
-        for c in self.steps[previous..].iter_mut() {
-            c.action.update_step_ids(&mut replacer);
-        }
-        self.terminator.update_step_ids(&mut replacer);
     }
 }

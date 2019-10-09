@@ -139,20 +139,29 @@ impl<'a> Mir<'a> {
             }
 
             match &block.terminator {
-                &Terminator::Return(id) => {
-                    assert_eq!(func.ret, block[id].ty);
-                }
                 &Terminator::Goto(target, ref steps) => {
-                    let target = &func[target];
-                    assert_eq!(target.input.len(), steps.len());
-                    for i in 0..steps.len() {
-                        assert_eq!(target.input[i], block[steps[i]].ty);
+                    if let Some(target) = target {
+                        let target = &func[target];
+                        assert_eq!(target.input.len(), steps.len());
+                        for i in 0..steps.len() {
+                            assert_eq!(target.input[i], block[steps[i]].ty);
+                        }
+                    } else {
+                        assert_eq!(steps.len(), 1);
+                        assert_eq!(func.ret, block[steps[0]].ty);
                     }
                 }
                 &Terminator::Match(value, ref targets) => {
                     for &(ty, target, ref args) in targets.iter() {
-                        let target = &func[target];
-                        assert_eq!(target.input.len(), args.len());
+                        let target_input;
+                        let target_input: &[_] = if let Some(target) = target {
+                            &func[target].input
+                        } else {
+                            assert_eq!(args.len(), 1);
+                            target_input = [func.ret];
+                            &target_input
+                        };
+                        assert_eq!(target_input.len(), args.len());
                         for i in 0..args.len() {
                             if block[value].ty != ty {
                                 if let &Type::Sum(ref s) = &self[block[value].ty] {
@@ -166,9 +175,9 @@ impl<'a> Mir<'a> {
                                 }
                             }
                             if let Some(arg) = args[i] {
-                                assert_eq!(target.input[i], block[arg].ty)
+                                assert_eq!(target_input[i], block[arg].ty)
                             } else {
-                                assert_eq!(target.input[i], ty)
+                                assert_eq!(target_input[i], ty)
                             }
                         }
                     }
