@@ -178,7 +178,7 @@ impl<'a>
             Option<UnresolvedType<'a>>,
         >,
     ) -> Result<(), CompileError> {
-        let name = func.name.item.clone();
+        let name = func.name.item;
         let id = self.functions.push(func);
         match self.modules.add_function(at, name, id) {
             Ok(()) => Ok(()),
@@ -300,7 +300,7 @@ impl<'a> Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unresolved
 }
 
 impl<'a> Hir<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId, TypeId> {
-    pub fn to_mir(mut self) -> Result<Mir, CompileError> {
+    pub fn to_mir(mut self) -> Result<Mir<'a>, CompileError> {
         let function_definitions = self
             .functions
             .iter()

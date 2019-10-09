@@ -100,7 +100,7 @@ impl Display for Object {
     }
 }
 
-impl Display for Mir {
+impl<'a> Display for Mir<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         for (i, ty) in self.types.iter().enumerate() {
             let id: TypeId = i.into();

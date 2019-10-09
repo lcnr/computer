@@ -8,11 +8,13 @@ use std::{
     fmt,
     fs::File,
     io::{Error, ErrorKind, Read, Write},
-    panic,
+    panic::{self, AssertUnwindSafe},
     sync::{Arc, Mutex},
 };
 
 use walkdir::WalkDir;
+
+use global_ctx::GlobalCtx;
 
 use diagnostics::CompileError;
 
@@ -102,6 +104,7 @@ fn compile_run() -> Result<(), TestFailure> {
         if entry.metadata().unwrap().is_file() {
             #[cfg(feature = "profiler")]
             profile_scope!(format!("{}", entry.path().display()));
+            let ctx = GlobalCtx::new();
             count += 1;
             let mut file = File::open(entry.path()).unwrap();
             let mut content = String::new();
@@ -120,9 +123,10 @@ fn compile_run() -> Result<(), TestFailure> {
                 inner: output.clone(),
             }));
 
-            let mir = match panic::catch_unwind(|| {
-                boulder::compile_to_mir(&content, &entry.path().to_string_lossy())
-            }) {
+            let s = entry.path().to_string_lossy();
+            let mir = match panic::catch_unwind(AssertUnwindSafe(|| {
+                boulder::compile_to_mir(&ctx, &content, &s)
+            })) {
                 Ok(c) => c,
                 Err(_) => {
                     let output = output.lock().unwrap();

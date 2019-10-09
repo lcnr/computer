@@ -19,9 +19,9 @@ pub struct UnresolvedIdentifiers<'a>(PhantomData<&'a str>);
 
 impl<'a> IdentifierState for UnresolvedIdentifiers<'a> {
     type Variable = UnresolvedVariable<'a>;
-    type Function = Meta<'a, Box<str>>;
+    type Function = Meta<'a, &'a str>;
     type Pattern = UnresolvedType<'a>;
-    type Scope = Meta<'a, Option<Box<str>>>;
+    type Scope = Meta<'a, Option<&'a str>>;
     type Type = Box<str>;
 }
 

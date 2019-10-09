@@ -6,6 +6,8 @@ use std::{fs::File, io::Read, path::PathBuf};
 
 use tindex::TVec;
 
+use global_ctx::GlobalCtx;
+
 use diagnostics::{CompileError, Meta};
 
 use hir::attr::{FunctionAttribute, ModuleAttribute, TypeAttribute};
@@ -43,17 +45,18 @@ type MatchArm<'a> = hir::expr::MatchArm<
 type Pattern<'a> = hir::Pattern<'a, hir::traits::UnresolvedIdentifiers<'a>>;
 type Literal<'a> = hir::Literal<hir::traits::UnresolvedIdentifiers<'a>>;
 
-pub fn parse<'a>(src: &'a str, file: &'a str) -> Result<Hir<'a>, CompileError> {
+pub fn parse<'a>(ctx: &'a GlobalCtx, src: &'a str, file: &'a str) -> Result<Hir<'a>, CompileError> {
     #[cfg(feature = "profiler")]
-        profile_scope!("parse");
+    profile_scope!("parse");
     let iter = &mut TokenIter::new(src, file);
     let mut hir = Hir::new();
-    parse_module(&mut hir, &mut Vec::new(), iter)?;
+    parse_module(ctx, &mut hir, &mut Vec::new(), iter)?;
 
     // TODO: allow for no_std
     let std = include_str!("../../_std/lib.bo");
     hir.add_module(&[], Meta::fake("std".into())).unwrap();
     parse_module(
+        ctx,
         &mut hir,
         &mut vec!["std".into()],
         &mut TokenIter::new(std, "/_std/lib.bo"),
@@ -63,17 +66,19 @@ pub fn parse<'a>(src: &'a str, file: &'a str) -> Result<Hir<'a>, CompileError> {
 }
 
 pub fn parse_module<'a>(
+    ctx: &'a GlobalCtx,
     hir: &mut Hir<'a>,
     at: &mut Vec<Box<str>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<(), CompileError> {
     #[cfg(feature = "profiler")]
-        profile_scope!("parse_module");
+    profile_scope!("parse_module");
     let mut attributes = Vec::new();
     while let Some(token) = iter.next() {
         match token.item {
             Token::Keyword(Keyword::Module) => {
                 parse_module_decl(
+                    ctx,
                     hir,
                     token,
                     at,
@@ -190,6 +195,7 @@ fn expect_ident<'a>(tok: Meta<'a, Token<'a>>) -> Result<Meta<'a, &'a str>, Compi
 }
 
 fn parse_module_decl<'a>(
+    ctx: &'a GlobalCtx,
     hir: &mut Hir<'a>,
     mod_tok: Meta<'a, Token<'a>>,
     at: &mut Vec<Box<str>>,
@@ -197,7 +203,7 @@ fn parse_module_decl<'a>(
     iter: &mut TokenIter<'a>,
 ) -> Result<(), CompileError> {
     #[cfg(feature = "profiler")]
-        profile_scope!("parse_module_decl");
+    profile_scope!("parse_module_decl");
     let module_name = expect_ident(iter.next().unwrap())?;
     let name = module_name.item.into();
     hir.add_module(&at, module_name.map(Into::into))?;
@@ -212,7 +218,7 @@ fn parse_module_decl<'a>(
             }
         }
 
-        parse_module(hir, at, iter)?;
+        parse_module(ctx, hir, at, iter)?;
         consume_token(Token::CloseBlock(BlockDelim::Brace), iter)?;
         at.pop();
         Ok(())
@@ -244,10 +250,11 @@ fn parse_module_decl<'a>(
                 let mut src = String::new();
                 if let Ok(_) = file.read_to_string(&mut src) {
                     // TODO: add string storage
-                    let s = Box::leak(src.into_boxed_str());
-                    let f = Box::leak(path_buf.to_string_lossy().into_owned().into_boxed_str());
+                    let s = ctx.insert_str(src.into_boxed_str());
+                    let f =
+                        ctx.insert_str(path_buf.to_string_lossy().into_owned().into_boxed_str());
                     let iter = &mut TokenIter::new(s, f);
-                    parse_module(hir, at, iter)?;
+                    parse_module(ctx, hir, at, iter)?;
                     consume_token(Token::EOF, iter)?;
                     at.pop();
                     return Ok(());
@@ -276,7 +283,7 @@ fn parse_attribute<'a>(
     iter: &mut TokenIter<'a>,
 ) -> Result<(Meta<'a, &'a str>, Vec<Meta<'a, &'a str>>), CompileError> {
     #[cfg(feature = "profiler")]
-        profile_scope!("parse_attribute");
+    profile_scope!("parse_attribute");
     let mut args = Vec::new();
     if try_consume_token(Token::OpenBlock(BlockDelim::Parenthesis), iter) {
         while !try_consume_token(Token::CloseBlock(BlockDelim::Parenthesis), iter) {
@@ -338,7 +345,7 @@ fn parse_type<'a>(
     iter: &mut TokenIter<'a>,
 ) -> Result<Meta<'a, hir::UnresolvedType<'a>>, CompileError> {
     #[cfg(feature = "profiler")]
-        profile_scope!("parse_type");
+    profile_scope!("parse_type");
     let first = expect_ident(iter.next().unwrap())?.map(Into::into);
     let next = iter.next().unwrap();
     if let Token::Binop(Binop::BitOr) = &next.item {
@@ -368,7 +375,7 @@ fn parse_ident_expr<'a>(
     expecting_open_brace: bool,
 ) -> Result<Expression<'a>, CompileError> {
     #[cfg(feature = "profiler")]
-        profile_scope!("parse_ident_expr");
+    profile_scope!("parse_ident_expr");
     let next = iter.next().unwrap();
     Ok(match next.item {
         Token::OpenBlock(BlockDelim::Parenthesis) => {
@@ -429,7 +436,7 @@ fn parse_match<'a>(
     iter: &mut TokenIter<'a>,
 ) -> Result<Expression<'a>, CompileError> {
     #[cfg(feature = "profiler")]
-        profile_scope!("parse_match");
+    profile_scope!("parse_match");
     let value = parse_expression(iter, true)?;
     consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
     let mut match_arms = Vec::new();

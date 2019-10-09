@@ -3,6 +3,8 @@ extern crate thread_profiler;
 
 extern crate boulder;
 
+use global_ctx::GlobalCtx;
+
 use std::env;
 use std::fs::File;
 use std::io::{Read, Write};
@@ -22,10 +24,12 @@ pub fn main() {
         }
 
         if let Ok(mut file) = File::open(input) {
+            let ctx = GlobalCtx::new();
+
             let mut src = String::new();
             if let Err(err) = file.read_to_string(&mut src) {
                 eprintln!("Error while reading {}: {:?}", input, err);
-            } else if let Ok(res) = boulder::compile(&src, input) {
+            } else if let Ok(res) = boulder::compile(&ctx, &src, input) {
                 if let Ok(mut file) = File::create(output) {
                     writeln!(file, "{}", res).expect("error while writing to file");
                     /*writeln!(file, "v2.0 raw").expect("error while writing to file");

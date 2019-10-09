@@ -40,7 +40,7 @@ pub struct FunctionDefinition<'a, T> {
 
 #[derive(Debug, Clone)]
 pub struct Function<'a, V: IdentifierState, N: TypeState, T> {
-    pub name: Meta<'a, Box<str>>,
+    pub name: Meta<'a, &'a str>,
     pub at: Vec<Box<str>>,
     pub attributes: Vec<Meta<'a, FunctionAttribute<'a>>>,
     pub arguments: Vec<VariableId>,
@@ -50,7 +50,7 @@ pub struct Function<'a, V: IdentifierState, N: TypeState, T> {
 }
 
 impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType<'a>>> {
-    pub fn new(name: Meta<'a, Box<str>>, at: Vec<Box<str>>) -> Self {
+    pub fn new(name: Meta<'a, &'a str>, at: Vec<Box<str>>) -> Self {
         let ret_meta = name.simplify();
         Self {
             name,
@@ -286,11 +286,11 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
         FunctionContextBuilder::build(self)
     }
 
-    pub fn to_mir(
+    pub fn to_mir<'b>(
         mut self,
-        types: &TSlice<TypeId, mir::Type>,
-        function_definitions: &TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
-    ) -> Result<mir::Function, CompileError> {
+        types: &'b TSlice<TypeId, mir::Type>,
+        function_definitions: &'b TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
+    ) -> Result<mir::Function<'a>, CompileError> {
         #[cfg(feature = "profiler")]
         profile_scope!("to_mir");
         let function_context = self.create_function_context()?;

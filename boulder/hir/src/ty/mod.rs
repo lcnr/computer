@@ -122,7 +122,7 @@ pub fn build_sum_ty<'a>(
     modules: &mut Module,
 ) -> TypeId {
     #[cfg(feature = "profiler")]
-        profile_scope!("build_sum_ty");
+    profile_scope!("build_sum_ty");
     let mut values = TBitSet::new();
     let visited = &mut TBitSet::new();
     for case in cases.iter() {
@@ -163,7 +163,7 @@ pub fn flatten_sum_ty(
     visited: &mut TBitSet<TypeId>,
 ) -> TBitSet<TypeId> {
     #[cfg(feature = "profiler")]
-        profile_scope!("flatten_sum_ty");
+    profile_scope!("flatten_sum_ty");
     if !visited.get(ty) {
         visited.add(ty);
         if let Kind::Sum(cases) = &types[ty].kind {

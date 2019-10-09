@@ -2,7 +2,7 @@ use tindex::TSlice;
 
 use diagnostics::{CompileError, Meta};
 
-use shared_id::{FunctionId, U16_TYPE_ID, U32_TYPE_ID, U8_TYPE_ID, BOOL_TYPE_ID};
+use shared_id::{FunctionId, BOOL_TYPE_ID, U16_TYPE_ID, U32_TYPE_ID, U8_TYPE_ID};
 
 use mir::ctx::{Context, FunctionContext};
 
@@ -172,7 +172,10 @@ impl<'a> FunctionContextBuilder<'a> {
             match attr.item {
                 FunctionAttribute::TestFn => {
                     if !func.arguments.is_empty() || func.ret.item != BOOL_TYPE_ID {
-                        return CompileError::new(&func.name, format_args!("Invalid `test` function, expected `fn() -> Bool`"));
+                        return CompileError::new(
+                            &func.name,
+                            format_args!("Invalid `test` function, expected `fn() -> Bool`"),
+                        );
                     }
 
                     if let &Some(ref should_test) = &builder.is_test {

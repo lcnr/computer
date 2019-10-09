@@ -7,7 +7,7 @@ use shared_id::{FunctionId, TypeId};
 #[derive(Debug, Clone)]
 pub struct Module<'a> {
     pub meta: Meta<'a, ()>,
-    pub functions: HashMap<Box<str>, FunctionId>,
+    pub functions: HashMap<&'a str, FunctionId>,
     pub types: HashMap<Box<str>, TypeId>,
     pub modules: HashMap<Box<str>, Module<'a>>,
 }
@@ -71,7 +71,7 @@ impl<'a> Module<'a> {
     pub fn add_function(
         &mut self,
         at: &[Box<str>],
-        name: Box<str>,
+        name: &'a str,
         id: FunctionId,
     ) -> Result<(), FunctionId> {
         if let Some((first, rest)) = at.split_first() {
@@ -88,7 +88,7 @@ impl<'a> Module<'a> {
         }
     }
 
-    pub fn get_function(&self, at: &[Box<str>], name: &Box<str>) -> Option<FunctionId> {
+    pub fn get_function(&self, at: &[Box<str>], name: &str) -> Option<FunctionId> {
         if let Some((first, rest)) = at.split_first() {
             let inner = self.modules.get(first).unwrap();
             if let Some(id) = inner.get_function(rest, name) {

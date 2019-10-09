@@ -6,15 +6,15 @@ use shared_id::{FunctionId, TypeId};
 
 use crate::{Action, Mir, Object, StepId, Terminator, Type, UnaryOperation};
 
-struct PanicDisplay<'a>(&'a str, &'a dyn fmt::Display);
+struct PanicDisplay<'a, 'b>(&'a str, &'b dyn fmt::Display);
 
-impl Drop for PanicDisplay<'_> {
+impl Drop for PanicDisplay<'_, '_> {
     fn drop(&mut self) {
         eprintln!("{}{}", self.0, self.1);
     }
 }
 
-impl Mir {
+impl<'a> Mir<'a> {
     /// check if the MIR is well formed
     pub fn validate(&self) {
         #[cfg(feature = "profiler")]

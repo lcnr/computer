@@ -21,11 +21,11 @@ pub enum InterpretError {
 
 #[derive(Debug, Clone)]
 pub struct BoulderMirInterpreter<'a> {
-    mir: &'a Mir,
+    mir: &'a Mir<'a>,
 }
 
 impl<'a> BoulderMirInterpreter<'a> {
-    pub fn new(mir: &'a Mir) -> Self {
+    pub fn new(mir: &'a Mir<'a>) -> Self {
         Self { mir }
     }
 

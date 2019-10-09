@@ -5,6 +5,7 @@ authors = ["lcnr/Bastian Kauschke <bastian_kauschke@hotmail.de>"]
 edition = "2018"
 
 [dependencies]
+global_ctx = { path = "../global_ctx" }
 diagnostics = { path = "../diagnostics" }
 parse = { path = "../parse"}
 mir = { path = "../mir" }

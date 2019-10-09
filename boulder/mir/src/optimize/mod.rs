@@ -8,7 +8,7 @@ use crate::{
     traits::UpdateStepIds, Action, Block, BlockId, Function, Mir, StepId, Terminator, Type,
 };
 
-impl Mir {
+impl<'a> Mir<'a> {
     /// remove blocks where an input is unreachable
     pub fn kill_uninhabited(&mut self) {
         #[cfg(feature = "profiler")]
@@ -276,7 +276,7 @@ impl Terminator {
     }
 }
 
-impl Function {
+impl<'a> Function<'a> {
     pub fn remove_block(&mut self, id: BlockId) {
         self.blocks.remove(id);
         for block in self.blocks.iter_mut() {

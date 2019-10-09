@@ -7,6 +7,7 @@ edition = "2018"
 [dependencies]
 tindex = { git = "https://github.com/lcnr/tindex.git" }
 
+global_ctx = { path = "../global_ctx" }
 diagnostics = { path =  "../diagnostics" }
 hir = { path = "../hir" }
 

@@ -48,19 +48,19 @@ pub fn initialized_mir_block(
 }
 
 #[derive(Debug)]
-pub struct ToMirContext<'a> {
-    pub types: &'a TSlice<TypeId, mir::Type>,
-    pub variable_types: &'a TVec<VariableId, TypeId>,
-    pub function_definitions: &'a TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
-    pub var_lookup: &'a mut TVec<VariableId, Option<mir::StepId>>,
-    pub scopes: &'a mut TVec<ScopeId, (mir::BlockId, TypeId, Vec<ExitScopeMeta>)>,
-    pub temporaries: &'a mut Vec<Temporary>,
-    pub curr: &'a mut mir::BlockId,
-    pub func: &'a mut mir::Function,
+pub struct ToMirContext<'a, 'b> {
+    pub types: &'b TSlice<TypeId, mir::Type>,
+    pub variable_types: &'b TVec<VariableId, TypeId>,
+    pub function_definitions: &'b TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
+    pub var_lookup: &'b mut TVec<VariableId, Option<mir::StepId>>,
+    pub scopes: &'b mut TVec<ScopeId, (mir::BlockId, TypeId, Vec<ExitScopeMeta>)>,
+    pub temporaries: &'b mut Vec<Temporary>,
+    pub curr: &'b mut mir::BlockId,
+    pub func: &'b mut mir::Function<'a>,
 }
 
 impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
-    pub fn to_mir<'b>(self, ctx: &mut ToMirContext<'b>) -> Result<mir::StepId, CompileError> {
+    pub fn to_mir<'b>(self, ctx: &mut ToMirContext<'a, 'b>) -> Result<mir::StepId, CompileError> {
         #[cfg(feature = "profiler")]
         profile_scope!("to_mir");
         use mir::{Action, Object, Terminator};

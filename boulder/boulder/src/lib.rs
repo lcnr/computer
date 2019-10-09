@@ -2,14 +2,20 @@
 #[macro_use]
 extern crate thread_profiler;
 
+use global_ctx::GlobalCtx;
+
 use diagnostics::CompileError;
 
 use mir::Mir;
 
-pub fn compile_to_mir(src: &str, file: &str) -> Result<Mir, CompileError> {
+pub fn compile_to_mir<'a>(
+    ctx: &'a GlobalCtx,
+    src: &'a str,
+    file: &'a str,
+) -> Result<Mir<'a>, CompileError> {
     #[cfg(feature = "profiler")]
     profile_scope!("compile_to_mir");
-    let hir = parse::parse(src, file)?;
+    let hir = parse::parse(&ctx, src, file)?;
     let hir = hir.resolve_types()?;
     let hir = hir.resolve_identifiers()?;
     let hir = hir.resolve_expr_types()?;
@@ -22,7 +28,7 @@ pub fn compile_to_mir(src: &str, file: &str) -> Result<Mir, CompileError> {
     Ok(mir)
 }
 
-pub fn core_optimizations(mir: &mut Mir) {
+pub fn core_optimizations<'a>(mir: &mut Mir<'a>) {
     #[cfg(feature = "profiler")]
     profile_scope!("core_optimizations");
     mir.unify_blocks();
@@ -33,10 +39,14 @@ pub fn core_optimizations(mir: &mut Mir) {
     mir.validate();
 }
 
-pub fn compile(src: &str, file: &str) -> Result<Mir, CompileError> {
+pub fn compile<'a>(
+    ctx: &'a GlobalCtx,
+    src: &'a str,
+    file: &'a str,
+) -> Result<Mir<'a>, CompileError> {
     #[cfg(feature = "profiler")]
     profile_scope!("compile");
-    let mut mir = compile_to_mir(src, file)?;
+    let mut mir = compile_to_mir(ctx, src, file)?;
     core_optimizations(&mut mir);
     mir.reduce_binops();
     mir.validate();

@@ -170,14 +170,14 @@ impl Step {
 }
 
 #[derive(Debug, Clone)]
-pub struct Function {
-    pub name: Box<str>,
+pub struct Function<'a> {
+    pub name: &'a str,
     pub ctx: FunctionContext,
     pub blocks: TVec<BlockId, Block>,
     pub ret: TypeId,
 }
 
-impl Index<BlockId> for Function {
+impl<'a> Index<BlockId> for Function<'a> {
     type Output = Block;
 
     fn index(&self, id: BlockId) -> &Self::Output {
@@ -185,14 +185,14 @@ impl Index<BlockId> for Function {
     }
 }
 
-impl IndexMut<BlockId> for Function {
+impl<'a> IndexMut<BlockId> for Function<'a> {
     fn index_mut(&mut self, id: BlockId) -> &mut Self::Output {
         &mut self.blocks[id]
     }
 }
 
-impl Function {
-    pub fn new(name: Box<str>, ctx: FunctionContext, ret: TypeId) -> Self {
+impl<'a> Function<'a> {
+    pub fn new(name: &'a str, ctx: FunctionContext, ret: TypeId) -> Self {
         Self {
             name,
             ctx,
@@ -269,13 +269,13 @@ impl Block {
 }
 
 #[derive(Debug, Clone)]
-pub struct Mir {
+pub struct Mir<'a> {
     pub types: TVec<TypeId, Type>,
-    pub functions: TVec<FunctionId, Function>,
+    pub functions: TVec<FunctionId, Function<'a>>,
     pub ctx: Context,
 }
 
-impl Mir {
+impl<'a> Mir<'a> {
     pub fn step_count(&self) -> usize {
         self.functions
             .iter()
@@ -287,12 +287,12 @@ impl Mir {
     pub fn get_function(&self, name: &str) -> Option<FunctionId> {
         self.functions
             .iter()
-            .position(|f| f.name.as_ref() == name)
+            .position(|f| f.name == name)
             .map(FunctionId::from)
     }
 }
 
-impl Index<TypeId> for Mir {
+impl<'a> Index<TypeId> for Mir<'a> {
     type Output = Type;
 
     fn index(&self, id: TypeId) -> &Self::Output {
@@ -300,21 +300,21 @@ impl Index<TypeId> for Mir {
     }
 }
 
-impl IndexMut<TypeId> for Mir {
+impl<'a> IndexMut<TypeId> for Mir<'a> {
     fn index_mut(&mut self, id: TypeId) -> &mut Self::Output {
         &mut self.types[id]
     }
 }
 
-impl Index<FunctionId> for Mir {
-    type Output = Function;
+impl<'a> Index<FunctionId> for Mir<'a> {
+    type Output = Function<'a>;
 
     fn index(&self, id: FunctionId) -> &Self::Output {
         &self.functions[id]
     }
 }
 
-impl IndexMut<FunctionId> for Mir {
+impl<'a> IndexMut<FunctionId> for Mir<'a> {
     fn index_mut(&mut self, id: FunctionId) -> &mut Self::Output {
         &mut self.functions[id]
     }

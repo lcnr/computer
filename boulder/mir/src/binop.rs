@@ -42,7 +42,7 @@ impl Binop {
     }
 }
 
-impl Mir {
+impl<'a> Mir<'a> {
     fn reduce_binops_in_block(&mut self, function: FunctionId, block: BlockId) {
         #[cfg(feature = "profiler")]
         profile_scope!("reduce_binops_in_block");

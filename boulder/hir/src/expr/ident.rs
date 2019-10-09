@@ -17,7 +17,7 @@ pub struct ResolveIdentifiersContext<'a, 'b> {
     pub at: &'b [Box<str>],
     pub variables: &'b mut TVec<VariableId, Variable<'a, Option<UnresolvedType<'a>>>>,
     pub variable_lookup: &'b mut Vec<Vec<(Box<str>, VariableId)>>,
-    pub scope_lookup: &'b mut TVec<ScopeId, Option<Box<str>>>,
+    pub scope_lookup: &'b mut TVec<ScopeId, Option<&'a str>>,
     pub types: &'b mut TVec<TypeId, Type<'a, TypeId>>,
     pub modules: &'b mut Module<'a>,
 }
@@ -34,9 +34,9 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             variable_lookup: &mut Vec<Vec<(Box<str>, VariableId)>>,
         ) -> Option<Meta<'b, VariableId>> {
             for scope in variable_lookup.iter().rev() {
-                for (var, id) in scope.iter().rev() {
+                for &(ref var, id) in scope.iter().rev() {
                     if var == &name.item {
-                        return Some(name.replace(id.clone()));
+                        return Some(name.replace(id));
                     }
                 }
             }
@@ -187,7 +187,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     new.push(expr.resolve_identifiers(ctx)?);
                 }
 
-                if let Some(id) = ctx.modules.get_function(ctx.at, &name.item) {
+                if let Some(id) = ctx.modules.get_function(ctx.at, name.item) {
                     Expression::FunctionCall((), name.replace(id), new)
                 } else {
                     CompileError::new(
@@ -267,10 +267,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     )?
                 } else {
                     let scope_id = ctx.scope_lookup.last_id().unwrap();
-                    if ctx.scope_lookup[scope_id]
-                        .as_ref()
-                        .map_or(false, |n| n.as_ref() == "fn")
-                    {
+                    if ctx.scope_lookup[scope_id].map_or(false, |n| n == "fn") {
                         CompileError::new(&scope, format_args!("`break` outside of scope"))?
                     } else {
                         Expression::Break(
