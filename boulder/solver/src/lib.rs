@@ -78,14 +78,16 @@ pub trait Production<C, T: EntityState, E>: fmt::Debug {
     ) -> Result<(), E>;
 }
 
-pub struct ConstraintSolver<C, T, E> {
+pub struct ConstraintSolver<'a, C, T, E> {
     entities: TVec<EntityId, T>,
     rules: TVec<EntityId, Vec<Rule>>,
-    productions: TVec<ProductionId, Box<dyn Production<C, T, E>>>,
+    productions: TVec<ProductionId, Box<dyn Production<C, T, E> + 'a>>,
     context: C,
 }
 
-impl<'ctx, C: fmt::Debug, T: fmt::Debug + EntityState, E> fmt::Debug for ConstraintSolver<C, T, E> {
+impl<'ctx, 'a, C: fmt::Debug, T: fmt::Debug + EntityState, E> fmt::Debug
+    for ConstraintSolver<'a, C, T, E>
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ConstraintSolver")
             .field("entities", &self.entities)
@@ -96,7 +98,7 @@ impl<'ctx, C: fmt::Debug, T: fmt::Debug + EntityState, E> fmt::Debug for Constra
     }
 }
 
-impl<C: fmt::Debug, T: EntityState + Eq + Clone + std::fmt::Debug, E> ConstraintSolver<C, T, E> {
+impl<'a, C: fmt::Debug, T: EntityState + Clone + std::fmt::Debug, E> ConstraintSolver<'a, C, T, E> {
     pub fn new(context: C) -> Self {
         Self {
             entities: TVec::new(),
@@ -110,9 +112,6 @@ impl<C: fmt::Debug, T: EntityState + Eq + Clone + std::fmt::Debug, E> Constraint
         &mut self.context
     }
 
-    /// # Panic
-    ///
-    /// This function panics if `values` is empty.
     pub fn add_entity(&mut self, values: T) -> EntityId {
         let id = self.entities.push(values);
         assert_eq!(self.rules.push(Vec::new()), id);
@@ -123,7 +122,10 @@ impl<C: fmt::Debug, T: EntityState + Eq + Clone + std::fmt::Debug, E> Constraint
         self.entities[entity] = state;
     }
 
-    pub fn define_production(&mut self, production: Box<dyn Production<C, T, E>>) -> ProductionId {
+    pub fn define_production(
+        &mut self,
+        production: Box<dyn Production<C, T, E> + 'a>,
+    ) -> ProductionId {
         self.productions.push(production)
     }
 

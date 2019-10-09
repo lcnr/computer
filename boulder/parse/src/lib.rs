@@ -555,7 +555,7 @@ fn parse_variable_decl<'a>(
 ) -> Result<Expression<'a>, CompileError> {
     #[cfg(feature = "profiler")]
     profile_scope!("parse_variable_decl");
-    let name: Meta<'a, Box<str>> = expect_ident(iter.next().unwrap())?.map(Into::into);
+    let name = expect_ident(iter.next().unwrap())?;
 
     let ty = if try_consume_token(Token::Colon, iter) {
         Some(parse_type(iter)?)

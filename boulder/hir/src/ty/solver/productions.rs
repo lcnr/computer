@@ -14,13 +14,13 @@ use crate::ty::{
 };
 
 #[derive(Debug)]
-pub struct FieldAccess {
-    field_name: Box<str>,
+pub struct FieldAccess<'a> {
+    field_name: &'a str,
     field_types: Vec<(TypeId, TypeId)>,
 }
 
-impl FieldAccess {
-    pub fn new(field_name: Box<str>, field_types: Vec<(TypeId, TypeId)>) -> Self {
+impl<'a> FieldAccess<'a> {
+    pub fn new(field_name: &'a str, field_types: Vec<(TypeId, TypeId)>) -> Self {
         Self {
             field_name,
             field_types,
@@ -28,7 +28,7 @@ impl FieldAccess {
     }
 }
 
-impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for FieldAccess {
+impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for FieldAccess<'a> {
     fn resolve(
         &mut self,
         ctx: &mut Context<'a, 'b>,

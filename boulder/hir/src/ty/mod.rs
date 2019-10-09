@@ -269,7 +269,7 @@ impl<'a> Type<'a, TypeId> {
         }
     }
 
-    pub fn get_field(&self, name: &Box<str>) -> Option<FieldId> {
+    pub fn get_field(&self, name: &str) -> Option<FieldId> {
         if let Kind::Struct(v) | Kind::Union(v) = &self.kind {
             Some(
                 v.binary_search_by(|probe| probe.name.cmp(name))
@@ -303,7 +303,7 @@ impl<'a> Type<'a, TypeId> {
 
 #[derive(Debug, Clone)]
 pub struct Field<'a, T> {
-    pub name: Meta<'a, Box<str>>,
+    pub name: Meta<'a, &'a str>,
     pub ty: Meta<'a, T>,
 }
 

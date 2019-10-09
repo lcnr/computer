@@ -47,7 +47,7 @@ pub struct UnresolvedTypes<'a>(PhantomData<&'a str>);
 
 impl<'a> TypeState for UnresolvedTypes<'a> {
     type Type = ();
-    type Field = Meta<'a, Box<str>>;
+    type Field = Meta<'a, &'a str>;
     type Restriction = Meta<'a, UnresolvedType<'a>>;
 }
 
@@ -56,7 +56,7 @@ pub struct ResolvingTypes<'a>(PhantomData<&'a str>);
 
 impl<'a> TypeState for ResolvingTypes<'a> {
     type Type = solver::EntityId;
-    type Field = Meta<'a, Box<str>>;
+    type Field = Meta<'a, &'a str>;
     type Restriction = ();
 }
 

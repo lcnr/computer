@@ -27,7 +27,7 @@ pub struct ScopeId(usize);
 
 #[derive(Debug, Clone)]
 pub struct Variable<'a, T> {
-    pub name: Meta<'a, Box<str>>,
+    pub name: Meta<'a, &'a str>,
     pub ty: Meta<'a, T>,
 }
 
@@ -65,7 +65,7 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
 
     pub fn add_variable(
         &mut self,
-        name: Meta<'a, Box<str>>,
+        name: Meta<'a, &'a str>,
         ty: Meta<'a, Option<UnresolvedType<'a>>>,
     ) -> VariableId {
         let id = VariableId(self.variables.len());
@@ -75,7 +75,7 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
 
     pub fn add_argument(
         &mut self,
-        name: Meta<'a, Box<str>>,
+        name: Meta<'a, &'a str>,
         ty: Meta<'a, Option<UnresolvedType<'a>>>,
     ) -> Result<(), CompileError> {
         if self.variables.iter().any(|v| v.name.item == name.item) {
@@ -130,7 +130,7 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
             self.variables
                 .iter()
                 .enumerate()
-                .map(|(i, v)| (v.name.item.clone(), VariableId(i)))
+                .map(|(i, v)| (v.name.item, VariableId(i)))
                 .collect(),
         );
 

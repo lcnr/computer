@@ -239,10 +239,10 @@ impl solver::EntityState for EntityState {
 
 #[derive(Debug)]
 pub struct TypeSolver<'a, 'b> {
-    solver: ConstraintSolver<Context<'a, 'b>, EntityState, CompileError>,
+    solver: ConstraintSolver<'a, Context<'a, 'b>, EntityState, CompileError>,
     empty: TypeId,
     integers: TBitSet<TypeId>,
-    fields: HashMap<Box<str>, (ProductionId, Vec<TypeId>)>,
+    fields: HashMap<&'a str, (ProductionId, Vec<TypeId>)>,
     equality: ProductionId,
     extension: ProductionId,
 }
@@ -264,17 +264,17 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
             })
             .collect();
 
-        let mut fields = HashMap::<Box<str>, Vec<(TypeId, TypeId)>>::new();
+        let mut fields = HashMap::<&str, Vec<(TypeId, TypeId)>>::new();
         for (i, ty) in types.iter().enumerate() {
             let ty_fields: &TSlice<_, _> = if let Kind::Struct(v) | Kind::Union(v) = &ty.kind {
-                &v
+                v
             } else {
                 (&[] as &[_]).into()
             };
 
             for field in ty_fields.iter() {
                 fields
-                    .entry(field.name.item.clone())
+                    .entry(field.name.item)
                     .or_default()
                     .push((TypeId::from(i), field.ty.item))
             }
@@ -438,7 +438,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         &mut self,
         obj: EntityId,
         field: EntityId,
-        name: &Meta<'_, Box<str>>,
+        name: &Meta<'a, &'a str>,
     ) -> Result<(), CompileError> {
         if let Some(&(id, _)) = self.fields.get(&name.item) {
             self.solver.add_production(id, obj, field);

@@ -41,8 +41,8 @@ pub enum UnresolvedType<'a> {
 
 #[derive(Debug, Clone)]
 pub enum UnresolvedVariable<'a> {
-    Existing(Meta<'a, Box<str>>),
-    New(Meta<'a, Box<str>>, Meta<'a, Option<UnresolvedType<'a>>>),
+    Existing(Meta<'a, &'a str>),
+    New(Meta<'a, &'a str>, Meta<'a, Option<UnresolvedType<'a>>>),
 }
 
 #[derive(Debug, Clone)]

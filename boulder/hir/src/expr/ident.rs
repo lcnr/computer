@@ -16,7 +16,7 @@ use crate::{
 pub struct ResolveIdentifiersContext<'a, 'b> {
     pub at: &'b [&'a str],
     pub variables: &'b mut TVec<VariableId, Variable<'a, Option<UnresolvedType<'a>>>>,
-    pub variable_lookup: &'b mut Vec<Vec<(Box<str>, VariableId)>>,
+    pub variable_lookup: &'b mut Vec<Vec<(&'a str, VariableId)>>,
     pub scope_lookup: &'b mut TVec<ScopeId, Option<&'a str>>,
     pub types: &'b mut TVec<TypeId, Type<'a, TypeId>>,
     pub modules: &'b mut Module<'a>,
@@ -30,8 +30,8 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
         #[cfg(feature = "profiler")]
         profile_scope!("resolve_identifiers");
         fn get_id<'b>(
-            name: Meta<'b, Box<str>>,
-            variable_lookup: &mut Vec<Vec<(Box<str>, VariableId)>>,
+            name: Meta<'b, &'b str>,
+            variable_lookup: &mut Vec<Vec<(&'b str, VariableId)>>,
         ) -> Option<Meta<'b, VariableId>> {
             for scope in variable_lookup.iter().rev() {
                 for &(ref var, id) in scope.iter().rev() {
@@ -47,7 +47,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
             Expression::Block((), scope, expressions) => {
                 ctx.variable_lookup.push(Vec::new());
                 let mut new = Vec::new();
-                let scope_id = ctx.scope_lookup.push(scope.item.clone());
+                let scope_id = ctx.scope_lookup.push(scope.item);
                 for expr in expressions {
                     new.push(expr.resolve_identifiers(ctx)?);
                 }
@@ -59,7 +59,9 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 UnresolvedVariable::Existing(name) => {
                     if let Some(id) = get_id(name.clone(), ctx.variable_lookup) {
                         Expression::Variable((), id)
-                    } else if let Some(ty) = ctx.modules.get_type(ctx.at, &name.item) {
+                    } else if let Some(ty) =
+                        ctx.modules.get_type(ctx.at, &Box::<str>::from(name.item))
+                    {
                         if let ty::Kind::Unit = ctx.types[ty].kind {
                             Expression::Lit((), name.replace(Literal::Unit(ty)))
                         } else {
