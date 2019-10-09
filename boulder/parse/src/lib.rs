@@ -68,7 +68,7 @@ pub fn parse<'a>(ctx: &'a GlobalCtx, src: &'a str, file: &'a str) -> Result<Hir<
 pub fn parse_module<'a>(
     ctx: &'a GlobalCtx,
     hir: &mut Hir<'a>,
-    at: &mut Vec<Box<str>>,
+    at: &mut Vec<&'a str>,
     iter: &mut TokenIter<'a>,
 ) -> Result<(), CompileError> {
     #[cfg(feature = "profiler")]
@@ -198,7 +198,7 @@ fn parse_module_decl<'a>(
     ctx: &'a GlobalCtx,
     hir: &mut Hir<'a>,
     mod_tok: Meta<'a, Token<'a>>,
-    at: &mut Vec<Box<str>>,
+    at: &mut Vec<&'a str>,
     attributes: Vec<Meta<'a, ModuleAttribute<'a>>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<(), CompileError> {
@@ -979,7 +979,7 @@ fn parse_block<'a>(
 }
 
 fn parse_union_decl<'a>(
-    at: &mut Vec<Box<str>>,
+    at: &mut Vec<&'a str>,
     attributes: Vec<Meta<'a, TypeAttribute<'a>>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Type<'a>, CompileError> {
@@ -1014,7 +1014,7 @@ fn parse_union_decl<'a>(
 }
 
 fn parse_struct_decl<'a>(
-    at: &mut Vec<Box<str>>,
+    at: &mut Vec<&'a str>,
     attributes: Vec<Meta<'a, TypeAttribute<'a>>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Type<'a>, CompileError> {
@@ -1067,7 +1067,7 @@ fn parse_struct_decl<'a>(
 
 // parse a function, `fn` should already be consumed
 fn parse_function<'a>(
-    at: &mut Vec<Box<str>>,
+    at: &mut Vec<&'a str>,
     attributes: Vec<Meta<'a, FunctionAttribute<'a>>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Function<'a>, CompileError> {

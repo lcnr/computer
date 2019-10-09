@@ -9,7 +9,7 @@ pub struct Module<'a> {
     pub meta: Meta<'a, ()>,
     pub functions: HashMap<&'a str, FunctionId>,
     pub types: HashMap<Box<str>, TypeId>,
-    pub modules: HashMap<Box<str>, Module<'a>>,
+    pub modules: HashMap<&'a str, Module<'a>>,
 }
 
 impl<'a> Module<'a> {
@@ -24,8 +24,8 @@ impl<'a> Module<'a> {
 
     pub fn add_module(
         &mut self,
-        at: &[Box<str>],
-        name: Meta<'a, Box<str>>,
+        at: &[&'a str],
+        name: Meta<'a, &'a str>,
     ) -> Result<(), Meta<'a, ()>> {
         if let Some((first, rest)) = at.split_first() {
             let inner = self.modules.get_mut(first).unwrap();
@@ -42,7 +42,7 @@ impl<'a> Module<'a> {
         }
     }
 
-    pub fn add_type(&mut self, at: &[Box<str>], name: Box<str>, id: TypeId) -> Result<(), TypeId> {
+    pub fn add_type(&mut self, at: &[&'a str], name: Box<str>, id: TypeId) -> Result<(), TypeId> {
         if let Some((first, rest)) = at.split_first() {
             let inner = self.modules.get_mut(first).unwrap();
             inner.add_type(rest, name, id)
@@ -57,7 +57,7 @@ impl<'a> Module<'a> {
         }
     }
 
-    pub fn get_type(&self, at: &[Box<str>], name: &Box<str>) -> Option<TypeId> {
+    pub fn get_type(&self, at: &[&'a str], name: &Box<str>) -> Option<TypeId> {
         if let Some((first, rest)) = at.split_first() {
             let inner = self.modules.get(first).unwrap();
             if let Some(id) = inner.get_type(rest, name) {
@@ -70,7 +70,7 @@ impl<'a> Module<'a> {
 
     pub fn add_function(
         &mut self,
-        at: &[Box<str>],
+        at: &[&'a str],
         name: &'a str,
         id: FunctionId,
     ) -> Result<(), FunctionId> {
@@ -88,7 +88,7 @@ impl<'a> Module<'a> {
         }
     }
 
-    pub fn get_function(&self, at: &[Box<str>], name: &str) -> Option<FunctionId> {
+    pub fn get_function(&self, at: &[&'a str], name: &str) -> Option<FunctionId> {
         if let Some((first, rest)) = at.split_first() {
             let inner = self.modules.get(first).unwrap();
             if let Some(id) = inner.get_function(rest, name) {

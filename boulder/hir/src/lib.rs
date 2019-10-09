@@ -153,8 +153,8 @@ impl<'a>
 
     pub fn add_module(
         &mut self,
-        at: &[Box<str>],
-        module: Meta<'a, Box<str>>,
+        at: &[&'a str],
+        module: Meta<'a, &'a str>,
     ) -> Result<(), CompileError> {
         let err = module.clone();
         match self.modules.add_module(at, module) {
@@ -170,7 +170,7 @@ impl<'a>
 
     pub fn add_function(
         &mut self,
-        at: &[Box<str>],
+        at: &[&'a str],
         func: Function<
             'a,
             UnresolvedIdentifiers<'a>,
@@ -196,7 +196,7 @@ impl<'a>
 
     pub fn add_type(
         &mut self,
-        at: &[Box<str>],
+        at: &[&'a str],
         ty: Type<'a, UnresolvedType<'a>>,
     ) -> Result<(), CompileError> {
         let name = ty.name.item.clone();

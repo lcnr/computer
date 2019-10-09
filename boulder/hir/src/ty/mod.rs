@@ -13,7 +13,7 @@ pub mod solver;
 #[derive(Debug, Clone)]
 pub struct Type<'a, T> {
     pub name: Meta<'a, Box<str>>,
-    pub at: Vec<Box<str>>,
+    pub at: Vec<&'a str>,
     pub attributes: Vec<Meta<'a, TypeAttribute<'a>>>,
     pub kind: Kind<'a, T>,
 }
@@ -30,7 +30,7 @@ impl<'a> Type<'a, UnresolvedType<'a>> {
         let id = modules.get_type(&at, &self.name.item).unwrap();
 
         fn union_or_struct<'a>(
-            at: &[Box<str>],
+            at: &[&'a str],
             types: &mut TVec<TypeId, Type<'a, TypeId>>,
             modules: &mut Module,
             mut fields: TVec<FieldId, Field<'a, UnresolvedType<'a>>>,
@@ -77,7 +77,7 @@ impl<'a> Type<'a, UnresolvedType<'a>> {
 }
 
 pub fn resolve<'a>(
-    at: &[Box<str>],
+    at: &[&'a str],
     unresolved: Meta<'a, UnresolvedType<'a>>,
     types: &mut TVec<TypeId, Type<'a, TypeId>>,
     modules: &mut Module,

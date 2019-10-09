@@ -41,7 +41,7 @@ pub struct FunctionDefinition<'a, T> {
 #[derive(Debug, Clone)]
 pub struct Function<'a, V: IdentifierState, N: TypeState, T> {
     pub name: Meta<'a, &'a str>,
-    pub at: Vec<Box<str>>,
+    pub at: Vec<&'a str>,
     pub attributes: Vec<Meta<'a, FunctionAttribute<'a>>>,
     pub arguments: Vec<VariableId>,
     pub variables: TVec<VariableId, Variable<'a, T>>,
@@ -50,7 +50,7 @@ pub struct Function<'a, V: IdentifierState, N: TypeState, T> {
 }
 
 impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType<'a>>> {
-    pub fn new(name: Meta<'a, &'a str>, at: Vec<Box<str>>) -> Self {
+    pub fn new(name: Meta<'a, &'a str>, at: Vec<&'a str>) -> Self {
         let ret_meta = name.simplify();
         Self {
             name,

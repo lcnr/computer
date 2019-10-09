@@ -13,7 +13,7 @@ use crate::{
 };
 
 pub struct TypeConstraintsContext<'a, 'b, 'c> {
-    pub at: &'c [Box<str>],
+    pub at: &'c [&'a str],
     pub functions: &'c TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
     pub variables: &'c TSlice<VariableId, solver::EntityId>,
     pub scopes: &'c mut TVec<ScopeId, (solver::EntityId, usize)>,

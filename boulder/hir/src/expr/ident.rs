@@ -14,7 +14,7 @@ use crate::{
 };
 
 pub struct ResolveIdentifiersContext<'a, 'b> {
-    pub at: &'b [Box<str>],
+    pub at: &'b [&'a str],
     pub variables: &'b mut TVec<VariableId, Variable<'a, Option<UnresolvedType<'a>>>>,
     pub variable_lookup: &'b mut Vec<Vec<(Box<str>, VariableId)>>,
     pub scope_lookup: &'b mut TVec<ScopeId, Option<&'a str>>,
