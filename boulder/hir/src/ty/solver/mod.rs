@@ -253,19 +253,12 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         profile_scope!("TypeSolver::new");
         let empty = EMPTY_TYPE_ID;
         let integers = types
-            .iter()
-            .enumerate()
-            .filter_map(|(i, ty)| {
-                if ["u8", "u16", "u32"].contains(&&*ty.name.item) {
-                    Some(TypeId::from(i))
-                } else {
-                    None
-                }
-            })
+            .index_iter()
+            .filter(|&i| ["u8", "u16", "u32"].contains(&&*types[i].name.item))
             .collect();
 
         let mut fields = HashMap::<&str, Vec<(TypeId, TypeId)>>::new();
-        for (i, ty) in types.iter().enumerate() {
+        for (i, ty) in types.index_iter().zip(types.iter()) {
             let ty_fields: &TSlice<_, _> = if let Kind::Struct(v) | Kind::Union(v) = &ty.kind {
                 v
             } else {
@@ -276,7 +269,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
                 fields
                     .entry(field.name.item)
                     .or_default()
-                    .push((TypeId::from(i), field.ty.item))
+                    .push((i, field.ty.item))
             }
         }
 

@@ -37,8 +37,8 @@ impl Display for Binop {
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            Type::Unit => write!(f, "Unit"),
-            Type::Uninhabited => write!(f, "Uninhabited"),
+            Type::Unit => write!(f, "unit"),
+            Type::Uninhabited => write!(f, "uninhabited"),
             Type::U8 => write!(f, "u8"),
             Type::U16 => write!(f, "u16"),
             Type::U32 => write!(f, "u32"),
@@ -68,7 +68,7 @@ impl Display for Type {
                 if let Some(first) = iter.next() {
                     write!(f, "{}", first)?;
                     for arg in iter {
-                        write!(f, " | {}", arg)?;
+                        write!(f, ", {}", arg)?;
                     }
                 }
                 write!(f, ")")

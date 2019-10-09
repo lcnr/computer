@@ -68,9 +68,7 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
         name: Meta<'a, &'a str>,
         ty: Meta<'a, Option<UnresolvedType<'a>>>,
     ) -> VariableId {
-        let id = VariableId(self.variables.len());
-        self.variables.push(Variable { name, ty });
-        id
+        self.variables.push(Variable { name, ty })
     }
 
     pub fn add_argument(
@@ -129,8 +127,8 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
         variable_lookup.push(
             self.variables
                 .iter()
-                .enumerate()
-                .map(|(i, v)| (v.name.item, VariableId(i)))
+                .map(|v| v.name.item)
+                .zip(self.variables.index_iter())
                 .collect(),
         );
 
@@ -301,10 +299,8 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
 
         let mut variables: TVec<VariableId, Option<mir::StepId>> =
             std::iter::repeat(None).take(self.variables.len()).collect();
-        for (i, &arg) in self.arguments.iter().enumerate() {
-            let i = VariableId(i);
-            let id = start.add_input(self.variables[arg].ty.item);
-            variables[i] = Some(id);
+        for arg in self.arguments.iter().copied() {
+            variables[arg] = Some(start.add_input(self.variables[arg].ty.item));
         }
 
         let variable_types: TVec<VariableId, TypeId> =

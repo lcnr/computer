@@ -66,7 +66,7 @@ impl<'a> Function<'a> {
         #[cfg(feature = "profiler")]
         profile_scope!("Function::remove_block_input");
         self[id].input.remove(input);
-        for step in (0..self[id].steps.len()).map(StepId::from).rev() {
+        for step in self[id].steps.index_iter().rev() {
             if let &mut Action::LoadInput(ref mut i) = &mut self[id][step].action {
                 if *i == input {
                     self[id].remove_step(step);

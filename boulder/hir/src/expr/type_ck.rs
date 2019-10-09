@@ -1,6 +1,6 @@
 use tindex::{bitset::TBitSet, TSlice, TVec};
 
-use shared_id::{FieldId, TypeId, BOOL_TYPE_ID, EMPTY_TYPE_ID, NEVER_TYPE_ID};
+use shared_id::{TypeId, BOOL_TYPE_ID, EMPTY_TYPE_ID, NEVER_TYPE_ID};
 
 use diagnostics::{CompileError, Span};
 
@@ -390,7 +390,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
                     .collect::<Result<_, CompileError>>()?;
 
                 if let &ty::Kind::Struct(ref expected_fields) = &types[struct_ty].kind {
-                    for i in (0..expected_fields.len()).map(FieldId::from) {
+                    for i in expected_fields.index_iter() {
                         if !initialized_fields.get(i) {
                             CompileError::new(
                                 &kind,

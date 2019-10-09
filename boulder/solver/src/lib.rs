@@ -194,9 +194,7 @@ impl<'a, C: fmt::Debug, T: EntityState + Clone + std::fmt::Debug, E> ConstraintS
         #[cfg(feature = "profiler")]
         profile_scope!("solve");
         /* */// println!("{:?},\n{:?}", self.entities, self.productions);
-        let mut all_ids: Box<[EntityId]> = (0..self.entities.len())
-            .map(|v| EntityId(v))
-            .collect::<Box<_>>();
+        let mut all_ids: Box<[EntityId]> = self.entities.index_iter().collect::<Box<_>>();
         let mut step_count = 0;
         let mut first = true;
         while first || all_ids.iter().any(|&id| !self.entities[id].solved()) {

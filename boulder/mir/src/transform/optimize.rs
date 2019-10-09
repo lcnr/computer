@@ -127,7 +127,7 @@ impl<'a> Mir<'a> {
                 mem::swap(&mut used, &mut new_used);
             }
 
-            for i in (0..func.blocks.len()).map(BlockId::from).rev() {
+            for i in func.blocks.index_iter().rev() {
                 if !used.get(i) {
                     func.remove_block(i);
                 }
@@ -144,7 +144,7 @@ impl<'a> Mir<'a> {
             let mut changing = true;
             while changing {
                 changing = false;
-                for block in (0..func.blocks.len()).map(BlockId::from) {
+                for block in func.blocks.index_iter() {
                     let mut used = TBitSet::new();
                     func[block].terminator.used_steps(&mut used);
                     let mut new_used = TBitSet::new();
@@ -227,7 +227,7 @@ impl<'a> Mir<'a> {
             let mut changed = true;
             while changed {
                 changed = false;
-                for i in (0..func.blocks.len()).map(BlockId::from) {
+                for i in func.blocks.index_iter() {
                     println!("{:?}, {:?}", i, func[i].terminator);
                     match &mut func[i].terminator {
                         &mut Terminator::Goto(Some(target), ref mut steps) => {
