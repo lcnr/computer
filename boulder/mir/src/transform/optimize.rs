@@ -216,7 +216,7 @@ impl<'a> Mir<'a> {
 
         for func in self.functions.iter_mut() {
             let mut redirects = TBitSet::new();
-            for i in (0..func.blocks.len()).map(BlockId::from) {
+            for i in (1..func.blocks.len()).map(BlockId::from) {
                 if func[i].steps.iter().all(|s| {
                     mem::discriminant(&s.action) == mem::discriminant(&Action::LoadInput(0))
                 }) {
@@ -227,7 +227,8 @@ impl<'a> Mir<'a> {
             let mut changed = true;
             while changed {
                 changed = false;
-                for i in (1..func.blocks.len()).map(BlockId::from) {
+                for i in (0..func.blocks.len()).map(BlockId::from) {
+                    println!("{:?}, {:?}", i, func[i].terminator);
                     match &mut func[i].terminator {
                         &mut Terminator::Goto(Some(target), ref mut steps) => {
                             if redirects.get(target) {
