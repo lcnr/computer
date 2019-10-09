@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+    "global_ctx",
     "solver",
     "boulder",
     "mir_interpreter",
