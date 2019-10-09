@@ -1,0 +1,6 @@
+# Invalid `test` function
+# (4:
+@test
+fn test(a: u32) -> Bool {
+    a == 0
+}
