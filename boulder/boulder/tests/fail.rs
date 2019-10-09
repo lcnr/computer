@@ -1,3 +1,7 @@
+#[cfg(feature = "profiler")]
+#[macro_use]
+extern crate thread_profiler;
+
 extern crate boulder;
 
 use std::{
@@ -34,12 +38,16 @@ struct TestFailure;
 
 #[test]
 fn compile_fail() -> Result<(), TestFailure> {
+    #[cfg(feature = "thread_profiler")]
+    thread_profiler::register_thread_with_profiler();
     let mut count = 0;
     let mut success = 0;
 
     'outer: for entry in WalkDir::new("tests/compile_fail") {
         let entry = entry.unwrap();
         if entry.metadata().unwrap().is_file() {
+            #[cfg(feature = "profiler")]
+            profile_scope!(format!("{}", entry.path().display()));
             count += 1;
             let mut file = File::open(entry.path()).unwrap();
             let mut content = String::new();
@@ -80,6 +88,8 @@ fn compile_fail() -> Result<(), TestFailure> {
 
             let output = output.lock().unwrap();
             let mut check_count = 0;
+            #[cfg(feature = "profiler")]
+            profile_scope!("check_expected");
             for expected in expected {
                 check_count += 1;
                 if !output.contains(expected) {
@@ -104,6 +114,16 @@ fn compile_fail() -> Result<(), TestFailure> {
 
             success += 1;
         }
+    }
+
+    #[cfg(feature = "thread_profiler")]
+    {
+        let output_file = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), "fail.profile.json");
+        println!(
+            "Writing profile to {}, try loading this using chome 'about:tracing'",
+            output_file
+        );
+        thread_profiler::write_profile(output_file.as_str());
     }
 
     if success != count {

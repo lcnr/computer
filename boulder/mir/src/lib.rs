@@ -1,3 +1,7 @@
+#[cfg(feature = "profiler")]
+#[macro_use]
+extern crate thread_profiler;
+
 use std::{
     convert::identity,
     ops::{Index, IndexMut},

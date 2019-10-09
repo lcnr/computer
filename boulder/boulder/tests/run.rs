@@ -1,3 +1,7 @@
+#[cfg(feature = "profiler")]
+#[macro_use]
+extern crate thread_profiler;
+
 extern crate boulder;
 
 use std::{
@@ -12,7 +16,7 @@ use walkdir::WalkDir;
 
 use diagnostics::CompileError;
 
-use shared_id::{FunctionId, BOOL_TYPE_ID, TRUE_TYPE_ID};
+use shared_id::{FunctionId, TRUE_TYPE_ID};
 
 use mir::{Mir, Object};
 
@@ -35,6 +39,8 @@ impl Write for OutputShim {
 }
 
 fn test_mir(mir: &Mir, entry_path: impl fmt::Display) -> bool {
+    #[cfg(feature = "profiler")]
+    profile_scope!("test_mir");
     let mut bmi = mir_interpreter::BoulderMirInterpreter::new(mir);
     let mut check_count = 0;
     for (id, test) in mir
@@ -44,14 +50,6 @@ fn test_mir(mir: &Mir, entry_path: impl fmt::Display) -> bool {
         .filter(|(_, func)| func.ctx.is_test)
     {
         check_count += 1;
-        if !test.args().is_empty() || test.ret != BOOL_TYPE_ID {
-            eprintln!(
-                "[boulder/{}]: invalid test function, expected `() -> Bool`: {}",
-                entry_path, test.name
-            );
-            return false;
-        }
-
         match panic::catch_unwind(panic::AssertUnwindSafe(|| {
             bmi.execute_function(FunctionId::from(id), &[])
         })) {
@@ -95,11 +93,15 @@ struct TestFailure;
 
 #[test]
 fn compile_run() -> Result<(), TestFailure> {
+    #[cfg(feature = "thread_profiler")]
+    thread_profiler::register_thread_with_profiler();
     let mut count = 0;
     let mut success = 0;
     for entry in WalkDir::new("tests/compile_run") {
         let entry = entry.unwrap();
         if entry.metadata().unwrap().is_file() {
+            #[cfg(feature = "profiler")]
+            profile_scope!(format!("{}", entry.path().display()));
             count += 1;
             let mut file = File::open(entry.path()).unwrap();
             let mut content = String::new();
@@ -134,6 +136,8 @@ fn compile_run() -> Result<(), TestFailure> {
             };
             let output = output.lock().unwrap();
             if let Ok(mut mir) = mir {
+                #[cfg(feature = "profiler")]
+                profile_scope!("optimize_and_test");
                 if should_run && !test_mir(&mir, entry.path().display()) {
                     continue;
                 }
@@ -156,6 +160,16 @@ fn compile_run() -> Result<(), TestFailure> {
                 );
             }
         }
+    }
+
+    #[cfg(feature = "thread_profiler")]
+    {
+        let output_file = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), "run.profile.json");
+        println!(
+            "Writing profile to {}, try loading this using chome 'about:tracing'",
+            output_file
+        );
+        thread_profiler::write_profile(output_file.as_str());
     }
 
     if success != count {

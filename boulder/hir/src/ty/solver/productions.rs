@@ -35,6 +35,8 @@ impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for FieldAcc
         origin: SolvedEntity<EntityState>,
         target: Entity<EntityState>,
     ) -> Result<(), CompileError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("FieldAccess::new");
         if let Some(value) =
             self.field_types
                 .iter()
@@ -87,6 +89,8 @@ impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for FieldAcc
         origin: Entity<EntityState>,
         target: SolvedEntity<EntityState>,
     ) -> Result<(), CompileError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("FieldAccess::resolve_backwards");
         let values: TBitSet<_> = self
             .field_types
             .iter()
@@ -142,6 +146,8 @@ impl Equality {
         unsolved: Entity<EntityState>,
         flip_error: bool,
     ) -> Result<(), CompileError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("Equality::commutative_resolve");
         if unsolved
             .state
             .try_bind(iter::once(solved.value).collect(), ctx.types)
@@ -199,6 +205,8 @@ impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for Extensio
         origin: SolvedEntity<EntityState>,
         target: Entity<EntityState>,
     ) -> Result<(), CompileError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("Extension::resolve");
         if target.state.try_subtype(
             ty::subtypes(origin.value, ctx.types),
             ctx.types,
@@ -226,6 +234,8 @@ impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for Extensio
         origin: Entity<EntityState>,
         target: SolvedEntity<EntityState>,
     ) -> Result<(), CompileError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("Extension::resolve_backwards");
         if origin.state.try_supertype(
             ty::subtypes(target.value, ctx.types),
             ctx.types,

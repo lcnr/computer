@@ -24,6 +24,8 @@ impl<'a> Type<'a, UnresolvedType<'a>> {
         types: &mut TVec<TypeId, Type<'a, TypeId>>,
         modules: &mut Module,
     ) -> Result<(), CompileError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("Type::resolve");
         let at = self.at;
         let id = modules.get_type(&at, &self.name.item).unwrap();
 
@@ -80,6 +82,8 @@ pub fn resolve<'a>(
     types: &mut TVec<TypeId, Type<'a, TypeId>>,
     modules: &mut Module,
 ) -> Result<Meta<'a, TypeId>, CompileError> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("resolve");
     Ok(match &unresolved.item {
         UnresolvedType::Sum(cases) => {
             let type_ids = cases
@@ -117,6 +121,8 @@ pub fn build_sum_ty<'a>(
     types: &mut TVec<TypeId, Type<'a, TypeId>>,
     modules: &mut Module,
 ) -> TypeId {
+    #[cfg(feature = "profiler")]
+        profile_scope!("build_sum_ty");
     let mut values = TBitSet::new();
     let visited = &mut TBitSet::new();
     for case in cases.iter() {
@@ -156,6 +162,8 @@ pub fn flatten_sum_ty(
     ty: TypeId,
     visited: &mut TBitSet<TypeId>,
 ) -> TBitSet<TypeId> {
+    #[cfg(feature = "profiler")]
+        profile_scope!("flatten_sum_ty");
     if !visited.get(ty) {
         visited.add(ty);
         if let Kind::Sum(cases) = &types[ty].kind {
@@ -223,6 +231,8 @@ impl<'a> Type<'a, TypeId> {
         types: &TSlice<TypeId, Type<'a, TypeId>>,
         visited: &mut TBitSet<TypeId>,
     ) -> bool {
+        #[cfg(feature = "profiler")]
+        profile_scope!("contains");
         match &self.kind {
             Kind::Unit | Kind::Uninhabited | Kind::U8 | Kind::U16 | Kind::U32 => false,
             Kind::Struct(fields) | Kind::Union(fields) => {
@@ -272,6 +282,8 @@ impl<'a> Type<'a, TypeId> {
     }
 
     pub fn to_mir(self) -> mir::Type {
+        #[cfg(feature = "profiler")]
+        profile_scope!("to_mir");
         match self.kind {
             Kind::Unit => mir::Type::Unit,
             Kind::Uninhabited => mir::Type::Uninhabited,

@@ -2,7 +2,7 @@ use tindex::TSlice;
 
 use diagnostics::{CompileError, Meta};
 
-use shared_id::{FunctionId, U16_TYPE_ID, U32_TYPE_ID, U8_TYPE_ID};
+use shared_id::{FunctionId, U16_TYPE_ID, U32_TYPE_ID, U8_TYPE_ID, BOOL_TYPE_ID};
 
 use mir::ctx::{Context, FunctionContext};
 
@@ -67,6 +67,8 @@ impl<'a> ContextBuilder<'a> {
         hir: &mut Hir<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId, TypeId>,
         function_definitions: &TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
     ) -> Result<Context, CompileError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("ContextBuilder::build");
         let mut builder = ContextBuilder::default();
 
         for (id, func) in hir.functions.iter_mut().enumerate() {
@@ -161,12 +163,18 @@ impl<'a> FunctionContextBuilder<'a> {
     pub fn build(
         func: &mut Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId>,
     ) -> Result<FunctionContext, CompileError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("FunctionContextBuilder::build");
         let mut builder = FunctionContextBuilder::default();
 
         for i in (0..func.attributes.len()).rev() {
             let attr = &func.attributes[i];
             match attr.item {
                 FunctionAttribute::TestFn => {
+                    if !func.arguments.is_empty() || func.ret.item != BOOL_TYPE_ID {
+                        return CompileError::new(&func.name, format_args!("Invalid `test` function, expected `fn() -> Bool`"));
+                    }
+
                     if let &Some(ref should_test) = &builder.is_test {
                         CompileError::build(
                             &attr,

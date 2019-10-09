@@ -6,6 +6,10 @@ edition = "2018"
 
 [dependencies]
 lazy_static = "1.2"
+thread_profiler = { version = "0.3.0", optional = true }
+
+[features]
+profiler = ["thread_profiler"]
 
 [lib]
 test = false

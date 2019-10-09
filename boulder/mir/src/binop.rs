@@ -44,6 +44,8 @@ impl Binop {
 
 impl Mir {
     fn reduce_binops_in_block(&mut self, function: FunctionId, block: BlockId) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("reduce_binops_in_block");
         let function = &mut self.functions[function];
 
         let mut i = StepId(0);
@@ -93,6 +95,8 @@ impl Mir {
     }
 
     pub fn reduce_binops(&mut self) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("reduce_binops");
         for function in 0..self.functions.len() {
             let function = FunctionId::from(function);
             let mut block = BlockId(0);

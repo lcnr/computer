@@ -1,3 +1,7 @@
+#[cfg(feature = "profiler")]
+#[macro_use]
+extern crate thread_profiler;
+
 use std::{fs::File, io::Read, path::PathBuf};
 
 use tindex::TVec;
@@ -40,6 +44,8 @@ type Pattern<'a> = hir::Pattern<'a, hir::traits::UnresolvedIdentifiers<'a>>;
 type Literal<'a> = hir::Literal<hir::traits::UnresolvedIdentifiers<'a>>;
 
 pub fn parse<'a>(src: &'a str, file: &'a str) -> Result<Hir<'a>, CompileError> {
+    #[cfg(feature = "profiler")]
+        profile_scope!("parse");
     let iter = &mut TokenIter::new(src, file);
     let mut hir = Hir::new();
     parse_module(&mut hir, &mut Vec::new(), iter)?;
@@ -61,6 +67,8 @@ pub fn parse_module<'a>(
     at: &mut Vec<Box<str>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<(), CompileError> {
+    #[cfg(feature = "profiler")]
+        profile_scope!("parse_module");
     let mut attributes = Vec::new();
     while let Some(token) = iter.next() {
         match token.item {
@@ -188,6 +196,8 @@ fn parse_module_decl<'a>(
     attributes: Vec<Meta<'a, ModuleAttribute<'a>>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<(), CompileError> {
+    #[cfg(feature = "profiler")]
+        profile_scope!("parse_module_decl");
     let module_name = expect_ident(iter.next().unwrap())?;
     let name = module_name.item.into();
     hir.add_module(&at, module_name.map(Into::into))?;
@@ -265,6 +275,8 @@ fn parse_attribute<'a>(
     name: Meta<'a, &'a str>,
     iter: &mut TokenIter<'a>,
 ) -> Result<(Meta<'a, &'a str>, Vec<Meta<'a, &'a str>>), CompileError> {
+    #[cfg(feature = "profiler")]
+        profile_scope!("parse_attribute");
     let mut args = Vec::new();
     if try_consume_token(Token::OpenBlock(BlockDelim::Parenthesis), iter) {
         while !try_consume_token(Token::CloseBlock(BlockDelim::Parenthesis), iter) {
@@ -325,6 +337,8 @@ fn check_expr_terminator<'a>(
 fn parse_type<'a>(
     iter: &mut TokenIter<'a>,
 ) -> Result<Meta<'a, hir::UnresolvedType<'a>>, CompileError> {
+    #[cfg(feature = "profiler")]
+        profile_scope!("parse_type");
     let first = expect_ident(iter.next().unwrap())?.map(Into::into);
     let next = iter.next().unwrap();
     if let Token::Binop(Binop::BitOr) = &next.item {
@@ -353,6 +367,8 @@ fn parse_ident_expr<'a>(
     iter: &mut TokenIter<'a>,
     expecting_open_brace: bool,
 ) -> Result<Expression<'a>, CompileError> {
+    #[cfg(feature = "profiler")]
+        profile_scope!("parse_ident_expr");
     let next = iter.next().unwrap();
     Ok(match next.item {
         Token::OpenBlock(BlockDelim::Parenthesis) => {
@@ -412,6 +428,8 @@ fn parse_match<'a>(
     keyword: Meta<'a, ()>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Expression<'a>, CompileError> {
+    #[cfg(feature = "profiler")]
+        profile_scope!("parse_match");
     let value = parse_expression(iter, true)?;
     consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
     let mut match_arms = Vec::new();
@@ -442,6 +460,8 @@ fn desugar_logical_ops<'a>(
     a: Expression<'a>,
     b: Expression<'a>,
 ) -> Expression<'a> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("desugar_logical_ops");
     let cond = Expression::TypeRestriction(
         Box::new(a),
         meta.replace(hir::UnresolvedType::Named("Bool".into())),
@@ -497,6 +517,8 @@ fn parse_if<'a>(
     if_meta: Meta<'a, ()>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Expression<'a>, CompileError> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("desugar_if");
     let expr = parse_expression(iter, true)?;
     let expr = Expression::TypeRestriction(
         Box::new(expr),
@@ -524,6 +546,8 @@ fn parse_variable_decl<'a>(
     iter: &mut TokenIter<'a>,
     expecting_open_brace: bool,
 ) -> Result<Expression<'a>, CompileError> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("parse_variable_decl");
     let name: Meta<'a, Box<str>> = expect_ident(iter.next().unwrap())?.map(Into::into);
 
     let ty = if try_consume_token(Token::Colon, iter) {
@@ -558,6 +582,8 @@ fn parse_scope<'a>(
     scope: Meta<'a, &'a str>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Expression<'a>, CompileError> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("parse_scope");
     consume_token(Token::Colon, iter)?;
     let next = iter.next().unwrap();
     match next.item {
@@ -587,6 +613,8 @@ fn parse_while<'a>(
     meta: Meta<'a, ()>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Expression<'a>, CompileError> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("parse_while");
     let expr = parse_expression(iter, true)?;
     consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
     let stay = MatchArm {
@@ -629,6 +657,8 @@ fn parse_binop_rhs<'a>(
     iter: &mut TokenIter<'a>,
     expecting_open_brace: bool,
 ) -> Result<Expression<'a>, CompileError> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("parse_binop_rhs");
     let start = iter.next().unwrap();
     let mut expr = match start.item {
         Token::Scope(v) => parse_scope(start.replace(v), iter)?,
@@ -733,6 +763,8 @@ fn parse_binop<'a>(
     iter: &mut TokenIter<'a>,
     expecting_open_brace: bool,
 ) -> Result<Expression<'a>, CompileError> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("parse_binop");
     let mut next = iter.next().unwrap();
     loop {
         match next.item {
@@ -776,6 +808,8 @@ fn parse_expression<'a>(
     iter: &mut TokenIter<'a>,
     expecting_open_brace: bool,
 ) -> Result<Expression<'a>, CompileError> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("parse_expression");
     let start = iter.next().unwrap();
     match start.item {
         Token::OpenBlock(BlockDelim::Brace) => {
@@ -901,6 +935,8 @@ fn parse_block<'a>(
     name: Option<Meta<'a, &'a str>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Expression<'a>, CompileError> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("parse_block");
     let mut block = Vec::new();
     let start = iter.current_offset();
     let line = iter.current_line();
@@ -940,6 +976,8 @@ fn parse_union_decl<'a>(
     attributes: Vec<Meta<'a, TypeAttribute<'a>>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Type<'a>, CompileError> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("parse_union_decl");
     let name = expect_ident(iter.next().unwrap())?.map(Into::into);
     consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
     let mut fields = TVec::new();
@@ -973,6 +1011,8 @@ fn parse_struct_decl<'a>(
     attributes: Vec<Meta<'a, TypeAttribute<'a>>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Type<'a>, CompileError> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("parse_struct_decl");
     let name = expect_ident(iter.next().unwrap())?.map(Into::into);
     let next = iter.next().unwrap();
     match &next.item {
@@ -1024,6 +1064,8 @@ fn parse_function<'a>(
     attributes: Vec<Meta<'a, FunctionAttribute<'a>>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Function<'a>, CompileError> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("parse_function");
     let mut func = Function::new(
         expect_ident(iter.next().unwrap())?.map(Into::into),
         at.clone(),

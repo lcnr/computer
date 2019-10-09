@@ -27,6 +27,8 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
         self,
         ctx: &mut ResolveIdentifiersContext<'a, '_>,
     ) -> Result<Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>>, CompileError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("resolve_identifiers");
         fn get_id<'b>(
             name: Meta<'b, Box<str>>,
             variable_lookup: &mut Vec<Vec<(Box<str>, VariableId)>>,

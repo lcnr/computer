@@ -25,6 +25,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
         self,
         ctx: &mut TypeConstraintsContext<'a, 'b, 'c>,
     ) -> Result<Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>>, CompileError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("type_constraints");
         Ok(match self {
             Expression::Block((), meta, v) => {
                 let id = ctx.solver.add_unbound(meta.simplify());
@@ -333,6 +335,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
         types: &TSlice<TypeId, Type<'a, TypeId>>,
         type_result: &TSlice<solver::EntityId, TypeId>,
     ) -> Result<Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>>, CompileError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("insert_types");
         Ok(match self {
             Expression::Block(id, meta, v) => {
                 let ty = type_result[id];

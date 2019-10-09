@@ -1,8 +1,14 @@
+#[cfg(feature = "profiler")]
+#[macro_use]
+extern crate thread_profiler;
+
 use diagnostics::CompileError;
 
 use mir::Mir;
 
 pub fn compile_to_mir(src: &str, file: &str) -> Result<Mir, CompileError> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("compile_to_mir");
     let hir = parse::parse(src, file)?;
     let hir = hir.resolve_types()?;
     let hir = hir.resolve_identifiers()?;
@@ -17,6 +23,8 @@ pub fn compile_to_mir(src: &str, file: &str) -> Result<Mir, CompileError> {
 }
 
 pub fn core_optimizations(mir: &mut Mir) {
+    #[cfg(feature = "profiler")]
+    profile_scope!("core_optimizations");
     mir.unify_blocks();
     mir.validate();
     mir.remove_unused_steps();
@@ -26,11 +34,11 @@ pub fn core_optimizations(mir: &mut Mir) {
 }
 
 pub fn compile(src: &str, file: &str) -> Result<Mir, CompileError> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("compile");
     let mut mir = compile_to_mir(src, file)?;
     core_optimizations(&mut mir);
     mir.reduce_binops();
     mir.validate();
-    println!("{}", mir);
-    println!("steps: {}", mir.step_count());
     Ok(mir)
 }

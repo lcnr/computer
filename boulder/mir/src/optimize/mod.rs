@@ -11,6 +11,8 @@ use crate::{
 impl Mir {
     /// remove blocks where an input is unreachable
     pub fn kill_uninhabited(&mut self) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("Mir::kill_uninhabited");
         let types = &mut self.types;
 
         for func in self.functions.iter_mut() {
@@ -33,6 +35,8 @@ impl Mir {
     /// remove all `Action::Extend` which do not change the type
     /// this optimization is required for the `BoulderMirInterpreter` to work.
     pub fn remove_noop_extend(&mut self) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("Mir::remove_noop_extend");
         for func in self.functions.iter_mut() {
             for block in func.blocks.iter_mut() {
                 let mut i = StepId(0);
@@ -54,6 +58,8 @@ impl Mir {
     /// unify blocks if they are only found in sequence
     /// this simplifies future optimizations
     pub fn unify_blocks(&mut self) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("Mir::unify_blocks");
         for func in self.functions.iter_mut() {
             let mut used = TBitSet::new();
             used.add(BlockId::from(0));
@@ -104,6 +110,8 @@ impl Mir {
     }
 
     pub fn remove_unused_blocks(&mut self) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("Mir::remove_unused_blocks");
         for func in self.functions.iter_mut() {
             let mut used: TBitSet<_> = iter::once(BlockId::from(0)).collect();
             let mut new_used = TBitSet::new();
@@ -126,6 +134,8 @@ impl Mir {
     /// removes all steps and inputs of blocks which are not needed in the `terminator`
     /// of said block, this is done repeatedly until no input changed after one round
     pub fn remove_unused_steps(&mut self) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("Mir::remove_unused_steps");
         for func in self.functions.iter_mut() {
             let mut changing = true;
             while changing {
@@ -166,6 +176,8 @@ impl Mir {
 
     /// removes all blocks which only steps are `LoadInput`
     pub fn remove_redirects(&mut self) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("Mir::remove_redirects");
         fn match_reduce(
             func: &mut Function,
             arms: &mut Vec<(TypeId, BlockId, Vec<Option<StepId>>)>,
@@ -286,6 +298,8 @@ impl Function {
     }
 
     pub fn split_block(&mut self, block: BlockId, after: StepId) -> BlockId {
+        #[cfg(feature = "profiler")]
+        profile_scope!("Function::split_block");
         let mut used = TBitSet::new();
         for step in self[block].steps[after..].iter().skip(1) {
             step.used_steps(&mut used);
@@ -318,6 +332,8 @@ impl Function {
     }
 
     pub fn remove_block_input(&mut self, id: BlockId, input: usize) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("Function::remove_block_input");
         self[id].input.remove(input);
         for step in (0..self[id].steps.len()).map(StepId::from).rev() {
             if let &mut Action::LoadInput(ref mut i) = &mut self[id][step].action {

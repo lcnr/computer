@@ -5,6 +5,10 @@ authors = ["lcnr/Bastian Kauschke <bastian_kauschke@hotmail.de>"]
 edition = "2018"
 
 [dependencies]
+thread_profiler = { version = "0.3.0", optional = true }
+
+[features]
+profiler = ["thread_profiler"]
 
 [dev-dependencies]
 walkdir = "2.2.9"

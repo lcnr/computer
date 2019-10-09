@@ -23,6 +23,8 @@ impl<'a> BoulderMirInterpreter<'a> {
         op: UnaryOperation,
         expr: StepId,
     ) -> Result<Object, InterpretError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("execute_unary_operation");
         match op {
             UnaryOperation::Invert => match &steps[expr] {
                 &Object::U8(x) => Ok(Object::U8(!x)),
@@ -50,6 +52,8 @@ impl<'a> BoulderMirInterpreter<'a> {
         a: StepId,
         b: StepId,
     ) -> Result<Object, InterpretError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("execute_binop");
         let invalid_args = InterpretError::InvalidBinopArguments(
             function,
             block,

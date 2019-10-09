@@ -1,3 +1,7 @@
+#[cfg(feature = "profiler")]
+#[macro_use]
+extern crate thread_profiler;
+
 use tindex::TVec;
 
 use shared_id::{FunctionId, TypeId};
@@ -30,12 +34,18 @@ impl<'a> BoulderMirInterpreter<'a> {
         id: FunctionId,
         args: &[Object],
     ) -> Result<Object, InterpretError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("execute_function");
         let mut args_storage: Vec<_>;
         let mut args = args;
         let mut curr_block = BlockId::from(0);
         'outer: loop {
+            #[cfg(feature = "profiler")]
+            profile_scope!("execute_block");
             let mut steps = TVec::with_capacity(self.mir[id][curr_block].steps.len());
             for (step_id, step) in self.mir[id][curr_block].steps.iter().enumerate() {
+                #[cfg(feature = "profiler")]
+                profile_scope!("execute_step");
                 let step_id = StepId::from(step_id);
                 steps.push(match &step.action {
                     &Action::LoadInput(idx) => {

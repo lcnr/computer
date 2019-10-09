@@ -17,6 +17,8 @@ impl Drop for PanicDisplay<'_> {
 impl Mir {
     /// check if the MIR is well formed
     pub fn validate(&self) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("validate");
         for ty in 0..self.types.len() {
             self.validate_type(ty.into());
         }
@@ -31,6 +33,8 @@ impl Mir {
     }
 
     pub fn validate_function(&self, func: FunctionId) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("validate_function");
         let hir_panic = PanicDisplay("\n", self);
         let func_panic = func.as_index();
         let func_panic = PanicDisplay("function: ", &func_panic);

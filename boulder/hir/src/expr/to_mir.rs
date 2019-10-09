@@ -61,6 +61,8 @@ pub struct ToMirContext<'a> {
 
 impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
     pub fn to_mir<'b>(self, ctx: &mut ToMirContext<'b>) -> Result<mir::StepId, CompileError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("to_mir");
         use mir::{Action, Object, Terminator};
         match self {
             Expression::Block(ty, _scope, mut v) => Ok(if let Some(last) = v.pop() {

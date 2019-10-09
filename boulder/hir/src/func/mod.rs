@@ -123,6 +123,8 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
         Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<UnresolvedType<'a>>>,
         CompileError,
     > {
+        #[cfg(feature = "profiler")]
+        profile_scope!("resolve_identifiers");
         let mut variable_lookup = Vec::new();
         variable_lookup.push(
             self.variables
@@ -163,6 +165,8 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
         types: &mut TVec<TypeId, Type<'a, TypeId>>,
         modules: &mut Module,
     ) -> Result<FunctionDefinition<'a, TypeId>, CompileError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("definition");
         Ok(FunctionDefinition {
             name: self.name.simplify(),
             ty: ty::resolve(
@@ -194,6 +198,8 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
         modules: &mut Module<'a>,
     ) -> Result<Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId>, CompileError>
     {
+        #[cfg(feature = "profiler")]
+        profile_scope!("resolve_expr_types");
         let ret_ty = ty::resolve(
             &self.at,
             self.ret.clone().map(|t| t.unwrap()),
@@ -261,6 +267,8 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
 
 impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
     pub fn definition(&self) -> FunctionDefinition<'a, TypeId> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("definition");
         FunctionDefinition {
             name: self.name.simplify(),
             ty: self.ret.clone(),
@@ -273,6 +281,8 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
     }
 
     fn create_function_context(&mut self) -> Result<mir::ctx::FunctionContext, CompileError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("create_function_context");
         FunctionContextBuilder::build(self)
     }
 
@@ -281,6 +291,8 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
         types: &TSlice<TypeId, mir::Type>,
         function_definitions: &TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
     ) -> Result<mir::Function, CompileError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("to_mir");
         let function_context = self.create_function_context()?;
 
         let mut func = mir::Function::new(self.name.item, function_context, self.ret.item);

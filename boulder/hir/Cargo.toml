@@ -10,6 +10,10 @@ shared_id = { path = "../shared_id"}
 solver = { path = "../solver" }
 diagnostics = { path = "../diagnostics" }
 mir = { path = "../mir" }
+thread_profiler = { version = "0.3.0", optional = true }
+
+[features]
+profiler = ["thread_profiler", "shared_id/profiler", "solver/profiler", "diagnostics/profiler"]
 
 [lib]
 test = false

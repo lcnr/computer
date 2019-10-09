@@ -1,3 +1,6 @@
+#[cfg(feature = "profiler")]
+extern crate thread_profiler;
+
 extern crate boulder;
 
 use std::env;
@@ -7,6 +10,8 @@ use std::io::{Read, Write};
 const USAGE: &str = "usage: boulder <input file> [<output file>]";
 
 pub fn main() {
+    #[cfg(feature = "thread_profiler")]
+    thread_profiler::register_thread_with_profiler();
     let mut args = env::args().skip(1);
     if let Some(ref input) = args.next() {
         let output = args.next();
@@ -42,5 +47,15 @@ pub fn main() {
         }
     } else {
         eprintln!("{}", USAGE);
+    }
+
+    #[cfg(feature = "thread_profiler")]
+    {
+        let output_file = format!("{}/{}", env!("CARGO_MANIFEST_DIR"), "main.profile.json");
+        println!(
+            "Writing profile to {}, try loading this using chome 'about:tracing'",
+            output_file
+        );
+        thread_profiler::write_profile(output_file.as_str());
     }
 }

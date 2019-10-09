@@ -61,6 +61,8 @@ impl EntityState {
         types: &mut TVec<TypeId, Type<TypeId>>,
         modules: &mut Module<'_>,
     ) -> bool {
+        #[cfg(feature = "profiler")]
+        profile_scope!("try_subtype");
         match &self {
             EntityState::Unbound => {
                 *self = EntityState::Restricted {
@@ -111,6 +113,8 @@ impl EntityState {
         types: &mut TVec<TypeId, Type<TypeId>>,
         modules: &mut Module<'_>,
     ) -> bool {
+        #[cfg(feature = "profiler")]
+        profile_scope!("try_supertype");
         match &self {
             EntityState::Unbound => {
                 *self = EntityState::Restricted {
@@ -161,6 +165,8 @@ impl EntityState {
     }
 
     pub fn try_bind(&mut self, ty: TBitSet<TypeId>, types: &TSlice<TypeId, Type<TypeId>>) -> bool {
+        #[cfg(feature = "profiler")]
+        profile_scope!("try_bind");
         match self {
             state @ EntityState::Unbound => {
                 *state = EntityState::Bound(ty);
@@ -243,6 +249,8 @@ pub struct TypeSolver<'a, 'b> {
 
 impl<'a, 'b> TypeSolver<'a, 'b> {
     pub fn new(types: &'b mut TVec<TypeId, Type<'a, TypeId>>, modules: &'b mut Module<'a>) -> Self {
+        #[cfg(feature = "profiler")]
+        profile_scope!("TypeSolver::new");
         let empty = EMPTY_TYPE_ID;
         let integers = types
             .iter()
@@ -459,6 +467,8 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
     }
 
     pub fn solve(mut self) -> Result<TVec<EntityId, TypeId>, CompileError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("TypeSolver::solver");
         match self.solver.solve() {
             Ok(solution) => Ok(solution),
             Err(SolveError::UnsolvedEntities(entities)) => {

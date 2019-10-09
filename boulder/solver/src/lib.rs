@@ -1,3 +1,7 @@
+#[cfg(feature = "profiler")]
+#[macro_use]
+extern crate thread_profiler;
+
 use std::fmt;
 
 use tindex::{TIndex, TVec};
@@ -130,6 +134,8 @@ impl<C: fmt::Debug, T: EntityState + Eq + Clone + std::fmt::Debug, E> Constraint
     }
 
     fn apply_entity(&mut self, id: EntityId) -> Result<(), E> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("apply_entity");
         for rule in self.rules[id].iter() {
             match rule {
                 &Rule::ForwardProduction(prod, actual_origin, target_id) => {
@@ -183,6 +189,8 @@ impl<C: fmt::Debug, T: EntityState + Eq + Clone + std::fmt::Debug, E> Constraint
     /// finds a solution for the current set of constraints,
     /// returning an error in case there are either multiple or none.
     pub fn solve(&mut self) -> Result<TVec<EntityId, T::Result>, SolveError<T, E>> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("solve");
         /* */// println!("{:?},\n{:?}", self.entities, self.productions);
         let mut all_ids: Box<[EntityId]> = (0..self.entities.len())
             .map(|v| EntityId(v))
