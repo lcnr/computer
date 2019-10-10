@@ -109,7 +109,7 @@ impl<'a> Display for Mir<'a> {
 
         for (i, func) in self.functions.iter().enumerate() {
             let func_id: FunctionId = i.into();
-            writeln!(f, "fn {}[{}]:", func.name, func_id)?;
+            writeln!(f, "fn {}[{}] -> {}:", func.name, func_id, func.ret)?;
             for (i, block) in func.blocks.iter().enumerate() {
                 write!(f, "  block ~{}(", i)?;
                 if let Some((last, start)) = block.input.split_last() {
@@ -127,7 +127,7 @@ impl<'a> Display for Mir<'a> {
                         Action::LoadConstant(obj) => writeln!(f, "load {}", obj),
                         Action::LoadInput(i) => writeln!(f, "load !{}", i),
                         Action::InitializeStruct(fields) => {
-                            write!(f, "init {}(", step.ty)?;
+                            write!(f, "init struct(")?;
                             if let Some((last, start)) = fields.split_last() {
                                 for arg in start.iter() {
                                     write!(f, "${}, ", arg.0)?;
@@ -137,7 +137,7 @@ impl<'a> Display for Mir<'a> {
                             writeln!(f, ")")
                         }
                         Action::InitializeUnion(id, field) => {
-                            writeln!(f, "init {}(.{}: ${})", step.ty, field.as_index(), id.0)
+                            writeln!(f, "init union(.{}: ${})", field.as_index(), id.0)
                         }
                         Action::CallFunction(i, args) => {
                             write!(f, "call {}(", i)?;

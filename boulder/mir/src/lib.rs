@@ -2,6 +2,9 @@
 #[macro_use]
 extern crate thread_profiler;
 
+#[macro_use]
+extern crate tindex;
+
 use std::{
     convert::identity,
     ops::{Index, IndexMut},
@@ -37,6 +40,22 @@ pub enum Type {
 }
 
 impl Type {
+    pub fn expect_sum(&self) -> &TBitSet<TypeId> {
+        if let &Self::Sum(ref options) = self {
+            options
+        } else {
+            panic!("expected sum, found {:?}", self)
+        }
+    }
+
+    pub fn fields(&self) -> &TSlice<FieldId, TypeId> {
+        if let &Self::Struct(ref fields) | &Self::Union(ref fields) = self {
+            fields
+        } else {
+            (&[] as &[_]).into()
+        }
+    }
+
     pub fn is_subtype(ty: TypeId, of: TypeId, types: &TSlice<TypeId, Type>) -> bool {
         if ty == of {
             true
@@ -241,6 +260,14 @@ impl IndexMut<StepId> for Block {
 }
 
 impl Block {
+    pub fn new() -> Self {
+        Self {
+            input: Vec::new(),
+            steps: TVec::new(),
+            terminator: Terminator::invalid(),
+        }
+    }
+
     pub fn add_step(&mut self, ty: TypeId, action: Action) -> StepId {
         let step = Step::new(ty, action);
         self.steps.push(step)
@@ -250,16 +277,6 @@ impl Block {
         let id = self.add_step(ty, Action::LoadInput(self.input.len()));
         self.input.push(ty);
         id
-    }
-}
-
-impl Block {
-    pub fn new() -> Self {
-        Self {
-            input: Vec::new(),
-            steps: TVec::new(),
-            terminator: Terminator::invalid(),
-        }
     }
 
     pub fn add_terminator(&mut self, terminator: Terminator) {

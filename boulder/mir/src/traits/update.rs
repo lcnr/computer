@@ -1,4 +1,8 @@
-use crate::{Action, Block, Step, StepId, Terminator};
+use tindex::TIndex;
+
+use shared_id::TypeId;
+
+use crate::{Action, Block, Function, Step, StepId, Terminator};
 
 pub trait UpdateStepIds {
     fn update_step_ids(&mut self, f: &mut dyn FnMut(&mut StepId));
@@ -19,10 +23,6 @@ pub trait UpdateStepIds {
             }
         })
     }
-}
-
-impl UpdateStepIds for () {
-    fn update_step_ids(&mut self, _: &mut dyn FnMut(&mut StepId)) {}
 }
 
 impl UpdateStepIds for Step {
@@ -86,5 +86,83 @@ impl UpdateStepIds for Block {
         }
 
         self.terminator.update_step_ids(f)
+    }
+}
+
+pub trait UpdateTypeIds {
+    fn update_type_ids(&mut self, f: &mut dyn FnMut(&mut TypeId));
+
+    /// shift all step ids for which the condition `self >= after` holds
+    fn shift_type_ids(&mut self, after: TypeId, by: isize) {
+        self.update_type_ids(&mut |id| {
+            if *id >= after {
+                *id = ((id.as_index() as isize + by) as usize).into();
+            }
+        });
+    }
+
+    fn replace_type(&mut self, ty: TypeId, with: TypeId) {
+        self.update_type_ids(&mut |id| {
+            if *id == ty {
+                *id = with;
+            }
+        })
+    }
+}
+
+impl UpdateTypeIds for Step {
+    fn update_type_ids(&mut self, f: &mut dyn FnMut(&mut TypeId)) {
+        f(&mut self.ty);
+        self.action.update_type_ids(f);
+    }
+}
+
+impl UpdateTypeIds for Action {
+    fn update_type_ids(&mut self, _f: &mut dyn FnMut(&mut TypeId)) {
+        match self {
+            Action::UnaryOperation(_, _)
+            | Action::Binop(_, _, _)
+            | Action::Extend(_)
+            | Action::StructFieldAccess(_, _)
+            | Action::UnionFieldAccess(_, _)
+            | Action::InitializeUnion(_, _)
+            | Action::InitializeStruct(_)
+            | Action::CallFunction(_, _)
+            | Action::LoadConstant(_)
+            | Action::LoadInput(_) => (),
+        }
+    }
+}
+
+impl UpdateTypeIds for Terminator {
+    fn update_type_ids(&mut self, f: &mut dyn FnMut(&mut TypeId)) {
+        match self {
+            Terminator::Goto(_, _) => (),
+            Terminator::Match(_, arms) => {
+                for &mut (ref mut ty, _, _) in arms.iter_mut() {
+                    f(ty)
+                }
+            }
+        }
+    }
+}
+
+impl UpdateTypeIds for Block {
+    fn update_type_ids(&mut self, f: &mut dyn FnMut(&mut TypeId)) {
+        for step in self.steps.iter_mut() {
+            step.update_type_ids(f);
+        }
+
+        self.terminator.update_type_ids(f)
+    }
+}
+
+impl<'a> UpdateTypeIds for Function<'a> {
+    fn update_type_ids(&mut self, f: &mut dyn FnMut(&mut TypeId)) {
+        for block in self.blocks.iter_mut() {
+            block.update_type_ids(f);
+        }
+
+        f(&mut self.ret);
     }
 }

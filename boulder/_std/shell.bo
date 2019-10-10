@@ -1,0 +1,45 @@
+@lang_item(div32)
+fn divide32(a: u32, b: u32) -> u32 {
+    a
+}
+
+@lang_item(div16)
+fn divide16(a: u16, b: u16) -> u16 {
+    a
+}
+
+@lang_item(div8)
+fn divide8(a: u8, b: u8) -> u8 {
+    a
+}
+
+@lang_item(rem32)
+fn remainder32(a: u32, b: u32) -> u32 {
+    a
+}
+
+
+@lang_item(rem16)
+fn remainder16(a: u16, b: u16) -> u16 {
+    a
+}
+
+@lang_item(rem8)
+fn remainder8(a: u8, b: u8) -> u8 {
+    a
+}
+
+@lang_item(mul32)
+fn multiply32(a: u32, b: u32) -> u32 {
+    a
+}
+
+@lang_item(mul16)
+fn multiply16(a: u16, b: u16) -> u16 {
+    a
+}
+
+@lang_item(mul8)
+fn multiply8(a: u8, b: u8) -> u8 {
+    a
+}

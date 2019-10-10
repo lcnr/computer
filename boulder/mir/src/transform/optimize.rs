@@ -151,7 +151,8 @@ impl<'a> Mir<'a> {
                     while new_used != used {
                         for step in used.iter().rev() {
                             new_used.add(step);
-                            func[block].steps[step].used_steps(&mut new_used);
+                            let block = &mut func[block];
+                            block.steps[step].used_steps(&mut new_used);
                         }
                         mem::swap(&mut used, &mut new_used);
                     }
@@ -228,7 +229,6 @@ impl<'a> Mir<'a> {
             while changed {
                 changed = false;
                 for i in func.blocks.index_iter() {
-                    println!("{:?}, {:?}", i, func[i].terminator);
                     match &mut func[i].terminator {
                         &mut Terminator::Goto(Some(target), ref mut steps) => {
                             if redirects.get(target) {

@@ -124,45 +124,56 @@ fn compile_run() -> Result<(), TestFailure> {
             }));
 
             let s = entry.path().to_string_lossy();
-            let mir = match panic::catch_unwind(AssertUnwindSafe(|| {
-                boulder::compile_to_mir(&ctx, &content, &s)
+            match panic::catch_unwind(AssertUnwindSafe(|| {
+                let mir = boulder::compile_to_mir(&ctx, &content, &s);
+                if let Ok(mut mir) = mir {
+                    #[cfg(feature = "profiler")]
+                    profile_scope!("optimize_and_test");
+                    if should_run && !test_mir(&mir, entry.path().display()) {
+                        return false;
+                    }
+
+                    boulder::core_optimizations(&mut mir);
+                    if should_run && !test_mir(&mir, entry.path().display()) {
+                        return false;
+                    }
+
+                    mir.reduce_binops();
+                    mir.validate();
+                    if should_run && !test_mir(&mir, entry.path().display()) {
+                        return false;
+                    }
+
+                    mir.reduce_sum_types();
+                    mir.validate();
+                    if should_run && !test_mir(&mir, entry.path().display()) {
+                        return false;
+                    }
+                    true
+                } else {
+                    let output = output.lock().unwrap();
+                    eprintln!(
+                        "[boulder/{}]: failed to compile:\n{}\n",
+                        entry.path().display(),
+                        output
+                    );
+                    false
+                }
             })) {
-                Ok(c) => c,
+                Ok(true) => (),
+                Ok(false) => continue,
                 Err(_) => {
                     let output = output.lock().unwrap();
                     eprintln!(
-                        "[boulder/{}]: panic during compilation, output:\n{}",
+                        "[boulder/{}]: panic during testing compilation, compiler output:\n{}",
                         entry.path().display(),
                         output
                     );
                     continue;
                 }
             };
-            let output = output.lock().unwrap();
-            if let Ok(mut mir) = mir {
-                #[cfg(feature = "profiler")]
-                profile_scope!("optimize_and_test");
-                if should_run && !test_mir(&mir, entry.path().display()) {
-                    continue;
-                }
 
-                boulder::core_optimizations(&mut mir);
-                if should_run && !test_mir(&mir, entry.path().display()) {
-                    continue;
-                }
-
-                mir.reduce_binops();
-                if should_run && !test_mir(&mir, entry.path().display()) {
-                    continue;
-                }
-                success += 1;
-            } else {
-                eprintln!(
-                    "[boulder/{}]: failed to compile:\n{}\n",
-                    entry.path().display(),
-                    output
-                );
-            }
+            success += 1;
         }
     }
 

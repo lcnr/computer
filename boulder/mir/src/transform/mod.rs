@@ -2,7 +2,7 @@ use std::{cmp::Ordering, mem};
 
 use tindex::bitset::TBitSet;
 
-use crate::{traits::UpdateStepIds, Action, Block, BlockId, Function, StepId, Terminator};
+use crate::{traits::UpdateStepIds, Action, Block, BlockId, Function, Step, StepId, Terminator};
 
 mod optimize;
 mod sum_types;
@@ -99,7 +99,7 @@ impl<'a> Function<'a> {
 }
 
 impl Block {
-    /// Removes a step from this block, this leads to undefined behavior if the step is still referenced.
+    /// Removes a step from this block, this leads to unspecified behavior if the step is still referenced.
     ///
     /// Consider `replace_step` if the step is still needed in some action.
     pub fn remove_step(&mut self, id: StepId) {
@@ -109,6 +109,15 @@ impl Block {
         }
 
         self.terminator.shift_step_ids(id, -1);
+    }
+
+    pub fn insert_step(&mut self, id: StepId, step: Step) {
+        for c in self.steps[id..].iter_mut() {
+            c.action.shift_step_ids(id, 1);
+        }
+
+        self.steps.insert(id, step);
+        self.terminator.shift_step_ids(id, 1);
     }
 
     /// Remove `previous` from this block, updating all reference to this step to `new`
