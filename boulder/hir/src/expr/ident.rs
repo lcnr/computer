@@ -97,7 +97,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                             if let ty::Kind::Unit = ctx.types[ty].kind {
                                 Expression::Lit((), meta.replace(Literal::Unit(ty)))
                             } else {
-                                unimplemented!()
+                                CompileError::new(&meta, format_args!("Expected value, found type `{}`", ty))?
                             }
                         } else {
                             CompileError::new(

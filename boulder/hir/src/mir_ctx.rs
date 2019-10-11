@@ -124,7 +124,7 @@ impl<'a> ContextBuilder<'a> {
                         func.attributes.remove(i);
                     }
                     FunctionAttribute::TestFn => (),
-                    _ => unimplemented!(),
+                    FunctionAttribute::Str(_) => unreachable!(),
                 }
             }
         }
@@ -190,7 +190,9 @@ impl<'a> FunctionContextBuilder<'a> {
                         func.attributes.remove(i);
                     }
                 }
+                FunctionAttribute::Str(_) => unreachable!(),
                 _ => unimplemented!(),
+                
             }
         }
 

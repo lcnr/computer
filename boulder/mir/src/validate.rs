@@ -81,7 +81,7 @@ impl<'a> Mir<'a> {
                                 assert_eq!(block[v].ty, ty);
                             }
                         } else {
-                            unimplemented!("initialize struct with non struct type");
+                            unreachable!("initialize struct with non struct type");
                         }
                     }
                     &Action::InitializeUnion(id, field) => {

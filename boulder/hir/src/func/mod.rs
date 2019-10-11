@@ -108,7 +108,7 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
                 b,
             );
         } else {
-            unimplemented!("function with a non block as body type: {:?}", body);
+            unreachable!("function with a non block as body type: {:?}", body);
         }
         self.body = body;
     }

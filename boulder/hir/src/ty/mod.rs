@@ -112,7 +112,7 @@ pub fn resolve<'a>(
                 )?
             }
         }
-        UnresolvedType::Integer => unimplemented!("unresolvable type: {:?}", unresolved),
+        UnresolvedType::Integer => unreachable!("unresolvable type: {:?}", unresolved),
     })
 }
 
