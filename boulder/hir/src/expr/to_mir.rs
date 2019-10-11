@@ -112,9 +112,9 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 assert_eq!(ty, EMPTY_TYPE_ID);
                 ctx.func[*ctx.curr].add_step(ty, Action::LoadConstant(Object::Unit))
             }),
-            Expression::Variable(ty, var) => {
+            Expression::Variable(_, var) => {
                 if let Some(step) = ctx.var_lookup[var.item] {
-                    Ok(ctx.func[*ctx.curr].add_step(ty, Action::Extend(step)))
+                    Ok(step)
                 } else {
                     let span = var.span_str();
                     CompileError::new(
@@ -485,7 +485,10 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
 
                 Ok(step)
             }
-            Expression::TypeRestriction(_, ()) => unreachable!("type restriction after type check"),
+            Expression::TypeRestriction(expr, ty) => {
+                let expr = expr.to_mir(ctx)?;
+                Ok(ctx.func[*ctx.curr].add_step(ty, Action::Extend(expr)))
+            },
         }
     }
 }

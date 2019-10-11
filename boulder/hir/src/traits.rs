@@ -57,7 +57,7 @@ pub struct ResolvingTypes<'a>(PhantomData<&'a str>);
 impl<'a> TypeState for ResolvingTypes<'a> {
     type Type = solver::EntityId;
     type Field = Meta<'a, &'a str>;
-    type Restriction = ();
+    type Restriction = solver::EntityId;
 }
 
 #[derive(Debug, Clone)]
@@ -66,5 +66,5 @@ pub struct ResolvedTypes<'a>(PhantomData<&'a str>);
 impl<'a> TypeState for ResolvedTypes<'a> {
     type Type = TypeId;
     type Field = Meta<'a, FieldId>;
-    type Restriction = ();
+    type Restriction = TypeId;
 }

@@ -271,7 +271,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 )
             }
             Expression::TypeRestriction(expr, ty) => {
-                let mut expr = expr.type_constraints(ctx)?;
+                let expr = expr.type_constraints(ctx)?;
                 let meta = ty.simplify();
                 let expected = if let UnresolvedType::Integer = &ty.item {
                     ctx.solver.add_integer(meta)
@@ -282,8 +282,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     ctx.solver.add_typed(ty.item, meta)
                 };
                 ctx.solver.add_extension(expr.id(), expected);
-                *expr.id_mut() = expected;
-                expr
+                Expression::TypeRestriction(Box::new(expr), expected)
             }
         })
     }
@@ -304,29 +303,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
             | &Expression::FieldAccess(id, _, _)
             | &Expression::Match(id, _, _, _)
             | &Expression::Loop(id, _, _)
-            | &Expression::Break(id, _, _) => id,
-            &Expression::TypeRestriction(_, ()) => {
-                unreachable!("type restriction after type check")
-            }
-        }
-    }
-
-    pub fn id_mut(&mut self) -> &mut solver::EntityId {
-        match self {
-            Expression::Block(id, _, _)
-            | Expression::Variable(id, _)
-            | Expression::Lit(id, _)
-            | Expression::UnaryOperation(id, _, _)
-            | Expression::Binop(id, _, _, _)
-            | Expression::Statement(id, _)
-            | Expression::Assignment(id, _, _)
-            | Expression::InitializeStruct(id, _, _)
-            | Expression::FunctionCall(id, _, _)
-            | Expression::FieldAccess(id, _, _)
-            | Expression::Match(id, _, _, _)
-            | Expression::Loop(id, _, _)
-            | Expression::Break(id, _, _) => id,
-            Expression::TypeRestriction(_, ()) => unreachable!("type restriction after type check"),
+            | &Expression::Break(id, _, _)
+            | &Expression::TypeRestriction(_, id) => id,
         }
     }
 
@@ -457,7 +435,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
                 scope_id,
                 Box::new(expr.insert_types(types, type_result)?),
             ),
-            Expression::TypeRestriction(expr, _) => expr.insert_types(types, type_result)?,
+            Expression::TypeRestriction(expr, id) => Expression::TypeRestriction(Box::new(expr.insert_types(types, type_result)?), type_result[id]),
         })
     }
 }
@@ -477,10 +455,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
             | &Expression::FieldAccess(ty, _, _)
             | &Expression::Match(ty, _, _, _)
             | &Expression::Loop(ty, _, _)
-            | &Expression::Break(ty, _, _) => ty,
-            &Expression::TypeRestriction(_, ()) => {
-                unreachable!("type restriction after type check")
-            }
+            | &Expression::Break(ty, _, _)
+            | &Expression::TypeRestriction(_, ty) => ty
         }
     }
 }
