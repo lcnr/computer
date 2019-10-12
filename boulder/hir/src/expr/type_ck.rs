@@ -435,7 +435,10 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
                 scope_id,
                 Box::new(expr.insert_types(types, type_result)?),
             ),
-            Expression::TypeRestriction(expr, id) => Expression::TypeRestriction(Box::new(expr.insert_types(types, type_result)?), type_result[id]),
+            Expression::TypeRestriction(expr, id) => Expression::TypeRestriction(
+                Box::new(expr.insert_types(types, type_result)?),
+                type_result[id],
+            ),
         })
     }
 }
@@ -456,7 +459,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
             | &Expression::Match(ty, _, _, _)
             | &Expression::Loop(ty, _, _)
             | &Expression::Break(ty, _, _)
-            | &Expression::TypeRestriction(_, ty) => ty
+            | &Expression::TypeRestriction(_, ty) => ty,
         }
     }
 }

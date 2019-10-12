@@ -65,7 +65,10 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                         if let ty::Kind::Unit = ctx.types[ty].kind {
                             Expression::Lit((), name.replace(Literal::Unit(ty)))
                         } else {
-                            CompileError::new(&name, format_args!("Expected value, found type `{}`", name.item))?
+                            CompileError::new(
+                                &name,
+                                format_args!("Expected value, found type `{}`", name.item),
+                            )?
                         }
                     } else {
                         CompileError::new(
@@ -93,16 +96,20 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 match lit.item {
                     Literal::Integer(v) => Expression::Lit((), meta.replace(Literal::Integer(v))),
                     Literal::Unit(ty) => {
-                        if let Some(ty) = ctx.modules.get_type(ctx.at, &ty) {
-                            if let ty::Kind::Unit = ctx.types[ty].kind {
-                                Expression::Lit((), meta.replace(Literal::Unit(ty)))
-                            } else {
-                                CompileError::new(&meta, format_args!("Expected value, found type `{}`", ty))?
-                            }
-                        } else {
+                        let ty = ctx.modules.get_type(ctx.at, &ty).ok_or_else(|| {
                             CompileError::new(
                                 &meta,
                                 format_args!("Cannot find value `{}` in this scope", ty),
+                            )
+                            .unwrap()
+                        })?;
+
+                        if let ty::Kind::Unit = ctx.types[ty].kind {
+                            Expression::Lit((), meta.replace(Literal::Unit(ty)))
+                        } else {
+                            CompileError::new(
+                                &meta,
+                                format_args!("Expected value, found type `{}`", ty),
                             )?
                         }
                     }
@@ -151,36 +158,36 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 Expression::Statement((), Box::new(expr.resolve_identifiers(ctx)?))
             }
             Expression::InitializeStruct((), name, fields) => {
-                if let Some(ty) = ctx.modules.get_type(ctx.at, &name.item) {
-                    if let ty::Kind::Struct(_) | ty::Kind::Union(_) = ctx.types[ty].kind {
-                        let fields = fields
-                            .into_iter()
-                            .map(|(name, expr)| Ok((name, expr.resolve_identifiers(ctx)?)))
-                            .collect::<Result<Vec<_>, _>>()?;
-                        Expression::InitializeStruct((), name.replace(ty), fields)
-                    } else {
-                        let kind_str = match ctx.types[ty].kind {
-                            ty::Kind::U8
-                            | ty::Kind::U16
-                            | ty::Kind::U32
-                            | ty::Kind::Uninhabited => "a builtin type",
-                            ty::Kind::Unit => "a unit type",
-                            ty::Kind::Sum(_) => "a sum type",
-                            ty::Kind::Struct(_) | ty::Kind::Union(_) => unreachable!(),
-                        };
-
-                        CompileError::build(
-                            &name,
-                            format_args!("Expected struct or union type, found `{}`", name.item),
-                        )
-                        .with_help(format_args!("`{}` is {}", name.item, kind_str))
-                        .build()?
-                    }
-                } else {
+                let ty = ctx.modules.get_type(ctx.at, &name.item).ok_or_else(|| {
                     CompileError::new(
                         &name,
                         format_args!("Cannot find the type `{}` in this scope", name.item),
-                    )?
+                    )
+                    .unwrap()
+                })?;
+
+                if let ty::Kind::Struct(_) | ty::Kind::Union(_) = ctx.types[ty].kind {
+                    let fields = fields
+                        .into_iter()
+                        .map(|(name, expr)| Ok((name, expr.resolve_identifiers(ctx)?)))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    Expression::InitializeStruct((), name.replace(ty), fields)
+                } else {
+                    let kind_str = match ctx.types[ty].kind {
+                        ty::Kind::U8 | ty::Kind::U16 | ty::Kind::U32 | ty::Kind::Uninhabited => {
+                            "a builtin type"
+                        }
+                        ty::Kind::Unit => "a unit type",
+                        ty::Kind::Sum(_) => "a sum type",
+                        ty::Kind::Struct(_) | ty::Kind::Union(_) => unreachable!(),
+                    };
+
+                    CompileError::build(
+                        &name,
+                        format_args!("Expected struct or union type, found `{}`", name.item),
+                    )
+                    .with_help(format_args!("`{}` is {}", name.item, kind_str))
+                    .build()?
                 }
             }
             Expression::FunctionCall((), name, args) => {

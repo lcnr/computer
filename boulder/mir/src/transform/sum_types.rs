@@ -5,8 +5,7 @@ use tindex::{TSlice, TVec};
 use shared_id::{FieldId, TypeId};
 
 use crate::{
-    traits::UpdateStepIds, Action, BlockId, Function, Mir, Object, Step, StepId, Terminator,
-    Type,
+    traits::UpdateStepIds, Action, BlockId, Function, Mir, Object, Step, StepId, Terminator, Type,
 };
 
 impl<'a> Mir<'a> {

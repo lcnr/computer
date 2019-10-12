@@ -488,7 +488,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
             Expression::TypeRestriction(expr, ty) => {
                 let expr = expr.to_mir(ctx)?;
                 Ok(ctx.func[*ctx.curr].add_step(ty, Action::Extend(expr)))
-            },
+            }
         }
     }
 }

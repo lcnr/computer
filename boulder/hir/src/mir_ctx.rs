@@ -192,7 +192,6 @@ impl<'a> FunctionContextBuilder<'a> {
                 }
                 FunctionAttribute::Str(_) => unreachable!(),
                 _ => unimplemented!(),
-                
             }
         }
 
