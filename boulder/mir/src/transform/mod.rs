@@ -111,13 +111,14 @@ impl Block {
         self.terminator.shift_step_ids(id, -1);
     }
 
-    pub fn insert_step(&mut self, id: StepId, step: Step) {
+    pub fn insert_step(&mut self, id: StepId, step: Step) -> StepId {
         for c in self.steps[id..].iter_mut() {
             c.action.shift_step_ids(id, 1);
         }
 
         self.steps.insert(id, step);
         self.terminator.shift_step_ids(id, 1);
+        StepId(id.0 + 1)
     }
 
     /// Remove `previous` from this block, updating all reference to this step to `new`

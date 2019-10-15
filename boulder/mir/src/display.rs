@@ -95,7 +95,8 @@ impl Display for Object {
                 write!(f, ")")
             }
             Object::Variant(id, obj) => write!(f, "{}: {}", id, obj),
-            Object::Field(id, obj) => write!(f, ".{}: {}", id.as_index(), obj),
+            Object::Field(id, obj) => write!(f, "union.{}: {}", id.as_index(), obj),
+            Object::Undefined => write!(f, "undef"),
         }
     }
 }

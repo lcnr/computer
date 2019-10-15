@@ -65,7 +65,7 @@ impl<'a> Mir<'a> {
         }
 
         for func in self.functions.iter_mut() {
-            func.reduce_sum_types(&self.types, &tags, &replacements);
+            func.reduce_sum_types(&mut self.types, &tags, &replacements);
         }
     }
 }
@@ -73,7 +73,7 @@ impl<'a> Mir<'a> {
 impl<'a> Function<'a> {
     pub fn reduce_sum_types(
         &mut self,
-        types: &TSlice<TypeId, Type>,
+        types: &mut TVec<TypeId, Type>,
         tags: &[TypeId],
         replacements: &TSlice<TypeId, Option<TypeId>>,
     ) {
@@ -161,14 +161,87 @@ impl<'a> Function<'a> {
                         }
                         &Action::Extend(target) => {
                             let target_ty = self.blocks[block_id][target].ty;
+                            let union_ty = types[ty].fields().last().copied().unwrap();
+                            let sum_ty = types[ty].fields().first().copied().unwrap();
                             if let Type::Sum(_) = types[target_ty] {
                                 unimplemented!("extend sum -> sum");
                             } else if replacements.contains(&Some(target_ty)) {
-                                unimplemented!("extend sum -> sum");
-                            }
-                            {
-                                let union_ty = types[ty].fields().last().copied().unwrap();
-                                let sum_ty = types[ty].fields().first().copied().unwrap();
+                                let target_union_ty =
+                                    types[target_ty].fields().last().copied().unwrap();
+                                let target_sum_ty =
+                                    types[target_ty].fields().first().copied().unwrap();
+
+                                let target_sum = step_id;
+                                step_id = self.blocks[block_id].insert_step(
+                                    step_id,
+                                    Step::new(
+                                        target_sum_ty,
+                                        Action::StructFieldAccess(target, FieldId::from(0)),
+                                    ),
+                                );
+
+                                let extended_sum = step_id;
+                                step_id = self.blocks[block_id].insert_step(
+                                    step_id,
+                                    Step::new(sum_ty, Action::Extend(target_sum)),
+                                );
+
+                                let arr =
+                                    [union_ty.min(target_union_ty), union_ty.max(target_union_ty)];
+                                let union_union_ty = if let Some(ty) = types
+                                    .iter()
+                                    .position(|ty| ty.is_union() && ty.fields().to_slice() == &arr)
+                                {
+                                    TypeId::from(ty)
+                                } else {
+                                    let arr: &[TypeId] = &arr;
+                                    types.push(Type::Union(TVec::from(arr)))
+                                };
+
+                                let target_union = step_id;
+                                step_id = self.blocks[block_id].insert_step(
+                                    step_id,
+                                    Step::new(
+                                        target_union_ty,
+                                        Action::StructFieldAccess(target, FieldId::from(1)),
+                                    ),
+                                );
+
+                                let union_union = step_id;
+                                step_id = self.blocks[block_id].insert_step(
+                                    step_id,
+                                    Step::new(
+                                        union_union_ty,
+                                        Action::InitializeUnion(
+                                            target_union,
+                                            arr.iter()
+                                                .position(|&t| t == target_union_ty)
+                                                .map(FieldId::from)
+                                                .unwrap(),
+                                        ),
+                                    ),
+                                );
+
+                                let extended_union = step_id;
+                                step_id = self.blocks[block_id].insert_step(
+                                    step_id,
+                                    Step::new(
+                                        union_ty,
+                                        Action::UnionFieldAccess(
+                                            union_union,
+                                            arr.iter()
+                                                .position(|&t| t == union_ty)
+                                                .map(FieldId::from)
+                                                .unwrap(),
+                                        ),
+                                    ),
+                                );
+
+                                self.blocks[block_id].steps[step_id] = Step::new(
+                                    ty,
+                                    Action::InitializeStruct(tvec![extended_sum, extended_union]),
+                                );
+                            } else {
                                 let position = types[union_ty]
                                     .fields()
                                     .iter()

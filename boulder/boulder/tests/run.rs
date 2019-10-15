@@ -5,7 +5,6 @@ extern crate thread_profiler;
 extern crate boulder;
 
 use std::{
-    fmt,
     fs::File,
     io::{Error, ErrorKind, Read, Write},
     panic::{self, AssertUnwindSafe},
@@ -40,7 +39,7 @@ impl Write for OutputShim {
     }
 }
 
-fn test_mir(mir: &Mir, entry_path: impl fmt::Display) -> bool {
+fn test_mir(mir: &Mir, stage: &str) {
     #[cfg(feature = "profiler")]
     profile_scope!("test_mir");
     let mut bmi = mir_interpreter::BoulderMirInterpreter::new(mir);
@@ -58,35 +57,25 @@ fn test_mir(mir: &Mir, entry_path: impl fmt::Display) -> bool {
             Ok(Ok(obj)) => {
                 if let Object::Variant(TRUE_TYPE_ID, _) = &obj {
                 } else {
-                    eprintln!(
-                        "[boulder/{}]: unit test `{}` failed: {:?}",
-                        entry_path, test.name, obj
-                    );
-                    return false;
+                    panic!(
+                        "unit test `{}` failed at stage `{}`: {:?}",
+                        test.name, stage, obj
+                    )
                 }
             }
-            Ok(Err(err)) => {
-                eprintln!(
-                    "[boulder/{}]: interpreter during unit test `{}`: {:?}",
-                    entry_path, test.name, err
-                );
-                return false;
-            }
-            Err(_) => {
-                eprintln!(
-                    "[boulder/{}]: panic during unit test `{}`",
-                    entry_path, test.name
-                );
-                return false;
-            }
+            Ok(Err(err)) => panic!(
+                "interpreter during unit test `{}` at stage `{}`: {:?}",
+                test.name, stage, err
+            ),
+            Err(_) => panic!(
+                "panic during unit test `{}`  at stage `{}`",
+                test.name, stage
+            ),
         }
     }
 
     if check_count == 0 {
-        eprintln!("[boulder/{}]: did not check test any function", entry_path,);
-        false
-    } else {
-        true
+        panic!("did not check test any function at stage `{}`", stage)
     }
 }
 
@@ -129,39 +118,32 @@ fn compile_run() -> Result<(), TestFailure> {
                 if let Ok(mut mir) = mir {
                     #[cfg(feature = "profiler")]
                     profile_scope!("optimize_and_test");
-                    if should_run && !test_mir(&mir, entry.path().display()) {
-                        return false;
+                    if should_run {
+                        test_mir(&mir, "initial");
                     }
 
                     boulder::core_optimizations(&mut mir);
-                    if should_run && !test_mir(&mir, entry.path().display()) {
-                        return false;
+                    if should_run {
+                        test_mir(&mir, "core optimizations");
                     }
 
                     mir.reduce_binops();
                     mir.validate();
-                    if should_run && !test_mir(&mir, entry.path().display()) {
-                        return false;
+                    if should_run {
+                        test_mir(&mir, "reduced binops");
                     }
 
                     mir.reduce_sum_types();
                     mir.validate();
-                    if should_run && !test_mir(&mir, entry.path().display()) {
-                        return false;
+                    if should_run {
+                        test_mir(&mir, "reduced sum types");
                     }
-                    true
                 } else {
                     let output = output.lock().unwrap();
-                    eprintln!(
-                        "[boulder/{}]: failed to compile:\n{}\n",
-                        entry.path().display(),
-                        output
-                    );
-                    false
+                    panic!("failed to compile:\n{}\n", output)
                 }
             })) {
-                Ok(true) => (),
-                Ok(false) => continue,
+                Ok(()) => (),
                 Err(_) => {
                     let output = output.lock().unwrap();
                     eprintln!(

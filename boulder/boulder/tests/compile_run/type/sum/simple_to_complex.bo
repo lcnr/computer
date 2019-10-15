@@ -1,0 +1,13 @@
+@test
+fn test() -> Bool {
+    let x: Bool = True;
+    let y: Bool | u16 = 7;
+    if True {
+        y = x;
+    }: Empty;
+
+    match y {
+        a: True | False -> a,
+        _: u16 -> False,
+    }
+}

@@ -126,7 +126,13 @@ impl<'a> BoulderMirInterpreter<'a> {
                                     .iter()
                                     .map(|&id| {
                                         id.map_or_else(
-                                            || obj.as_ref().clone(),
+                                            || {
+                                                if let &Type::Sum(_) = &self.mir.types[arm_ty] {
+                                                    steps[expr].clone()
+                                                } else {
+                                                    obj.as_ref().clone()
+                                                }
+                                            },
                                             |id| steps[id].clone(),
                                         )
                                     })

@@ -56,6 +56,14 @@ impl Type {
         }
     }
 
+    pub fn is_union(&self) -> bool {
+        if let Self::Union(_) = self {
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn is_subtype(ty: TypeId, of: TypeId, types: &TSlice<TypeId, Type>) -> bool {
         if ty == of {
             true
@@ -80,6 +88,7 @@ pub enum Object {
     Struct(TVec<FieldId, Object>),
     Variant(TypeId, Box<Object>),
     Field(FieldId, Box<Object>),
+    Undefined,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
