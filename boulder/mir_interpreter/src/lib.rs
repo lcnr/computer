@@ -16,6 +16,7 @@ pub enum InterpretError {
     InvalidUnaryOperationArguments(FunctionId, BlockId, StepId, Object),
     InvalidBinopArguments(FunctionId, BlockId, StepId, Object, Object),
     InvalidUnionAccess(FunctionId, BlockId, StepId, Object),
+    InvalidReduce(FunctionId, BlockId, StepId, Object),
     UnresolvedMatch(FunctionId, BlockId, TypeId),
 }
 
@@ -79,7 +80,7 @@ impl<'a> BoulderMirInterpreter<'a> {
                                     steps[step].clone(),
                                 ));
                             } else {
-                                (**actual_field).clone()
+                                actual_field.as_ref().clone()
                             }
                         } else {
                             return Err(InterpretError::InvalidOperation(id, curr_block, step_id));
@@ -91,6 +92,39 @@ impl<'a> BoulderMirInterpreter<'a> {
                             self.mir[id][curr_block].steps[target].ty,
                             Box::new(obj.clone()),
                         ),
+                    },
+                    &Action::Reduce(target) => match &steps[target] {
+                        &Object::Variant(ty, ref content) => {
+                            if let Type::Sum(cases) = &self.mir.types[step.ty] {
+                                if cases.get(ty) {
+                                    Object::Variant(ty, content.clone())
+                                } else {
+                                    return Err(InterpretError::InvalidReduce(
+                                        id,
+                                        curr_block,
+                                        step_id,
+                                        steps[target].clone(),
+                                    ));
+                                }
+                            } else if step.ty == ty {
+                                content.as_ref().clone()
+                            } else {
+                                return Err(InterpretError::InvalidReduce(
+                                    id,
+                                    curr_block,
+                                    step_id,
+                                    steps[target].clone(),
+                                ));
+                            }
+                        }
+                        _ => {
+                            return Err(InterpretError::InvalidReduce(
+                                id,
+                                curr_block,
+                                step_id,
+                                steps[target].clone(),
+                            ))
+                        }
                     },
                     &Action::InitializeStruct(ref fields) => {
                         Object::Struct(fields.iter().map(|&f| steps[f].clone()).collect())

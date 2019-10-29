@@ -157,6 +157,7 @@ pub enum UnaryOperation {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     Extend(StepId),
+    Reduce(StepId),
     LoadInput(usize),
     LoadConstant(Object),
     InitializeStruct(TVec<FieldId, StepId>),
@@ -182,6 +183,7 @@ impl Step {
     pub fn used_steps(&self, used: &mut TBitSet<StepId>) {
         match &self.action {
             &Action::Extend(id)
+            | &Action::Reduce(id)
             | &Action::StructFieldAccess(id, _)
             | &Action::InitializeUnion(id, _)
             | &Action::UnionFieldAccess(id, _)

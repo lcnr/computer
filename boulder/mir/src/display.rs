@@ -125,6 +125,7 @@ impl<'a> Display for Mir<'a> {
                     write!(f, "    ${}: {} := ", i, step.ty)?;
                     match &step.action {
                         Action::Extend(id) => writeln!(f, "extend ${}", id.0),
+                        Action::Reduce(id) => writeln!(f, "reduce ${}", id.0),
                         Action::LoadConstant(obj) => writeln!(f, "load {}", obj),
                         Action::LoadInput(i) => writeln!(f, "load !{}", i),
                         Action::InitializeStruct(fields) => {
@@ -152,9 +153,7 @@ impl<'a> Display for Mir<'a> {
                         }
 
                         Action::StructFieldAccess(s, a) => writeln!(f, "${}.{}", s.0, a.as_index()),
-                        Action::UnionFieldAccess(s, a) => {
-                            writeln!(f, "${} as{}", s.0, a.as_index())
-                        }
+                        &Action::UnionFieldAccess(s, a) => writeln!(f, "${}.{}", s.0, a.as_index()),
                         Action::UnaryOperation(kind, expr) => writeln!(f, "{} ${}", kind, expr.0),
                         Action::Binop(kind, a, b) => writeln!(f, "{} ${} ${}", kind, a.0, b.0),
                     }?;

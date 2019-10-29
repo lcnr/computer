@@ -113,37 +113,15 @@ fn compile_run() -> Result<(), TestFailure> {
             }));
 
             let s = entry.path().to_string_lossy();
-            match panic::catch_unwind(AssertUnwindSafe(|| {
-                let mir = boulder::compile_to_mir(&ctx, &content, &s);
-                if let Ok(mut mir) = mir {
-                    #[cfg(feature = "profiler")]
-                    profile_scope!("optimize_and_test");
-                    if should_run {
-                        test_mir(&mir, "initial");
-                    }
-
-                    boulder::core_optimizations(&mut mir);
-                    if should_run {
-                        test_mir(&mir, "core optimizations");
-                    }
-
-                    mir.reduce_binops();
-                    mir.validate();
-                    if should_run {
-                        test_mir(&mir, "reduced binops");
-                    }
-
-                    mir.reduce_sum_types();
-                    mir.validate();
-                    if should_run {
-                        test_mir(&mir, "reduced sum types");
-                    }
+            let mut mir = match panic::catch_unwind(AssertUnwindSafe(|| {
+                if let Ok(mir) = boulder::compile_to_mir(&ctx, &content, &s) {
+                    mir
                 } else {
                     let output = output.lock().unwrap();
                     panic!("failed to compile:\n{}\n", output)
                 }
             })) {
-                Ok(()) => (),
+                Ok(mir) => mir,
                 Err(_) => {
                     let output = output.lock().unwrap();
                     eprintln!(
@@ -151,6 +129,39 @@ fn compile_run() -> Result<(), TestFailure> {
                         entry.path().display(),
                         output
                     );
+                    continue;
+                }
+            };
+            match panic::catch_unwind(AssertUnwindSafe(|| {
+                #[cfg(feature = "profiler")]
+                profile_scope!("optimize_and_test");
+                if should_run {
+                    test_mir(&mir, "initial");
+                }
+
+                boulder::core_optimizations(&mut mir);
+                if should_run {
+                    test_mir(&mir, "core optimizations");
+                }
+
+                mir.reduce_binops();
+                mir.validate();
+                if should_run {
+                    test_mir(&mir, "reduced binops");
+                }
+
+                mir.reduce_sum_types();
+                mir.validate();
+                if should_run {
+                    test_mir(&mir, "reduced sum types");
+                }
+            })) {
+                Ok(()) => (),
+                Err(_) => {
+                    if count - success < 5 {
+                        eprintln!("{}", mir);
+                    }
+                    eprintln!("[boulder/{}]: panic during testing", entry.path().display(),);
                     continue;
                 }
             };

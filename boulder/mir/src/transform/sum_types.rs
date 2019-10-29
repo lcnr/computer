@@ -11,8 +11,17 @@ use crate::{
 impl<'a> Mir<'a> {
     /// split all sum types into a union and a tag
     pub fn reduce_sum_types(&mut self) {
-        let mut tags = Vec::new();
-        let mut sums = Vec::new();
+        let tags: TVec<TypeId, TypeId> = self
+            .types
+            .index_iter()
+            .map(|idx| {
+                if let Type::Unit = self.types[idx] {
+                    idx
+                } else {
+                    self.types.push(Type::Unit)
+                }
+            })
+            .collect();
 
         let mut replacements = self
             .types
@@ -22,19 +31,10 @@ impl<'a> Mir<'a> {
                     if cases.iter().all(|f| self.types[f] == Type::Unit) {
                         None
                     } else {
-                        let tag_count = cases.element_count();
-                        let sum_count = tag_count - 1;
-                        let union_type = Type::Union(cases.iter().collect());
-                        if tags.len() < tag_count {
-                            tags.resize_with(tag_count, || self.types.push(Type::Unit));
-                            while sums.len() < sum_count {
-                                sums.push(self.types.push(Type::Sum(
-                                    tags[0..sums.len() + 2].iter().copied().collect(),
-                                )));
-                            }
-                        }
-                        let tag = sums[sum_count - 1];
-                        let un = self.types.push(union_type);
+                        let un_ty = Type::Union(cases.iter().collect());
+                        let tag_ty = Type::Sum(cases.iter().map(|c| tags[c]).collect());
+                        let un = self.types.push(un_ty);
+                        let tag = self.types.push(tag_ty);
                         Some(self.types.push(Type::Struct(tvec![tag, un])))
                     }
                 } else {
@@ -74,7 +74,7 @@ impl<'a> Function<'a> {
     pub fn reduce_sum_types(
         &mut self,
         types: &mut TVec<TypeId, Type>,
-        tags: &[TypeId],
+        tags: &TSlice<TypeId, TypeId>,
         replacements: &TSlice<TypeId, Option<TypeId>>,
     ) {
         self.ret = replacements[self.ret].unwrap_or(self.ret);
@@ -99,44 +99,165 @@ impl<'a> Function<'a> {
 
                     for (ty, target, steps) in arms.iter_mut() {
                         let old_ty = *ty;
-                        if let Type::Sum(_) = &types[*ty] {
-                            unimplemented!("match arm sum");
-                        }
+                        if let &Type::Sum(_) = &types[*ty] {
+                            if let Some(arm_replacement_ty) = replacements[*ty] {
+                                *ty = arm_replacement_ty;
 
-                        let nth = types[union_ty]
-                            .fields()
-                            .iter()
-                            .position(|&f| f == *ty)
-                            .unwrap();
+                                let mut self_steps = Vec::new();
+                                for (i, step) in steps.iter_mut().enumerate() {
+                                    if *step == None {
+                                        self_steps.push(StepId::from(i));
+                                        *step = Some(union_step);
+                                    }
+                                }
 
-                        *ty = types[sum_ty].expect_sum().iter().nth(nth).unwrap();
+                                if !self_steps.is_empty() {
+                                    steps.push(None);
+                                    let block = self.add_block();
+                                    self.blocks[block].terminator = Terminator::Goto(
+                                        *target,
+                                        (0..steps.len()).map(StepId::from).collect(),
+                                    );
+                                    *target = Some(block);
+                                    for step in steps.iter() {
+                                        let ty = self.blocks[block_id].steps[step.unwrap()].ty;
+                                        self.blocks[block].add_input(ty);
+                                    }
+                                    let block_sum_input = self.blocks[block].add_input(sum_ty);
 
-                        let mut self_steps = Vec::new();
-                        for (i, step) in steps.iter_mut().enumerate() {
-                            if *step == None {
-                                self_steps.push(StepId::from(i));
-                                *step = Some(union_step);
+                                    for step in self_steps.into_iter() {
+                                        let target_union_ty =
+                                            types[replacement_ty].fields().last().copied().unwrap();
+
+                                        let reduced_sum = self.blocks[block].add_step(
+                                            arm_replacement_ty,
+                                            Action::Reduce(block_sum_input),
+                                        );
+
+                                        let arr = [
+                                            union_ty.min(target_union_ty),
+                                            union_ty.max(target_union_ty),
+                                        ];
+                                        let union_union_ty = if let Some(ty) =
+                                            types.iter().position(|ty| {
+                                                ty.is_union() && ty.fields().to_slice() == &arr
+                                            }) {
+                                            TypeId::from(ty)
+                                        } else {
+                                            let arr: &[TypeId] = &arr;
+                                            types.push(Type::Union(TVec::from(arr)))
+                                        };
+
+                                        let target_union = self.blocks[block_id].add_step(
+                                            target_union_ty,
+                                            Action::StructFieldAccess(step, FieldId::from(1)),
+                                        );
+
+                                        let union_union = self.blocks[block_id].add_step(
+                                            union_union_ty,
+                                            Action::InitializeUnion(
+                                                target_union,
+                                                arr.iter()
+                                                    .position(|&t| t == target_union_ty)
+                                                    .map(FieldId::from)
+                                                    .unwrap(),
+                                            ),
+                                        );
+
+                                        let reduced_union = self.blocks[block_id].add_step(
+                                            union_ty,
+                                            Action::UnionFieldAccess(
+                                                union_union,
+                                                arr.iter()
+                                                    .position(|&t| t == union_ty)
+                                                    .map(FieldId::from)
+                                                    .unwrap(),
+                                            ),
+                                        );
+
+                                        let union_struct = self.blocks[block_id].add_step(
+                                            arm_replacement_ty,
+                                            Action::InitializeStruct(tvec![
+                                                reduced_sum,
+                                                reduced_union,
+                                            ]),
+                                        );
+                                        self.blocks[block]
+                                            .terminator
+                                            .replace_step(step, union_struct);
+                                    }
+                                }
+                            } else {
+                                // a unit sum type, we can just reduce the sum and ignore the union
+                                let mut self_steps = Vec::new();
+                                for (i, arm_step) in steps.iter_mut().enumerate() {
+                                    if *arm_step == None {
+                                        self_steps.push(StepId::from(i));
+                                        *arm_step = Some(step);
+                                    }
+                                }
+
+                                if !self_steps.is_empty() {
+                                    let block = self.add_block();
+                                    self.blocks[block].terminator = Terminator::Goto(
+                                        *target,
+                                        (0..steps.len()).map(StepId::from).collect(),
+                                    );
+                                    *target = Some(block);
+                                    for step in steps.iter() {
+                                        let ty = self.blocks[block_id].steps[step.unwrap()].ty;
+                                        self.blocks[block].add_input(ty);
+                                    }
+
+                                    for step in self_steps.into_iter() {
+                                        let reduced_sum =
+                                            self.blocks[block].add_step(*ty, Action::Reduce(step));
+
+                                        self.blocks[block]
+                                            .terminator
+                                            .replace_step(step, reduced_sum);
+                                    }
+                                }
                             }
-                        }
+                        } else {
+                            *ty = tags[old_ty];
 
-                        if !self_steps.is_empty() {
-                            let block = self.add_block();
-                            self.blocks[block].terminator = Terminator::Goto(
-                                *target,
-                                (0..steps.len()).map(StepId::from).collect(),
-                            );
-                            *target = Some(block);
-                            for step in steps.iter() {
-                                let ty = self.blocks[block_id].steps[step.unwrap()].ty;
-                                self.blocks[block].add_input(ty);
+                            let mut self_steps = Vec::new();
+                            for (i, step) in steps.iter_mut().enumerate() {
+                                if *step == None {
+                                    self_steps.push(StepId::from(i));
+                                    *step = Some(union_step);
+                                }
                             }
 
-                            for step in self_steps.into_iter() {
-                                let id = self.blocks[block].add_step(
-                                    old_ty,
-                                    Action::UnionFieldAccess(step, FieldId::from(nth)),
+                            if !self_steps.is_empty() {
+                                let block = self.add_block();
+                                self.blocks[block].terminator = Terminator::Goto(
+                                    *target,
+                                    (0..steps.len()).map(StepId::from).collect(),
                                 );
-                                self.blocks[block].terminator.replace_step(step, id);
+                                *target = Some(block);
+                                for step in steps.iter() {
+                                    let ty = self.blocks[block_id].steps[step.unwrap()].ty;
+                                    self.blocks[block].add_input(ty);
+                                }
+
+                                for step in self_steps.into_iter() {
+                                    let id = self.blocks[block].add_step(
+                                        old_ty,
+                                        Action::UnionFieldAccess(
+                                            step,
+                                            FieldId::from(
+                                                types[union_ty]
+                                                    .fields()
+                                                    .iter()
+                                                    .position(|&a| a == old_ty)
+                                                    .unwrap(),
+                                            ),
+                                        ),
+                                    );
+                                    self.blocks[block].terminator.replace_step(step, id);
+                                }
                             }
                         }
                     }
@@ -164,7 +285,27 @@ impl<'a> Function<'a> {
                             let union_ty = types[ty].fields().last().copied().unwrap();
                             let sum_ty = types[ty].fields().first().copied().unwrap();
                             if let Type::Sum(_) = types[target_ty] {
-                                unimplemented!("extend sum -> sum");
+                                self.blocks[block_id].insert_step(
+                                    step_id,
+                                    Step::new(union_ty, Action::LoadConstant(Object::Undefined)),
+                                );
+                                self.blocks[block_id].insert_step(
+                                    step_id,
+                                    Step::new(sum_ty, Action::Extend(target)),
+                                );
+                                step_id.0 += 2;
+                                self.blocks[block_id].insert_step(
+                                    step_id,
+                                    Step::new(
+                                        ty,
+                                        Action::InitializeStruct(tvec![
+                                            StepId(step_id.0 - 2),
+                                            StepId(step_id.0 - 1)
+                                        ]),
+                                    ),
+                                );
+
+                                self.blocks[block_id].replace_step(StepId(step_id.0 + 1), step_id);
                             } else if replacements.contains(&Some(target_ty)) {
                                 let target_union_ty =
                                     types[target_ty].fields().last().copied().unwrap();
@@ -259,7 +400,7 @@ impl<'a> Function<'a> {
                                     Step::new(
                                         sum_ty,
                                         Action::LoadConstant(Object::Variant(
-                                            tags[position],
+                                            tags[target_ty],
                                             Box::new(Object::Unit),
                                         )),
                                     ),
@@ -277,7 +418,6 @@ impl<'a> Function<'a> {
                                 );
 
                                 self.blocks[block_id].replace_step(StepId(step_id.0 + 1), step_id);
-                                //println!("{:?} ... {:?}", self.blocks[block_id][StepId(step_id.0 + 1)], self.blocks[block_id][step_id]);
                             }
                         }
                         action => {

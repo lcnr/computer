@@ -60,6 +60,18 @@ impl<'a> Mir<'a> {
                             }
                         }
                     }
+                    &Action::Reduce(s) => {
+                        assert!(s < step_id);
+                        if let &Type::Sum(ref v) = &self[block[s].ty] {
+                            if let &Type::Sum(ref s) = &self[step.ty] {
+                                assert!(s.iter().all(|t| v.get(t)));
+                            } else {
+                                assert!(v.get(step.ty));
+                            }
+                        } else {
+                            unreachable!("mismatched types");
+                        }
+                    }
                     &Action::LoadInput(v) => assert_eq!(block.input[v], step.ty),
                     &Action::LoadConstant(ref c) => {
                         match &self.types[step.ty] {
