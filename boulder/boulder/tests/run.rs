@@ -5,9 +5,9 @@ extern crate thread_profiler;
 extern crate boulder;
 
 use std::{
-    ops::Deref,
     fs::File,
     io::{Error, ErrorKind, Read, Write},
+    ops::Deref,
     panic::{self, AssertUnwindSafe},
     sync::{Arc, Mutex},
 };
@@ -118,9 +118,7 @@ fn compile_run() -> Result<(), TestFailure> {
                 if let Ok(mir) = boulder::compile_to_mir(&ctx, &content, &s) {
                     mir
                 } else {
-                    let output: String = {
-                        output.lock().unwrap().deref().clone()
-                    };
+                    let output: String = { output.lock().unwrap().deref().clone() };
                     panic!("failed to compile:\n{}\n", output)
                 }
             })) {
