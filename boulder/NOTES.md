@@ -3,7 +3,7 @@
 ## Union layout
 
 I initially wanted union layout to be undefined, to allow for potential optimizations.
-This was highly problematic by using implicit sum types one often extends unions.
+This was highly problematic as one often extends unions by using implicit sum types.
 
 ```boulder
 let condition: Bool = True;

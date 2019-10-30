@@ -2,7 +2,7 @@ use tindex::TIndex;
 
 use shared_id::{FunctionId, TypeId};
 
-use crate::{Action, Block, Function, Step, StepId, Terminator, ctx::Context};
+use crate::{ctx::Context, Action, Block, Function, Step, StepId, Terminator};
 
 pub trait UpdateStepIds {
     fn update_step_ids(&mut self, f: &mut dyn FnMut(&mut StepId));
