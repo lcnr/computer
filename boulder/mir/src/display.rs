@@ -111,6 +111,9 @@ impl<'a> Display for Mir<'a> {
 
         for (i, func) in self.functions.iter().enumerate() {
             let func_id: FunctionId = i.into();
+            if func.ctx.is_test {
+                writeln!(f, "@test")?;
+            }
             writeln!(f, "fn {}[{}] -> {}:", func.name, func_id, func.ret)?;
             for (i, block) in func.blocks.iter().enumerate() {
                 write!(f, "  block ~{}(", i)?;

@@ -1,5 +1,3 @@
-
-
 fn empty() {}
 fn empty_explicit() -> Empty {}
 fn const() -> u32 { 12 }
