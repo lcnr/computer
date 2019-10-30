@@ -1,7 +1,5 @@
 use std::iter;
 
-use tindex::bitset::TBitSet;
-
 use shared_id::TypeId;
 
 use solver::{Entity, Production, SolvedEntity};
@@ -82,7 +80,7 @@ impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for FieldAcc
             .build()
         }
     }
-    
+
     fn resolve_backwards(
         &mut self,
         _ctx: &mut Context<'a, 'b>,

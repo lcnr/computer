@@ -114,6 +114,9 @@ impl<'a> Display for Mir<'a> {
             if func.ctx.is_test {
                 writeln!(f, "@test")?;
             }
+            if func.ctx.export {
+                writeln!(f, "@export")?;
+            }
             writeln!(f, "fn {}[{}] -> {}:", func.name, func_id, func.ret)?;
             for (i, block) in func.blocks.iter().enumerate() {
                 write!(f, "  block ~{}(", i)?;

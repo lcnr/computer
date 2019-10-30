@@ -11,6 +11,7 @@ use crate::{
 
 mod optimize;
 mod sum_types;
+mod to_bytes;
 
 fn get_or_insert_union(types: &mut TVec<TypeId, Type>, un: impl Iterator<Item = TypeId>) -> TypeId {
     let bitset = un.collect();
