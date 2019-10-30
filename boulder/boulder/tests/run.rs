@@ -5,6 +5,7 @@ extern crate thread_profiler;
 extern crate boulder;
 
 use std::{
+    ops::Deref,
     fs::File,
     io::{Error, ErrorKind, Read, Write},
     panic::{self, AssertUnwindSafe},
@@ -74,7 +75,7 @@ fn test_mir(mir: &Mir, stage: &str) {
         }
     }
 
-    if check_count == 0 {
+    if check_count == 0 && !mir.functions.iter().any(|f| f.ctx.export) {
         panic!("did not check test any function at stage `{}`", stage)
     }
 }
@@ -117,7 +118,9 @@ fn compile_run() -> Result<(), TestFailure> {
                 if let Ok(mir) = boulder::compile_to_mir(&ctx, &content, &s) {
                     mir
                 } else {
-                    let output = output.lock().unwrap();
+                    let output: String = {
+                        output.lock().unwrap().deref().clone()
+                    };
                     panic!("failed to compile:\n{}\n", output)
                 }
             })) {

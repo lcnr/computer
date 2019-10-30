@@ -123,7 +123,7 @@ impl<'a> ContextBuilder<'a> {
                         insert_lang_item(&mut builder.mul8, attr.replace(id), "mul8")?;
                         func.attributes.remove(i);
                     }
-                    FunctionAttribute::TestFn => (),
+                    FunctionAttribute::TestFn | FunctionAttribute::Export => (),
                     FunctionAttribute::Str(_) => unreachable!(),
                 }
             }
@@ -157,6 +157,7 @@ impl<'a> ContextBuilder<'a> {
 #[derive(Debug, Default)]
 pub struct FunctionContextBuilder<'a> {
     is_test: Option<Meta<'a, ()>>,
+    export: Option<Meta<'a, ()>>,
 }
 
 impl<'a> FunctionContextBuilder<'a> {
@@ -190,6 +191,19 @@ impl<'a> FunctionContextBuilder<'a> {
                         func.attributes.remove(i);
                     }
                 }
+                FunctionAttribute::Export => {
+                    if let &Some(ref should_export) = &builder.export {
+                        CompileError::build(
+                            &attr,
+                            "Attribute `test` used more than once on function",
+                        )
+                        .with_location(&should_export)
+                        .build()?;
+                    } else {
+                        builder.export = Some(attr.simplify());
+                        func.attributes.remove(i);
+                    }
+                }
                 FunctionAttribute::Str(_) => unreachable!(),
                 _ => unimplemented!(),
             }
@@ -215,6 +229,7 @@ impl<'a> FunctionContextBuilder<'a> {
     fn to_ctx(self) -> Result<FunctionContext, CompileError> {
         Ok(FunctionContext {
             is_test: self.is_test.is_some(),
+            export: self.export.is_some(),
         })
     }
 }

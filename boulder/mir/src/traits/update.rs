@@ -38,8 +38,8 @@ impl UpdateStepIds for Action {
             | Action::Extend(id)
             | Action::Reduce(id)
             | Action::StructFieldAccess(id, _)
-            | Action::UnionFieldAccess(id, _)
-            | Action::InitializeUnion(id, _) => f(id),
+            | Action::UnionFieldAccess(id)
+            | Action::InitializeUnion(id) => f(id),
             Action::Binop(_kind, a, b) => {
                 f(a);
                 f(b);
@@ -126,8 +126,8 @@ impl UpdateTypeIds for Action {
             | Action::Extend(_)
             | Action::Reduce(_)
             | Action::StructFieldAccess(_, _)
-            | Action::UnionFieldAccess(_, _)
-            | Action::InitializeUnion(_, _)
+            | Action::UnionFieldAccess(_)
+            | Action::InitializeUnion(_)
             | Action::InitializeStruct(_)
             | Action::CallFunction(_, _)
             | Action::LoadConstant(_)

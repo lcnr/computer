@@ -1,11 +1,27 @@
 use std::{cmp::Ordering, mem};
 
-use tindex::bitset::TBitSet;
+use tindex::{bitset::TBitSet, TVec};
 
-use crate::{traits::UpdateStepIds, Action, Block, BlockId, Function, Step, StepId, Terminator};
+use shared_id::TypeId;
+
+use crate::{
+    traits::UpdateStepIds, Action, Block, BlockId, Function, Step, StepId, Terminator, Type,
+};
 
 mod optimize;
 mod sum_types;
+
+fn get_or_insert_union(types: &mut TVec<TypeId, Type>, un: impl Iterator<Item = TypeId>) -> TypeId {
+    let bitset = un.collect();
+    if let Some(ty) = types
+        .iter()
+        .position(|ty| ty.is_union() && ty.expect_union() == &bitset)
+    {
+        TypeId::from(ty)
+    } else {
+        types.push(Type::Union(bitset))
+    }
+}
 
 impl<'a> Function<'a> {
     pub fn remove_block(&mut self, id: BlockId) {

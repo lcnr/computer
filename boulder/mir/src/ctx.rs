@@ -15,5 +15,6 @@ pub struct Context {
 
 #[derive(Debug, Clone)]
 pub struct FunctionContext {
+    pub export: bool,
     pub is_test: bool,
 }

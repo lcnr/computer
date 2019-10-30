@@ -54,11 +54,12 @@ impl Display for Type {
             }
             Type::Union(fields) => {
                 write!(f, "union(")?;
-                if let Some((last, start)) = fields.split_last() {
-                    for arg in start.iter() {
-                        write!(f, "{}, ", arg)?;
+                let mut iter = fields.iter();
+                if let Some(first) = iter.next() {
+                    write!(f, "{}", first)?;
+                    for arg in iter {
+                        write!(f, ", {}", arg)?;
                     }
-                    write!(f, "{}", last)?;
                 }
                 write!(f, ")")
             }
@@ -138,8 +139,8 @@ impl<'a> Display for Mir<'a> {
                             }
                             writeln!(f, ")")
                         }
-                        Action::InitializeUnion(id, field) => {
-                            writeln!(f, "init union(.{}: ${})", field.as_index(), id.0)
+                        &Action::InitializeUnion(id) => {
+                            writeln!(f, "init union({}: ${})", block[id].ty, id.0)
                         }
                         Action::CallFunction(i, args) => {
                             write!(f, "call {}(", i)?;
@@ -153,7 +154,7 @@ impl<'a> Display for Mir<'a> {
                         }
 
                         Action::StructFieldAccess(s, a) => writeln!(f, "${}.{}", s.0, a.as_index()),
-                        &Action::UnionFieldAccess(s, a) => writeln!(f, "${}.{}", s.0, a.as_index()),
+                        Action::UnionFieldAccess(s) => writeln!(f, "${} as {}", s.0, step.ty),
                         Action::UnaryOperation(kind, expr) => writeln!(f, "{} ${}", kind, expr.0),
                         Action::Binop(kind, a, b) => writeln!(f, "{} ${} ${}", kind, a.0, b.0),
                     }?;

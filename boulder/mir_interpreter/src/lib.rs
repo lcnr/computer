@@ -70,15 +70,41 @@ impl<'a> BoulderMirInterpreter<'a> {
                             return Err(InterpretError::InvalidOperation(id, curr_block, step_id));
                         }
                     }
-                    &Action::UnionFieldAccess(step, expected_id) => {
-                        if let &Object::Field(actual_id, ref actual_field) = &steps[step] {
-                            if expected_id != actual_id {
-                                return Err(InterpretError::InvalidUnionAccess(
-                                    id,
-                                    curr_block,
-                                    step_id,
-                                    steps[step].clone(),
-                                ));
+                    &Action::UnionFieldAccess(target) => {
+                        if let &Object::Field(actual_ty, ref actual_field) = &steps[target] {
+                            if step.ty != actual_ty {
+                                if let &Type::Union(ref target_fields) = &self.mir.types[step.ty] {
+                                    if let &Object::Field(field_ty, ref actual_field) =
+                                        actual_field.as_ref()
+                                    {
+                                        if target_fields.get(field_ty) {
+                                            actual_field.as_ref().clone()
+                                        } else {
+                                            return Err(InterpretError::InvalidUnionAccess(
+                                                id,
+                                                curr_block,
+                                                step_id,
+                                                steps[target].clone(),
+                                            ));
+                                        }
+                                    } else if target_fields.get(actual_ty) {
+                                        steps[target].clone()
+                                    } else {
+                                        return Err(InterpretError::InvalidUnionAccess(
+                                            id,
+                                            curr_block,
+                                            step_id,
+                                            steps[target].clone(),
+                                        ));
+                                    }
+                                } else {
+                                    return Err(InterpretError::InvalidUnionAccess(
+                                        id,
+                                        curr_block,
+                                        step_id,
+                                        steps[target].clone(),
+                                    ));
+                                }
                             } else {
                                 actual_field.as_ref().clone()
                             }
@@ -129,9 +155,10 @@ impl<'a> BoulderMirInterpreter<'a> {
                     &Action::InitializeStruct(ref fields) => {
                         Object::Struct(fields.iter().map(|&f| steps[f].clone()).collect())
                     }
-                    &Action::InitializeUnion(target, field) => {
-                        Object::Field(field, Box::new(steps[target].clone()))
-                    }
+                    &Action::InitializeUnion(target) => Object::Field(
+                        self.mir[id][curr_block][target].ty,
+                        Box::new(steps[target].clone()),
+                    ),
                     &Action::CallFunction(target_id, ref args) => {
                         let args: Vec<_> = args.iter().map(|&id| steps[id].clone()).collect();
                         self.execute_function(target_id, &args)?

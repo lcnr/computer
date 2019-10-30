@@ -61,6 +61,7 @@ pub enum LangItem {
 pub enum FunctionAttribute<'a> {
     LangItem(LangItem),
     TestFn,
+    Export,
     Str(&'a str),
 }
 
@@ -98,6 +99,7 @@ impl<'a> FunctionAttribute<'a> {
                 }
             }
             "test" => Ok(name.replace(FunctionAttribute::TestFn)),
+            "export" => Ok(name.replace(FunctionAttribute::Export)),
             _ => CompileError::new(
                 &name,
                 format_args!("Unknown function attribute `{}`", name.item),

@@ -261,10 +261,10 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                         ))
                     }
                     &mir::Type::Union(_) => {
-                        let (kind, expr) = fields.pop().expect("single union field");
+                        let (_kind, expr) = fields.pop().expect("single union field");
                         let expr = expr.to_mir(ctx)?;
                         Ok(ctx.func[*ctx.curr]
-                            .add_step(struct_kind.item, Action::InitializeUnion(expr, kind.item)))
+                            .add_step(struct_kind.item, Action::InitializeUnion(expr)))
                     }
                     _ => unreachable!("invalid struct/union"),
                 }
@@ -289,8 +289,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                     mir::Type::Struct(_) => Ok(ctx.func[*ctx.curr]
                         .add_step(ty, Action::StructFieldAccess(obj, field.item))),
                     mir::Type::Union(_) => {
-                        Ok(ctx.func[*ctx.curr]
-                            .add_step(ty, Action::UnionFieldAccess(obj, field.item)))
+                        Ok(ctx.func[*ctx.curr].add_step(ty, Action::UnionFieldAccess(obj)))
                     }
                     _ => unreachable!("invalid struct for field access"),
                 }

@@ -96,11 +96,10 @@ impl<'a> Mir<'a> {
                             unreachable!("initialize struct with non struct type");
                         }
                     }
-                    &Action::InitializeUnion(id, field) => {
+                    &Action::InitializeUnion(id) => {
                         assert!(id < step_id);
                         if let Type::Union(ref fields) = &self[step.ty] {
-                            let field_ty = fields[field];
-                            assert_eq!(field_ty, block[id].ty);
+                            assert!(fields.get(block[id].ty));
                         } else {
                             panic!("initialize union with invalid type: {:?}", block[id].ty);
                         }
@@ -123,11 +122,10 @@ impl<'a> Mir<'a> {
                             panic!("field access on invalid type: {:?}", block[id].ty);
                         }
                     }
-                    &Action::UnionFieldAccess(id, field) => {
+                    &Action::UnionFieldAccess(id) => {
                         assert!(id < step_id);
-                        if let Type::Union(ty) = &self[block[id].ty] {
-                            let field_ty = ty[field];
-                            assert_eq!(field_ty, step.ty);
+                        if let Type::Union(fields) = &self[block[id].ty] {
+                            assert!(fields.get(step.ty));
                         } else {
                             unreachable!("union field access on invalid type: {:?}", block[id].ty);
                         }

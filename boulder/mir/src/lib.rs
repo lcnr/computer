@@ -35,7 +35,7 @@ pub enum Type {
     U16,
     U32,
     Struct(TVec<FieldId, TypeId>),
-    Union(TVec<FieldId, TypeId>),
+    Union(TBitSet<TypeId>),
     Sum(TBitSet<TypeId>),
 }
 
@@ -48,11 +48,19 @@ impl Type {
         }
     }
 
-    pub fn fields(&self) -> &TSlice<FieldId, TypeId> {
-        if let &Self::Struct(ref fields) | &Self::Union(ref fields) = self {
+    pub fn expect_union(&self) -> &TBitSet<TypeId> {
+        if let &Self::Union(ref options) = self {
+            options
+        } else {
+            panic!("expected union, found {:?}", self)
+        }
+    }
+
+    pub fn expect_struct(&self) -> &TSlice<FieldId, TypeId> {
+        if let &Self::Struct(ref fields) = self {
             fields
         } else {
-            (&[] as &[_]).into()
+            panic!("expected struct, found {:?}", self)
         }
     }
 
@@ -87,7 +95,7 @@ pub enum Object {
     U32(u32),
     Struct(TVec<FieldId, Object>),
     Variant(TypeId, Box<Object>),
-    Field(FieldId, Box<Object>),
+    Field(TypeId, Box<Object>),
     Undefined,
 }
 
@@ -161,10 +169,10 @@ pub enum Action {
     LoadInput(usize),
     LoadConstant(Object),
     InitializeStruct(TVec<FieldId, StepId>),
-    InitializeUnion(StepId, FieldId),
+    InitializeUnion(StepId),
     CallFunction(FunctionId, Vec<StepId>),
     StructFieldAccess(StepId, FieldId),
-    UnionFieldAccess(StepId, FieldId),
+    UnionFieldAccess(StepId),
     UnaryOperation(UnaryOperation, StepId),
     Binop(Binop, StepId, StepId),
 }
@@ -185,8 +193,8 @@ impl Step {
             &Action::Extend(id)
             | &Action::Reduce(id)
             | &Action::StructFieldAccess(id, _)
-            | &Action::InitializeUnion(id, _)
-            | &Action::UnionFieldAccess(id, _)
+            | &Action::InitializeUnion(id)
+            | &Action::UnionFieldAccess(id)
             | &Action::UnaryOperation(_, id) => used.add(id),
             &Action::InitializeStruct(ref fields) => fields.iter().for_each(|&s| used.add(s)),
             &Action::CallFunction(_, ref steps) => steps.iter().for_each(|&s| used.add(s)),
