@@ -11,6 +11,8 @@ use crate::{
 impl<'a> Mir<'a> {
     /// split all sum types into a union and a tag
     pub fn reduce_sum_types(&mut self) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("Mir::reduce_sum_types");
         let tags: TVec<TypeId, TypeId> = self
             .types
             .index_iter()
@@ -77,6 +79,8 @@ impl<'a> Function<'a> {
         tags: &TSlice<TypeId, TypeId>,
         replacements: &TSlice<TypeId, Option<TypeId>>,
     ) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("Function::reduce_sum_types");
         self.ret = replacements[self.ret].unwrap_or(self.ret);
 
         let mut block_id = BlockId::from(0);
