@@ -82,56 +82,14 @@ impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for FieldAcc
             .build()
         }
     }
-
+    
     fn resolve_backwards(
         &mut self,
-        ctx: &mut Context<'a, 'b>,
-        origin: Entity<EntityState>,
-        target: SolvedEntity<EntityState>,
+        _ctx: &mut Context<'a, 'b>,
+        _origin: Entity<EntityState>,
+        _target: SolvedEntity<EntityState>,
     ) -> Result<(), CompileError> {
-        #[cfg(feature = "profiler")]
-        profile_scope!("FieldAccess::resolve_backwards");
-        let values: TBitSet<_> = self
-            .field_types
-            .iter()
-            .filter_map(|&(o, f)| if f == target.value { Some(o) } else { None })
-            .collect();
-
-        if !values.is_empty() {
-            if origin.state.try_bind(values, ctx.types) {
-                Ok(())
-            } else {
-                let allowed_objects =
-                    EntityState::Bound(self.field_types.iter().map(|&(o, _)| o).collect());
-                let found_str = TypeSolver::ty_error_str(ctx.types, origin.state);
-                let expected_str = TypeSolver::ty_error_str(ctx.types, &allowed_objects);
-                CompileError::new(
-                    &ctx.meta[target.id],
-                    format_args!(
-                        "Mismatched types: found {}, expected {}",
-                        found_str, expected_str
-                    ),
-                )
-            }
-        } else {
-            let allowed_targets =
-                EntityState::Bound(self.field_types.iter().map(|&(_, f)| f).collect());
-            let expected_str = TypeSolver::ty_error_str(ctx.types, &allowed_targets);
-            let found_str = &ctx.types[target.value].name.item;
-            CompileError::build(
-                &ctx.meta[target.id],
-                format_args!(
-                    "Mismatched types: found `{}`, expected {}",
-                    found_str, expected_str
-                ),
-            )
-            .with_location(&ctx.meta[origin.id])
-            .with_help(format_args!(
-                "No struct has a field `{}` with type `{}`",
-                self.field_name, found_str
-            ))
-            .build()
-        }
+        Ok(())
     }
 }
 

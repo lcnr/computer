@@ -6,7 +6,7 @@ struct A {
 
 @test
 fn test() -> Bool {
-    let obj = A {
+    let obj: A = A {
         c: 3,
         a: 1,
         b: 2,
