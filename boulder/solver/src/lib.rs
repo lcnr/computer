@@ -16,7 +16,7 @@ impl From<usize> for EntityId {
 }
 
 impl TIndex for EntityId {
-    fn as_index(self) -> usize {
+    fn as_index(&self) -> usize {
         self.0
     }
 }
@@ -31,7 +31,7 @@ impl From<usize> for ProductionId {
 }
 
 impl TIndex for ProductionId {
-    fn as_index(self) -> usize {
+    fn as_index(&self) -> usize {
         self.0
     }
 }

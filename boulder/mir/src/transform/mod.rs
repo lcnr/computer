@@ -1,4 +1,8 @@
-use std::{cmp::Ordering, mem};
+use std::{
+    cmp::Ordering,
+    mem,
+    ops::{Bound, RangeBounds},
+};
 
 use tindex::{bitset::TBitSet, TVec};
 
@@ -139,6 +143,7 @@ impl Block {
         self.terminator.shift_step_ids(id, -1);
     }
 
+    /// returns the `StepId` of the after the inserted element
     pub fn insert_step(&mut self, id: StepId, step: Step) -> StepId {
         for c in self.steps[id..].iter_mut() {
             c.action.shift_step_ids(id, 1);
@@ -147,6 +152,62 @@ impl Block {
         self.steps.insert(id, step);
         self.terminator.shift_step_ids(id, 1);
         StepId(id.0 + 1)
+    }
+
+    /// Replaces all steps in `at` with the steps of `I`, returning the id of the next step.
+    /// The steps in `steps` should start at `StepId(0)`.
+    ///
+    /// Steps which have the last element of `at` as a target now target the last element of `steps`.
+    pub fn insert_steps<R, I, P>(&mut self, at: R, steps: I, replacements: P) -> StepId
+    where
+        R: RangeBounds<StepId>,
+        I: IntoIterator<Item = Step>,
+        P: IntoIterator<Item = (StepId, StepId)>,
+    {
+        let start = match at.start_bound() {
+            Bound::Unbounded => 0,
+            Bound::Excluded(i) => i.0 + 1,
+            Bound::Included(i) => i.0,
+        };
+
+        let end_len = match at.end_bound() {
+            Bound::Unbounded => 0,
+            Bound::Excluded(i) => self.steps.len() - i.0,
+            Bound::Included(i) => self.steps.len() - i.0 - 1,
+        };
+
+        let removed_len = self.steps.len() - end_len - start;
+
+        self.steps.splice(at, steps);
+        let inserted_end = self.steps.len() - end_len;
+        let inserted_steps = &mut self.steps[StepId(start)..StepId(inserted_end)];
+        let inserted_len = inserted_steps.len();
+        for (old, new) in replacements.into_iter() {
+            inserted_steps
+                .iter_mut()
+                .for_each(|s| s.replace_step(old, StepId(new.0 + std::usize::MAX / 4)));
+        }
+
+        inserted_steps
+            .iter_mut()
+            .for_each(|s| s.shift_step_ids(StepId::from(0), start as isize));
+        inserted_steps.iter_mut().for_each(|s| {
+            s.shift_step_ids(
+                StepId::from(std::usize::MAX / 4),
+                -((std::usize::MAX / 4 + start) as isize),
+            )
+        });
+        self.steps[StepId(inserted_end)..].iter_mut().for_each(|s| {
+            s.shift_step_ids(
+                StepId::from(start),
+                inserted_len as isize - removed_len as isize,
+            )
+        });
+        self.terminator.shift_step_ids(
+            StepId::from(start),
+            inserted_len as isize - removed_len as isize,
+        );
+        StepId(inserted_end)
     }
 
     /// Remove `previous` from this block, updating all reference to this step to `new`

@@ -21,7 +21,7 @@ impl From<usize> for TypeId {
 }
 
 impl TIndex for TypeId {
-    fn as_index(self) -> usize {
+    fn as_index(&self) -> usize {
         self.0
     }
 }
@@ -48,7 +48,7 @@ impl fmt::Display for FunctionId {
 }
 
 impl TIndex for FunctionId {
-    fn as_index(self) -> usize {
+    fn as_index(&self) -> usize {
         self.0
     }
 }
@@ -63,7 +63,7 @@ impl From<usize> for FieldId {
 }
 
 impl TIndex for FieldId {
-    fn as_index(self) -> usize {
+    fn as_index(&self) -> usize {
         self.0
     }
 }

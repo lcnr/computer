@@ -9,7 +9,7 @@ impl From<usize> for ScopeId {
 }
 
 impl TIndex for ScopeId {
-    fn as_index(self) -> usize {
+    fn as_index(&self) -> usize {
         self.0
     }
 }
@@ -21,7 +21,7 @@ impl From<usize> for VariableId {
 }
 
 impl TIndex for VariableId {
-    fn as_index(self) -> usize {
+    fn as_index(&self) -> usize {
         self.0
     }
 }

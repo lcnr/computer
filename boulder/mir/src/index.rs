@@ -9,7 +9,7 @@ impl From<usize> for StepId {
 }
 
 impl TIndex for StepId {
-    fn as_index(self) -> usize {
+    fn as_index(&self) -> usize {
         self.0
     }
 }
@@ -21,7 +21,7 @@ impl From<usize> for BlockId {
 }
 
 impl TIndex for BlockId {
-    fn as_index(self) -> usize {
+    fn as_index(&self) -> usize {
         self.0
     }
 }
