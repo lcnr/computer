@@ -33,6 +33,8 @@ impl<'a> Mir<'a> {
     }
 
     pub fn remove_unused_functions(&mut self, resolved_lang_items: bool) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("Mir::remove_unused_functions");
         let mut used = TBitSet::new();
         for (idx, _) in self
             .functions

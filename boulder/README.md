@@ -16,7 +16,7 @@ Explore the uses of a strict and *clearly defined* set of undefined behavior.
 
 ## Non-Goals
 
-- error recovery complicates the implementation and is not that helpful while compile times are low. (this might be added later)
+- error recovery: this complicates the implementation and is not that helpful while compile times are low. (this might be added later)
 
 ## Inspirations
 
@@ -28,7 +28,5 @@ Other inspirations:
 
 ## Roadmap
 
-- implement unions
-- replace sum types with unions
 - reduce all types to `u8`
 - generate assembly
