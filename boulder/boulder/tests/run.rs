@@ -100,14 +100,6 @@ fn compile_run() -> Result<(), TestFailure> {
             let mut content = String::new();
             file.read_to_string(&mut content).unwrap();
 
-            let expected: Vec<_> = content
-                .lines()
-                .take_while(|l| l.starts_with("# "))
-                .map(|l| l["# ".len()..].trim())
-                .collect();
-
-            let should_run = !expected.contains(&"no_run");
-
             let output = Arc::new(Mutex::new(String::new()));
             CompileError::set_output(Box::new(OutputShim {
                 inner: output.clone(),
@@ -136,26 +128,24 @@ fn compile_run() -> Result<(), TestFailure> {
             match panic::catch_unwind(AssertUnwindSafe(|| {
                 #[cfg(feature = "profiler")]
                 profile_scope!("optimize_and_test");
-                if should_run {
-                    test_mir(&mir, "initial");
-                }
+                test_mir(&mir, "initial");
 
-                boulder::core_optimizations(&mut mir);
-                if should_run {
-                    test_mir(&mir, "core optimizations");
-                }
+                boulder::core_optimizations(&mut mir, false);
+                test_mir(&mir, "core optimizations");
 
                 mir.reduce_binops();
                 mir.validate();
-                if should_run {
-                    test_mir(&mir, "reduced binops");
-                }
+                test_mir(&mir, "reduced binops");
+
+                boulder::core_optimizations(&mut mir, true);
+                test_mir(&mir, "core optimizations post binops");
 
                 mir.reduce_sum_types();
                 mir.validate();
-                if should_run {
-                    test_mir(&mir, "reduced sum types");
-                }
+                test_mir(&mir, "reduced sum types");
+
+                boulder::core_optimizations(&mut mir, true);
+                test_mir(&mir, "core optimizations post sum types");
             })) {
                 Ok(()) => (),
                 Err(_) => {

@@ -1,8 +1,8 @@
 use tindex::TIndex;
 
-use shared_id::TypeId;
+use shared_id::{FunctionId, TypeId};
 
-use crate::{Action, Block, Function, Step, StepId, Terminator};
+use crate::{Action, Block, Function, Step, StepId, Terminator, ctx::Context};
 
 pub trait UpdateStepIds {
     fn update_step_ids(&mut self, f: &mut dyn FnMut(&mut StepId));
@@ -87,6 +87,72 @@ impl UpdateStepIds for Block {
         }
 
         self.terminator.update_step_ids(f)
+    }
+}
+
+pub trait UpdateFunctionIds {
+    fn update_function_ids(&mut self, f: &mut dyn FnMut(&mut FunctionId));
+
+    /// shift all step ids for which the condition `self >= after` holds
+    fn shift_function_ids(&mut self, after: FunctionId, by: isize) {
+        self.update_function_ids(&mut |id| {
+            if *id >= after {
+                *id = ((id.as_index() as isize + by) as usize).into();
+            }
+        });
+    }
+
+    fn replace_function(&mut self, ty: FunctionId, with: FunctionId) {
+        self.update_function_ids(&mut |id| {
+            if *id == ty {
+                *id = with;
+            }
+        })
+    }
+}
+
+impl UpdateFunctionIds for Context {
+    fn update_function_ids(&mut self, f: &mut dyn FnMut(&mut FunctionId)) {
+        f(&mut self.div32);
+        f(&mut self.div16);
+        f(&mut self.div8);
+        f(&mut self.rem32);
+        f(&mut self.rem16);
+        f(&mut self.rem8);
+        f(&mut self.mul32);
+        f(&mut self.mul16);
+        f(&mut self.mul8);
+    }
+}
+
+impl<'a> UpdateFunctionIds for Function<'a> {
+    fn update_function_ids(&mut self, f: &mut dyn FnMut(&mut FunctionId)) {
+        for block in self.blocks.iter_mut() {
+            block.update_function_ids(f);
+        }
+    }
+}
+
+impl UpdateFunctionIds for Block {
+    fn update_function_ids(&mut self, f: &mut dyn FnMut(&mut FunctionId)) {
+        for step in self.steps.iter_mut() {
+            step.update_function_ids(f);
+        }
+    }
+}
+
+impl UpdateFunctionIds for Step {
+    fn update_function_ids(&mut self, f: &mut dyn FnMut(&mut FunctionId)) {
+        self.action.update_function_ids(f);
+    }
+}
+
+impl UpdateFunctionIds for Action {
+    fn update_function_ids(&mut self, f: &mut dyn FnMut(&mut FunctionId)) {
+        match self {
+            Action::CallFunction(id, _) => f(id),
+            _ => (),
+        }
     }
 }
 

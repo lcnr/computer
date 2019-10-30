@@ -2,7 +2,7 @@ use std::{iter, mem};
 
 use tindex::bitset::TBitSet;
 
-use shared_id::TypeId;
+use shared_id::{FunctionId, TypeId};
 
 use crate::{
     traits::UpdateStepIds, Action, Block, BlockId, Function, Mir, StepId, Terminator, Type,
@@ -28,6 +28,45 @@ impl<'a> Mir<'a> {
             }
             for i in to_remove.into_iter().rev() {
                 func.remove_block(i);
+            }
+        }
+    }
+
+    pub fn remove_unused_functions(&mut self, resolved_lang_items: bool) {
+        let mut used = TBitSet::new();
+        for (idx, _) in self
+            .functions
+            .iter()
+            .enumerate()
+            .filter(|(_, f)| f.ctx.export || f.ctx.is_test)
+        {
+            used.add(FunctionId::from(idx));
+        }
+
+        if !resolved_lang_items {
+            used.add(self.ctx.mul32);
+            used.add(self.ctx.mul16);
+            used.add(self.ctx.mul8);
+            used.add(self.ctx.div32);
+            used.add(self.ctx.div16);
+            used.add(self.ctx.div8);
+            used.add(self.ctx.rem32);
+            used.add(self.ctx.rem16);
+            used.add(self.ctx.rem8);
+        }
+
+        let mut new_used = TBitSet::new();
+        while used != new_used {
+            for func in used.iter() {
+                new_used.add(func);
+                self.functions[func].used_functions(&mut new_used);
+            }
+            mem::swap(&mut used, &mut new_used);
+        }
+
+        for i in (0..self.functions.len()).map(FunctionId::from).rev() {
+            if !used.get(i) {
+                self.remove_function(i);
             }
         }
     }

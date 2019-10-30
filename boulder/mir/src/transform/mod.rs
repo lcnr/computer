@@ -2,10 +2,11 @@ use std::{cmp::Ordering, mem};
 
 use tindex::{bitset::TBitSet, TVec};
 
-use shared_id::TypeId;
+use shared_id::{FunctionId, TypeId};
 
 use crate::{
-    traits::UpdateStepIds, Action, Block, BlockId, Function, Step, StepId, Terminator, Type,
+    traits::{UpdateFunctionIds, UpdateStepIds},
+    Action, Block, BlockId, Function, Mir, Step, StepId, Terminator, Type,
 };
 
 mod optimize;
@@ -20,6 +21,16 @@ fn get_or_insert_union(types: &mut TVec<TypeId, Type>, un: impl Iterator<Item = 
         TypeId::from(ty)
     } else {
         types.push(Type::Union(bitset))
+    }
+}
+
+impl<'a> Mir<'a> {
+    pub fn remove_function(&mut self, id: FunctionId) {
+        self.functions.remove(id);
+        self.ctx.shift_function_ids(id, -1);
+        for func in self.functions.iter_mut() {
+            func.shift_function_ids(id, -1);
+        }
     }
 }
 

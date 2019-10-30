@@ -255,6 +255,15 @@ impl<'a> Function<'a> {
             &[]
         }
     }
+
+    pub fn used_functions(&self, used: &mut TBitSet<FunctionId>) {
+        for step in self.blocks.iter().flat_map(|b| b.steps.iter()) {
+            match step.action {
+                Action::CallFunction(id, _) => used.add(id),
+                _ => (),
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,4 +1,4 @@
-# no_run
+@export
 fn block_break() {
     ;
 }

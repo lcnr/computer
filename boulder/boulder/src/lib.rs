@@ -28,12 +28,14 @@ pub fn compile_to_mir<'a>(
     Ok(mir)
 }
 
-pub fn core_optimizations<'a>(mir: &mut Mir<'a>) {
+pub fn core_optimizations<'a>(mir: &mut Mir<'a>, resolved_lang_items: bool) {
     #[cfg(feature = "profiler")]
     profile_scope!("core_optimizations");
     mir.unify_blocks();
     mir.validate();
     mir.remove_unused_steps();
+    mir.validate();
+    mir.remove_unused_functions(resolved_lang_items);
     mir.validate();
     mir.remove_redirects();
     mir.validate();
@@ -47,10 +49,11 @@ pub fn compile<'a>(
     #[cfg(feature = "profiler")]
     profile_scope!("compile");
     let mut mir = compile_to_mir(ctx, src, file)?;
-    core_optimizations(&mut mir);
+    core_optimizations(&mut mir, false);
     mir.reduce_binops();
-    mir.validate();
+    core_optimizations(&mut mir, true);
     mir.reduce_sum_types();
     mir.validate();
+    core_optimizations(&mut mir, true);
     Ok(mir)
 }
