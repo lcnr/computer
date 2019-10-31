@@ -2,9 +2,9 @@ use std::iter;
 
 use tindex::TVec;
 
-use shared_id::{TypeId, U16_TYPE_ID, U32_TYPE_ID, U8_TYPE_ID};
+use shared_id::{U16_TYPE_ID, U32_TYPE_ID, U8_TYPE_ID};
 
-use crate::{Action, Block, FieldId, Mir, Object, Step, StepId, Type, UnaryOperation};
+use crate::{Action, Block, FieldId, Mir, Object, Step, StepId, Type, UnaryOperation, Binop};
 
 impl<'a> Mir<'a> {
     /// reduce all `u32` and `u16` to `u8`
@@ -22,6 +22,73 @@ impl<'a> Mir<'a> {
     }
 }
 
+fn invert_u16() -> TVec<StepId, Step> {
+    let mut new_steps = TVec::new();
+    let high = new_steps.push(Step::new(
+        U8_TYPE_ID,
+        Action::StructFieldAccess(StepId::replacement(0), FieldId::from(0)),
+    ));
+    let high_inv = new_steps.push(Step::new(
+        U8_TYPE_ID,
+        Action::UnaryOperation(UnaryOperation::Invert, high),
+    ));
+    let low = new_steps.push(Step::new(
+        U8_TYPE_ID,
+        Action::StructFieldAccess(StepId::replacement(0), FieldId::from(1)),
+    ));
+    let low_inv = new_steps.push(Step::new(
+        U8_TYPE_ID,
+        Action::UnaryOperation(UnaryOperation::Invert, low),
+    ));
+    new_steps.push(Step::new(
+        U16_TYPE_ID,
+        Action::InitializeStruct(tvec![high_inv, low_inv]),
+    ));
+
+    new_steps
+}
+
+fn invert_u32() -> TVec<StepId, Step> {
+    let mut new_steps = TVec::new();
+    let high = new_steps.push(Step::new(
+        U8_TYPE_ID,
+        Action::StructFieldAccess(StepId::replacement(0), FieldId::from(0)),
+    ));
+    let high_inv = new_steps.push(Step::new(
+        U8_TYPE_ID,
+        Action::UnaryOperation(UnaryOperation::Invert, high),
+    ));
+    let high_middle = new_steps.push(Step::new(
+        U8_TYPE_ID,
+        Action::StructFieldAccess(StepId::replacement(0), FieldId::from(1)),
+    ));
+    let high_middle_inv = new_steps.push(Step::new(
+        U8_TYPE_ID,
+        Action::UnaryOperation(UnaryOperation::Invert, high_middle),
+    ));
+    let low_middle = new_steps.push(Step::new(
+        U8_TYPE_ID,
+        Action::StructFieldAccess(StepId::replacement(0), FieldId::from(2)),
+    ));
+    let low_middle_inv = new_steps.push(Step::new(
+        U8_TYPE_ID,
+        Action::UnaryOperation(UnaryOperation::Invert, low_middle),
+    ));
+    let low = new_steps.push(Step::new(
+        U8_TYPE_ID,
+        Action::StructFieldAccess(StepId::replacement(0), FieldId::from(3)),
+    ));
+    let low_inv = new_steps.push(Step::new(
+        U8_TYPE_ID,
+        Action::UnaryOperation(UnaryOperation::Invert, low),
+    ));
+    new_steps.push(Step::new(
+        U16_TYPE_ID,
+        Action::InitializeStruct(tvec![high_inv, high_middle_inv, low_middle_inv, low_inv]),
+    ));
+    new_steps
+}
+
 impl Block {
     fn reduce_to_bytes(&mut self) {
         #[cfg(feature = "profiler")]
@@ -32,46 +99,33 @@ impl Block {
                 &mut Action::LoadConstant(ref mut obj) => {
                     obj.reduce_to_bytes();
                 }
-                &mut Action::UnaryOperation(op, target_id) => match self.steps[target_id].ty {
-                    U16_TYPE_ID => match op {
-                        UnaryOperation::Invert => {
-                            let mut new_steps = TVec::new();
-                            let high = new_steps.push(Step::new(
-                                U8_TYPE_ID,
-                                Action::StructFieldAccess(StepId::invalid(), FieldId::from(0)),
-                            ));
-                            let high_inv = new_steps.push(Step::new(
-                                U8_TYPE_ID,
-                                Action::UnaryOperation(UnaryOperation::Invert, high),
-                            ));
-                            let low = new_steps.push(Step::new(
-                                U8_TYPE_ID,
-                                Action::StructFieldAccess(StepId::invalid(), FieldId::from(1)),
-                            ));
-                            let low_inv = new_steps.push(Step::new(
-                                U8_TYPE_ID,
-                                Action::UnaryOperation(UnaryOperation::Invert, low),
-                            ));
-                            new_steps.push(Step::new(
-                                U16_TYPE_ID,
-                                Action::InitializeStruct(tvec![high_inv, low_inv]),
-                            ));
-                            step_id = self.insert_steps(
-                                step_id..=step_id,
-                                new_steps,
-                                iter::once((StepId::invalid(), target_id)),
-                            );
+                &mut Action::UnaryOperation(op, target_id) => {
+                    let new_steps = match (self.steps[target_id].ty, op) {
+                        (U16_TYPE_ID, UnaryOperation::Invert) => invert_u16(),
+                        (U32_TYPE_ID, UnaryOperation::Invert) => invert_u32(),
+                        (_, UnaryOperation::Invert) => {
+                            step_id.0 += 1;
+                            continue;
                         }
-                    },
-                    U32_TYPE_ID => {}
-                    _ => (),
-                },
-                Action::Binop(op, a, b) => {
-                    // TODO: resolve Binop
+                    };
+                    step_id = self.insert_steps(
+                        step_id..=step_id,
+                        new_steps,
+                        iter::once(target_id),
+                    );
                 }
-                _ => (),
+                &mut Action::Binop(op, a, b) =>  {
+                    let new_steps = match (self.steps[a].ty, self.steps[b].ty, op) {
+                        _ => unimplemented!(),
+                    };
+                    step_id = self.insert_steps(
+                        step_id..=step_id,
+                        new_steps,
+                        [a, b].iter().copied(),
+                    );
+                }
+                _ => step_id.0 += 1,
             }
-            step_id.0 += 1;
         }
     }
 }

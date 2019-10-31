@@ -70,7 +70,7 @@ impl<'a> Mir<'a> {
                             Type::U8 => self.ctx.div8,
                             Type::U16 => self.ctx.div16,
                             Type::U32 => self.ctx.div32,
-                            _ => unreachable!("non integer multiplication"),
+                            _ => unreachable!("non integer division"),
                         },
                         vec![a, b],
                     );
@@ -82,7 +82,7 @@ impl<'a> Mir<'a> {
                             Type::U8 => self.ctx.rem8,
                             Type::U16 => self.ctx.rem16,
                             Type::U32 => self.ctx.rem32,
-                            _ => unreachable!("non integer multiplication"),
+                            _ => unreachable!("non integer remainder"),
                         },
                         vec![a, b],
                     );

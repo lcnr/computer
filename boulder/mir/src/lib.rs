@@ -106,6 +106,10 @@ impl StepId {
     pub fn invalid() -> Self {
         StepId(std::usize::MAX)
     }
+
+    pub fn replacement(n: usize) -> Self {
+        StepId(std::usize::MAX - n)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

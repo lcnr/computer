@@ -162,7 +162,7 @@ impl Block {
     where
         R: RangeBounds<StepId>,
         I: IntoIterator<Item = Step>,
-        P: IntoIterator<Item = (StepId, StepId)>,
+        P: IntoIterator<Item = StepId>,
     {
         let start = match at.start_bound() {
             Bound::Unbounded => 0,
@@ -182,10 +182,10 @@ impl Block {
         let inserted_end = self.steps.len() - end_len;
         let inserted_steps = &mut self.steps[StepId(start)..StepId(inserted_end)];
         let inserted_len = inserted_steps.len();
-        for (old, new) in replacements.into_iter() {
+        for (new, old) in replacements.into_iter().zip(0..) {
             inserted_steps
                 .iter_mut()
-                .for_each(|s| s.replace_step(old, StepId(new.0 + std::usize::MAX / 4)));
+                .for_each(|s| s.replace_step(StepId::replacement(old), StepId(new.0 + std::usize::MAX / 4)));
         }
 
         inserted_steps

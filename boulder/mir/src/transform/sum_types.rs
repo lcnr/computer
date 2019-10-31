@@ -87,7 +87,7 @@ fn build_obj_extend_steps(
     let mut new_steps = TVec::new();
     let un = new_steps.push(Step::new(
         union_ty,
-        Action::InitializeUnion(StepId::invalid()),
+        Action::InitializeUnion(StepId::replacement(0)),
     ));
     let sum = new_steps.push(Step::new(
         sum_ty,
@@ -302,7 +302,7 @@ impl<'a> Function<'a> {
                                     Action::LoadConstant(Object::Undefined),
                                 ));
                                 let sum_step = new_steps
-                                    .push(Step::new(sum_ty, Action::Extend(StepId::invalid())));
+                                    .push(Step::new(sum_ty, Action::Extend(StepId::replacement(0))));
                                 new_steps.push(Step::new(
                                     ty,
                                     Action::InitializeStruct(tvec![sum_step, union_step]),
@@ -323,7 +323,7 @@ impl<'a> Function<'a> {
 
                                 let target_sum = new_steps.push(Step::new(
                                     target_sum_ty,
-                                    Action::StructFieldAccess(StepId::invalid(), FieldId::from(0)),
+                                    Action::StructFieldAccess(StepId::replacement(0), FieldId::from(0)),
                                 ));
 
                                 let extended_sum =
@@ -336,7 +336,7 @@ impl<'a> Function<'a> {
                                 );
                                 let target_union = new_steps.push(Step::new(
                                     target_union_ty,
-                                    Action::StructFieldAccess(StepId::invalid(), FieldId::from(1)),
+                                    Action::StructFieldAccess(StepId::replacement(0), FieldId::from(1)),
                                 ));
                                 let union_union = new_steps.push(Step::new(
                                     union_union_ty,
@@ -358,7 +358,7 @@ impl<'a> Function<'a> {
                             step_id = self.blocks[block_id].insert_steps(
                                 step_id..=step_id,
                                 new_steps,
-                                iter::once((StepId::invalid(), target)),
+                                iter::once(target),
                             );
                         }
                         action => {
