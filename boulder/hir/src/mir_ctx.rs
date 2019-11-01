@@ -205,7 +205,7 @@ impl<'a> FunctionContextBuilder<'a> {
                     }
                 }
                 FunctionAttribute::Str(_) => unreachable!(),
-                _ => unimplemented!(),
+                FunctionAttribute::LangItem(_) => unreachable!("lang item"),
             }
         }
 

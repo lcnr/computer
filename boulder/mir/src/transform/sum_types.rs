@@ -301,8 +301,10 @@ impl<'a> Function<'a> {
                                     union_ty,
                                     Action::LoadConstant(Object::Undefined),
                                 ));
-                                let sum_step = new_steps
-                                    .push(Step::new(sum_ty, Action::Extend(StepId::replacement(0))));
+                                let sum_step = new_steps.push(Step::new(
+                                    sum_ty,
+                                    Action::Extend(StepId::replacement(0)),
+                                ));
                                 new_steps.push(Step::new(
                                     ty,
                                     Action::InitializeStruct(tvec![sum_step, union_step]),
@@ -323,7 +325,10 @@ impl<'a> Function<'a> {
 
                                 let target_sum = new_steps.push(Step::new(
                                     target_sum_ty,
-                                    Action::StructFieldAccess(StepId::replacement(0), FieldId::from(0)),
+                                    Action::StructFieldAccess(
+                                        StepId::replacement(0),
+                                        FieldId::from(0),
+                                    ),
                                 ));
 
                                 let extended_sum =
@@ -336,7 +341,10 @@ impl<'a> Function<'a> {
                                 );
                                 let target_union = new_steps.push(Step::new(
                                     target_union_ty,
-                                    Action::StructFieldAccess(StepId::replacement(0), FieldId::from(1)),
+                                    Action::StructFieldAccess(
+                                        StepId::replacement(0),
+                                        FieldId::from(1),
+                                    ),
                                 ));
                                 let union_union = new_steps.push(Step::new(
                                     union_union_ty,
@@ -362,7 +370,7 @@ impl<'a> Function<'a> {
                             );
                         }
                         action => {
-                            unimplemented!("what else can be done with sum types: {:?}", action)
+                            unreachable!("what else can be done with sum types: {:?}", action)
                         }
                     }
                 } else {

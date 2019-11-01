@@ -1,0 +1,9 @@
+@export
+fn raw_invert(a: u32) -> u32 {
+    !a
+}
+
+@export
+fn raw_invert_u16(a: u16) -> u16 {
+    !a
+}

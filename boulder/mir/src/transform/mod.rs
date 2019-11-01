@@ -183,9 +183,12 @@ impl Block {
         let inserted_steps = &mut self.steps[StepId(start)..StepId(inserted_end)];
         let inserted_len = inserted_steps.len();
         for (new, old) in replacements.into_iter().zip(0..) {
-            inserted_steps
-                .iter_mut()
-                .for_each(|s| s.replace_step(StepId::replacement(old), StepId(new.0 + std::usize::MAX / 4)));
+            inserted_steps.iter_mut().for_each(|s| {
+                s.replace_step(
+                    StepId::replacement(old),
+                    StepId(new.0 + std::usize::MAX / 4),
+                )
+            });
         }
 
         inserted_steps

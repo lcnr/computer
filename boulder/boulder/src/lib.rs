@@ -55,5 +55,7 @@ pub fn compile<'a>(
     mir.reduce_sum_types();
     mir.validate();
     core_optimizations(&mut mir, true);
+    mir.reduce_to_bytes();
+    mir.validate();
     Ok(mir)
 }
