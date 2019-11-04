@@ -84,7 +84,7 @@ impl<'a> Mir<'a> {
                 while i.0 < block.steps.len() {
                     if let Action::Extend(e) = block[i].action {
                         if block[e].ty == block[i].ty {
-                            block.replace_step(i, e);
+                            block.replace_step_with_existing(i, e);
                         } else {
                             i.0 += 1;
                         }

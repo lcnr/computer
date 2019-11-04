@@ -143,15 +143,13 @@ impl Block {
         self.terminator.shift_step_ids(id, -1);
     }
 
-    /// returns the `StepId` of the after the inserted element
-    pub fn insert_step(&mut self, id: StepId, step: Step) -> StepId {
-        for c in self.steps[id..].iter_mut() {
-            c.action.shift_step_ids(id, 1);
-        }
-
-        self.steps.insert(id, step);
-        self.terminator.shift_step_ids(id, 1);
-        StepId(id.0 + 1)
+    /// replaces the step `old` with `steps`
+    pub fn replace_step<I, P>(&mut self, old: StepId, steps: I, replacements: P) -> StepId
+    where
+        I: IntoIterator<Item = Step>,
+        P: IntoIterator<Item = StepId>,
+    {
+        self.insert_steps(old..=old, steps, replacements)
     }
 
     /// Replaces all steps in `at` with the steps of `I`, returning the id of the next step.
@@ -214,7 +212,7 @@ impl Block {
     }
 
     /// Remove `previous` from this block, updating all reference to this step to `new`
-    pub fn replace_step(&mut self, previous: StepId, new: StepId) {
+    pub fn replace_step_with_existing(&mut self, previous: StepId, new: StepId) {
         let mut replacer = |id: &mut StepId| {
             *id = match (*id).cmp(&previous) {
                 Ordering::Less => *id,
