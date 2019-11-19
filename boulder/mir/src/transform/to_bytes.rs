@@ -2,7 +2,7 @@ use std::iter;
 
 use tindex::TVec;
 
-use shared_id::{U16_TYPE_ID, U32_TYPE_ID, U8_TYPE_ID, BOOL_TYPE_ID};
+use shared_id::{BOOL_TYPE_ID, U16_TYPE_ID, U32_TYPE_ID, U8_TYPE_ID};
 
 use crate::{
     Action, Binop, BlockId, FieldId, Function, Mir, Object, Step, StepId, Type, UnaryOperation,
