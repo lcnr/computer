@@ -1,3 +1,33 @@
+@lang_item(u16b0)
+fn u16_byte0(a: u16) -> u8 {
+    0
+}
+
+@lang_item(u16b1)
+fn u16_byte1(a: u16) -> u8 {
+    0
+}
+
+@lang_item(u32b0)
+fn u32_byte0(a: u32) -> u8 {
+    0
+}
+
+@lang_item(u32b1)
+fn u32_byte1(a: u32) -> u8 {
+    0
+}
+
+@lang_item(u32b2)
+fn u32_byte2(a: u32) -> u8 {
+    0
+}
+
+@lang_item(u32b3)
+fn u32_byte3(a: u32) -> u8 {
+    0
+}
+
 @lang_item(div32)
 fn divide32(a: u32, b: u32) -> u32 {
     let i = 0;

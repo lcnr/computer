@@ -5,7 +5,8 @@ use tindex::TVec;
 use shared_id::{BOOL_TYPE_ID, U16_TYPE_ID, U32_TYPE_ID, U8_TYPE_ID};
 
 use crate::{
-    Action, Binop, BlockId, FieldId, Function, Mir, Object, Step, StepId, Type, UnaryOperation,
+    Action, Binop, Block, BlockId, FieldId, Function, Mir, Object, Step, StepId, Terminator, Type,
+    UnaryOperation,
 };
 
 impl<'a> Mir<'a> {
@@ -16,9 +17,63 @@ impl<'a> Mir<'a> {
         self.types[U32_TYPE_ID] =
             Type::Struct(tvec![U8_TYPE_ID, U8_TYPE_ID, U8_TYPE_ID, U8_TYPE_ID]);
         self.types[U16_TYPE_ID] = Type::Struct(tvec![U8_TYPE_ID, U8_TYPE_ID]);
+
+        self.replace_byte_access_intrinsics();
+
         for func in self.functions.iter_mut() {
             func.reduce_to_bytes();
         }
+    }
+
+    fn replace_byte_access_intrinsics(&mut self) {
+        let mut u16_block = Block::new();
+        let step = u16_block.add_input(U16_TYPE_ID);
+        u16_block.add_terminator(Terminator::Goto(None, vec![StepId::from(1)]));
+        let mut u16b0 = u16_block.clone();
+        u16b0.add_step(
+            U8_TYPE_ID,
+            Action::StructFieldAccess(step, FieldId::from(0)),
+        );
+        *self.functions[self.ctx.u16b0].blocks.first_mut().unwrap() = u16b0;
+
+        let mut u16b1 = u16_block;
+        u16b1.add_step(
+            U8_TYPE_ID,
+            Action::StructFieldAccess(step, FieldId::from(1)),
+        );
+        *self.functions[self.ctx.u16b1].blocks.first_mut().unwrap() = u16b1;
+
+        let mut u32_block = Block::new();
+        let step = u32_block.add_input(U32_TYPE_ID);
+        u32_block.add_terminator(Terminator::Goto(None, vec![StepId::from(1)]));
+
+        let mut u32b0 = u32_block.clone();
+        u32b0.add_step(
+            U8_TYPE_ID,
+            Action::StructFieldAccess(step, FieldId::from(0)),
+        );
+        *self.functions[self.ctx.u32b0].blocks.first_mut().unwrap() = u32b0;
+
+        let mut u32b1 = u32_block.clone();
+        u32b1.add_step(
+            U8_TYPE_ID,
+            Action::StructFieldAccess(step, FieldId::from(1)),
+        );
+        *self.functions[self.ctx.u32b1].blocks.first_mut().unwrap() = u32b1;
+
+        let mut u32b2 = u32_block.clone();
+        u32b2.add_step(
+            U8_TYPE_ID,
+            Action::StructFieldAccess(step, FieldId::from(2)),
+        );
+        *self.functions[self.ctx.u32b2].blocks.first_mut().unwrap() = u32b2;
+
+        let mut u32b3 = u32_block;
+        u32b3.add_step(
+            U8_TYPE_ID,
+            Action::StructFieldAccess(step, FieldId::from(3)),
+        );
+        *self.functions[self.ctx.u32b3].blocks.first_mut().unwrap() = u32b3;
     }
 }
 

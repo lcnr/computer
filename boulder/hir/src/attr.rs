@@ -46,6 +46,12 @@ impl<'a> TypeAttribute<'a> {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum LangItem {
+    U16Byte0,
+    U16Byte1,
+    U32Byte0,
+    U32Byte1,
+    U32Byte2,
+    U32Byte3,
     Div32,
     Div16,
     Div8,
@@ -70,24 +76,30 @@ impl<'a> FunctionAttribute<'a> {
         name: Meta<'a, &'a str>,
         args: Vec<Meta<'a, &'a str>>,
     ) -> Result<Meta<'a, Self>, CompileError> {
-        match name.item {
+        Ok(match name.item {
             "lang_item" => {
                 if args.len() == 1 {
-                    match args[0].item {
-                        "div32" => Ok(args[0].replace(FunctionAttribute::LangItem(LangItem::Div32))),
-                        "div16" => Ok(args[0].replace(FunctionAttribute::LangItem(LangItem::Div16))),
-                        "div8" => Ok(args[0].replace(FunctionAttribute::LangItem(LangItem::Div8))),
-                        "rem32" => Ok(args[0].replace(FunctionAttribute::LangItem(LangItem::Rem32))),
-                        "rem16" => Ok(args[0].replace(FunctionAttribute::LangItem(LangItem::Rem16))),
-                        "rem8" => Ok(args[0].replace(FunctionAttribute::LangItem(LangItem::Rem8))),
-                        "mul32" => Ok(args[0].replace(FunctionAttribute::LangItem(LangItem::Mul32))),
-                        "mul16" => Ok(args[0].replace(FunctionAttribute::LangItem(LangItem::Mul16))),
-                        "mul8" => Ok(args[0].replace(FunctionAttribute::LangItem(LangItem::Mul8))),
+                    args[0].replace(FunctionAttribute::LangItem(match args[0].item {
+                        "u16b0" => LangItem::U16Byte0,
+                        "u16b1" => LangItem::U16Byte1,
+                        "u32b0" => LangItem::U32Byte0,
+                        "u32b1" => LangItem::U32Byte1,
+                        "u32b2" => LangItem::U32Byte2,
+                        "u32b3" => LangItem::U32Byte3,
+                        "div32" => LangItem::Div32,
+                        "div16" => LangItem::Div16,
+                        "div8" => LangItem::Div8,
+                        "rem32" => LangItem::Rem32,
+                        "rem16" => LangItem::Rem16,
+                        "rem8" => LangItem::Rem8,
+                        "mul32" => LangItem::Mul32,
+                        "mul16" => LangItem::Mul16,
+                        "mul8" => LangItem::Mul8,
                         _ => CompileError::new(
                             &args[0],
                             format_args!("Unknown `lang_item`: `{}`", args[0].item),
-                        ),
-                    }
+                        )?,
+                    }))
                 } else {
                     CompileError::new(
                         &name,
@@ -95,15 +107,15 @@ impl<'a> FunctionAttribute<'a> {
                             "Invalid `lang_item`. Expected 1 argument, found {}",
                             args.len()
                         ),
-                    )
+                    )?
                 }
             }
-            "test" => Ok(name.replace(FunctionAttribute::TestFn)),
-            "export" => Ok(name.replace(FunctionAttribute::Export)),
+            "test" => name.replace(FunctionAttribute::TestFn),
+            "export" => name.replace(FunctionAttribute::Export),
             _ => CompileError::new(
                 &name,
                 format_args!("Unknown function attribute `{}`", name.item),
-            ),
-        }
+            )?,
+        })
     }
 }
