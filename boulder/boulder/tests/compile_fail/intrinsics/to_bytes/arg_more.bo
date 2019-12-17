@@ -1,0 +1,6 @@
+# 1 parameter but received 2
+# (5:
+
+fn test(a: u32) -> u8 {
+    to_bytes(a, a).a
+}

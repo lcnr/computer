@@ -5,6 +5,7 @@
 ### Core types
 
 Three unsigned integers `uN` where n denotes the size in bits: `u8`, `u16`, `u32`.
+Integers are stored in little endian.
 The unit type `Empty`, implicitly returned by functions and expressions terminated with `;`.
 Empty blocks, `while` loops and an a missing `else` also return `Empty`.
 
@@ -19,12 +20,12 @@ this means that multiple `;` in a row are valid.
 ### Structs
 
 Structs can be defined using `struct <name> { (<field>: <type>),* }` and instantiated using `<name> { (<field>: <value>),* }`.
-Their layout is undefined any must be be relied upon, this means that transmuting structs is always UB.
+Their layout is undefined and must not be relied upon, this means that transmuting structs is always UB.
 
 ### Unions
 
 Unions can be defined using `union <name> { (<field>: <type>),* }` and instantiated using `<name> { <field>: <value> }`.
-All fields of the union start at the same position, meaning that transmuting between unions is well definedas long as the currently
+All fields of the union start at the same position, meaning that transmuting between unions is well defined as long as the currently
 initialized type is part of both unions.
 
 ## Side effects

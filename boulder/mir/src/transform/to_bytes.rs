@@ -5,8 +5,7 @@ use tindex::TVec;
 use shared_id::{BOOL_TYPE_ID, U16_TYPE_ID, U32_TYPE_ID, U8_TYPE_ID};
 
 use crate::{
-    Action, Binop, Block, BlockId, FieldId, Function, Mir, Object, Step, StepId, Terminator, Type,
-    UnaryOperation,
+    Action, Binop, BlockId, FieldId, Function, Mir, Object, Step, StepId, Type, UnaryOperation,
 };
 
 impl<'a> Mir<'a> {
@@ -26,54 +25,27 @@ impl<'a> Mir<'a> {
     }
 
     fn replace_byte_access_intrinsics(&mut self) {
-        let mut u16_block = Block::new();
-        let step = u16_block.add_input(U16_TYPE_ID);
-        u16_block.add_terminator(Terminator::Goto(None, vec![StepId::from(1)]));
-        let mut u16b0 = u16_block.clone();
-        u16b0.add_step(
-            U8_TYPE_ID,
-            Action::StructFieldAccess(step, FieldId::from(0)),
-        );
-        *self.functions[self.ctx.u16b0].blocks.first_mut().unwrap() = u16b0;
+        let u16_to_bytes = unimplemented!();
+        let u32_to_bytes = unimplemented!();
 
-        let mut u16b1 = u16_block;
-        u16b1.add_step(
-            U8_TYPE_ID,
-            Action::StructFieldAccess(step, FieldId::from(1)),
-        );
-        *self.functions[self.ctx.u16b1].blocks.first_mut().unwrap() = u16b1;
+        for func in self.functions.iter_mut() {
+            for block in func.blocks.iter_mut() {
+                let mut step_id = StepId::from(0);
+                while step_id.0 < block.steps.len() {
+                    let step = &mut block.steps[step_id];
 
-        let mut u32_block = Block::new();
-        let step = u32_block.add_input(U32_TYPE_ID);
-        u32_block.add_terminator(Terminator::Goto(None, vec![StepId::from(1)]));
-
-        let mut u32b0 = u32_block.clone();
-        u32b0.add_step(
-            U8_TYPE_ID,
-            Action::StructFieldAccess(step, FieldId::from(0)),
-        );
-        *self.functions[self.ctx.u32b0].blocks.first_mut().unwrap() = u32b0;
-
-        let mut u32b1 = u32_block.clone();
-        u32b1.add_step(
-            U8_TYPE_ID,
-            Action::StructFieldAccess(step, FieldId::from(1)),
-        );
-        *self.functions[self.ctx.u32b1].blocks.first_mut().unwrap() = u32b1;
-
-        let mut u32b2 = u32_block.clone();
-        u32b2.add_step(
-            U8_TYPE_ID,
-            Action::StructFieldAccess(step, FieldId::from(2)),
-        );
-        *self.functions[self.ctx.u32b2].blocks.first_mut().unwrap() = u32b2;
-
-        let mut u32b3 = u32_block;
-        u32b3.add_step(
-            U8_TYPE_ID,
-            Action::StructFieldAccess(step, FieldId::from(3)),
-        );
-        *self.functions[self.ctx.u32b3].blocks.first_mut().unwrap() = u32b3;
+                    if let Action::UnaryOperation(UnaryOperation::ToBytes, expr) = step.action {
+                        if block.steps[expr].ty == U16_TYPE_ID {
+                            step.action = Action::CallFunction(u16_to_bytes, vec![expr]);
+                        } else if block.steps[expr].ty == U32_TYPE_ID {
+                            step.action = Action::CallFunction(u32_to_bytes, vec![expr]);
+                        } else {
+                            unreachable!("invalid to_bytes");
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -292,6 +264,7 @@ impl<'a> Function<'a> {
                                 s_id.0 += 1;
                                 continue;
                             }
+                            (_, UnaryOperation::ToBytes) => unreachable!("to_bytes"),
                         };
                         s_id = block.insert_steps(s_id..=s_id, new_steps, iter::once(target_id));
                     }

@@ -9,7 +9,7 @@ use std::iter;
 
 use tindex::TVec;
 
-use shared_id::{FunctionId, TypeId, BOOL_TYPE_ID, FALSE_TYPE_ID, TRUE_TYPE_ID};
+use shared_id::{FunctionId, TypeId, FALSE_TYPE_ID, TRUE_TYPE_ID};
 
 use diagnostics::{CompileError, Meta};
 
@@ -29,7 +29,7 @@ use traits::{
     IdentifierState, ResolvedIdentifiers, ResolvedTypes, TypeState, UnresolvedIdentifiers,
     UnresolvedTypes,
 };
-use ty::Type;
+use ty::{Field, Type};
 
 #[derive(Debug, Clone)]
 pub enum UnresolvedType<'a> {
@@ -43,6 +43,15 @@ pub enum UnresolvedType<'a> {
 pub enum UnresolvedVariable<'a> {
     Existing(Meta<'a, &'a str>),
     New(Meta<'a, &'a str>, Meta<'a, Option<UnresolvedType<'a>>>),
+}
+
+impl<'a> diagnostics::Span<'a> for UnresolvedVariable<'a> {
+    fn span(&self) -> Meta<'a, ()> {
+        match self {
+            UnresolvedVariable::Existing(s) => s.span(),
+            UnresolvedVariable::New(n, _) => n.span(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -122,25 +131,60 @@ impl<'a>
                 kind: ty::Kind::U16,
             },
             Type {
+                name: Meta::fake("u16Bytes".into()),
+                at: Vec::new(),
+                attributes: Vec::new(),
+                kind: ty::Kind::Struct(tvec![
+                    Field {
+                        name: Meta::fake("a"),
+                        ty: Meta::fake(UnresolvedType::Named("u8".into())),
+                    },
+                    Field {
+                        name: Meta::fake("b"),
+                        ty: Meta::fake(UnresolvedType::Named("u8".into())),
+                    }
+                ]),
+            },
+            Type {
                 name: Meta::fake("u32".into()),
                 at: Vec::new(),
                 attributes: Vec::new(),
                 kind: ty::Kind::U32,
+            },
+            Type {
+                name: Meta::fake("u32Bytes".into()),
+                at: Vec::new(),
+                attributes: Vec::new(),
+                kind: ty::Kind::Struct(tvec![
+                    Field {
+                        name: Meta::fake("a"),
+                        ty: Meta::fake(UnresolvedType::Named("u8".into())),
+                    },
+                    Field {
+                        name: Meta::fake("b"),
+                        ty: Meta::fake(UnresolvedType::Named("u8".into())),
+                    },
+                    Field {
+                        name: Meta::fake("c"),
+                        ty: Meta::fake(UnresolvedType::Named("u8".into())),
+                    },
+                    Field {
+                        name: Meta::fake("d"),
+                        ty: Meta::fake(UnresolvedType::Named("u8".into())),
+                    }
+                ]),
             },
         ];
 
         let mut modules = Module::new(Meta::fake(()));
         for (i, ty) in types.index_iter().zip(types.iter()) {
             modules.add_type(&[], ty.name.item.clone(), i).unwrap();
+            if let &ty::Kind::Sum(ref kinds) = &ty.kind {
+                modules
+                    .add_type(&[], Box::from(ty::sum_ty_name(kinds)), i)
+                    .unwrap();
+            }
         }
-
-        modules
-            .add_type(
-                &[],
-                format!("{} | {}", TRUE_TYPE_ID, FALSE_TYPE_ID).into(),
-                BOOL_TYPE_ID,
-            )
-            .unwrap();
 
         Self {
             functions: TVec::new(),

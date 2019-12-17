@@ -1,0 +1,6 @@
+@test
+fn test_u32() -> Bool {
+    let a: u32 = 0xbaadf00d;
+    let bytes: u32Bytes = to_bytes(a);
+    bytes.a == 0x0d && bytes.b == 0xf0 && bytes.c == 0xad && bytes.d == 0xba
+}

@@ -8,7 +8,7 @@ use tindex::TVec;
 
 use global_ctx::GlobalCtx;
 
-use diagnostics::{CompileError, Meta};
+use diagnostics::{CompileError, Meta, Span};
 
 use hir::attr::{FunctionAttribute, ModuleAttribute, TypeAttribute};
 
@@ -392,7 +392,34 @@ fn parse_ident_expr<'a>(
                     )?;
                 }
             }
-            Expression::FunctionCall((), ident.map(Into::into), args)
+
+            match ident.item {
+                "to_bytes" => {
+                    if args.len() == 1 {
+                        Expression::UnaryOperation(
+                            (),
+                            ident.replace(hir::expr::UnaryOperation::ToBytes),
+                            Box::new(args.pop().unwrap()),
+                        )
+                    } else {
+                        let location = args
+                            .last()
+                            .map_or(ident.simplify(), |arg| ident.simplify().append(arg.span()))
+                            .extend_right(')');
+
+                        CompileError::build(
+                            &ident,
+                            format_args!(
+                                "This function takes 1 parameter but received {}",
+                                args.len()
+                            ),
+                        )
+                        .with_location(&location)
+                        .build()?
+                    }
+                }
+                _ => Expression::FunctionCall((), ident.map(Into::into), args),
+            }
         }
         Token::OpenBlock(BlockDelim::Brace) => {
             if expecting_open_brace {
@@ -1101,13 +1128,11 @@ fn parse_function<'a>(
         }
     }
 
-    let tok = iter.next().unwrap();
-    if tok.item == Token::Arrow {
+    if try_consume_token(Token::Arrow, iter) {
         func.set_return(parse_type(iter)?);
-        consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
-    } else if tok.item != Token::OpenBlock(BlockDelim::Brace) {
-        CompileError::expected(&Token::OpenBlock(BlockDelim::Brace), &tok)?;
     }
+
+    consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
 
     func.set_body(parse_block(None, iter)?);
 

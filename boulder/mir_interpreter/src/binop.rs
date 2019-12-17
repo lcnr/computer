@@ -39,6 +39,15 @@ impl<'a> BoulderMirInterpreter<'a> {
                 }
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
+            UnaryOperation::ToBytes => match &steps[expr] {
+                &Object::U16(x) => Ok(Object::Struct(
+                    x.to_le_bytes().iter().map(|&v| Object::U8(v)).collect(),
+                )),
+                &Object::U32(x) => Ok(Object::Struct(
+                    x.to_le_bytes().iter().map(|&v| Object::U8(v)).collect(),
+                )),
+                _ => Err(InterpretError::InvalidOperation(function, block, step)),
+            },
         }
     }
 

@@ -151,12 +151,17 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 })
             }
             Expression::UnaryOperation(ty, op, expr) => {
+                let expr_ty = expr.ty();
                 let expr = expr.to_mir(ctx)?;
-                ctx.func[*ctx.curr].add_step(ty, Action::Extend(expr));
+                ctx.func[*ctx.curr].add_step(expr_ty, Action::Extend(expr));
                 match op.item {
                     UnaryOperation::Invert => Ok(ctx.func[*ctx.curr].add_step(
                         ty,
                         Action::UnaryOperation(mir::UnaryOperation::Invert, expr),
+                    )),
+                    UnaryOperation::ToBytes => Ok(ctx.func[*ctx.curr].add_step(
+                        ty,
+                        Action::UnaryOperation(mir::UnaryOperation::ToBytes, expr),
                     )),
                 }
             }

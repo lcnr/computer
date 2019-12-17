@@ -46,12 +46,6 @@ impl<'a> TypeAttribute<'a> {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum LangItem {
-    U16Byte0,
-    U16Byte1,
-    U32Byte0,
-    U32Byte1,
-    U32Byte2,
-    U32Byte3,
     Div32,
     Div16,
     Div8,
@@ -80,12 +74,6 @@ impl<'a> FunctionAttribute<'a> {
             "lang_item" => {
                 if args.len() == 1 {
                     args[0].replace(FunctionAttribute::LangItem(match args[0].item {
-                        "u16b0" => LangItem::U16Byte0,
-                        "u16b1" => LangItem::U16Byte1,
-                        "u32b0" => LangItem::U32Byte0,
-                        "u32b1" => LangItem::U32Byte1,
-                        "u32b2" => LangItem::U32Byte2,
-                        "u32b3" => LangItem::U32Byte3,
                         "div32" => LangItem::Div32,
                         "div16" => LangItem::Div16,
                         "div8" => LangItem::Div8,

@@ -1,6 +1,6 @@
 use std::iter;
 
-use shared_id::TypeId;
+use shared_id::{TypeId, U16_BYTES_TYPE_ID, U16_TYPE_ID, U32_BYTES_TYPE_ID, U32_TYPE_ID};
 
 use solver::{Entity, Production, SolvedEntity};
 
@@ -88,6 +88,123 @@ impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for FieldAcc
         _target: SolvedEntity<EntityState>,
     ) -> Result<(), CompileError> {
         Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct ToBytes;
+
+impl<'a, 'b> Production<Context<'a, 'b>, EntityState, CompileError> for ToBytes {
+    fn resolve(
+        &mut self,
+        ctx: &mut Context<'a, 'b>,
+        origin: SolvedEntity<EntityState>,
+        target: Entity<EntityState>,
+    ) -> Result<(), CompileError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("ToBytes::resolve");
+        match origin.value {
+            U16_TYPE_ID => {
+                if target
+                    .state
+                    .try_bind(iter::once(U16_BYTES_TYPE_ID).collect(), ctx.types)
+                {
+                    Ok(())
+                } else {
+                    let found_str = TypeSolver::ty_error_str(ctx.types, target.state);
+                    CompileError::build(
+                        &ctx.meta[target.id],
+                        format_args!(
+                            "Mismatched types: found `{}`, expected `u16Bytes`",
+                            found_str,
+                        ),
+                    )
+                    .with_location(&ctx.meta[origin.id])
+                    .build()
+                }
+            }
+            U32_TYPE_ID => {
+                if target
+                    .state
+                    .try_bind(iter::once(U32_BYTES_TYPE_ID).collect(), ctx.types)
+                {
+                    Ok(())
+                } else {
+                    let found_str = TypeSolver::ty_error_str(ctx.types, target.state);
+                    CompileError::build(
+                        &ctx.meta[target.id],
+                        format_args!(
+                            "Mismatched types: found `{}`, expected `u32Bytes`",
+                            found_str
+                        ),
+                    )
+                    .with_location(&ctx.meta[origin.id])
+                    .build()
+                }
+            }
+            _ => CompileError::build(
+                &ctx.meta[target.id],
+                format_args!(
+                    "Mismatched types: found `{}`, expected `u16` or `u32`",
+                    ctx.types[origin.value].name.item
+                ),
+            )
+            .with_location(&ctx.meta[origin.id])
+            .build(),
+        }
+    }
+
+    fn resolve_backwards(
+        &mut self,
+        ctx: &mut Context<'a, 'b>,
+        origin: Entity<EntityState>,
+        target: SolvedEntity<EntityState>,
+    ) -> Result<(), CompileError> {
+        #[cfg(feature = "profiler")]
+        profile_scope!("ToBytes::resolve_backwards");
+        match target.value {
+            U16_BYTES_TYPE_ID => {
+                if origin
+                    .state
+                    .try_bind(iter::once(U16_TYPE_ID).collect(), ctx.types)
+                {
+                    Ok(())
+                } else {
+                    let found_str = TypeSolver::ty_error_str(ctx.types, origin.state);
+                    CompileError::build(
+                        &ctx.meta[origin.id],
+                        format_args!("Mismatched types: found `{}`, expected `u16`", found_str,),
+                    )
+                    .with_location(&ctx.meta[target.id])
+                    .build()
+                }
+            }
+            U32_BYTES_TYPE_ID => {
+                if origin
+                    .state
+                    .try_bind(iter::once(U32_TYPE_ID).collect(), ctx.types)
+                {
+                    Ok(())
+                } else {
+                    let found_str = TypeSolver::ty_error_str(ctx.types, origin.state);
+                    CompileError::build(
+                        &ctx.meta[origin.id],
+                        format_args!("Mismatched types: found `{}`, expected `u32`", found_str),
+                    )
+                    .with_location(&ctx.meta[target.id])
+                    .build()
+                }
+            }
+            _ => CompileError::build(
+                &ctx.meta[origin.id],
+                format_args!(
+                    "Mismatched types: found `{}`, expected `u16Bytes` or `u32Bytes`",
+                    ctx.types[target.value].name.item
+                ),
+            )
+            .with_location(&ctx.meta[target.id])
+            .build(),
+        }
     }
 }
 

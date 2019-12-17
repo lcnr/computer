@@ -116,6 +116,14 @@ pub fn resolve<'a>(
     })
 }
 
+pub fn sum_ty_name(kinds: &TBitSet<TypeId>) -> String {
+    let mut iter = kinds.iter();
+    let first = iter.next().expect("empty sum type");
+    iter.fold(format!("{}", first), |name, ty| {
+        format!("{} | {}", name, ty)
+    })
+}
+
 pub fn build_sum_ty<'a>(
     cases: &TBitSet<TypeId>,
     types: &mut TVec<TypeId, Type<'a, TypeId>>,
@@ -134,16 +142,11 @@ pub fn build_sum_ty<'a>(
     } else {
         let mut iter = values.iter();
 
+        let type_name = sum_ty_name(&values);
         let first = iter.next().expect("trying to build an empty sum type");
-        let (type_name, resolved_type_name) = iter.fold(
-            (format!("{}", first), format!("{}", types[first].name.item)),
-            |(s, r), ty| {
-                (
-                    format!("{} | {}", s, ty),
-                    format!("{} | {}", r, types[ty].name.item),
-                )
-            },
-        );
+        let resolved_type_name = iter.fold(format!("{}", types[first].name.item), |r, ty| {
+            format!("{} | {}", r, types[ty].name.item)
+        });
 
         *modules.types.entry(type_name.into()).or_insert_with(|| {
             types.push(Type {

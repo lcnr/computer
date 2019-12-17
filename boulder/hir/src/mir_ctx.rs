@@ -31,21 +31,6 @@ fn insert_lang_item<'a, T>(
     }
 }
 
-fn check_byte_sel<'a>(
-    def: &FunctionDefinition<'a, TypeId>,
-    ty: TypeId,
-    s: &str,
-) -> Result<(), CompileError> {
-    if def.args.len() == 1 && def.args[0].item == ty && def.ty.item == U8_TYPE_ID {
-        Ok(())
-    } else {
-        CompileError::new(
-            &def.name,
-            format_args!("Invalid function type for `lang_item({})`", s),
-        )
-    }
-}
-
 fn check_binop<'a>(
     def: &FunctionDefinition<'a, TypeId>,
     ty: TypeId,
@@ -66,12 +51,6 @@ fn check_binop<'a>(
 
 #[derive(Default)]
 pub struct ContextBuilder<'a> {
-    u16b0: Option<Meta<'a, FunctionId>>,
-    u16b1: Option<Meta<'a, FunctionId>>,
-    u32b0: Option<Meta<'a, FunctionId>>,
-    u32b1: Option<Meta<'a, FunctionId>>,
-    u32b2: Option<Meta<'a, FunctionId>>,
-    u32b3: Option<Meta<'a, FunctionId>>,
     div32: Option<Meta<'a, FunctionId>>,
     div16: Option<Meta<'a, FunctionId>>,
     div8: Option<Meta<'a, FunctionId>>,
@@ -99,36 +78,6 @@ impl<'a> ContextBuilder<'a> {
             for i in (0..func.attributes.len()).rev() {
                 let attr = &func.attributes[i];
                 match attr.item {
-                    FunctionAttribute::LangItem(LangItem::U16Byte0) => {
-                        check_byte_sel(def, U16_TYPE_ID, "u16b0")?;
-                        insert_lang_item(&mut builder.u16b0, attr.replace(id), "u16b0")?;
-                        func.attributes.remove(i);
-                    }
-                    FunctionAttribute::LangItem(LangItem::U16Byte1) => {
-                        check_byte_sel(def, U16_TYPE_ID, "u16b1")?;
-                        insert_lang_item(&mut builder.u16b1, attr.replace(id), "u16b1")?;
-                        func.attributes.remove(i);
-                    }
-                    FunctionAttribute::LangItem(LangItem::U32Byte0) => {
-                        check_byte_sel(def, U32_TYPE_ID, "u32b0")?;
-                        insert_lang_item(&mut builder.u32b0, attr.replace(id), "u32b0")?;
-                        func.attributes.remove(i);
-                    }
-                    FunctionAttribute::LangItem(LangItem::U32Byte1) => {
-                        check_byte_sel(def, U32_TYPE_ID, "u32b1")?;
-                        insert_lang_item(&mut builder.u32b1, attr.replace(id), "u32b1")?;
-                        func.attributes.remove(i);
-                    }
-                    FunctionAttribute::LangItem(LangItem::U32Byte2) => {
-                        check_byte_sel(def, U32_TYPE_ID, "u32b2")?;
-                        insert_lang_item(&mut builder.u32b2, attr.replace(id), "u32b2")?;
-                        func.attributes.remove(i);
-                    }
-                    FunctionAttribute::LangItem(LangItem::U32Byte3) => {
-                        check_byte_sel(def, U32_TYPE_ID, "u32b3")?;
-                        insert_lang_item(&mut builder.u32b3, attr.replace(id), "u32b3")?;
-                        func.attributes.remove(i);
-                    }
                     FunctionAttribute::LangItem(LangItem::Div32) => {
                         check_binop(def, U32_TYPE_ID, "div32")?;
                         insert_lang_item(&mut builder.div32, attr.replace(id), "div32")?;
@@ -175,7 +124,7 @@ impl<'a> ContextBuilder<'a> {
                         func.attributes.remove(i);
                     }
                     FunctionAttribute::TestFn | FunctionAttribute::Export => (),
-                    FunctionAttribute::Str(_) => unreachable!(),
+                    ref attr @ FunctionAttribute::Str(_) => unreachable!("{:?}", attr),
                 }
             }
         }
@@ -192,12 +141,6 @@ impl<'a> ContextBuilder<'a> {
         }
 
         Ok(Context {
-            u16b0: unwrap_item(self.u16b0, "u16b0")?,
-            u16b1: unwrap_item(self.u16b1, "u16b1")?,
-            u32b0: unwrap_item(self.u32b0, "u32b0")?,
-            u32b1: unwrap_item(self.u32b1, "u32b1")?,
-            u32b2: unwrap_item(self.u32b2, "u32b2")?,
-            u32b3: unwrap_item(self.u32b3, "u32b3")?,
             div32: unwrap_item(self.div32, "div32")?,
             div16: unwrap_item(self.div16, "div16")?,
             div8: unwrap_item(self.div8, "div8")?,
@@ -261,8 +204,8 @@ impl<'a> FunctionContextBuilder<'a> {
                         func.attributes.remove(i);
                     }
                 }
-                FunctionAttribute::Str(_) => unreachable!(),
-                FunctionAttribute::LangItem(_) => unreachable!("lang item"),
+                ref attr @ FunctionAttribute::Str(_)
+                | ref attr @ FunctionAttribute::LangItem(_) => unreachable!("{:?}", attr),
             }
         }
 

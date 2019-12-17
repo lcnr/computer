@@ -10,6 +10,7 @@ impl Display for UnaryOperation {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Self::Invert => write!(f, "invert"),
+            Self::ToBytes => write!(f, "to_bytes"),
         }
     }
 }

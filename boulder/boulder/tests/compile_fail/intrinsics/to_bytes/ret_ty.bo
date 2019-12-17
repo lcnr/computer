@@ -1,0 +1,8 @@
+# found `u8`
+# `u16Bytes`
+# `u32Bytes`
+# (7:
+
+fn test() -> u8 {
+    to_bytes(7: u32)
+}

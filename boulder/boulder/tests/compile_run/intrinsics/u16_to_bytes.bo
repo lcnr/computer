@@ -1,0 +1,6 @@
+@test
+fn test_u16() -> Bool {
+    let a: u16 = 0xfeed;
+    let bytes: u16Bytes = to_bytes(a);
+    bytes.a == 0xed && bytes.b == 0xfe
+}

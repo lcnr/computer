@@ -1,0 +1,4 @@
+@test
+fn test() -> Bool {
+    to_bytes(7: u16).a == 7
+}

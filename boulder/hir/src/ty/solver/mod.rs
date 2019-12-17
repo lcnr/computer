@@ -15,7 +15,7 @@ use crate::{
     ty::{self, Kind, Type},
 };
 
-use productions::{Equality, Extension, FieldAccess};
+use productions::{Equality, Extension, FieldAccess, ToBytes};
 
 #[derive(Debug)]
 pub struct Context<'a, 'b> {
@@ -245,6 +245,7 @@ pub struct TypeSolver<'a, 'b> {
     fields: HashMap<&'a str, (ProductionId, Vec<TypeId>)>,
     equality: ProductionId,
     extension: ProductionId,
+    to_bytes: ProductionId,
 }
 
 impl<'a, 'b> TypeSolver<'a, 'b> {
@@ -293,6 +294,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
 
         let equality = solver.define_production(Box::new(Equality));
         let extension = solver.define_production(Box::new(Extension));
+        let to_bytes = solver.define_production(Box::new(ToBytes));
 
         Self {
             solver,
@@ -300,6 +302,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
             integers,
             fields,
             equality,
+            to_bytes,
             extension,
         }
     }
@@ -421,6 +424,10 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
 
     pub fn add_equality(&mut self, origin: EntityId, target: EntityId) {
         self.solver.add_production(self.equality, origin, target);
+    }
+
+    pub fn add_to_bytes(&mut self, origin: EntityId, target: EntityId) {
+        self.solver.add_production(self.to_bytes, origin, target);
     }
 
     pub fn add_extension(&mut self, origin: EntityId, target: EntityId) {

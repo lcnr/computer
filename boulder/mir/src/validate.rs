@@ -2,7 +2,9 @@ use std::{fmt, mem, ops::Drop};
 
 use tindex::TIndex;
 
-use shared_id::{FunctionId, TypeId};
+use shared_id::{
+    FunctionId, TypeId, U16_BYTES_TYPE_ID, U16_TYPE_ID, U32_BYTES_TYPE_ID, U32_TYPE_ID,
+};
 
 use crate::{Action, Mir, Object, StepId, Terminator, Type, UnaryOperation};
 
@@ -136,6 +138,13 @@ impl<'a> Mir<'a> {
                             UnaryOperation::Invert => {
                                 assert_eq!(block[expr].ty, step.ty);
                                 // TODO: validate integer or bool
+                            }
+                            UnaryOperation::ToBytes => {
+                                assert!(
+                                    block[expr].ty == U16_TYPE_ID && step.ty == U16_BYTES_TYPE_ID
+                                        || block[expr].ty == U32_TYPE_ID
+                                            && step.ty == U32_BYTES_TYPE_ID
+                                );
                             }
                         }
                     }

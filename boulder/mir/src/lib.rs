@@ -164,6 +164,7 @@ impl Terminator {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnaryOperation {
     Invert,
+    ToBytes,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

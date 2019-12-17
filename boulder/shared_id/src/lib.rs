@@ -12,7 +12,9 @@ pub const FALSE_TYPE_ID: TypeId = TypeId(3);
 pub const BOOL_TYPE_ID: TypeId = TypeId(4);
 pub const U8_TYPE_ID: TypeId = TypeId(5);
 pub const U16_TYPE_ID: TypeId = TypeId(6);
-pub const U32_TYPE_ID: TypeId = TypeId(7);
+pub const U16_BYTES_TYPE_ID: TypeId = TypeId(7);
+pub const U32_TYPE_ID: TypeId = TypeId(8);
+pub const U32_BYTES_TYPE_ID: TypeId = TypeId(9);
 
 impl From<usize> for TypeId {
     fn from(v: usize) -> Self {
