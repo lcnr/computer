@@ -146,6 +146,13 @@ fn compile_run() -> Result<(), TestFailure> {
 
                 boulder::core_optimizations(&mut mir, true);
                 test_mir(&mir, "core optimizations post sum types");
+
+                mir.reduce_to_bytes();
+                mir.validate();
+                test_mir(&mir, "reduced to bytes");
+
+                boulder::core_optimizations(&mut mir, true);
+                test_mir(&mir, "core optimizations post bytes");
             })) {
                 Ok(()) => (),
                 Err(_) => {

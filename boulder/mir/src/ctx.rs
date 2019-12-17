@@ -17,4 +17,5 @@ pub struct Context {
 pub struct FunctionContext {
     pub export: bool,
     pub is_test: bool,
+    pub hidden: bool,
 }

@@ -2,7 +2,9 @@ use std::iter;
 
 use tindex::TVec;
 
-use shared_id::{BOOL_TYPE_ID, U16_TYPE_ID, U32_TYPE_ID, U8_TYPE_ID};
+use shared_id::{
+    BOOL_TYPE_ID, U16_BYTES_TYPE_ID, U16_TYPE_ID, U32_BYTES_TYPE_ID, U32_TYPE_ID, U8_TYPE_ID,
+};
 
 use crate::{
     Action, Binop, BlockId, FieldId, Function, Mir, Object, Step, StepId, Type, UnaryOperation,
@@ -17,34 +19,8 @@ impl<'a> Mir<'a> {
             Type::Struct(tvec![U8_TYPE_ID, U8_TYPE_ID, U8_TYPE_ID, U8_TYPE_ID]);
         self.types[U16_TYPE_ID] = Type::Struct(tvec![U8_TYPE_ID, U8_TYPE_ID]);
 
-        self.replace_byte_access_intrinsics();
-
         for func in self.functions.iter_mut() {
             func.reduce_to_bytes();
-        }
-    }
-
-    fn replace_byte_access_intrinsics(&mut self) {
-        let u16_to_bytes = unimplemented!();
-        let u32_to_bytes = unimplemented!();
-
-        for func in self.functions.iter_mut() {
-            for block in func.blocks.iter_mut() {
-                let mut step_id = StepId::from(0);
-                while step_id.0 < block.steps.len() {
-                    let step = &mut block.steps[step_id];
-
-                    if let Action::UnaryOperation(UnaryOperation::ToBytes, expr) = step.action {
-                        if block.steps[expr].ty == U16_TYPE_ID {
-                            step.action = Action::CallFunction(u16_to_bytes, vec![expr]);
-                        } else if block.steps[expr].ty == U32_TYPE_ID {
-                            step.action = Action::CallFunction(u32_to_bytes, vec![expr]);
-                        } else {
-                            unreachable!("invalid to_bytes");
-                        }
-                    }
-                }
-            }
         }
     }
 }
@@ -53,12 +29,16 @@ fn i(a: StepId, b: StepId) -> impl Iterator<Item = StepId> {
     iter::once(a).chain(iter::once(b))
 }
 
-fn binop_byte(new_steps: &mut TVec<StepId, Step>, field: usize) -> (StepId, StepId) {
-    let a = new_steps.push(Step::new(
+fn byte(steps: &mut TVec<StepId, Step>, field: usize) -> StepId {
+    steps.push(Step::new(
         U8_TYPE_ID,
         Action::StructFieldAccess(StepId::replacement(0), FieldId::from(field)),
-    ));
-    let b = new_steps.push(Step::new(
+    ))
+}
+
+fn binop_byte(steps: &mut TVec<StepId, Step>, field: usize) -> (StepId, StepId) {
+    let a = byte(steps, field);
+    let b = steps.push(Step::new(
         U8_TYPE_ID,
         Action::StructFieldAccess(StepId::replacement(1), FieldId::from(field)),
     ));
@@ -67,179 +47,160 @@ fn binop_byte(new_steps: &mut TVec<StepId, Step>, field: usize) -> (StepId, Step
 }
 
 fn invert_u16() -> TVec<StepId, Step> {
-    let mut new_steps = TVec::new();
-    let high = new_steps.push(Step::new(
-        U8_TYPE_ID,
-        Action::StructFieldAccess(StepId::replacement(0), FieldId::from(0)),
-    ));
-    let high_inv = new_steps.push(Step::new(
-        U8_TYPE_ID,
-        Action::UnaryOperation(UnaryOperation::Invert, high),
-    ));
-    let low = new_steps.push(Step::new(
-        U8_TYPE_ID,
-        Action::StructFieldAccess(StepId::replacement(0), FieldId::from(1)),
-    ));
-    let low_inv = new_steps.push(Step::new(
+    let mut steps = TVec::new();
+    let low = byte(&mut steps, 0);
+    let low_inv = steps.push(Step::new(
         U8_TYPE_ID,
         Action::UnaryOperation(UnaryOperation::Invert, low),
     ));
-    new_steps.push(Step::new(
-        U16_TYPE_ID,
-        Action::InitializeStruct(tvec![high_inv, low_inv]),
+
+    let high = byte(&mut steps, 1);
+    let high_inv = steps.push(Step::new(
+        U8_TYPE_ID,
+        Action::UnaryOperation(UnaryOperation::Invert, high),
     ));
 
-    new_steps
+    steps.push(Step::new(
+        U16_TYPE_ID,
+        Action::InitializeStruct(tvec![low_inv, high_inv]),
+    ));
+
+    steps
 }
 
 fn invert_u32() -> TVec<StepId, Step> {
-    let mut new_steps = TVec::new();
-    let high = new_steps.push(Step::new(
+    let mut steps = TVec::new();
+    let a = byte(&mut steps, 0);
+    let a_inv = steps.push(Step::new(
         U8_TYPE_ID,
-        Action::StructFieldAccess(StepId::replacement(0), FieldId::from(0)),
+        Action::UnaryOperation(UnaryOperation::Invert, a),
     ));
-    let high_inv = new_steps.push(Step::new(
+
+    let b = byte(&mut steps, 1);
+    let b_inv = steps.push(Step::new(
         U8_TYPE_ID,
-        Action::UnaryOperation(UnaryOperation::Invert, high),
+        Action::UnaryOperation(UnaryOperation::Invert, b),
     ));
-    let high_middle = new_steps.push(Step::new(
+    let c = byte(&mut steps, 2);
+    let c_inv = steps.push(Step::new(
         U8_TYPE_ID,
-        Action::StructFieldAccess(StepId::replacement(0), FieldId::from(1)),
+        Action::UnaryOperation(UnaryOperation::Invert, c),
     ));
-    let high_middle_inv = new_steps.push(Step::new(
+    let d = byte(&mut steps, 3);
+    let d_inv = steps.push(Step::new(
         U8_TYPE_ID,
-        Action::UnaryOperation(UnaryOperation::Invert, high_middle),
+        Action::UnaryOperation(UnaryOperation::Invert, d),
     ));
-    let low_middle = new_steps.push(Step::new(
-        U8_TYPE_ID,
-        Action::StructFieldAccess(StepId::replacement(0), FieldId::from(2)),
-    ));
-    let low_middle_inv = new_steps.push(Step::new(
-        U8_TYPE_ID,
-        Action::UnaryOperation(UnaryOperation::Invert, low_middle),
-    ));
-    let low = new_steps.push(Step::new(
-        U8_TYPE_ID,
-        Action::StructFieldAccess(StepId::replacement(0), FieldId::from(3)),
-    ));
-    let low_inv = new_steps.push(Step::new(
-        U8_TYPE_ID,
-        Action::UnaryOperation(UnaryOperation::Invert, low),
-    ));
-    new_steps.push(Step::new(
+    steps.push(Step::new(
         U32_TYPE_ID,
-        Action::InitializeStruct(tvec![high_inv, high_middle_inv, low_middle_inv, low_inv]),
+        Action::InitializeStruct(tvec![a_inv, b_inv, c_inv, d_inv]),
     ));
-    new_steps
+    steps
+}
+
+fn to_bytes_u16() -> TVec<StepId, Step> {
+    let mut steps = TVec::new();
+    let low = byte(&mut steps, 0);
+    let high = byte(&mut steps, 1);
+
+    steps.push(Step::new(
+        U16_BYTES_TYPE_ID,
+        Action::InitializeStruct(tvec![low, high]),
+    ));
+
+    steps
+}
+
+fn to_bytes_u32() -> TVec<StepId, Step> {
+    let mut steps = TVec::new();
+
+    let a = byte(&mut steps, 0);
+    let b = byte(&mut steps, 1);
+    let c = byte(&mut steps, 2);
+    let d = byte(&mut steps, 3);
+
+    steps.push(Step::new(
+        U32_BYTES_TYPE_ID,
+        Action::InitializeStruct(tvec![a, b, c, d]),
+    ));
+
+    steps
 }
 
 fn eq_u16() -> TVec<StepId, Step> {
-    let mut new_steps = TVec::new();
-    let (high_a, high_b) = binop_byte(&mut new_steps, 0);
-    let high_eq = new_steps.push(Step::new(
-        BOOL_TYPE_ID,
-        Action::Binop(Binop::Eq, high_a, high_b),
-    ));
+    let mut steps = TVec::new();
+    let (a_l, a_r) = binop_byte(&mut steps, 0);
+    let a = steps.push(Step::new(BOOL_TYPE_ID, Action::Binop(Binop::Eq, a_l, a_r)));
 
-    let (low_a, low_b) = binop_byte(&mut new_steps, 1);
-    let low_eq = new_steps.push(Step::new(
-        BOOL_TYPE_ID,
-        Action::Binop(Binop::Eq, low_a, low_b),
-    ));
-    new_steps.push(Step::new(
-        BOOL_TYPE_ID,
-        Action::Binop(Binop::BitAnd, high_eq, low_eq),
-    ));
+    let (b_l, b_r) = binop_byte(&mut steps, 1);
+    let b = steps.push(Step::new(BOOL_TYPE_ID, Action::Binop(Binop::Eq, b_l, b_r)));
+    steps.push(Step::new(BOOL_TYPE_ID, Action::Binop(Binop::BitAnd, a, b)));
 
-    new_steps
+    steps
 }
 
 fn eq_u32() -> TVec<StepId, Step> {
-    let mut new_steps = TVec::new();
+    let mut steps = TVec::new();
 
-    let (high_a, high_b) = binop_byte(&mut new_steps, 0);
-    let high_eq = new_steps.push(Step::new(
+    let (a_l, a_r) = binop_byte(&mut steps, 0);
+    let a = steps.push(Step::new(BOOL_TYPE_ID, Action::Binop(Binop::Eq, a_l, a_r)));
+
+    let (b_l, b_r) = binop_byte(&mut steps, 1);
+    let b = steps.push(Step::new(BOOL_TYPE_ID, Action::Binop(Binop::Eq, b_l, b_r)));
+
+    let ab = steps.push(Step::new(BOOL_TYPE_ID, Action::Binop(Binop::BitAnd, a, b)));
+
+    let (c_l, c_r) = binop_byte(&mut steps, 2);
+    let c = steps.push(Step::new(BOOL_TYPE_ID, Action::Binop(Binop::Eq, c_l, c_r)));
+
+    let (d_l, d_r) = binop_byte(&mut steps, 3);
+    let d = steps.push(Step::new(BOOL_TYPE_ID, Action::Binop(Binop::Eq, d_l, d_r)));
+
+    let cd = steps.push(Step::new(BOOL_TYPE_ID, Action::Binop(Binop::BitAnd, d, c)));
+
+    steps.push(Step::new(
         BOOL_TYPE_ID,
-        Action::Binop(Binop::Eq, high_a, high_b),
+        Action::Binop(Binop::BitAnd, ab, cd),
     ));
 
-    let (high_middle_a, high_middle_b) = binop_byte(&mut new_steps, 1);
-    let high_middle_eq = new_steps.push(Step::new(
-        BOOL_TYPE_ID,
-        Action::Binop(Binop::Eq, high_middle_a, high_middle_b),
-    ));
-
-    let high_unified = new_steps.push(Step::new(
-        BOOL_TYPE_ID,
-        Action::Binop(Binop::BitAnd, high_eq, high_middle_eq),
-    ));
-
-    let (low_middle_a, low_middle_b) = binop_byte(&mut new_steps, 2);
-    let low_middle_eq = new_steps.push(Step::new(
-        BOOL_TYPE_ID,
-        Action::Binop(Binop::Eq, low_middle_a, low_middle_b),
-    ));
-
-    let (low_a, low_b) = binop_byte(&mut new_steps, 3);
-    let low_eq = new_steps.push(Step::new(
-        BOOL_TYPE_ID,
-        Action::Binop(Binop::Eq, low_a, low_b),
-    ));
-
-    let low_unified = new_steps.push(Step::new(
-        BOOL_TYPE_ID,
-        Action::Binop(Binop::BitAnd, low_eq, low_middle_eq),
-    ));
-
-    new_steps.push(Step::new(
-        BOOL_TYPE_ID,
-        Action::Binop(Binop::BitAnd, high_unified, low_unified),
-    ));
-
-    new_steps
+    steps
 }
 
 fn bytewise_u16(op: Binop) -> TVec<StepId, Step> {
-    let mut new_steps = TVec::new();
-    let (high_a, high_b) = binop_byte(&mut new_steps, 0);
-    let high_op = new_steps.push(Step::new(U8_TYPE_ID, Action::Binop(op, high_a, high_b)));
+    let mut steps = TVec::new();
+    let (a_l, a_r) = binop_byte(&mut steps, 0);
+    let a = steps.push(Step::new(U8_TYPE_ID, Action::Binop(op, a_l, a_r)));
 
-    let (low_a, low_b) = binop_byte(&mut new_steps, 1);
-    let low_op = new_steps.push(Step::new(U8_TYPE_ID, Action::Binop(op, low_a, low_b)));
-    new_steps.push(Step::new(
+    let (b_l, b_r) = binop_byte(&mut steps, 1);
+    let b = steps.push(Step::new(U8_TYPE_ID, Action::Binop(op, b_l, b_r)));
+    steps.push(Step::new(
         U16_TYPE_ID,
-        Action::InitializeStruct(tvec![high_op, low_op]),
+        Action::InitializeStruct(tvec![a, b]),
     ));
 
-    new_steps
+    steps
 }
 
 fn bytewise_u32(op: Binop) -> TVec<StepId, Step> {
-    let mut new_steps = TVec::new();
+    let mut steps = TVec::new();
 
-    let (high_a, high_b) = binop_byte(&mut new_steps, 0);
-    let high_op = new_steps.push(Step::new(U8_TYPE_ID, Action::Binop(op, high_a, high_b)));
+    let (a_l, a_r) = binop_byte(&mut steps, 0);
+    let a = steps.push(Step::new(U8_TYPE_ID, Action::Binop(op, a_l, a_r)));
 
-    let (high_middle_a, high_middle_b) = binop_byte(&mut new_steps, 1);
-    let high_middle_op = new_steps.push(Step::new(
-        U8_TYPE_ID,
-        Action::Binop(op, high_middle_a, high_middle_b),
-    ));
+    let (b_l, b_r) = binop_byte(&mut steps, 1);
+    let b = steps.push(Step::new(U8_TYPE_ID, Action::Binop(op, b_l, b_r)));
 
-    let (low_middle_a, low_middle_b) = binop_byte(&mut new_steps, 2);
-    let low_middle_op = new_steps.push(Step::new(
-        U8_TYPE_ID,
-        Action::Binop(op, low_middle_a, low_middle_b),
-    ));
+    let (c_l, c_r) = binop_byte(&mut steps, 2);
+    let c = steps.push(Step::new(U8_TYPE_ID, Action::Binop(op, c_l, c_r)));
 
-    let (low_a, low_b) = binop_byte(&mut new_steps, 3);
-    let low_op = new_steps.push(Step::new(U8_TYPE_ID, Action::Binop(op, low_a, low_b)));
+    let (d_l, d_r) = binop_byte(&mut steps, 3);
+    let d = steps.push(Step::new(U8_TYPE_ID, Action::Binop(op, d_l, d_r)));
 
-    new_steps.push(Step::new(
+    steps.push(Step::new(
         U32_TYPE_ID,
-        Action::InitializeStruct(tvec![high_op, high_middle_op, low_middle_op, low_op]),
+        Action::InitializeStruct(tvec![a, b, c, d]),
     ));
-    new_steps
+    steps
 }
 
 impl<'a> Function<'a> {
@@ -255,6 +216,7 @@ impl<'a> Function<'a> {
                 match &mut steps[s_id].action {
                     &mut Action::LoadConstant(ref mut obj) => {
                         obj.reduce_to_bytes();
+                        s_id.0 += 1;
                     }
                     &mut Action::UnaryOperation(op, target_id) => {
                         let new_steps = match (steps[target_id].ty, op) {
@@ -264,9 +226,13 @@ impl<'a> Function<'a> {
                                 s_id.0 += 1;
                                 continue;
                             }
-                            (_, UnaryOperation::ToBytes) => unreachable!("to_bytes"),
+
+                            (U16_TYPE_ID, UnaryOperation::ToBytes) => to_bytes_u16(),
+                            (U32_TYPE_ID, UnaryOperation::ToBytes) => to_bytes_u32(),
+                            (_, UnaryOperation::ToBytes) => unreachable!("invalid to_bytes target"),
                         };
-                        s_id = block.insert_steps(s_id..=s_id, new_steps, iter::once(target_id));
+
+                        s_id = block.insert_steps(s_id..=s_id, new_steps, iter::once(target_id))
                     }
                     &mut Action::Binop(op, a, b) => match (steps[a].ty, steps[b].ty, op) {
                         (U16_TYPE_ID, U16_TYPE_ID, Binop::Add) => unimplemented!("u16 add"),

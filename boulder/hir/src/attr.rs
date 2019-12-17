@@ -60,8 +60,10 @@ pub enum LangItem {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum FunctionAttribute<'a> {
     LangItem(LangItem),
-    TestFn,
+    Test,
     Export,
+    /// The function does not get printed during a panic.
+    Hidden,
     Str(&'a str),
 }
 
@@ -98,8 +100,9 @@ impl<'a> FunctionAttribute<'a> {
                     )?
                 }
             }
-            "test" => name.replace(FunctionAttribute::TestFn),
+            "test" => name.replace(FunctionAttribute::Test),
             "export" => name.replace(FunctionAttribute::Export),
+            "hidden" => name.replace(FunctionAttribute::Hidden),
             _ => CompileError::new(
                 &name,
                 format_args!("Unknown function attribute `{}`", name.item),

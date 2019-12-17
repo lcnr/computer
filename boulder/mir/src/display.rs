@@ -111,6 +111,17 @@ impl<'a> Display for Mir<'a> {
         }
 
         for (i, func) in self.functions.iter().enumerate() {
+            if func.ctx.hidden {
+                writeln!(
+                    f,
+                    "fn {}[{}] -> {} [HIDDEN]",
+                    func.name,
+                    FunctionId::from(i),
+                    func.ret
+                )?;
+                continue;
+            }
+
             let func_id: FunctionId = i.into();
             if func.ctx.is_test {
                 writeln!(f, "@test")?;

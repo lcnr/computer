@@ -123,7 +123,9 @@ impl<'a> ContextBuilder<'a> {
                         insert_lang_item(&mut builder.mul8, attr.replace(id), "mul8")?;
                         func.attributes.remove(i);
                     }
-                    FunctionAttribute::TestFn | FunctionAttribute::Export => (),
+                    FunctionAttribute::Hidden
+                    | FunctionAttribute::Test
+                    | FunctionAttribute::Export => (),
                     ref attr @ FunctionAttribute::Str(_) => unreachable!("{:?}", attr),
                 }
             }
@@ -158,6 +160,7 @@ impl<'a> ContextBuilder<'a> {
 pub struct FunctionContextBuilder<'a> {
     is_test: Option<Meta<'a, ()>>,
     export: Option<Meta<'a, ()>>,
+    hidden: Option<Meta<'a, ()>>,
 }
 
 impl<'a> FunctionContextBuilder<'a> {
@@ -171,7 +174,7 @@ impl<'a> FunctionContextBuilder<'a> {
         for i in (0..func.attributes.len()).rev() {
             let attr = &func.attributes[i];
             match attr.item {
-                FunctionAttribute::TestFn => {
+                FunctionAttribute::Test => {
                     if !func.arguments.is_empty() || func.ret.item != BOOL_TYPE_ID {
                         return CompileError::new(
                             &func.name,
@@ -195,12 +198,25 @@ impl<'a> FunctionContextBuilder<'a> {
                     if let &Some(ref should_export) = &builder.export {
                         CompileError::build(
                             &attr,
-                            "Attribute `test` used more than once on function",
+                            "Attribute `export` used more than once on function",
                         )
                         .with_location(&should_export)
                         .build()?;
                     } else {
                         builder.export = Some(attr.simplify());
+                        func.attributes.remove(i);
+                    }
+                }
+                FunctionAttribute::Hidden => {
+                    if let &Some(ref hidden) = &builder.hidden {
+                        CompileError::build(
+                            &attr,
+                            "Attribute `hidden` used more than once on function",
+                        )
+                        .with_location(&hidden)
+                        .build()?;
+                    } else {
+                        builder.hidden = Some(attr.simplify());
                         func.attributes.remove(i);
                     }
                 }
@@ -230,6 +246,7 @@ impl<'a> FunctionContextBuilder<'a> {
         Ok(FunctionContext {
             is_test: self.is_test.is_some(),
             export: self.export.is_some(),
+            hidden: self.hidden.is_some(),
         })
     }
 }
