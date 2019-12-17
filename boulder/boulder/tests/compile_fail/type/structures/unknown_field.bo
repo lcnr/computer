@@ -1,5 +1,5 @@
 # unknown field
-# `d`
+# `e`
 # (11:
 
 struct A {
@@ -8,5 +8,5 @@ struct A {
 }
 
 fn test(c: A) -> u32 {
-    c.d
+    c.e
 }
