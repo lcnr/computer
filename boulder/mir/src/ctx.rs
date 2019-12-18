@@ -4,6 +4,8 @@ use shared_id::FunctionId;
 pub struct Context {
     pub add32: FunctionId,
     pub add16: FunctionId,
+    pub sub32: FunctionId,
+    pub sub16: FunctionId,
     pub div32: FunctionId,
     pub div16: FunctionId,
     pub div8: FunctionId,

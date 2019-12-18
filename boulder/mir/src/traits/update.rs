@@ -113,6 +113,10 @@ pub trait UpdateFunctionIds {
 
 impl UpdateFunctionIds for Context {
     fn update_function_ids(&mut self, f: &mut dyn FnMut(&mut FunctionId)) {
+        f(&mut self.add32);
+        f(&mut self.add16);
+        f(&mut self.sub32);
+        f(&mut self.sub16);
         f(&mut self.div32);
         f(&mut self.div16);
         f(&mut self.div8);

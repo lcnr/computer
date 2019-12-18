@@ -49,6 +49,8 @@ impl<'a> Mir<'a> {
         if lang_items < LangItemState::ToBytesResolved {
             used.add(self.ctx.add32);
             used.add(self.ctx.add16);
+            used.add(self.ctx.sub32);
+            used.add(self.ctx.sub16);
         }
 
         if lang_items < LangItemState::BinopResolved {

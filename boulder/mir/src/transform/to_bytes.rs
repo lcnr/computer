@@ -274,8 +274,12 @@ impl<'a> Function<'a> {
                         (U32_TYPE_ID, U32_TYPE_ID, Binop::Add) => {
                             steps[s_id].action = Action::CallFunction(ctx.add32, vec![a, b])
                         }
-                        (U16_TYPE_ID, U16_TYPE_ID, Binop::Sub) => unimplemented!("u16 sub"),
-                        (U32_TYPE_ID, U32_TYPE_ID, Binop::Sub) => unimplemented!("u32 sub"),
+                        (U16_TYPE_ID, U16_TYPE_ID, Binop::Sub) => {
+                            steps[s_id].action = Action::CallFunction(ctx.sub16, vec![a, b])
+                        }
+                        (U32_TYPE_ID, U32_TYPE_ID, Binop::Sub) => {
+                            steps[s_id].action = Action::CallFunction(ctx.sub32, vec![a, b])
+                        }
                         (_, _, Binop::Mul) | (_, _, Binop::Div) | (_, _, Binop::Rem) => {
                             unreachable!("to_bytes called with extended binops: {:?}", op)
                         }

@@ -48,6 +48,8 @@ impl<'a> TypeAttribute<'a> {
 pub enum LangItem {
     Add32,
     Add16,
+    Sub32,
+    Sub16,
     Div32,
     Div16,
     Div8,
@@ -80,6 +82,8 @@ impl<'a> FunctionAttribute<'a> {
                     args[0].replace(FunctionAttribute::LangItem(match args[0].item {
                         "add32" => LangItem::Add32,
                         "add16" => LangItem::Add16,
+                        "sub32" => LangItem::Sub32,
+                        "sub16" => LangItem::Sub16,
                         "div32" => LangItem::Div32,
                         "div16" => LangItem::Div16,
                         "div8" => LangItem::Div8,
