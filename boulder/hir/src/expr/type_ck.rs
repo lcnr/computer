@@ -94,6 +94,19 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                         ctx.solver.add_to_bytes(v, res);
                         Expression::UnaryOperation(res, op, Box::new(expr))
                     }
+                    UnaryOperation::FromBytes => {
+                        let possible_types = [U16_BYTES_TYPE_ID, U32_BYTES_TYPE_ID]
+                            .iter()
+                            .copied()
+                            .collect();
+                        let v = ctx.solver.add_bound(possible_types, op.simplify());
+                        ctx.solver.add_equality(v, expr.id());
+
+                        let possible_types = [U16_TYPE_ID, U32_TYPE_ID].iter().copied().collect();
+                        let res = ctx.solver.add_bound(possible_types, op.simplify());
+                        ctx.solver.add_from_bytes(v, res);
+                        Expression::UnaryOperation(res, op, Box::new(expr))
+                    }
                 }
             }
             Expression::Binop((), op, a, b) => {

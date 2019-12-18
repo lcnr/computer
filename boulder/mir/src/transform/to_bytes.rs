@@ -7,7 +7,8 @@ use shared_id::{
 };
 
 use crate::{
-    Action, Binop, BlockId, FieldId, Function, Mir, Object, Step, StepId, Type, UnaryOperation,
+    Action, Binop, BlockId, Context, FieldId, Function, Mir, Object, Step, StepId, Type,
+    UnaryOperation,
 };
 
 impl<'a> Mir<'a> {
@@ -20,7 +21,7 @@ impl<'a> Mir<'a> {
         self.types[U16_TYPE_ID] = Type::Struct(tvec![U8_TYPE_ID, U8_TYPE_ID]);
 
         for func in self.functions.iter_mut() {
-            func.reduce_to_bytes();
+            func.reduce_to_bytes(&self.ctx);
         }
     }
 }
@@ -127,6 +128,35 @@ fn to_bytes_u32() -> TVec<StepId, Step> {
     steps
 }
 
+fn from_bytes_u16() -> TVec<StepId, Step> {
+    let mut steps = TVec::new();
+    let low = byte(&mut steps, 0);
+    let high = byte(&mut steps, 1);
+
+    steps.push(Step::new(
+        U16_TYPE_ID,
+        Action::InitializeStruct(tvec![low, high]),
+    ));
+
+    steps
+}
+
+fn from_bytes_u32() -> TVec<StepId, Step> {
+    let mut steps = TVec::new();
+
+    let a = byte(&mut steps, 0);
+    let b = byte(&mut steps, 1);
+    let c = byte(&mut steps, 2);
+    let d = byte(&mut steps, 3);
+
+    steps.push(Step::new(
+        U32_TYPE_ID,
+        Action::InitializeStruct(tvec![a, b, c, d]),
+    ));
+
+    steps
+}
+
 fn eq_u16() -> TVec<StepId, Step> {
     let mut steps = TVec::new();
     let (a_l, a_r) = binop_byte(&mut steps, 0);
@@ -204,7 +234,7 @@ fn bytewise_u32(op: Binop) -> TVec<StepId, Step> {
 }
 
 impl<'a> Function<'a> {
-    fn reduce_to_bytes(&mut self) {
+    fn reduce_to_bytes(&mut self, ctx: &Context) {
         #[cfg(feature = "profiler")]
         profile_scope!("Function::reduce_sum_types");
         let mut block_id = BlockId::from(0);
@@ -229,14 +259,21 @@ impl<'a> Function<'a> {
 
                             (U16_TYPE_ID, UnaryOperation::ToBytes) => to_bytes_u16(),
                             (U32_TYPE_ID, UnaryOperation::ToBytes) => to_bytes_u32(),
-                            (_, UnaryOperation::ToBytes) => unreachable!("invalid to_bytes target"),
+                            (U16_BYTES_TYPE_ID, UnaryOperation::FromBytes) => from_bytes_u16(),
+                            (U32_BYTES_TYPE_ID, UnaryOperation::FromBytes) => from_bytes_u32(),
+                            (_, UnaryOperation::FromBytes) => unreachable!("invalid from_bytes"),
+                            (_, UnaryOperation::ToBytes) => unreachable!("invalid to_bytes"),
                         };
 
                         s_id = block.insert_steps(s_id..=s_id, new_steps, iter::once(target_id))
                     }
                     &mut Action::Binop(op, a, b) => match (steps[a].ty, steps[b].ty, op) {
-                        (U16_TYPE_ID, U16_TYPE_ID, Binop::Add) => unimplemented!("u16 add"),
-                        (U32_TYPE_ID, U32_TYPE_ID, Binop::Add) => unimplemented!("u32 add"),
+                        (U16_TYPE_ID, U16_TYPE_ID, Binop::Add) => {
+                            steps[s_id].action = Action::CallFunction(ctx.add16, vec![a, b])
+                        }
+                        (U32_TYPE_ID, U32_TYPE_ID, Binop::Add) => {
+                            steps[s_id].action = Action::CallFunction(ctx.add32, vec![a, b])
+                        }
                         (U16_TYPE_ID, U16_TYPE_ID, Binop::Sub) => unimplemented!("u16 sub"),
                         (U32_TYPE_ID, U32_TYPE_ID, Binop::Sub) => unimplemented!("u32 sub"),
                         (_, _, Binop::Mul) | (_, _, Binop::Div) | (_, _, Binop::Rem) => {

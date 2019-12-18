@@ -51,6 +51,8 @@ fn check_binop<'a>(
 
 #[derive(Default)]
 pub struct ContextBuilder<'a> {
+    add32: Option<Meta<'a, FunctionId>>,
+    add16: Option<Meta<'a, FunctionId>>,
     div32: Option<Meta<'a, FunctionId>>,
     div16: Option<Meta<'a, FunctionId>>,
     div8: Option<Meta<'a, FunctionId>>,
@@ -78,6 +80,16 @@ impl<'a> ContextBuilder<'a> {
             for i in (0..func.attributes.len()).rev() {
                 let attr = &func.attributes[i];
                 match attr.item {
+                    FunctionAttribute::LangItem(LangItem::Add32) => {
+                        check_binop(def, U32_TYPE_ID, "add32")?;
+                        insert_lang_item(&mut builder.add32, attr.replace(id), "add32")?;
+                        func.attributes.remove(i);
+                    }
+                    FunctionAttribute::LangItem(LangItem::Add16) => {
+                        check_binop(def, U16_TYPE_ID, "add16")?;
+                        insert_lang_item(&mut builder.add16, attr.replace(id), "add16")?;
+                        func.attributes.remove(i);
+                    }
                     FunctionAttribute::LangItem(LangItem::Div32) => {
                         check_binop(def, U32_TYPE_ID, "div32")?;
                         insert_lang_item(&mut builder.div32, attr.replace(id), "div32")?;
@@ -143,6 +155,8 @@ impl<'a> ContextBuilder<'a> {
         }
 
         Ok(Context {
+            add32: unwrap_item(self.add32, "add32")?,
+            add16: unwrap_item(self.add16, "add16")?,
             div32: unwrap_item(self.div32, "div32")?,
             div16: unwrap_item(self.div16, "div16")?,
             div8: unwrap_item(self.div8, "div8")?,

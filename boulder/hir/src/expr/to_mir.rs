@@ -163,6 +163,10 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                         ty,
                         Action::UnaryOperation(mir::UnaryOperation::ToBytes, expr),
                     )),
+                    UnaryOperation::FromBytes => Ok(ctx.func[*ctx.curr].add_step(
+                        ty,
+                        Action::UnaryOperation(mir::UnaryOperation::FromBytes, expr),
+                    )),
                 }
             }
             Expression::Binop(ty, op, a, b) => {

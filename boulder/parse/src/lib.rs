@@ -394,13 +394,15 @@ fn parse_ident_expr<'a>(
             }
 
             match ident.item {
-                "to_bytes" => {
+                "to_bytes" | "from_bytes" => {
                     if args.len() == 1 {
-                        Expression::UnaryOperation(
-                            (),
-                            ident.replace(hir::expr::UnaryOperation::ToBytes),
-                            Box::new(args.pop().unwrap()),
-                        )
+                        let op = ident.map(|i| match i {
+                            "to_bytes" => hir::expr::UnaryOperation::ToBytes,
+                            "from_bytes" => hir::expr::UnaryOperation::FromBytes,
+                            _ => unreachable!(),
+                        });
+
+                        Expression::UnaryOperation((), op, Box::new(args.pop().unwrap()))
                     } else {
                         let location = args
                             .last()

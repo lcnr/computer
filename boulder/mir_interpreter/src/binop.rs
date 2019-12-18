@@ -1,3 +1,5 @@
+use std::convert::TryFrom;
+
 use tindex::TSlice;
 
 use shared_id::{FunctionId, FALSE_TYPE_ID, TRUE_TYPE_ID};
@@ -46,6 +48,23 @@ impl<'a> BoulderMirInterpreter<'a> {
                 &Object::U32(x) => Ok(Object::Struct(
                     x.to_le_bytes().iter().map(|&v| Object::U8(v)).collect(),
                 )),
+                _ => Err(InterpretError::InvalidOperation(function, block, step)),
+            },
+            UnaryOperation::FromBytes => match &steps[expr] {
+                &Object::Struct(ref content) => {
+                    if let Ok(&[Object::U8(a), Object::U8(b)]) =
+                        <&[mir::Object; 2]>::try_from(content.to_slice())
+                    {
+                        Ok(Object::U16(u16::from_le_bytes([a, b])))
+                    } else if let Ok(
+                        &[Object::U8(a), Object::U8(b), Object::U8(c), Object::U8(d)],
+                    ) = <&[mir::Object; 4]>::try_from(content.to_slice())
+                    {
+                        Ok(Object::U32(u32::from_le_bytes([a, b, c, d])))
+                    } else {
+                        Err(InterpretError::InvalidOperation(function, block, step))
+                    }
+                }
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
         }

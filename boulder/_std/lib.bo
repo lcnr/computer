@@ -1,4 +1,81 @@
 @hidden
+fn bool_to_u8(b: Bool) -> u8 {
+    match b {
+        _: True -> 1,
+        _: False -> 0,
+    }
+}
+
+struct OverflowingByte {
+    value: u8,
+    overflow: Bool
+}
+
+@hidden
+fn overflowing_add(l: u8, r: u8, carry_in: Bool) -> OverflowingByte {
+    let mask: u8 = 0b1000_0000;
+
+    let value = (l & !mask) + (r & !mask) + bool_to_u8(carry_in);
+
+    let r: u8 = (l >> 7) + (r >> 7);
+
+    let overflow: Bool = if r == 2 {
+        True
+    } else {
+        if r == 1 {
+            if value & mask != 0 {
+                value = value & !mask;
+                True
+            } else {
+                value = value + mask;
+                False
+            }: Bool
+        } else {
+            False
+        }: Bool
+    };
+
+    OverflowingByte {
+        value: value,
+        overflow: overflow,
+    }
+}
+
+@hidden
+@lang_item(add32)
+fn add32(l: u32, r: u32) -> u32 {
+    let l_bytes: u32Bytes = to_bytes(l);
+    let r_bytes: u32Bytes = to_bytes(r);
+
+    let a: OverflowingByte = overflowing_add(l_bytes.a, r_bytes.a, False);
+    let b: OverflowingByte = overflowing_add(l_bytes.b, r_bytes.b, a.overflow);
+    let c: OverflowingByte = overflowing_add(l_bytes.c, r_bytes.c, b.overflow);
+    let d: u8 = l_bytes.d + r_bytes.d + bool_to_u8(c.overflow);
+
+    from_bytes(u32Bytes {
+        a: a.value,
+        b: b.value,
+        c: c.value,
+        d: d,
+    })
+}
+
+@hidden
+@lang_item(add16)
+fn add16(l: u16, r: u16) -> u16 {
+    let l_bytes: u16Bytes = to_bytes(l);
+    let r_bytes: u16Bytes = to_bytes(r);
+
+    let a: OverflowingByte = overflowing_add(l_bytes.a, r_bytes.a, False);
+    let b: u8 = l_bytes.b + r_bytes.b + bool_to_u8(a.overflow);
+    
+    from_bytes(u16Bytes {
+        a: a.value,
+        b: b,
+    })
+}
+
+@hidden
 @lang_item(div32)
 fn divide32(a: u32, b: u32) -> u32 {
     let i = 0;

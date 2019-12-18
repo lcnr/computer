@@ -46,6 +46,8 @@ impl<'a> TypeAttribute<'a> {
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum LangItem {
+    Add32,
+    Add16,
     Div32,
     Div16,
     Div8,
@@ -76,6 +78,8 @@ impl<'a> FunctionAttribute<'a> {
             "lang_item" => {
                 if args.len() == 1 {
                     args[0].replace(FunctionAttribute::LangItem(match args[0].item {
+                        "add32" => LangItem::Add32,
+                        "add16" => LangItem::Add16,
                         "div32" => LangItem::Div32,
                         "div16" => LangItem::Div16,
                         "div8" => LangItem::Div8,

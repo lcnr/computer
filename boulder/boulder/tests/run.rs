@@ -20,7 +20,7 @@ use diagnostics::CompileError;
 
 use shared_id::{FunctionId, TRUE_TYPE_ID};
 
-use mir::{Mir, Object};
+use mir::{LangItemState, Mir, Object};
 
 struct OutputShim {
     inner: Arc<Mutex<String>>,
@@ -130,28 +130,28 @@ fn compile_run() -> Result<(), TestFailure> {
                 profile_scope!("optimize_and_test");
                 test_mir(&mir, "initial");
 
-                boulder::core_optimizations(&mut mir, false);
+                boulder::core_optimizations(&mut mir, LangItemState::Unresolved);
                 test_mir(&mir, "core optimizations");
 
                 mir.reduce_binops();
                 mir.validate();
                 test_mir(&mir, "reduced binops");
 
-                boulder::core_optimizations(&mut mir, true);
+                boulder::core_optimizations(&mut mir, LangItemState::BinopResolved);
                 test_mir(&mir, "core optimizations post binops");
 
                 mir.reduce_sum_types();
                 mir.validate();
                 test_mir(&mir, "reduced sum types");
 
-                boulder::core_optimizations(&mut mir, true);
+                boulder::core_optimizations(&mut mir, LangItemState::BinopResolved);
                 test_mir(&mir, "core optimizations post sum types");
 
                 mir.reduce_to_bytes();
                 mir.validate();
                 test_mir(&mir, "reduced to bytes");
 
-                boulder::core_optimizations(&mut mir, true);
+                boulder::core_optimizations(&mut mir, LangItemState::ToBytesResolved);
                 test_mir(&mir, "core optimizations post bytes");
             })) {
                 Ok(()) => (),

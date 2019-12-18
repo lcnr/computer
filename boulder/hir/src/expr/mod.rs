@@ -17,6 +17,7 @@ pub use type_ck::TypeConstraintsContext;
 pub enum UnaryOperation {
     Invert,
     ToBytes,
+    FromBytes,
 }
 
 #[derive(Debug, Clone, Copy)]

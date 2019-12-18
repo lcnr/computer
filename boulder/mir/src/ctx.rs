@@ -2,6 +2,8 @@ use shared_id::FunctionId;
 
 #[derive(Debug, Clone)]
 pub struct Context {
+    pub add32: FunctionId,
+    pub add16: FunctionId,
     pub div32: FunctionId,
     pub div16: FunctionId,
     pub div8: FunctionId,

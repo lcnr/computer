@@ -165,6 +165,14 @@ impl Terminator {
 pub enum UnaryOperation {
     Invert,
     ToBytes,
+    FromBytes,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum LangItemState {
+    Unresolved,
+    BinopResolved,
+    ToBytesResolved,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

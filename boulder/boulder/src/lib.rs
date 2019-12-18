@@ -6,7 +6,7 @@ use global_ctx::GlobalCtx;
 
 use diagnostics::CompileError;
 
-use mir::Mir;
+use mir::{LangItemState, Mir};
 
 pub fn compile_to_mir<'a>(
     ctx: &'a GlobalCtx,
@@ -28,14 +28,14 @@ pub fn compile_to_mir<'a>(
     Ok(mir)
 }
 
-pub fn core_optimizations<'a>(mir: &mut Mir<'a>, resolved_lang_items: bool) {
+pub fn core_optimizations<'a>(mir: &mut Mir<'a>, lang_items: LangItemState) {
     #[cfg(feature = "profiler")]
     profile_scope!("core_optimizations");
     mir.unify_blocks();
     mir.validate();
     mir.remove_unused_steps();
     mir.validate();
-    mir.remove_unused_functions(resolved_lang_items);
+    mir.remove_unused_functions(lang_items);
     mir.validate();
     mir.remove_redirects();
     mir.validate();
@@ -49,13 +49,14 @@ pub fn compile<'a>(
     #[cfg(feature = "profiler")]
     profile_scope!("compile");
     let mut mir = compile_to_mir(ctx, src, file)?;
-    core_optimizations(&mut mir, false);
+    core_optimizations(&mut mir, LangItemState::Unresolved);
     mir.reduce_binops();
-    core_optimizations(&mut mir, true);
+    core_optimizations(&mut mir, LangItemState::BinopResolved);
     mir.reduce_sum_types();
     mir.validate();
-    core_optimizations(&mut mir, true);
+    core_optimizations(&mut mir, LangItemState::BinopResolved);
     mir.reduce_to_bytes();
     mir.validate();
+    core_optimizations(&mut mir, LangItemState::ToBytesResolved);
     Ok(mir)
 }

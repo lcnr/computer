@@ -146,6 +146,13 @@ impl<'a> Mir<'a> {
                                             && step.ty == U32_BYTES_TYPE_ID
                                 );
                             }
+                            UnaryOperation::FromBytes => {
+                                assert!(
+                                    block[expr].ty == U16_BYTES_TYPE_ID && step.ty == U16_TYPE_ID
+                                        || block[expr].ty == U32_BYTES_TYPE_ID
+                                            && step.ty == U32_TYPE_ID
+                                );
+                            }
                         }
                     }
                     &Action::Binop(kind, a, b) => {

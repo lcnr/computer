@@ -5,7 +5,8 @@ use tindex::bitset::TBitSet;
 use shared_id::{FunctionId, TypeId};
 
 use crate::{
-    traits::UpdateStepIds, Action, Block, BlockId, Function, Mir, StepId, Terminator, Type,
+    traits::UpdateStepIds, Action, Block, BlockId, Function, LangItemState, Mir, StepId,
+    Terminator, Type,
 };
 
 impl<'a> Mir<'a> {
@@ -32,7 +33,7 @@ impl<'a> Mir<'a> {
         }
     }
 
-    pub fn remove_unused_functions(&mut self, resolved_lang_items: bool) {
+    pub fn remove_unused_functions(&mut self, lang_items: LangItemState) {
         #[cfg(feature = "profiler")]
         profile_scope!("Mir::remove_unused_functions");
         let mut used = TBitSet::new();
@@ -45,7 +46,12 @@ impl<'a> Mir<'a> {
             used.add(FunctionId::from(idx));
         }
 
-        if !resolved_lang_items {
+        if lang_items < LangItemState::ToBytesResolved {
+            used.add(self.ctx.add32);
+            used.add(self.ctx.add16);
+        }
+
+        if lang_items < LangItemState::BinopResolved {
             used.add(self.ctx.mul32);
             used.add(self.ctx.mul16);
             used.add(self.ctx.mul8);

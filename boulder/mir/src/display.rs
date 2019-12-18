@@ -11,6 +11,7 @@ impl Display for UnaryOperation {
         match self {
             Self::Invert => write!(f, "invert"),
             Self::ToBytes => write!(f, "to_bytes"),
+            Self::FromBytes => write!(f, "from_bytes"),
         }
     }
 }
