@@ -117,6 +117,14 @@ impl UpdateFunctionIds for Context {
         f(&mut self.add16);
         f(&mut self.sub32);
         f(&mut self.sub16);
+        f(&mut self.shl32);
+        f(&mut self.shl16);
+        f(&mut self.shr32);
+        f(&mut self.shr16);
+        f(&mut self.gt32);
+        f(&mut self.gt16);
+        f(&mut self.gte32);
+        f(&mut self.gte16);
         f(&mut self.div32);
         f(&mut self.div16);
         f(&mut self.div8);

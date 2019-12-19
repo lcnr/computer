@@ -59,7 +59,7 @@ pub fn parse<'a>(ctx: &'a GlobalCtx, src: &'a str, file: &'a str) -> Result<Hir<
         ctx,
         &mut hir,
         &mut vec!["std".into()],
-        &mut TokenIter::new(std, "/_std/lib.bo"),
+        &mut TokenIter::new(std, "./_std/lib.bo"),
     )?;
     consume_token(Token::EOF, iter)?;
     Ok(hir)

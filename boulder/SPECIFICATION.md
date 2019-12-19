@@ -1,5 +1,9 @@
 # Specification
 
+## Functions
+
+Shift right `>>` und shift left `<<` can shift by any amount specified, meaning that `1: u8 << 8` must result in `0`. 
+
 ## Types
 
 ### Core types

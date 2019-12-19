@@ -196,6 +196,42 @@ fn eq_u32() -> TVec<StepId, Step> {
     steps
 }
 
+fn neq_u16() -> TVec<StepId, Step> {
+    let mut steps = TVec::new();
+    let (a_l, a_r) = binop_byte(&mut steps, 0);
+    let a = steps.push(Step::new(BOOL_TYPE_ID, Action::Binop(Binop::Neq, a_l, a_r)));
+
+    let (b_l, b_r) = binop_byte(&mut steps, 1);
+    let b = steps.push(Step::new(BOOL_TYPE_ID, Action::Binop(Binop::Neq, b_l, b_r)));
+    steps.push(Step::new(BOOL_TYPE_ID, Action::Binop(Binop::BitOr, a, b)));
+
+    steps
+}
+
+fn neq_u32() -> TVec<StepId, Step> {
+    let mut steps = TVec::new();
+
+    let (a_l, a_r) = binop_byte(&mut steps, 0);
+    let a = steps.push(Step::new(BOOL_TYPE_ID, Action::Binop(Binop::Neq, a_l, a_r)));
+
+    let (b_l, b_r) = binop_byte(&mut steps, 1);
+    let b = steps.push(Step::new(BOOL_TYPE_ID, Action::Binop(Binop::Neq, b_l, b_r)));
+
+    let ab = steps.push(Step::new(BOOL_TYPE_ID, Action::Binop(Binop::BitOr, a, b)));
+
+    let (c_l, c_r) = binop_byte(&mut steps, 2);
+    let c = steps.push(Step::new(BOOL_TYPE_ID, Action::Binop(Binop::Neq, c_l, c_r)));
+
+    let (d_l, d_r) = binop_byte(&mut steps, 3);
+    let d = steps.push(Step::new(BOOL_TYPE_ID, Action::Binop(Binop::Neq, d_l, d_r)));
+
+    let cd = steps.push(Step::new(BOOL_TYPE_ID, Action::Binop(Binop::BitOr, d, c)));
+
+    steps.push(Step::new(BOOL_TYPE_ID, Action::Binop(Binop::BitOr, ab, cd)));
+
+    steps
+}
+
 fn bytewise_u16(op: Binop) -> TVec<StepId, Step> {
     let mut steps = TVec::new();
     let (a_l, a_r) = binop_byte(&mut steps, 0);
@@ -283,22 +319,42 @@ impl<'a> Function<'a> {
                         (_, _, Binop::Mul) | (_, _, Binop::Div) | (_, _, Binop::Rem) => {
                             unreachable!("to_bytes called with extended binops: {:?}", op)
                         }
-                        (U16_TYPE_ID, U16_TYPE_ID, Binop::Shl) => unimplemented!("u16 shl"),
-                        (U32_TYPE_ID, U32_TYPE_ID, Binop::Shl) => unimplemented!("u32 shl"),
-                        (U16_TYPE_ID, U16_TYPE_ID, Binop::Shr) => unimplemented!("u16 shr"),
-                        (U32_TYPE_ID, U32_TYPE_ID, Binop::Shr) => unimplemented!("u32 shr"),
+                        (U16_TYPE_ID, U16_TYPE_ID, Binop::Shl) => {
+                            steps[s_id].action = Action::CallFunction(ctx.shl16, vec![a, b])
+                        }
+                        (U32_TYPE_ID, U32_TYPE_ID, Binop::Shl) => {
+                            steps[s_id].action = Action::CallFunction(ctx.shl32, vec![a, b])
+                        }
+                        (U16_TYPE_ID, U16_TYPE_ID, Binop::Shr) => {
+                            steps[s_id].action = Action::CallFunction(ctx.shr16, vec![a, b])
+                        }
+                        (U32_TYPE_ID, U32_TYPE_ID, Binop::Shr) => {
+                            steps[s_id].action = Action::CallFunction(ctx.shr32, vec![a, b])
+                        }
                         (U16_TYPE_ID, U16_TYPE_ID, Binop::Eq) => {
                             s_id = block.replace_step(s_id, eq_u16(), i(a, b))
                         }
                         (U32_TYPE_ID, U32_TYPE_ID, Binop::Eq) => {
                             s_id = block.replace_step(s_id, eq_u32(), i(a, b))
                         }
-                        (U16_TYPE_ID, U16_TYPE_ID, Binop::Neq) => unimplemented!("u16 neq"),
-                        (U32_TYPE_ID, U32_TYPE_ID, Binop::Neq) => unimplemented!("u32 neq"),
-                        (U16_TYPE_ID, U16_TYPE_ID, Binop::Gt) => unimplemented!("u16 gt"),
-                        (U32_TYPE_ID, U32_TYPE_ID, Binop::Gt) => unimplemented!("u32 gt"),
-                        (U16_TYPE_ID, U16_TYPE_ID, Binop::Gte) => unimplemented!("u16 gte"),
-                        (U32_TYPE_ID, U32_TYPE_ID, Binop::Gte) => unimplemented!("u32 gte"),
+                        (U16_TYPE_ID, U16_TYPE_ID, Binop::Neq) => {
+                            s_id = block.replace_step(s_id, neq_u16(), i(a, b))
+                        }
+                        (U32_TYPE_ID, U32_TYPE_ID, Binop::Neq) => {
+                            s_id = block.replace_step(s_id, neq_u32(), i(a, b))
+                        }
+                        (U16_TYPE_ID, U16_TYPE_ID, Binop::Gt) => {
+                            steps[s_id].action = Action::CallFunction(ctx.gt16, vec![a, b])
+                        }
+                        (U32_TYPE_ID, U32_TYPE_ID, Binop::Gt) => {
+                            steps[s_id].action = Action::CallFunction(ctx.gt32, vec![a, b])
+                        }
+                        (U16_TYPE_ID, U16_TYPE_ID, Binop::Gte) => {
+                            steps[s_id].action = Action::CallFunction(ctx.gte16, vec![a, b])
+                        }
+                        (U32_TYPE_ID, U32_TYPE_ID, Binop::Gte) => {
+                            steps[s_id].action = Action::CallFunction(ctx.gte32, vec![a, b])
+                        }
                         (U16_TYPE_ID, U16_TYPE_ID, Binop::BitOr)
                         | (U16_TYPE_ID, U16_TYPE_ID, Binop::BitAnd) => {
                             s_id = block.replace_step(s_id, bytewise_u16(op), i(a, b))

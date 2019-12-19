@@ -171,7 +171,6 @@ impl<'a> BoulderMirInterpreter<'a> {
                     }
                 });
             }
-
             match &self.mir[id][curr_block].terminator {
                 &Terminator::Goto(None, ref ids) => return Ok(steps.remove(ids[0])),
                 &Terminator::Goto(Some(block), ref input_steps) => {

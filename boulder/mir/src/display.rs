@@ -112,17 +112,6 @@ impl<'a> Display for Mir<'a> {
         }
 
         for (i, func) in self.functions.iter().enumerate() {
-            if func.ctx.hidden {
-                writeln!(
-                    f,
-                    "fn {}[{}] -> {} [HIDDEN]",
-                    func.name,
-                    FunctionId::from(i),
-                    func.ret
-                )?;
-                continue;
-            }
-
             let func_id: FunctionId = i.into();
             if func.ctx.is_test {
                 writeln!(f, "@test")?;
@@ -131,6 +120,12 @@ impl<'a> Display for Mir<'a> {
                 writeln!(f, "@export")?;
             }
             writeln!(f, "fn {}[{}] -> {}:", func.name, func_id, func.ret)?;
+
+            if func.ctx.hidden {
+                writeln!(f, "    [HIDDEN]",)?;
+                continue;
+            }
+
             for (i, block) in func.blocks.iter().enumerate() {
                 write!(f, "  block ~{}(", i)?;
                 if let Some((last, start)) = block.input.split_last() {

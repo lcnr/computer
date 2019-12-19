@@ -49,12 +49,38 @@ fn check_binop<'a>(
     }
 }
 
+fn check_bool_binop<'a>(
+    def: &FunctionDefinition<'a, TypeId>,
+    ty: TypeId,
+    s: &str,
+) -> Result<(), CompileError> {
+    if def.args.len() == 2
+        && def.args.iter().zip(&[ty, ty]).all(|(a, &b)| a.item == b)
+        && def.ty.item == BOOL_TYPE_ID
+    {
+        Ok(())
+    } else {
+        CompileError::new(
+            &def.name,
+            format_args!("Invalid function type for `lang_item({})`", s),
+        )
+    }
+}
+
 #[derive(Default)]
 pub struct ContextBuilder<'a> {
     add32: Option<Meta<'a, FunctionId>>,
     add16: Option<Meta<'a, FunctionId>>,
     sub32: Option<Meta<'a, FunctionId>>,
     sub16: Option<Meta<'a, FunctionId>>,
+    shl32: Option<Meta<'a, FunctionId>>,
+    shl16: Option<Meta<'a, FunctionId>>,
+    shr32: Option<Meta<'a, FunctionId>>,
+    shr16: Option<Meta<'a, FunctionId>>,
+    gt32: Option<Meta<'a, FunctionId>>,
+    gt16: Option<Meta<'a, FunctionId>>,
+    gte32: Option<Meta<'a, FunctionId>>,
+    gte16: Option<Meta<'a, FunctionId>>,
     div32: Option<Meta<'a, FunctionId>>,
     div16: Option<Meta<'a, FunctionId>>,
     div8: Option<Meta<'a, FunctionId>>,
@@ -100,6 +126,46 @@ impl<'a> ContextBuilder<'a> {
                     FunctionAttribute::LangItem(LangItem::Sub16) => {
                         check_binop(def, U16_TYPE_ID, "sub16")?;
                         insert_lang_item(&mut builder.sub16, attr.replace(id), "sub16")?;
+                        func.attributes.remove(i);
+                    }
+                    FunctionAttribute::LangItem(LangItem::Shl32) => {
+                        check_binop(def, U32_TYPE_ID, "shl32")?;
+                        insert_lang_item(&mut builder.shl32, attr.replace(id), "shl32")?;
+                        func.attributes.remove(i);
+                    }
+                    FunctionAttribute::LangItem(LangItem::Shl16) => {
+                        check_binop(def, U16_TYPE_ID, "shl16")?;
+                        insert_lang_item(&mut builder.shl16, attr.replace(id), "shl16")?;
+                        func.attributes.remove(i);
+                    }
+                    FunctionAttribute::LangItem(LangItem::Shr32) => {
+                        check_binop(def, U32_TYPE_ID, "shr32")?;
+                        insert_lang_item(&mut builder.shr32, attr.replace(id), "shr32")?;
+                        func.attributes.remove(i);
+                    }
+                    FunctionAttribute::LangItem(LangItem::Shr16) => {
+                        check_binop(def, U16_TYPE_ID, "shr16")?;
+                        insert_lang_item(&mut builder.shr16, attr.replace(id), "shr16")?;
+                        func.attributes.remove(i);
+                    }
+                    FunctionAttribute::LangItem(LangItem::Gt32) => {
+                        check_bool_binop(def, U32_TYPE_ID, "gt32")?;
+                        insert_lang_item(&mut builder.gt32, attr.replace(id), "gt32")?;
+                        func.attributes.remove(i);
+                    }
+                    FunctionAttribute::LangItem(LangItem::Gt16) => {
+                        check_bool_binop(def, U16_TYPE_ID, "gt16")?;
+                        insert_lang_item(&mut builder.gt16, attr.replace(id), "gt16")?;
+                        func.attributes.remove(i);
+                    }
+                    FunctionAttribute::LangItem(LangItem::Gte32) => {
+                        check_bool_binop(def, U32_TYPE_ID, "gte32")?;
+                        insert_lang_item(&mut builder.gte32, attr.replace(id), "gte32")?;
+                        func.attributes.remove(i);
+                    }
+                    FunctionAttribute::LangItem(LangItem::Gte16) => {
+                        check_bool_binop(def, U16_TYPE_ID, "gte16")?;
+                        insert_lang_item(&mut builder.gte16, attr.replace(id), "gte16")?;
                         func.attributes.remove(i);
                     }
                     FunctionAttribute::LangItem(LangItem::Div32) => {
@@ -171,6 +237,14 @@ impl<'a> ContextBuilder<'a> {
             add16: unwrap_item(self.add16, "add16")?,
             sub32: unwrap_item(self.sub32, "sub32")?,
             sub16: unwrap_item(self.sub16, "sub16")?,
+            shl32: unwrap_item(self.shl32, "shl32")?,
+            shl16: unwrap_item(self.shl16, "shl16")?,
+            shr32: unwrap_item(self.shr32, "shr32")?,
+            shr16: unwrap_item(self.shr16, "shr16")?,
+            gt32: unwrap_item(self.gt32, "gt32")?,
+            gt16: unwrap_item(self.gt16, "gt16")?,
+            gte32: unwrap_item(self.gte32, "gte32")?,
+            gte16: unwrap_item(self.gte16, "gte16")?,
             div32: unwrap_item(self.div32, "div32")?,
             div16: unwrap_item(self.div16, "div16")?,
             div8: unwrap_item(self.div8, "div8")?,

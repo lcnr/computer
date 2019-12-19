@@ -51,6 +51,14 @@ impl<'a> Mir<'a> {
             used.add(self.ctx.add16);
             used.add(self.ctx.sub32);
             used.add(self.ctx.sub16);
+            used.add(self.ctx.shl32);
+            used.add(self.ctx.shl16);
+            used.add(self.ctx.shr32);
+            used.add(self.ctx.shr16);
+            used.add(self.ctx.gt32);
+            used.add(self.ctx.gt16);
+            used.add(self.ctx.gte32);
+            used.add(self.ctx.gte16);
         }
 
         if lang_items < LangItemState::BinopResolved {

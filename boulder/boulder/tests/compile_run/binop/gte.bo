@@ -1,0 +1,4 @@
+@test
+fn simple() -> Bool {
+    4: u16 >= 32 == False
+}

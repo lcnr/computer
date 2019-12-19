@@ -75,6 +75,7 @@ fn add16(l: u16, r: u16) -> u16 {
     })
 }
 
+@hidden
 @lang_item(sub32)
 fn sub32(l: u32, r: u32) -> u32 {
     let l_bytes: u32Bytes = to_bytes(l);
@@ -93,6 +94,7 @@ fn sub32(l: u32, r: u32) -> u32 {
     })
 }
 
+@hidden
 @lang_item(sub16)
 fn sub16(l: u16, r: u16) -> u16 {
     let l_bytes: u16Bytes = to_bytes(l);
@@ -105,6 +107,274 @@ fn sub16(l: u16, r: u16) -> u16 {
         a: a.value,
         b: b.value,
     })
+}
+
+@lang_item(shl32)
+fn shl32(l: u32, r: u32) -> u32 {
+    let l_bytes: u32Bytes = to_bytes(l);
+    let r_bytes: u32Bytes = to_bytes(r);
+
+    if r_bytes.a >= 32 || r_bytes.b != 0 || r_bytes.c != 0 || r_bytes.d != 0 {
+        0
+    } else {
+        let shift = r_bytes.a % 8;
+
+        let a_shift = l_bytes.a << shift;
+        if r_bytes.a < 24 {
+            let inv_shift = 8 - shift;
+            let b_shift = (l_bytes.a >> inv_shift) + (l_bytes.b << shift);
+            if r_bytes.a < 16 {
+                let c_shift = (l_bytes.b >> inv_shift) + (l_bytes.c << shift);
+                if r_bytes.a < 8 {
+                    let d_shift = (l_bytes.c >> inv_shift) + (l_bytes.d << shift);
+                    from_bytes(u32Bytes {
+                        a: a_shift,
+                        b: b_shift,
+                        c: c_shift,
+                        d: d_shift,
+                    })
+                } else {
+                    from_bytes(u32Bytes {
+                        a: 0,
+                        b: a_shift,
+                        c: b_shift,
+                        d: c_shift,
+                    })
+                }
+            } else {
+                from_bytes(u32Bytes {
+                    a: 0,
+                    b: 0,
+                    c: a_shift,
+                    d: b_shift,
+                })
+            }
+        } else {
+            from_bytes(u32Bytes {
+                a: 0,
+                b: 0,
+                c: 0,
+                d: a_shift,
+            })
+        }
+    }
+}
+
+@lang_item(shl16)
+fn shl16(l: u16, r: u16) -> u16 {
+    let l_bytes: u16Bytes = to_bytes(l);
+    let r_bytes: u16Bytes = to_bytes(r);
+
+    if r_bytes.a >= 16 || r_bytes.b != 0 {
+        0
+    } else {
+        let shift = r_bytes.a % 8;
+
+        let a_shift = l_bytes.a << shift;
+        if r_bytes.a < 8 {
+            let b_shift = (l_bytes.a >> 8 - shift) + (l_bytes.b << shift);
+
+            from_bytes(u16Bytes {
+                a: a_shift,
+                b: b_shift,
+            })
+        } else {
+            from_bytes(u16Bytes {
+                a: 0,
+                b: a_shift,
+            })
+        }
+    }
+}
+
+@lang_item(shr32)
+fn shr32(l: u32, r: u32) -> u32 {
+    let l_bytes: u32Bytes = to_bytes(l);
+    let r_bytes: u32Bytes = to_bytes(r);
+
+    if r >= 32 {
+        r
+    } else {
+        let shift = r_bytes.a % 8;
+
+        let d_shift = l_bytes.d >> shift;
+        if r_bytes.a < 24 {
+            let inv_shift = 8 - shift;
+            let c_shift = (l_bytes.d << inv_shift) + (l_bytes.c >> shift);
+            if r_bytes.a < 16 {
+                let b_shift = (l_bytes.c << inv_shift) + (l_bytes.b >> shift);
+                if r_bytes.a < 8 {
+                    let a_shift = (l_bytes.b << inv_shift) + (l_bytes.a >> shift);
+                    from_bytes(u32Bytes {
+                        a: a_shift,
+                        b: b_shift,
+                        c: c_shift,
+                        d: d_shift,
+                    })
+                } else {
+                    from_bytes(u32Bytes {
+                        a: b_shift,
+                        b: c_shift,
+                        c: d_shift,
+                        d: 0,
+                    })
+                }
+            } else {
+                from_bytes(u32Bytes {
+                    a: c_shift,
+                    b: d_shift,
+                    c: 0,
+                    d: 0,
+                })
+            }
+        } else {
+            from_bytes(u32Bytes {
+                a: d_shift,
+                b: 0,
+                c: 0,
+                d: 0,
+            })
+        }
+    }
+}
+
+@lang_item(shr16)
+fn shr16(l: u16, r: u16) -> u16 {
+    let l_bytes: u16Bytes = to_bytes(l);
+    let r_bytes: u16Bytes = to_bytes(r);
+
+    if r_bytes.a >= 16 || r_bytes.b != 0 {
+        0
+    } else {
+        let shift = r_bytes.a % 8;
+
+        let b_shift = l_bytes.b >> shift;
+        if r_bytes.a < 8 {
+            let a_shift = (l_bytes.b << 8 - shift) + (l_bytes.a >> shift);
+            
+            from_bytes(u16Bytes {
+                a: a_shift,
+                b: b_shift,
+            })
+        } else {
+            from_bytes(u16Bytes {
+                a: b_shift,
+                b: 0,
+            })
+        }
+    }
+}
+
+@lang_item(gt32)
+fn gt32(l: u32, r: u32) -> Bool {
+    let l_bytes: u32Bytes = to_bytes(l);
+    let r_bytes: u32Bytes = to_bytes(r);
+
+    if l_bytes.d > r_bytes.d {
+        True: Bool
+    } else {
+        if l_bytes.d < r_bytes.d {
+            return False;
+        }: Empty;
+
+        if l_bytes.c > r_bytes.c {
+            True
+        } else {
+            if l_bytes.c < r_bytes.c {
+                return False;
+            }: Empty;
+
+            if l_bytes.b > r_bytes.b {
+                True
+            } else {
+                if l_bytes.b < r_bytes.b {
+                    return False;
+                }: Empty;
+
+                if l_bytes.a > r_bytes.a {
+                    True
+                } else {
+                    False
+                }: Bool
+            }: Bool
+        }: Bool
+    }
+}
+
+@lang_item(gt16)
+fn gt16(l: u16, r: u16) -> Bool {
+    let l_bytes: u16Bytes = to_bytes(l);
+    let r_bytes: u16Bytes = to_bytes(r);
+
+    if l_bytes.b > r_bytes.b {
+        True
+    } else {
+        if l_bytes.b < r_bytes.b {
+            return False;
+        }: Empty;
+
+        if l_bytes.a > r_bytes.a {
+            True
+        } else {
+            False
+        }: Bool
+    }
+}
+
+@lang_item(gte32)
+fn gte32(l: u32, r: u32) -> Bool {
+    let l_bytes: u32Bytes = to_bytes(l);
+    let r_bytes: u32Bytes = to_bytes(r);
+
+    if l_bytes.d > r_bytes.d {
+        True
+    } else {
+        if l_bytes.d < r_bytes.d {
+            return False;
+        }: Empty;
+
+        if l_bytes.c > r_bytes.c {
+            True
+        } else {
+            if l_bytes.c < r_bytes.c {
+                return False;
+            }: Empty;
+
+            if l_bytes.b > r_bytes.b {
+                True
+            } else {
+                if l_bytes.b < r_bytes.b {
+                    return False;
+                }: Empty;
+
+                if l_bytes.a >= r_bytes.a {
+                    True
+                } else {
+                    False
+                }: Bool
+            }: Bool
+        }: Bool
+    }
+}
+
+@lang_item(gte16)
+fn gte16(l: u16, r: u16) -> Bool {
+    let l_bytes: u16Bytes = to_bytes(l);
+    let r_bytes: u16Bytes = to_bytes(r);
+
+    if l_bytes.b > r_bytes.b {
+        True
+    } else {
+        if l_bytes.b < r_bytes.b {
+            return False;
+        }: Empty;
+
+        if l_bytes.a >= r_bytes.a {
+            True
+        } else {
+            False
+        }: Bool
+    }
 }
 
 @hidden
