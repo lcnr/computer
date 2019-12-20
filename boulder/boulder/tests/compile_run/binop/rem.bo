@@ -1,7 +1,12 @@
 @test
+fn div_subtest() -> Bool {
+    67: u16 / 7 == 9
+}
+
+@test
 fn rem() -> Bool {
-    let a: u32 = 67;
-    let b: u32 = 7;
+    let a: u16 = 67;
+    let b: u16 = 7;
 
     a == a / b * b + a % b
 }

@@ -109,6 +109,7 @@ fn sub16(l: u16, r: u16) -> u16 {
     })
 }
 
+@hidden
 @lang_item(shl32)
 fn shl32(l: u32, r: u32) -> u32 {
     let l_bytes: u32Bytes = to_bytes(l);
@@ -160,6 +161,7 @@ fn shl32(l: u32, r: u32) -> u32 {
     }
 }
 
+@hidden
 @lang_item(shl16)
 fn shl16(l: u16, r: u16) -> u16 {
     let l_bytes: u16Bytes = to_bytes(l);
@@ -187,6 +189,7 @@ fn shl16(l: u16, r: u16) -> u16 {
     }
 }
 
+@hidden
 @lang_item(shr32)
 fn shr32(l: u32, r: u32) -> u32 {
     let l_bytes: u32Bytes = to_bytes(l);
@@ -238,6 +241,7 @@ fn shr32(l: u32, r: u32) -> u32 {
     }
 }
 
+@hidden
 @lang_item(shr16)
 fn shr16(l: u16, r: u16) -> u16 {
     let l_bytes: u16Bytes = to_bytes(l);
@@ -265,6 +269,7 @@ fn shr16(l: u16, r: u16) -> u16 {
     }
 }
 
+@hidden
 @lang_item(gt32)
 fn gt32(l: u32, r: u32) -> Bool {
     let l_bytes: u32Bytes = to_bytes(l);
@@ -301,6 +306,7 @@ fn gt32(l: u32, r: u32) -> Bool {
     }
 }
 
+@hidden
 @lang_item(gt16)
 fn gt16(l: u16, r: u16) -> Bool {
     let l_bytes: u16Bytes = to_bytes(l);
@@ -321,6 +327,7 @@ fn gt16(l: u16, r: u16) -> Bool {
     }
 }
 
+@hidden
 @lang_item(gte32)
 fn gte32(l: u32, r: u32) -> Bool {
     let l_bytes: u32Bytes = to_bytes(l);
@@ -357,6 +364,7 @@ fn gte32(l: u32, r: u32) -> Bool {
     }
 }
 
+@hidden
 @lang_item(gte16)
 fn gte16(l: u16, r: u16) -> Bool {
     let l_bytes: u16Bytes = to_bytes(l);
@@ -379,7 +387,7 @@ fn gte16(l: u16, r: u16) -> Bool {
 
 @hidden
 @lang_item(div32)
-fn divide32(a: u32, b: u32) -> u32 {
+fn div32(a: u32, b: u32) -> u32 {
     let i = 0;
     let new_b: u32 = b;
     while new_b << 1 > new_b {
@@ -402,7 +410,7 @@ fn divide32(a: u32, b: u32) -> u32 {
 
 @hidden
 @lang_item(div16)
-fn divide16(a: u16, b: u16) -> u16 {
+fn div16(a: u16, b: u16) -> u16 {
     let i = 0;
     let new_b: u16 = b;
     while new_b << 1 > new_b {
@@ -425,7 +433,7 @@ fn divide16(a: u16, b: u16) -> u16 {
 
 @hidden
 @lang_item(div8)
-fn divide8(a: u8, b: u8) -> u8 {
+fn div8(a: u8, b: u8) -> u8 {
     let i = 0;
     let new_b: u8 = b;
     while new_b << 1 > new_b {
@@ -448,7 +456,7 @@ fn divide8(a: u8, b: u8) -> u8 {
 
 @hidden
 @lang_item(rem32)
-fn remainder32(a: u32, b: u32) -> u32 {
+fn rem32(a: u32, b: u32) -> u32 {
     let i = 0;
     let new_b: u32 = b;
     while new_b << 1 > new_b {
@@ -469,7 +477,7 @@ fn remainder32(a: u32, b: u32) -> u32 {
 
 @hidden
 @lang_item(rem16)
-fn remainder16(a: u16, b: u16) -> u16 {
+fn rem16(a: u16, b: u16) -> u16 {
     let i = 0;
     let new_b: u16 = b;
     while new_b << 1 > new_b {
@@ -490,7 +498,7 @@ fn remainder16(a: u16, b: u16) -> u16 {
 
 @hidden
 @lang_item(rem8)
-fn remainder8(a: u8, b: u8) -> u8 {
+fn rem8(a: u8, b: u8) -> u8 {
     let i = 0;
     let new_b: u8 = b;
     while new_b << 1 > new_b {
@@ -511,7 +519,7 @@ fn remainder8(a: u8, b: u8) -> u8 {
 
 @hidden
 @lang_item(mul32)
-fn multiply32(a: u32, b: u32) -> u32 {
+fn mul32(a: u32, b: u32) -> u32 {
     let result = 0;
     let curr = 0;
     while curr < 32 {
@@ -526,7 +534,7 @@ fn multiply32(a: u32, b: u32) -> u32 {
 
 @hidden
 @lang_item(mul16)
-fn multiply16(a: u16, b: u16) -> u16 {
+fn mul16(a: u16, b: u16) -> u16 {
     let result = 0;
     let curr = 0;
     while curr < 16 {
@@ -541,7 +549,7 @@ fn multiply16(a: u16, b: u16) -> u16 {
 
 @hidden
 @lang_item(mul8)
-fn multiply8(a: u8, b: u8) -> u8 {
+fn mul8(a: u8, b: u8) -> u8 {
     let result = 0;
     let curr = 0;
     while curr < 8 {

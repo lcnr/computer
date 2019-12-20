@@ -383,14 +383,14 @@ impl<'a> Function<'a> {
 }
 
 impl Object {
-    fn reduce_to_bytes(&mut self) {
+    pub fn reduce_to_bytes(&mut self) {
         match self {
             &mut Object::Unit | &mut Object::U8(_) | &mut Object::Undefined => (),
             &mut Object::U16(val) => {
-                *self = Object::Struct(val.to_be_bytes().iter().copied().map(Object::U8).collect())
+                *self = Object::Struct(val.to_le_bytes().iter().copied().map(Object::U8).collect())
             }
             &mut Object::U32(val) => {
-                *self = Object::Struct(val.to_be_bytes().iter().copied().map(Object::U8).collect())
+                *self = Object::Struct(val.to_le_bytes().iter().copied().map(Object::U8).collect())
             }
             &mut Object::Struct(ref mut content) => {
                 content.iter_mut().for_each(Self::reduce_to_bytes)

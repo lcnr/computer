@@ -152,33 +152,27 @@ impl<'a> BoulderMirInterpreter<'a> {
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
             Binop::Shl => match (&steps[a], &steps[b]) {
-                (&Object::U8(x), &Object::U8(y)) => x
-                    .checked_shl(y.into())
-                    .map(|r| Object::U8(r))
-                    .ok_or(invalid_args),
-                (&Object::U16(x), &Object::U16(y)) => x
-                    .checked_shl(y.into())
-                    .map(|r| Object::U16(r))
-                    .ok_or(invalid_args),
-                (&Object::U32(x), &Object::U32(y)) => x
-                    .checked_shl(y.into())
-                    .map(|r| Object::U32(r))
-                    .ok_or(invalid_args),
+                (&Object::U8(x), &Object::U8(y)) => {
+                    Ok(Object::U8(x.checked_shl(y.into()).unwrap_or(0)))
+                }
+                (&Object::U16(x), &Object::U16(y)) => {
+                    Ok(Object::U16(x.checked_shl(y.into()).unwrap_or(0)))
+                }
+                (&Object::U32(x), &Object::U32(y)) => {
+                    Ok(Object::U32(x.checked_shl(y.into()).unwrap_or(0)))
+                }
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
             Binop::Shr => match (&steps[a], &steps[b]) {
-                (&Object::U8(x), &Object::U8(y)) => x
-                    .checked_shr(y.into())
-                    .map(|r| Object::U8(r))
-                    .ok_or(invalid_args),
-                (&Object::U16(x), &Object::U16(y)) => x
-                    .checked_shr(y.into())
-                    .map(|r| Object::U16(r))
-                    .ok_or(invalid_args),
-                (&Object::U32(x), &Object::U32(y)) => x
-                    .checked_shr(y.into())
-                    .map(|r| Object::U32(r))
-                    .ok_or(invalid_args),
+                (&Object::U8(x), &Object::U8(y)) => {
+                    Ok(Object::U8(x.checked_shr(y.into()).unwrap_or(0)))
+                }
+                (&Object::U16(x), &Object::U16(y)) => {
+                    Ok(Object::U16(x.checked_shr(y.into()).unwrap_or(0)))
+                }
+                (&Object::U32(x), &Object::U32(y)) => {
+                    Ok(Object::U32(x.checked_shr(y.into()).unwrap_or(0)))
+                }
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
             Binop::Eq => match (&steps[a], &steps[b]) {
