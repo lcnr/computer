@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 
-use tindex::TSlice;
+use tindex::{TIndex, TSlice};
 
 use shared_id::{FunctionId, FALSE_TYPE_ID, TRUE_TYPE_ID};
 
@@ -67,6 +67,16 @@ impl<'a> BoulderMirInterpreter<'a> {
                 }
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
+            UnaryOperation::Debug => {
+                println!(
+                    "({}:{}:{}): {:?}",
+                    function.as_index(),
+                    block.as_index(),
+                    step.as_index(),
+                    &steps[expr]
+                );
+                Ok(Object::Unit)
+            }
         }
     }
 

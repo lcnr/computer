@@ -100,7 +100,7 @@ fn sub16(l: u16, r: u16) -> u16 {
     let l_bytes: u16Bytes = to_bytes(l);
     let r_bytes: u16Bytes = to_bytes(r);
 
-    let a: OverflowingByte = overflowing_add(l_bytes.a, !r_bytes.a, False);
+    let a: OverflowingByte = overflowing_add(l_bytes.a, !r_bytes.a, True);
     let b: OverflowingByte = overflowing_add(l_bytes.b, !r_bytes.b, a.overflow);
     
     from_bytes(u16Bytes {

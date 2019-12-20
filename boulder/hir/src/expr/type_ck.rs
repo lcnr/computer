@@ -107,6 +107,10 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                         ctx.solver.add_from_bytes(v, res);
                         Expression::UnaryOperation(res, op, Box::new(expr))
                     }
+                    UnaryOperation::Debug => {
+                        let r = ctx.solver.add_typed(EMPTY_TYPE_ID, op.simplify());
+                        Expression::UnaryOperation(r, op, Box::new(expr))
+                    }
                 }
             }
             Expression::Binop((), op, a, b) => {

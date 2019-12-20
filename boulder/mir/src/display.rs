@@ -12,6 +12,7 @@ impl Display for UnaryOperation {
             Self::Invert => write!(f, "invert"),
             Self::ToBytes => write!(f, "to_bytes"),
             Self::FromBytes => write!(f, "from_bytes"),
+            Self::Debug => write!(f, "dbg"),
         }
     }
 }

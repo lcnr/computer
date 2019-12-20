@@ -166,6 +166,7 @@ pub enum UnaryOperation {
     Invert,
     ToBytes,
     FromBytes,
+    Debug,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

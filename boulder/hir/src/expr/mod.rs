@@ -18,6 +18,7 @@ pub enum UnaryOperation {
     Invert,
     ToBytes,
     FromBytes,
+    Debug,
 }
 
 #[derive(Debug, Clone, Copy)]

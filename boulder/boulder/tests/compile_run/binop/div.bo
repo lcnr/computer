@@ -1,0 +1,14 @@
+@test
+fn zero_two() -> Bool {
+    0 / 2 == 0: u16
+}
+
+@test
+fn shl_two_one() -> Bool {
+    2 << 1 == 4: u16
+}
+
+@test
+fn gt_four_two() -> Bool {
+    4 > 2: u16
+}

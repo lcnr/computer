@@ -3,7 +3,8 @@ use std::{fmt, mem, ops::Drop};
 use tindex::TIndex;
 
 use shared_id::{
-    FunctionId, TypeId, U16_BYTES_TYPE_ID, U16_TYPE_ID, U32_BYTES_TYPE_ID, U32_TYPE_ID,
+    FunctionId, TypeId, EMPTY_TYPE_ID, U16_BYTES_TYPE_ID, U16_TYPE_ID, U32_BYTES_TYPE_ID,
+    U32_TYPE_ID,
 };
 
 use crate::{Action, Mir, Object, StepId, Terminator, Type, UnaryOperation};
@@ -153,6 +154,7 @@ impl<'a> Mir<'a> {
                                             && step.ty == U32_TYPE_ID
                                 );
                             }
+                            UnaryOperation::Debug => assert_eq!(step.ty, EMPTY_TYPE_ID),
                         }
                     }
                     &Action::Binop(kind, a, b) => {

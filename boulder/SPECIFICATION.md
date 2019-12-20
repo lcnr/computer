@@ -2,7 +2,14 @@
 
 ## Functions
 
-Shift right `>>` und shift left `<<` can shift by any amount specified, meaning that `1: u8 << 8` must result in `0`. 
+Shift right `>>` und shift left `<<` can shift by any amount specified, meaning that `1: u8 << 8` must result in `0`.
+
+### Intrinsics
+
+- `to_bytes`: splits a `u16` or `u32` into `u8`.
+- `from_bytes`: converts a `u16Bytes` or `u32Bytes` into an integer.
+- `dbg`: prints the value of the received expression as a debug statement.
+    returns `Empty`.
 
 ## Types
 

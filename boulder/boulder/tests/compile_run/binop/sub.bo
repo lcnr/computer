@@ -1,0 +1,9 @@
+@test
+fn one_u16() -> Bool {
+    1 - 1 == 0: u16
+}
+
+@test
+fn one_u32() -> Bool {
+    1 - 1 == 0: u32
+}

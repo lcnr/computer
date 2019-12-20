@@ -204,6 +204,15 @@ impl<'a> Mir<'a> {
                 for block in func.blocks.index_iter() {
                     let mut used = TBitSet::new();
                     func[block].terminator.used_steps(&mut used);
+                    
+                    for i in func[block].steps.index_iter() {
+                        if let Action::UnaryOperation(crate::UnaryOperation::Debug, _) =
+                            func[block].steps[i].action
+                        {
+                            used.add(i);
+                        }
+                    }
+
                     let mut new_used = TBitSet::new();
                     while new_used != used {
                         for step in used.iter().rev() {

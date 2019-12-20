@@ -2,7 +2,7 @@ use std::convert::{identity, TryFrom};
 
 use tindex::{TSlice, TVec};
 
-use shared_id::{FunctionId, TypeId, EMPTY_TYPE_ID, FALSE_TYPE_ID, TRUE_TYPE_ID};
+use shared_id::{FunctionId, TypeId, BOOL_TYPE_ID, EMPTY_TYPE_ID, FALSE_TYPE_ID, TRUE_TYPE_ID};
 
 use diagnostics::CompileError;
 
@@ -152,8 +152,11 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
             }
             Expression::UnaryOperation(ty, op, expr) => {
                 let expr_ty = expr.ty();
-                let expr = expr.to_mir(ctx)?;
-                ctx.func[*ctx.curr].add_step(expr_ty, Action::Extend(expr));
+                let mut expr = expr.to_mir(ctx)?;
+
+                if expr_ty == TRUE_TYPE_ID || expr_ty == FALSE_TYPE_ID {
+                    expr = ctx.func[*ctx.curr].add_step(BOOL_TYPE_ID, Action::Extend(expr));
+                }
                 match op.item {
                     UnaryOperation::Invert => Ok(ctx.func[*ctx.curr].add_step(
                         ty,
@@ -167,6 +170,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                         ty,
                         Action::UnaryOperation(mir::UnaryOperation::FromBytes, expr),
                     )),
+                    UnaryOperation::Debug => Ok(ctx.func[*ctx.curr]
+                        .add_step(ty, Action::UnaryOperation(mir::UnaryOperation::Debug, expr))),
                 }
             }
             Expression::Binop(ty, op, a, b) => {
