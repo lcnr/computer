@@ -1,14 +1,18 @@
 @test
-fn zero_two() -> Bool {
+fn div_big() -> Bool {
+    let a: u32 = 2157529424;
+    let b: u32 = 359483326;
+    let small_res: u32 = a / b;
+    let big_res: u32 = a / small_res;
+    small_res == 6 && big_res == 359588237
+}
+
+@test
+fn zero_two_u32() -> Bool {
+    0 / 2 == 0: u32
+}
+
+@test
+fn zero_two_u16() -> Bool {
     0 / 2 == 0: u16
-}
-
-@test
-fn shl_two_one() -> Bool {
-    2 << 1 == 4: u16
-}
-
-@test
-fn gt_four_two() -> Bool {
-    4 > 2: u16
 }

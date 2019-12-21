@@ -23,11 +23,20 @@ pub enum InterpretError {
 #[derive(Debug, Clone)]
 pub struct BoulderMirInterpreter<'a> {
     mir: &'a Mir<'a>,
+    step_count: usize,
 }
 
 impl<'a> BoulderMirInterpreter<'a> {
     pub fn new(mir: &'a Mir<'a>) -> Self {
-        Self { mir }
+        Self { mir, step_count: 0 }
+    }
+
+    pub fn step_count(&self) -> usize {
+        self.step_count
+    }
+
+    pub fn reset_step_count(&mut self) {
+        self.step_count = 0
     }
 
     pub fn execute_function(
@@ -45,6 +54,7 @@ impl<'a> BoulderMirInterpreter<'a> {
             profile_scope!("execute_block");
             let mut steps = TVec::with_capacity(self.mir[id][curr_block].steps.len());
             for (step_id, step) in self.mir[id][curr_block].steps.iter().enumerate() {
+                self.step_count += 1;
                 #[cfg(feature = "profiler")]
                 profile_scope!("execute_step");
                 let step_id = StepId::from(step_id);
@@ -171,6 +181,7 @@ impl<'a> BoulderMirInterpreter<'a> {
                     }
                 });
             }
+
             match &self.mir[id][curr_block].terminator {
                 &Terminator::Goto(None, ref ids) => return Ok(steps.remove(ids[0])),
                 &Terminator::Goto(Some(block), ref input_steps) => {

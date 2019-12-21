@@ -30,10 +30,6 @@ pub fn main() {
             if let Err(err) = file.read_to_string(&mut src) {
                 eprintln!("Error while reading {}: {:?}", input, err);
             } else if let Ok(res) = boulder::compile(&ctx, &src, input) {
-                let mut miri = mir_interpreter::BoulderMirInterpreter::new(&res);
-                println!("{}", res);
-                dbg!(miri.execute_function(res.get_function("simple").unwrap(), &[]));
-
                 if let Ok(mut file) = File::create(output) {
                     writeln!(file, "{}", res).expect("error while writing to file");
                     /*writeln!(file, "v2.0 raw").expect("error while writing to file");

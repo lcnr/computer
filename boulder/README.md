@@ -28,5 +28,5 @@ Other inspirations:
 
 ## Roadmap
 
-- reduce all types to `u8`
+- flatten structs into individual `u8`.
 - generate assembly

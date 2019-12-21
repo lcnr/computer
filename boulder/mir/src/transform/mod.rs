@@ -13,6 +13,7 @@ use crate::{
     Action, Block, BlockId, Function, Mir, Step, StepId, Terminator, Type,
 };
 
+mod flatten_structs;
 mod optimize;
 mod sum_types;
 mod to_bytes;
