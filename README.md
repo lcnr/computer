@@ -12,5 +12,5 @@ WIP
 
 [logisim]: http://www.cburch.com/logisim
 [rock]: ./rock/README.md
-[remu]: ./remu/READMD.md
+[remu]: ./remu/README.md
 [boulder]: ./boulder/README.md
