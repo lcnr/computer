@@ -18,7 +18,7 @@ fn insert_lang_item<'a, T>(
     new: Meta<'a, T>,
     s: &str,
 ) -> Result<(), CompileError> {
-    if let &mut Some(ref old) = old {
+    if let Some(ref old) = *old {
         CompileError::build(
             old,
             format_args!("`lang_item({})` defined more than once", s),
@@ -284,7 +284,7 @@ impl<'a> FunctionContextBuilder<'a> {
                         );
                     }
 
-                    if let &Some(ref should_test) = &builder.is_test {
+                    if let Some(ref should_test) = builder.is_test {
                         CompileError::build(
                             &attr,
                             "Attribute `test` used more than once on function",
@@ -297,7 +297,7 @@ impl<'a> FunctionContextBuilder<'a> {
                     }
                 }
                 FunctionAttribute::Export => {
-                    if let &Some(ref should_export) = &builder.export {
+                    if let Some(ref should_export) = builder.export {
                         CompileError::build(
                             &attr,
                             "Attribute `export` used more than once on function",
@@ -310,7 +310,7 @@ impl<'a> FunctionContextBuilder<'a> {
                     }
                 }
                 FunctionAttribute::Hidden => {
-                    if let &Some(ref hidden) = &builder.hidden {
+                    if let Some(ref hidden) = builder.hidden {
                         CompileError::build(
                             &attr,
                             "Attribute `hidden` used more than once on function",

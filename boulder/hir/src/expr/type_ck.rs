@@ -399,7 +399,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvingTypes<'a>> {
                     })
                     .collect::<Result<_, CompileError>>()?;
 
-                if let &ty::Kind::Struct(ref expected_fields) = &types[struct_ty].kind {
+                if let ty::Kind::Struct(ref expected_fields) = types[struct_ty].kind {
                     for i in expected_fields.index_iter() {
                         if !initialized_fields.get(i) {
                             CompileError::new(

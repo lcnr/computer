@@ -127,8 +127,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
             Expression::Lit(ty, lit) => {
                 let type_id = ty;
                 let ty = &ctx.types[type_id];
-                Ok(match &lit.item {
-                    &Literal::Integer(i) => {
+                Ok(match lit.item {
+                    Literal::Integer(i) => {
                         let obj = match ty {
                             mir::Type::U8 => u8::try_from(i).map(Object::U8),
                             mir::Type::U16 => u16::try_from(i).map(Object::U16),
@@ -144,7 +144,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
 
                         ctx.func[*ctx.curr].add_step(type_id, Action::LoadConstant(obj))
                     }
-                    &Literal::Unit(unit_id) => {
+                    Literal::Unit(unit_id) => {
                         let id = ctx.func[*ctx.curr]
                             .add_step(unit_id, Action::LoadConstant(mir::Object::Unit));
                         ctx.func[*ctx.curr].add_step(type_id, Action::Extend(id))
@@ -245,8 +245,8 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                 Ok(block.add_step(ty, Action::LoadConstant(Object::Unit)))
             }
             Expression::InitializeStruct(_, struct_kind, mut fields) => {
-                match &ctx.types[struct_kind.item] {
-                    &mir::Type::Struct(ref expected_fields) => {
+                match ctx.types[struct_kind.item] {
+                    mir::Type::Struct(ref expected_fields) => {
                         let temp_base = ctx.temporaries.len();
                         let mut field_ids = Vec::new();
                         for (kind, expr) in fields.into_iter() {
@@ -275,7 +275,7 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                             ),
                         ))
                     }
-                    &mir::Type::Union(_) => {
+                    mir::Type::Union(_) => {
                         let (_kind, expr) = fields.pop().expect("single union field");
                         let expr = expr.into_mir(ctx)?;
                         Ok(ctx.func[*ctx.curr]

@@ -318,7 +318,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
             } => {
                 let upper_limit = upper_limit.iter().collect::<Box<[_]>>();
                 let sup = match upper_limit.as_ref() {
-                    &[] => String::new(),
+                    [] => String::new(),
                     &[one] => format!("`{}`", types[one].name.item),
                     &[one, two] => format!(
                         "a combination of `{}` or `{}`",
@@ -338,7 +338,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
 
                 let lower_limit = lower_limit.iter().collect::<Box<[_]>>();
                 let sub = match lower_limit.as_ref() {
-                    &[] => String::new(),
+                    [] => String::new(),
                     &[one] => format!("containing `{}`", types[one].name.item),
                     &[one, two] => format!(
                         "containing `{}` or `{}`",
@@ -366,7 +366,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
             EntityState::Bound(v) => {
                 let v = v.iter().collect::<Box<[_]>>();
                 match v.as_ref() {
-                    &[] => unreachable!("expected no types"),
+                    [] => unreachable!("expected no types"),
                     &[one] => format!("`{}`", types[one].name.item),
                     &[one, two] => format!(
                         "either `{}` or `{}`",

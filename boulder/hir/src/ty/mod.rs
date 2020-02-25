@@ -185,8 +185,8 @@ pub fn flatten_sum_ty(
 pub fn check_recursive_ty(types: &TSlice<TypeId, Type<TypeId>>) -> Result<(), CompileError> {
     let mut result = Ok(());
     for (id, t) in types.iter().enumerate() {
-        match &t.kind {
-            &Kind::Sum(_) => (),
+        match t.kind {
+            Kind::Sum(_) => (),
             _ => {
                 if t.contains(id.into(), types, &mut TBitSet::new()) {
                     result = CompileError::new(

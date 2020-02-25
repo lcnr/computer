@@ -181,7 +181,7 @@ impl<'a>
         let mut modules = Module::new(Meta::fake(()));
         for (i, ty) in types.index_iter().zip(types.iter()) {
             modules.add_type(&[], ty.name.item.clone(), i).unwrap();
-            if let &ty::Kind::Sum(ref kinds) = &ty.kind {
+            if let ty::Kind::Sum(kinds) = &ty.kind {
                 modules
                     .add_type(&[], Box::from(ty::sum_ty_name(kinds)), i)
                     .unwrap();
