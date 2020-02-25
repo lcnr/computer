@@ -8,14 +8,22 @@ use mir::{binop::Binop, BlockId, Object, StepId, UnaryOperation};
 
 use crate::{BoulderMirInterpreter, InterpretError};
 
-fn to_bool(b: bool) -> Object {
-    Object::Variant(
-        if b { TRUE_TYPE_ID } else { FALSE_TYPE_ID },
-        Box::new(Object::Unit),
-    )
-}
-
 impl<'a> BoulderMirInterpreter<'a> {
+    fn to_bool(&self, b: bool) -> Object {
+        if self.e2b {
+            if b {
+                Object::U8(self.mir.ctx.true_replacement)
+            } else {
+                Object::U8(self.mir.ctx.false_replacement)
+            }
+        } else {
+            Object::Variant(
+                if b { TRUE_TYPE_ID } else { FALSE_TYPE_ID },
+                Box::new(Object::Unit),
+            )
+        }
+    }
+
     pub fn execute_unary_operation(
         &mut self,
         steps: &TSlice<StepId, Object>,
@@ -34,7 +42,7 @@ impl<'a> BoulderMirInterpreter<'a> {
                 &Object::U32(x) => Ok(Object::U32(!x)),
                 &Object::Variant(x, ref v) => {
                     if v.as_ref() == &Object::Unit && (x == TRUE_TYPE_ID || x == FALSE_TYPE_ID) {
-                        Ok(to_bool(x == FALSE_TYPE_ID))
+                        Ok(self.to_bool(x == FALSE_TYPE_ID))
                     } else {
                         Err(InterpretError::InvalidOperation(function, block, step))
                     }
@@ -184,15 +192,15 @@ impl<'a> BoulderMirInterpreter<'a> {
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
             Binop::Eq => match (&steps[l], &steps[r]) {
-                (&Object::U8(l), &Object::U8(r)) => Ok(to_bool(l == r)),
-                (&Object::U16(l), &Object::U16(r)) => Ok(to_bool(l == r)),
-                (&Object::U32(l), &Object::U32(r)) => Ok(to_bool(l == r)),
+                (&Object::U8(l), &Object::U8(r)) => Ok(self.to_bool(l == r)),
+                (&Object::U16(l), &Object::U16(r)) => Ok(self.to_bool(l == r)),
+                (&Object::U32(l), &Object::U32(r)) => Ok(self.to_bool(l == r)),
                 (&Object::Variant(l, ref v), &Object::Variant(r, ref u)) => {
                     if (v.as_ref() == &Object::Unit && u.as_ref() == &Object::Unit)
                         && (l == TRUE_TYPE_ID || l == FALSE_TYPE_ID)
                         && (r == TRUE_TYPE_ID || r == FALSE_TYPE_ID)
                     {
-                        Ok(to_bool(l == r))
+                        Ok(self.to_bool(l == r))
                     } else {
                         Err(InterpretError::InvalidOperation(function, block, step))
                     }
@@ -200,15 +208,15 @@ impl<'a> BoulderMirInterpreter<'a> {
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
             Binop::Neq => match (&steps[l], &steps[r]) {
-                (&Object::U8(l), &Object::U8(r)) => Ok(to_bool(l != r)),
-                (&Object::U16(l), &Object::U16(r)) => Ok(to_bool(l != r)),
-                (&Object::U32(l), &Object::U32(r)) => Ok(to_bool(l != r)),
+                (&Object::U8(l), &Object::U8(r)) => Ok(self.to_bool(l != r)),
+                (&Object::U16(l), &Object::U16(r)) => Ok(self.to_bool(l != r)),
+                (&Object::U32(l), &Object::U32(r)) => Ok(self.to_bool(l != r)),
                 (&Object::Variant(l, ref v), &Object::Variant(r, ref u)) => {
                     if (v.as_ref() == &Object::Unit && u.as_ref() == &Object::Unit)
                         && (l == TRUE_TYPE_ID || l == FALSE_TYPE_ID)
                         && (r == TRUE_TYPE_ID || r == FALSE_TYPE_ID)
                     {
-                        Ok(to_bool(l != r))
+                        Ok(self.to_bool(l != r))
                     } else {
                         Err(InterpretError::InvalidOperation(function, block, step))
                     }
@@ -216,15 +224,15 @@ impl<'a> BoulderMirInterpreter<'a> {
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
             Binop::Gt => match (&steps[l], &steps[r]) {
-                (&Object::U8(l), &Object::U8(r)) => Ok(to_bool(l > r)),
-                (&Object::U16(l), &Object::U16(r)) => Ok(to_bool(l > r)),
-                (&Object::U32(l), &Object::U32(r)) => Ok(to_bool(l > r)),
+                (&Object::U8(l), &Object::U8(r)) => Ok(self.to_bool(l > r)),
+                (&Object::U16(l), &Object::U16(r)) => Ok(self.to_bool(l > r)),
+                (&Object::U32(l), &Object::U32(r)) => Ok(self.to_bool(l > r)),
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
             Binop::Gte => match (&steps[l], &steps[r]) {
-                (&Object::U8(l), &Object::U8(r)) => Ok(to_bool(l >= r)),
-                (&Object::U16(l), &Object::U16(r)) => Ok(to_bool(l >= r)),
-                (&Object::U32(l), &Object::U32(r)) => Ok(to_bool(l >= r)),
+                (&Object::U8(l), &Object::U8(r)) => Ok(self.to_bool(l >= r)),
+                (&Object::U16(l), &Object::U16(r)) => Ok(self.to_bool(l >= r)),
+                (&Object::U32(l), &Object::U32(r)) => Ok(self.to_bool(l >= r)),
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
             Binop::BitOr => match (&steps[l], &steps[r]) {
@@ -236,7 +244,7 @@ impl<'a> BoulderMirInterpreter<'a> {
                         && (l == TRUE_TYPE_ID || l == FALSE_TYPE_ID)
                         && (r == TRUE_TYPE_ID || r == FALSE_TYPE_ID)
                     {
-                        Ok(to_bool(l == TRUE_TYPE_ID || r == TRUE_TYPE_ID))
+                        Ok(self.to_bool(l == TRUE_TYPE_ID || r == TRUE_TYPE_ID))
                     } else {
                         Err(InterpretError::InvalidOperation(function, block, step))
                     }
@@ -252,7 +260,23 @@ impl<'a> BoulderMirInterpreter<'a> {
                         && (l == TRUE_TYPE_ID || l == FALSE_TYPE_ID)
                         && (r == TRUE_TYPE_ID || r == FALSE_TYPE_ID)
                     {
-                        Ok(to_bool(l == TRUE_TYPE_ID && r == TRUE_TYPE_ID))
+                        Ok(self.to_bool(l == TRUE_TYPE_ID && r == TRUE_TYPE_ID))
+                    } else {
+                        Err(InterpretError::InvalidOperation(function, block, step))
+                    }
+                }
+                _ => Err(InterpretError::InvalidOperation(function, block, step)),
+            },
+            Binop::BitXor => match (&steps[l], &steps[r]) {
+                (&Object::U8(l), &Object::U8(r)) => Ok(Object::U8(l ^ r)),
+                (&Object::U16(l), &Object::U16(r)) => Ok(Object::U16(l ^ r)),
+                (&Object::U32(l), &Object::U32(r)) => Ok(Object::U32(l ^ r)),
+                (&Object::Variant(l, ref v), &Object::Variant(r, ref u)) => {
+                    if (v.as_ref() == &Object::Unit && u.as_ref() == &Object::Unit)
+                        && (l == TRUE_TYPE_ID || l == FALSE_TYPE_ID)
+                        && (r == TRUE_TYPE_ID || r == FALSE_TYPE_ID)
+                    {
+                        Ok(self.to_bool((l == TRUE_TYPE_ID )^ (r == TRUE_TYPE_ID)))
                     } else {
                         Err(InterpretError::InvalidOperation(function, block, step))
                     }

@@ -5,19 +5,19 @@ authors = ["lcnr/Bastian Kauschke <bastian_kauschke@hotmail.de>"]
 edition = "2018"
 
 [dependencies]
-global_ctx = { path = "../global_ctx" }
-diagnostics = { path = "../diagnostics" }
-parse = { path = "../parse"}
-mir = { path = "../mir" }
-mir_interpreter = { path = "../mir_interpreter" }
-rock = { path = "../../rock" }
+global_ctx = { path = "global_ctx" }
+diagnostics = { path = "diagnostics" }
+parse = { path = "parse"}
+mir = { path = "mir" }
+mir_interpreter = { path = "mir_interpreter" }
+rock = { path = "../rock" }
 thread_profiler = { version = "0.3.0", optional = true }
 
 [features]
 profiler = ["thread_profiler", "diagnostics/profiler", "parse/profiler", "mir/profiler", "mir_interpreter/profiler", "rock/profiler"]
 
 [dev-dependencies]
-shared_id = { path = "../shared_id"}
+shared_id = { path = "shared_id"}
 walkdir = "2.2.9"
 
 [[bin]]

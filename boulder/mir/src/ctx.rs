@@ -23,6 +23,8 @@ pub struct Context {
     pub mul32: FunctionId,
     pub mul16: FunctionId,
     pub mul8: FunctionId,
+    pub true_replacement: u8,
+    pub false_replacement: u8,
 }
 
 #[derive(Debug, Clone)]

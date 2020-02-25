@@ -40,10 +40,10 @@ impl Write for OutputShim {
     }
 }
 
-fn test_mir(mir: &Mir, stage: &str) {
+fn test_mir(mir: &Mir, e2b: bool, stage: &str) {
     #[cfg(feature = "profiler")]
     profile_scope!("test_mir");
-    let mut bmi = mir_interpreter::BoulderMirInterpreter::new(mir);
+    let mut bmi = mir_interpreter::BoulderMirInterpreter::new(mir, e2b);
     let mut check_count = 0;
     for (id, test) in mir
         .functions
@@ -56,7 +56,16 @@ fn test_mir(mir: &Mir, stage: &str) {
             bmi.execute_function(FunctionId::from(id), &[])
         })) {
             Ok(Ok(obj)) => {
-                if let Object::Variant(TRUE_TYPE_ID, _) = &obj {
+                if e2b {
+                    if let Object::U8(v) = obj {
+                        if v != mir.ctx.true_replacement {
+                            panic!(
+                                "unit test `{}` failed at stage `{}`: {:?}",
+                                test.name, stage, obj
+                            )
+                        }
+                    }
+                } else if let Object::Variant(TRUE_TYPE_ID, _) = obj {
                 } else {
                     panic!(
                         "unit test `{}` failed at stage `{}`: {:?}",
@@ -128,31 +137,35 @@ fn compile_run() -> Result<(), TestFailure> {
             match panic::catch_unwind(AssertUnwindSafe(|| {
                 #[cfg(feature = "profiler")]
                 profile_scope!("optimize_and_test");
-                test_mir(&mir, "initial");
+                test_mir(&mir, false, "initial");
 
-                boulder::core_optimizations(&mut mir, LangItemState::Unresolved);
-                test_mir(&mir, "core optimizations");
+                boulder::core_optimizations(&mut mir, false, LangItemState::Unresolved);
+                test_mir(&mir, false, "core optimizations");
 
                 mir.reduce_binops();
-                mir.validate();
-                test_mir(&mir, "reduced binops");
+                mir.validate(false);
+                test_mir(&mir, false, "reduced binops");
 
-                boulder::core_optimizations(&mut mir, LangItemState::BinopResolved);
-                test_mir(&mir, "core optimizations post binops");
+                boulder::core_optimizations(&mut mir, false, LangItemState::BinopResolved);
+                test_mir(&mir, false, "core optimizations post binops");
 
                 mir.reduce_sum_types();
-                mir.validate();
-                test_mir(&mir, "reduced sum types");
+                mir.validate(false);
+                test_mir(&mir, false, "reduced sum types");
 
-                boulder::core_optimizations(&mut mir, LangItemState::BinopResolved);
-                test_mir(&mir, "core optimizations post sum types");
+                boulder::core_optimizations(&mut mir, false, LangItemState::BinopResolved);
+                test_mir(&mir, false, "core optimizations post sum types");
 
                 mir.reduce_to_bytes();
-                mir.validate();
-                test_mir(&mir, "reduced to bytes");
+                mir.validate(false);
+                test_mir(&mir, false, "reduced to bytes");
 
-                boulder::core_optimizations(&mut mir, LangItemState::ToBytesResolved);
-                test_mir(&mir, "core optimizations post bytes");
+                boulder::core_optimizations(&mut mir, false, LangItemState::ToBytesResolved);
+                test_mir(&mir, false, "core optimizations post bytes");
+
+                mir.enum_to_byte();
+                mir.validate(true);
+                test_mir(&mir, true, "enum_to_byte");
             })) {
                 Ok(()) => (),
                 Err(_) => {

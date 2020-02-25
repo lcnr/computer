@@ -2,7 +2,7 @@ use tindex::TIndex;
 
 use shared_id::{FunctionId, TypeId};
 
-use crate::{ctx::Context, Action, Block, Function, Step, StepId, Terminator};
+use crate::{ctx::Context, Action, Block, Function, Step, StepId, Terminator, Type};
 
 pub trait UpdateStepIds {
     fn update_step_ids(&mut self, f: &mut dyn FnMut(&mut StepId));
@@ -238,6 +238,10 @@ impl UpdateTypeIds for Terminator {
 
 impl UpdateTypeIds for Block {
     fn update_type_ids(&mut self, f: &mut dyn FnMut(&mut TypeId)) {
+        for input in self.input.iter_mut() {
+            f(input);
+        }
+
         for step in self.steps.iter_mut() {
             step.update_type_ids(f);
         }
@@ -253,5 +257,23 @@ impl<'a> UpdateTypeIds for Function<'a> {
         }
 
         f(&mut self.ret);
+    }
+}
+
+impl UpdateTypeIds for Type {
+    fn update_type_ids(&mut self, f: &mut dyn FnMut(&mut TypeId)) {
+        match self {
+            Type::Sum(kinds) | Type::Union(kinds) => {
+                *kinds = kinds
+                    .iter()
+                    .map(|mut k| {
+                        f(&mut k);
+                        k
+                    })
+                    .collect();
+            }
+            Type::Struct(fields) => fields.iter_mut().for_each(f),
+            Type::U16 | Type::U32 | Type::U8 | Type::Uninhabited | Type::Unit => (),
+        }
     }
 }

@@ -254,6 +254,8 @@ impl<'a> ContextBuilder<'a> {
             mul32: unwrap_item(self.mul32, "mul32")?,
             mul16: unwrap_item(self.mul16, "mul16")?,
             mul8: unwrap_item(self.mul8, "mul8")?,
+            true_replacement: u8::max_value(),
+            false_replacement: u8::max_value(),
         })
     }
 }

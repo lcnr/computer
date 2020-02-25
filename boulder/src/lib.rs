@@ -20,25 +20,25 @@ pub fn compile_to_mir<'a>(
     let hir = hir.resolve_identifiers()?;
     let hir = hir.resolve_expr_types()?;
     let mut mir = hir.into_mir()?;
-    mir.validate();
+    mir.validate(false);
     mir.kill_uninhabited();
-    mir.validate();
+    mir.validate(false);
     mir.remove_noop_extend();
-    mir.validate();
+    mir.validate(false);
     Ok(mir)
 }
 
-pub fn core_optimizations<'a>(mir: &mut Mir<'a>, lang_items: LangItemState) {
+pub fn core_optimizations<'a>(mir: &mut Mir<'a>, e2b: bool, lang_items: LangItemState) {
     #[cfg(feature = "profiler")]
     profile_scope!("core_optimizations");
     mir.unify_blocks();
-    mir.validate();
+    mir.validate(e2b);
     mir.remove_unused_steps();
-    mir.validate();
+    mir.validate(e2b);
     mir.remove_unused_functions(lang_items);
-    mir.validate();
+    mir.validate(e2b);
     mir.remove_redirects();
-    mir.validate();
+    mir.validate(e2b);
 }
 
 pub fn compile<'a>(
@@ -49,14 +49,17 @@ pub fn compile<'a>(
     #[cfg(feature = "profiler")]
     profile_scope!("compile");
     let mut mir = compile_to_mir(ctx, src, file)?;
-    core_optimizations(&mut mir, LangItemState::Unresolved);
+    core_optimizations(&mut mir, false, LangItemState::Unresolved);
     mir.reduce_binops();
-    core_optimizations(&mut mir, LangItemState::BinopResolved);
+    core_optimizations(&mut mir, false, LangItemState::BinopResolved);
     mir.reduce_sum_types();
-    mir.validate();
-    core_optimizations(&mut mir, LangItemState::BinopResolved);
+    mir.validate(false);
+    core_optimizations(&mut mir, false, LangItemState::BinopResolved);
     mir.reduce_to_bytes();
-    mir.validate();
-    core_optimizations(&mut mir, LangItemState::ToBytesResolved);
+    mir.validate(false);
+    core_optimizations(&mut mir, false, LangItemState::ToBytesResolved);
+    mir.enum_to_byte();
+    mir.validate(true);
+    core_optimizations(&mut mir, true, LangItemState::ToBytesResolved);
     Ok(mir)
 }

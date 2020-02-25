@@ -35,6 +35,7 @@ impl Display for Binop {
             Self::Gte => write!(f, "gte"),
             Self::BitOr => write!(f, "bitor"),
             Self::BitAnd => write!(f, "bitand"),
+            Self::BitXor => write!(f, "bitxor"),
         }
     }
 }

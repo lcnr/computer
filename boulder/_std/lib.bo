@@ -1,4 +1,3 @@
-@hidden
 fn bool_to_u8(b: Bool) -> u8 {
     match b {
         _: True -> 1,
@@ -11,7 +10,6 @@ struct OverflowingByte {
     overflow: Bool
 }
 
-@hidden
 fn overflowing_add(l: u8, r: u8, carry_in: Bool) -> OverflowingByte {
     let mask: u8 = 0b1000_0000;
 
@@ -41,7 +39,6 @@ fn overflowing_add(l: u8, r: u8, carry_in: Bool) -> OverflowingByte {
     }
 }
 
-@hidden
 @lang_item(add32)
 fn add32(l: u32, r: u32) -> u32 {
     let l_bytes: u32Bytes = to_bytes(l);
@@ -269,7 +266,6 @@ fn shr16(l: u16, r: u16) -> u16 {
     }
 }
 
-@hidden
 @lang_item(gt32)
 fn gt32(l: u32, r: u32) -> Bool {
     let l_bytes: u32Bytes = to_bytes(l);

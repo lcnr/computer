@@ -4,7 +4,7 @@ members = [
     "rock",
     "boulder/global_ctx",
     "boulder/solver",
-    "boulder/boulder",
+    "boulder",
     "boulder/mir_interpreter",
     "boulder/diagnostics",
     "boulder/shared_id",

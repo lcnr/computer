@@ -13,7 +13,7 @@ use crate::{
     Action, Block, BlockId, Function, MatchArm, Mir, Step, StepId, Terminator, Type,
 };
 
-mod flatten_structs;
+mod enums;
 mod optimize;
 mod sum_types;
 mod to_bytes;
@@ -248,9 +248,6 @@ impl Block {
         };
 
         self.steps.remove(previous);
-        for c in self.steps[previous..].iter_mut() {
-            c.action.update_step_ids(&mut replacer);
-        }
-        self.terminator.update_step_ids(&mut replacer);
+        self.update_step_ids(&mut replacer);
     }
 }

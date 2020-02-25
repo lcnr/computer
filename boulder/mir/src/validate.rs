@@ -21,7 +21,7 @@ impl Drop for PanicDisplay<'_, '_> {
 
 impl<'a> Mir<'a> {
     /// check if the MIR is well formed
-    pub fn validate(&self) {
+    pub fn validate(&self, e2b: bool) {
         #[cfg(feature = "profiler")]
         profile_scope!("validate");
         for ty in 0..self.types.len() {
@@ -29,7 +29,7 @@ impl<'a> Mir<'a> {
         }
 
         for func in 0..self.functions.len() {
-            self.validate_function(func.into());
+            self.validate_function(func.into(), e2b);
         }
     }
 
@@ -37,7 +37,7 @@ impl<'a> Mir<'a> {
         let _ = ty;
     }
 
-    pub fn validate_function(&self, func: FunctionId) {
+    pub fn validate_function(&self, func: FunctionId, e2b: bool) {
         #[cfg(feature = "profiler")]
         profile_scope!("validate_function");
         let hir_panic = PanicDisplay("\n", self);
@@ -45,14 +45,14 @@ impl<'a> Mir<'a> {
         let func_panic = PanicDisplay("function: ", &func_panic);
 
         for (block_id, block) in self[func].blocks.iter().enumerate() {
-            self.validate_block(func, block_id, block)
+            self.validate_block(func, block_id, block, e2b)
         }
 
         mem::forget(func_panic);
         mem::forget(hir_panic);
     }
 
-    fn validate_block(&self, func: FunctionId, block_id: usize, block: &Block) {
+    fn validate_block(&self, func: FunctionId, block_id: usize, block: &Block, e2b: bool) {
         let func = &self.functions[func];
         let block_panic = PanicDisplay("block: ", &block_id);
         for (step_id, step) in block.steps.iter().enumerate() {
@@ -60,6 +60,7 @@ impl<'a> Mir<'a> {
             let step_panic = PanicDisplay("step: ", &step_id.0);
             match step.action {
                 Action::Extend(s) => {
+                    assert!(!e2b);
                     assert!(s < step_id);
                     if block[s].ty != step.ty {
                         if let Type::Sum(ref v) = self[step.ty] {
@@ -167,7 +168,7 @@ impl<'a> Mir<'a> {
                 Action::Binop(kind, a, b) => {
                     assert!(a < step_id);
                     assert!(b < step_id);
-                    kind.validate(step, &block[a], &block[b]);
+                    kind.validate(step, &block[a], &block[b], e2b);
                 } // TODO: validate
             }
             mem::forget(step_panic);

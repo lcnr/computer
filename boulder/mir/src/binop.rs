@@ -1,4 +1,4 @@
-use shared_id::{FunctionId, BOOL_TYPE_ID};
+use shared_id::{FunctionId, BOOL_TYPE_ID, U8_TYPE_ID};
 
 use crate::{Action, BlockId, Mir, Step, StepId, Type};
 
@@ -17,10 +17,11 @@ pub enum Binop {
     Gte,
     BitOr,
     BitAnd,
+    BitXor,
 }
 
 impl Binop {
-    pub fn validate(self, this: &Step, a: &Step, b: &Step) {
+    pub fn validate(self, this: &Step, a: &Step, b: &Step, e2b: bool) {
         match self {
             Self::Add
             | Self::Sub
@@ -30,13 +31,18 @@ impl Binop {
             | Self::Shl
             | Self::Shr
             | Self::BitOr
-            | Self::BitAnd => {
+            | Self::BitAnd
+            | Self::BitXor => {
                 assert_eq!(a.ty, b.ty);
                 assert_eq!(a.ty, this.ty);
             }
             Self::Eq | Self::Neq | Self::Gt | Self::Gte => {
                 assert_eq!(a.ty, b.ty);
-                assert_eq!(this.ty, BOOL_TYPE_ID);
+                if e2b {
+                    assert_eq!(this.ty, U8_TYPE_ID);
+                } else {
+                    assert_eq!(this.ty, BOOL_TYPE_ID);
+                }
             }
         }
     }

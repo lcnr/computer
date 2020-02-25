@@ -355,11 +355,13 @@ impl<'a> Function<'a> {
                             steps[s_id].action = Action::CallFunction(ctx.gte32, vec![a, b])
                         }
                         (U16_TYPE_ID, U16_TYPE_ID, Binop::BitOr)
-                        | (U16_TYPE_ID, U16_TYPE_ID, Binop::BitAnd) => {
+                        | (U16_TYPE_ID, U16_TYPE_ID, Binop::BitAnd)
+                        | (U16_TYPE_ID, U16_TYPE_ID, Binop::BitXor) => {
                             s_id = block.replace_step(s_id, bytewise_u16(op), i(a, b))
                         }
                         (U32_TYPE_ID, U32_TYPE_ID, Binop::BitOr)
-                        | (U32_TYPE_ID, U32_TYPE_ID, Binop::BitAnd) => {
+                        | (U32_TYPE_ID, U32_TYPE_ID, Binop::BitAnd)
+                        | (U32_TYPE_ID, U32_TYPE_ID, Binop::BitXor) => {
                             s_id = block.replace_step(s_id, bytewise_u32(op), i(a, b))
                         }
                         (_, _, Binop::BitAnd)
@@ -371,7 +373,8 @@ impl<'a> Function<'a> {
                         | (_, _, Binop::Neq)
                         | (_, _, Binop::Gt)
                         | (_, _, Binop::Gte)
-                        | (_, _, Binop::BitOr) => s_id.0 += 1,
+                        | (_, _, Binop::BitOr)
+                        | (_, _, Binop::BitXor) => s_id.0 += 1,
                     },
                     _ => s_id.0 += 1,
                 }
