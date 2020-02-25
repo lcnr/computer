@@ -5,7 +5,7 @@ use tindex::bitset::TBitSet;
 use shared_id::FunctionId;
 
 use crate::{
-    traits::UpdateStepIds, Action, Block, BlockId, Function, LangItemState, Mir, StepId,
+    traits::UpdateStepIds, Action, Block, BlockId, Function, LangItemState, MatchArm, Mir, StepId,
     Terminator, Type,
 };
 
@@ -130,7 +130,7 @@ impl<'a> Mir<'a> {
                     }
                     &Terminator::Match(_, ref arms) => {
                         for arm in arms.iter() {
-                            if let Some(target) = arm.1 {
+                            if let Some(target) = arm.target {
                                 allowed.set(target, !used.get(target));
                                 used.add(target);
                             }
@@ -138,7 +138,7 @@ impl<'a> Mir<'a> {
                     }
                     &Terminator::MatchByte(_, ref arms) => {
                         for arm in arms.iter() {
-                            if let Some(target) = arm.1 {
+                            if let Some(target) = arm.target {
                                 allowed.set(target, !used.get(target));
                                 used.add(target);
                             }
@@ -259,22 +259,22 @@ impl<'a> Mir<'a> {
         profile_scope!("Mir::remove_redirects");
         fn match_reduce<T>(
             func: &mut Function,
-            arms: &mut Vec<(T, Option<BlockId>, Vec<Option<StepId>>)>,
+            arms: &mut [MatchArm<T>],
             redirects: &TBitSet<BlockId>,
         ) -> bool {
             let mut changed = false;
-            for arm in 0..arms.len() {
-                if let Some(target) = arms[arm].1 {
+            for arm in arms.iter_mut() {
+                if let Some(target) = arm.target {
                     if redirects.get(target) {
                         match &func[target].terminator {
                             &Terminator::Goto(next_block, ref steps) => {
                                 changed = true;
-                                arms[arm].1 = next_block;
-                                arms[arm].2 = steps
+                                arm.target = next_block;
+                                arm.args = steps
                                     .iter()
                                     .map(|&step| {
                                         if let Action::LoadInput(v) = func[target][step].action {
-                                            arms[arm].2[v]
+                                            arm.args[v]
                                         } else {
                                             unreachable!("redirect with unexpected action");
                                         }
@@ -292,9 +292,11 @@ impl<'a> Mir<'a> {
         for func in self.functions.iter_mut() {
             let mut redirects = TBitSet::new();
             for i in (1..func.blocks.len()).map(BlockId::from) {
-                if func[i].steps.iter().all(|s| {
+                let only_inputs = func[i].steps.iter().all(|s| {
                     mem::discriminant(&s.action) == mem::discriminant(&Action::LoadInput(0))
-                }) {
+                });
+
+                if only_inputs {
                     redirects.add(i);
                 }
             }
@@ -348,12 +350,12 @@ impl Terminator {
             Terminator::Goto(Some(id), _) => f(id),
             Terminator::Match(_, arms) => {
                 arms.iter_mut()
-                    .filter_map(|&mut (_, ref mut t, _)| t.as_mut())
+                    .filter_map(|arm| arm.target.as_mut())
                     .for_each(f);
             }
             Terminator::MatchByte(_, arms) => {
                 arms.iter_mut()
-                    .filter_map(|&mut (_, ref mut t, _)| t.as_mut())
+                    .filter_map(|arm| arm.target.as_mut())
                     .for_each(f);
             }
         }

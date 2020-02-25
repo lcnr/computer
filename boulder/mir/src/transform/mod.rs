@@ -10,7 +10,7 @@ use shared_id::{FunctionId, TypeId};
 
 use crate::{
     traits::{UpdateFunctionIds, UpdateStepIds},
-    Action, Block, BlockId, Function, Mir, Step, StepId, Terminator, Type,
+    Action, Block, BlockId, Function, MatchArm, Mir, Step, StepId, Terminator, Type,
 };
 
 mod flatten_structs;
@@ -118,19 +118,29 @@ impl<'a> Function<'a> {
                     }
                 }
                 &mut Terminator::Match(_, ref mut arms) => {
-                    for &mut (_, target, ref mut steps) in arms.iter_mut() {
+                    for &mut MatchArm {
+                        target,
+                        ref mut args,
+                        ..
+                    } in arms.iter_mut()
+                    {
                         if let Some(target) = target {
                             if target == id {
-                                steps.remove(input);
+                                args.remove(input);
                             }
                         }
                     }
                 }
                 &mut Terminator::MatchByte(_, ref mut arms) => {
-                    for &mut (_, target, ref mut steps) in arms.iter_mut() {
+                    for &mut MatchArm {
+                        target,
+                        ref mut args,
+                        ..
+                    } in arms.iter_mut()
+                    {
                         if let Some(target) = target {
                             if target == id {
-                                steps.remove(input);
+                                args.remove(input);
                             }
                         }
                     }

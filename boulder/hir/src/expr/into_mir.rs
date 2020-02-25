@@ -379,7 +379,7 @@ fn match_into_mir<'a, 'b>(
             .map(Some)
             .collect();
 
-        let ty = match arm.pattern {
+        let pat = match arm.pattern {
             Pattern::Underscore(ty) => ty.item,
             Pattern::Named(name) => {
                 let ty = ctx.variable_types[name.item];
@@ -389,7 +389,11 @@ fn match_into_mir<'a, 'b>(
             }
         };
 
-        arms.push((ty, Some(id), args));
+        arms.push(mir::MatchArm {
+            pat,
+            target: Some(id),
+            args,
+        });
 
         let expr_id = arm.expr.into_mir(&mut ToMirContext {
             types: ctx.types,

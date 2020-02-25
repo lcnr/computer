@@ -194,14 +194,15 @@ impl<'a> BoulderMirInterpreter<'a> {
                 }
                 &Terminator::Match(expr, ref arms) => {
                     if let &Object::Variant(ty, ref obj) = &steps[expr] {
-                        for &(arm_ty, block, ref arm_args) in arms.iter() {
-                            if Type::is_subtype(ty, arm_ty, &self.mir.types) {
-                                args_storage = arm_args
+                        for arm in arms.iter() {
+                            if Type::is_subtype(ty, arm.pat, &self.mir.types) {
+                                args_storage = arm
+                                    .args
                                     .iter()
                                     .map(|&id| {
                                         id.map_or_else(
                                             || {
-                                                if let &Type::Sum(_) = &self.mir.types[arm_ty] {
+                                                if let &Type::Sum(_) = &self.mir.types[arm.pat] {
                                                     steps[expr].clone()
                                                 } else {
                                                     obj.as_ref().clone()
@@ -212,7 +213,7 @@ impl<'a> BoulderMirInterpreter<'a> {
                                     })
                                     .collect();
                                 args = &args_storage;
-                                if let Some(block) = block {
+                                if let Some(block) = arm.target {
                                     curr_block = block;
 
                                     continue 'outer;
@@ -223,9 +224,10 @@ impl<'a> BoulderMirInterpreter<'a> {
                         }
                     } else {
                         let expr_ty = self.mir[id][curr_block].steps[expr].ty;
-                        for &(arm_ty, block, ref arm_args) in arms.iter() {
-                            if Type::is_subtype(expr_ty, arm_ty, &self.mir.types) {
-                                args_storage = arm_args
+                        for arm in arms.iter() {
+                            if Type::is_subtype(expr_ty, arm.pat, &self.mir.types) {
+                                args_storage = arm
+                                    .args
                                     .iter()
                                     .map(|&id| {
                                         id.map_or_else(
@@ -235,7 +237,7 @@ impl<'a> BoulderMirInterpreter<'a> {
                                     })
                                     .collect();
                                 args = &args_storage;
-                                if let Some(block) = block {
+                                if let Some(block) = arm.target {
                                     curr_block = block;
                                     continue 'outer;
                                 } else {
@@ -249,15 +251,14 @@ impl<'a> BoulderMirInterpreter<'a> {
                 }
                 &Terminator::MatchByte(expr, ref arms) => {
                     if let &Object::U8(v) = &steps[expr] {
-                        if let Some(&(_value, block, ref arm_args)) =
-                            arms.iter().find(|arm| v == arm.0)
-                        {
-                            args_storage = arm_args
+                        if let Some(arm) = arms.iter().find(|arm| v == arm.pat) {
+                            args_storage = arm
+                                .args
                                 .iter()
                                 .map(|&id| id.map_or_else(|| Object::U8(v), |id| steps[id].clone()))
                                 .collect();
                             args = &args_storage;
-                            if let Some(block) = block {
+                            if let Some(block) = arm.target {
                                 curr_block = block;
 
                                 continue 'outer;

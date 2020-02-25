@@ -5,7 +5,8 @@ use tindex::{TSlice, TVec};
 use shared_id::{FieldId, TypeId};
 
 use crate::{
-    traits::UpdateStepIds, Action, BlockId, Function, Mir, Object, Step, StepId, Terminator, Type,
+    traits::UpdateStepIds, Action, BlockId, Function, MatchArm, Mir, Object, Step, StepId,
+    Terminator, Type,
 };
 
 impl<'a> Mir<'a> {
@@ -130,7 +131,12 @@ impl<'a> Function<'a> {
                         Action::StructFieldAccess(step, FieldId::from(0)),
                     ));
 
-                    for (ty, target, steps) in arms.iter_mut() {
+                    for MatchArm {
+                        pat: ty,
+                        target,
+                        args: steps,
+                    } in arms.iter_mut()
+                    {
                         let old_ty = *ty;
                         if let &Type::Sum(_) = &types[*ty] {
                             if let Some(arm_replacement_ty) = replacements[*ty] {

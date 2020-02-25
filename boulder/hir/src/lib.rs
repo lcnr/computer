@@ -1,4 +1,4 @@
-#![allow(clippy::match_ref_pats, clippy::new_without_default)]
+#![allow(clippy::new_without_default)]
 
 #[cfg(feature = "profiler")]
 #[macro_use]

@@ -4,7 +4,9 @@ use tindex::TIndex;
 
 use shared_id::{FunctionId, TypeId};
 
-use crate::{binop::Binop, Action, BlockId, Mir, Object, StepId, Terminator, Type, UnaryOperation};
+use crate::{
+    binop::Binop, Action, MatchArm, Mir, Object, StepId, Terminator, Type, UnaryOperation,
+};
 
 impl Display for UnaryOperation {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
@@ -192,8 +194,8 @@ impl<'a> Display for Mir<'a> {
                         }
                         writeln!(f, ")")
                     }
-                    Terminator::Match(id, arms) => print_match(f, id, arms),
-                    Terminator::MatchByte(id, arms) => print_match(f, id, arms),
+                    &Terminator::Match(id, ref arms) => print_match(f, id, arms),
+                    &Terminator::MatchByte(id, ref arms) => print_match(f, id, arms),
                 }?;
             }
         }
@@ -202,36 +204,31 @@ impl<'a> Display for Mir<'a> {
     }
 }
 
-fn print_match<T: Display>(
-    f: &mut Formatter,
-    id: &StepId,
-    arms: &[(T, Option<BlockId>, Vec<Option<StepId>>)],
-) -> Result {
-    let write_arm =
-        |f: &mut Formatter, (ty, block, args): &(T, Option<BlockId>, Vec<Option<StepId>>)| {
-            if let Some(block) = block {
-                write!(f, "{} -> goto ~{}(", ty, block.0)?;
-            } else {
-                write!(f, "{} -> return(", ty)?;
-            }
+fn print_match<T: Display>(f: &mut Formatter, id: StepId, arms: &[MatchArm<T>]) -> Result {
+    let write_arm = |f: &mut Formatter, arm: &MatchArm<T>| {
+        if let Some(block) = arm.target {
+            write!(f, "{} -> goto ~{}(", arm.pat, block.0)?;
+        } else {
+            write!(f, "{} -> return(", arm.pat)?;
+        }
 
-            if let Some((last, start)) = args.split_last() {
-                for arg in start.iter() {
-                    if let Some(arg) = arg {
-                        write!(f, "${}, ", arg.0)?;
-                    } else {
-                        write!(f, "self, ")?;
-                    }
-                }
-
-                if let Some(arg) = last {
-                    write!(f, "${}", arg.0)?;
+        if let Some((last, start)) = arm.args.split_last() {
+            for arg in start.iter() {
+                if let Some(arg) = arg {
+                    write!(f, "${}, ", arg.0)?;
                 } else {
-                    write!(f, "self")?;
+                    write!(f, "self, ")?;
                 }
             }
-            write!(f, ")")
-        };
+
+            if let Some(arg) = last {
+                write!(f, "${}", arg.0)?;
+            } else {
+                write!(f, "self")?;
+            }
+        }
+        write!(f, ")")
+    };
 
     write!(f, "match ${}(", id.0)?;
     if let Some((last, start)) = arms.split_last() {

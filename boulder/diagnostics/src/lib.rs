@@ -39,7 +39,7 @@ impl<R> CompileErrorBuilder<R> {
         for _ in 0..meta.span.len().max(1) {
             write!(OUTPUT.lock().unwrap(), "^").unwrap();
         }
-        writeln!(OUTPUT.lock().unwrap(), "").unwrap();
+        writeln!(OUTPUT.lock().unwrap()).unwrap();
         self
     }
 

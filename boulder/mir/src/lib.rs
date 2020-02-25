@@ -1,4 +1,4 @@
-#![allow(clippy::new_without_default, clippy::match_ref_pats)]
+#![allow(clippy::new_without_default)]
 
 #[cfg(feature = "profiler")]
 #[macro_use]
@@ -124,10 +124,17 @@ impl BlockId {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MatchArm<T> {
+    pub pat: T,
+    pub target: Option<BlockId>,
+    pub args: Vec<Option<StepId>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Terminator {
     Goto(Option<BlockId>, Vec<StepId>),
-    Match(StepId, Vec<(TypeId, Option<BlockId>, Vec<Option<StepId>>)>),
-    MatchByte(StepId, Vec<(u8, Option<BlockId>, Vec<Option<StepId>>)>),
+    Match(StepId, Vec<MatchArm<TypeId>>),
+    MatchByte(StepId, Vec<MatchArm<u8>>),
 }
 
 impl Terminator {
@@ -141,12 +148,12 @@ impl Terminator {
             &Terminator::Goto(Some(block), _) => used.add(block),
             &Terminator::Match(_, ref arms) => {
                 arms.iter()
-                    .filter_map(|&(_, t, _)| t)
+                    .filter_map(|arm| arm.target)
                     .for_each(|arm| used.add(arm));
             }
             &Terminator::MatchByte(_, ref arms) => {
                 arms.iter()
-                    .filter_map(|&(_, t, _)| t)
+                    .filter_map(|arm| arm.target)
                     .for_each(|arm| used.add(arm));
             }
         }
@@ -158,7 +165,7 @@ impl Terminator {
             &Terminator::Match(step, ref arms) => {
                 used.add(step);
                 arms.iter().for_each(|arm| {
-                    arm.2
+                    arm.args
                         .iter()
                         .copied()
                         .filter_map(identity)
@@ -168,7 +175,7 @@ impl Terminator {
             &Terminator::MatchByte(step, ref arms) => {
                 used.add(step);
                 arms.iter().for_each(|arm| {
-                    arm.2
+                    arm.args
                         .iter()
                         .copied()
                         .filter_map(identity)

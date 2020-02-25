@@ -69,7 +69,7 @@ impl UpdateStepIds for Terminator {
             Terminator::Match(id, arms) => {
                 f(id);
                 for arm in arms {
-                    for arg in arm.2.iter_mut() {
+                    for arg in arm.args.iter_mut() {
                         if let Some(arg) = arg.as_mut() {
                             f(arg);
                         }
@@ -79,7 +79,7 @@ impl UpdateStepIds for Terminator {
             Terminator::MatchByte(id, arms) => {
                 f(id);
                 for arm in arms {
-                    for arg in arm.2.iter_mut() {
+                    for arg in arm.args.iter_mut() {
                         if let Some(arg) = arg.as_mut() {
                             f(arg);
                         }
@@ -171,9 +171,8 @@ impl UpdateFunctionIds for Step {
 
 impl UpdateFunctionIds for Action {
     fn update_function_ids(&mut self, f: &mut dyn FnMut(&mut FunctionId)) {
-        match self {
-            Action::CallFunction(id, _) => f(id),
-            _ => (),
+        if let Action::CallFunction(id, _) = self {
+            f(id)
         }
     }
 }
@@ -229,8 +228,8 @@ impl UpdateTypeIds for Terminator {
         match self {
             Terminator::Goto(_, _) | Terminator::MatchByte(_, _) => (),
             Terminator::Match(_, arms) => {
-                for &mut (ref mut ty, _, _) in arms.iter_mut() {
-                    f(ty)
+                for arm in arms.iter_mut() {
+                    f(&mut arm.pat)
                 }
             }
         }
