@@ -38,7 +38,6 @@ start:
 #
 # returned stack:
 #   - don't care <- stack pointer
-
 multiply:
     mov 0xff M2;        # load stack pointer to A
     mov 0 M1;
