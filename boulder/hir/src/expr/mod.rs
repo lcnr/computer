@@ -6,11 +6,11 @@ use crate::{
 };
 
 mod ident;
-mod to_mir;
+mod into_mir;
 mod type_ck;
 
 pub use ident::ResolveIdentifiersContext;
-pub use to_mir::ToMirContext;
+pub use into_mir::ToMirContext;
 pub use type_ck::TypeConstraintsContext;
 
 #[derive(Debug, Clone, Copy)]

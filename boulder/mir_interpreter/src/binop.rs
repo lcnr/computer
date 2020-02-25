@@ -83,12 +83,10 @@ impl<'a> BoulderMirInterpreter<'a> {
     pub fn execute_binop(
         &mut self,
         steps: &TSlice<StepId, Object>,
-        function: FunctionId,
-        block: BlockId,
-        step: StepId,
+        (function, block, step): (FunctionId, BlockId, StepId),
         binop: Binop,
-        a: StepId,
-        b: StepId,
+        l: StepId,
+        r: StepId,
     ) -> Result<Object, InterpretError> {
         #[cfg(feature = "profiler")]
         profile_scope!("execute_binop");
@@ -96,165 +94,165 @@ impl<'a> BoulderMirInterpreter<'a> {
             function,
             block,
             step,
-            steps[a].clone(),
-            steps[b].clone(),
+            steps[l].clone(),
+            steps[r].clone(),
         );
 
         match binop {
-            Binop::Add => match (&steps[a], &steps[b]) {
-                (&Object::U8(x), &Object::U8(y)) => {
-                    x.checked_add(y).map(|r| Object::U8(r)).ok_or(invalid_args)
+            Binop::Add => match (&steps[l], &steps[r]) {
+                (&Object::U8(l), &Object::U8(r)) => {
+                    l.checked_add(r).map(Object::U8).ok_or(invalid_args)
                 }
-                (&Object::U16(x), &Object::U16(y)) => {
-                    x.checked_add(y).map(|r| Object::U16(r)).ok_or(invalid_args)
+                (&Object::U16(l), &Object::U16(r)) => {
+                    l.checked_add(r).map(Object::U16).ok_or(invalid_args)
                 }
-                (&Object::U32(x), &Object::U32(y)) => {
-                    x.checked_add(y).map(|r| Object::U32(r)).ok_or(invalid_args)
-                }
-                _ => Err(InterpretError::InvalidOperation(function, block, step)),
-            },
-            Binop::Sub => match (&steps[a], &steps[b]) {
-                (&Object::U8(x), &Object::U8(y)) => {
-                    x.checked_sub(y).map(|r| Object::U8(r)).ok_or(invalid_args)
-                }
-                (&Object::U16(x), &Object::U16(y)) => {
-                    x.checked_sub(y).map(|r| Object::U16(r)).ok_or(invalid_args)
-                }
-                (&Object::U32(x), &Object::U32(y)) => {
-                    x.checked_sub(y).map(|r| Object::U32(r)).ok_or(invalid_args)
+                (&Object::U32(l), &Object::U32(r)) => {
+                    l.checked_add(r).map(Object::U32).ok_or(invalid_args)
                 }
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
-            Binop::Mul => match (&steps[a], &steps[b]) {
-                (&Object::U8(x), &Object::U8(y)) => {
-                    x.checked_mul(y).map(|r| Object::U8(r)).ok_or(invalid_args)
+            Binop::Sub => match (&steps[l], &steps[r]) {
+                (&Object::U8(l), &Object::U8(r)) => {
+                    l.checked_sub(r).map(Object::U8).ok_or(invalid_args)
                 }
-                (&Object::U16(x), &Object::U16(y)) => {
-                    x.checked_mul(y).map(|r| Object::U16(r)).ok_or(invalid_args)
+                (&Object::U16(l), &Object::U16(r)) => {
+                    l.checked_sub(r).map(Object::U16).ok_or(invalid_args)
                 }
-                (&Object::U32(x), &Object::U32(y)) => {
-                    x.checked_mul(y).map(|r| Object::U32(r)).ok_or(invalid_args)
-                }
-                _ => Err(InterpretError::InvalidOperation(function, block, step)),
-            },
-            Binop::Div => match (&steps[a], &steps[b]) {
-                (&Object::U8(x), &Object::U8(y)) => {
-                    x.checked_div(y).map(|r| Object::U8(r)).ok_or(invalid_args)
-                }
-                (&Object::U16(x), &Object::U16(y)) => {
-                    x.checked_div(y).map(|r| Object::U16(r)).ok_or(invalid_args)
-                }
-                (&Object::U32(x), &Object::U32(y)) => {
-                    x.checked_div(y).map(|r| Object::U32(r)).ok_or(invalid_args)
+                (&Object::U32(l), &Object::U32(r)) => {
+                    l.checked_sub(r).map(Object::U32).ok_or(invalid_args)
                 }
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
-            Binop::Rem => match (&steps[a], &steps[b]) {
-                (&Object::U8(x), &Object::U8(y)) => {
-                    x.checked_rem(y).map(|r| Object::U8(r)).ok_or(invalid_args)
+            Binop::Mul => match (&steps[l], &steps[r]) {
+                (&Object::U8(l), &Object::U8(r)) => {
+                    l.checked_mul(r).map(Object::U8).ok_or(invalid_args)
                 }
-                (&Object::U16(x), &Object::U16(y)) => {
-                    x.checked_rem(y).map(|r| Object::U16(r)).ok_or(invalid_args)
+                (&Object::U16(l), &Object::U16(r)) => {
+                    l.checked_mul(r).map(Object::U16).ok_or(invalid_args)
                 }
-                (&Object::U32(x), &Object::U32(y)) => {
-                    x.checked_rem(y).map(|r| Object::U32(r)).ok_or(invalid_args)
-                }
-                _ => Err(InterpretError::InvalidOperation(function, block, step)),
-            },
-            Binop::Shl => match (&steps[a], &steps[b]) {
-                (&Object::U8(x), &Object::U8(y)) => {
-                    Ok(Object::U8(x.checked_shl(y.into()).unwrap_or(0)))
-                }
-                (&Object::U16(x), &Object::U16(y)) => {
-                    Ok(Object::U16(x.checked_shl(y.into()).unwrap_or(0)))
-                }
-                (&Object::U32(x), &Object::U32(y)) => {
-                    Ok(Object::U32(x.checked_shl(y.into()).unwrap_or(0)))
+                (&Object::U32(l), &Object::U32(r)) => {
+                    l.checked_mul(r).map(Object::U32).ok_or(invalid_args)
                 }
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
-            Binop::Shr => match (&steps[a], &steps[b]) {
-                (&Object::U8(x), &Object::U8(y)) => {
-                    Ok(Object::U8(x.checked_shr(y.into()).unwrap_or(0)))
+            Binop::Div => match (&steps[l], &steps[r]) {
+                (&Object::U8(l), &Object::U8(r)) => {
+                    l.checked_div(r).map(Object::U8).ok_or(invalid_args)
                 }
-                (&Object::U16(x), &Object::U16(y)) => {
-                    Ok(Object::U16(x.checked_shr(y.into()).unwrap_or(0)))
+                (&Object::U16(l), &Object::U16(r)) => {
+                    l.checked_div(r).map(Object::U16).ok_or(invalid_args)
                 }
-                (&Object::U32(x), &Object::U32(y)) => {
-                    Ok(Object::U32(x.checked_shr(y.into()).unwrap_or(0)))
+                (&Object::U32(l), &Object::U32(r)) => {
+                    l.checked_div(r).map(Object::U32).ok_or(invalid_args)
                 }
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
-            Binop::Eq => match (&steps[a], &steps[b]) {
-                (&Object::U8(x), &Object::U8(y)) => Ok(to_bool(x == y)),
-                (&Object::U16(x), &Object::U16(y)) => Ok(to_bool(x == y)),
-                (&Object::U32(x), &Object::U32(y)) => Ok(to_bool(x == y)),
-                (&Object::Variant(x, ref v), &Object::Variant(y, ref u)) => {
+            Binop::Rem => match (&steps[l], &steps[r]) {
+                (&Object::U8(l), &Object::U8(r)) => {
+                    l.checked_rem(r).map(Object::U8).ok_or(invalid_args)
+                }
+                (&Object::U16(l), &Object::U16(r)) => {
+                    l.checked_rem(r).map(Object::U16).ok_or(invalid_args)
+                }
+                (&Object::U32(l), &Object::U32(r)) => {
+                    l.checked_rem(r).map(Object::U32).ok_or(invalid_args)
+                }
+                _ => Err(InterpretError::InvalidOperation(function, block, step)),
+            },
+            Binop::Shl => match (&steps[l], &steps[r]) {
+                (&Object::U8(l), &Object::U8(r)) => {
+                    Ok(Object::U8(l.checked_shl(r.into()).unwrap_or(0)))
+                }
+                (&Object::U16(l), &Object::U16(r)) => {
+                    Ok(Object::U16(l.checked_shl(r.into()).unwrap_or(0)))
+                }
+                (&Object::U32(l), &Object::U32(r)) => {
+                    Ok(Object::U32(l.checked_shl(r).unwrap_or(0)))
+                }
+                _ => Err(InterpretError::InvalidOperation(function, block, step)),
+            },
+            Binop::Shr => match (&steps[l], &steps[r]) {
+                (&Object::U8(l), &Object::U8(r)) => {
+                    Ok(Object::U8(l.checked_shr(r.into()).unwrap_or(0)))
+                }
+                (&Object::U16(l), &Object::U16(r)) => {
+                    Ok(Object::U16(l.checked_shr(r.into()).unwrap_or(0)))
+                }
+                (&Object::U32(l), &Object::U32(r)) => {
+                    Ok(Object::U32(l.checked_shr(r).unwrap_or(0)))
+                }
+                _ => Err(InterpretError::InvalidOperation(function, block, step)),
+            },
+            Binop::Eq => match (&steps[l], &steps[r]) {
+                (&Object::U8(l), &Object::U8(r)) => Ok(to_bool(l == r)),
+                (&Object::U16(l), &Object::U16(r)) => Ok(to_bool(l == r)),
+                (&Object::U32(l), &Object::U32(r)) => Ok(to_bool(l == r)),
+                (&Object::Variant(l, ref v), &Object::Variant(r, ref u)) => {
                     if (v.as_ref() == &Object::Unit && u.as_ref() == &Object::Unit)
-                        && (x == TRUE_TYPE_ID || x == FALSE_TYPE_ID)
-                        && (y == TRUE_TYPE_ID || y == FALSE_TYPE_ID)
+                        && (l == TRUE_TYPE_ID || l == FALSE_TYPE_ID)
+                        && (r == TRUE_TYPE_ID || r == FALSE_TYPE_ID)
                     {
-                        Ok(to_bool(x == y))
+                        Ok(to_bool(l == r))
                     } else {
                         Err(InterpretError::InvalidOperation(function, block, step))
                     }
                 }
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
-            Binop::Neq => match (&steps[a], &steps[b]) {
-                (&Object::U8(x), &Object::U8(y)) => Ok(to_bool(x != y)),
-                (&Object::U16(x), &Object::U16(y)) => Ok(to_bool(x != y)),
-                (&Object::U32(x), &Object::U32(y)) => Ok(to_bool(x != y)),
-                (&Object::Variant(x, ref v), &Object::Variant(y, ref u)) => {
+            Binop::Neq => match (&steps[l], &steps[r]) {
+                (&Object::U8(l), &Object::U8(r)) => Ok(to_bool(l != r)),
+                (&Object::U16(l), &Object::U16(r)) => Ok(to_bool(l != r)),
+                (&Object::U32(l), &Object::U32(r)) => Ok(to_bool(l != r)),
+                (&Object::Variant(l, ref v), &Object::Variant(r, ref u)) => {
                     if (v.as_ref() == &Object::Unit && u.as_ref() == &Object::Unit)
-                        && (x == TRUE_TYPE_ID || x == FALSE_TYPE_ID)
-                        && (y == TRUE_TYPE_ID || y == FALSE_TYPE_ID)
+                        && (l == TRUE_TYPE_ID || l == FALSE_TYPE_ID)
+                        && (r == TRUE_TYPE_ID || r == FALSE_TYPE_ID)
                     {
-                        Ok(to_bool(x != y))
+                        Ok(to_bool(l != r))
                     } else {
                         Err(InterpretError::InvalidOperation(function, block, step))
                     }
                 }
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
-            Binop::Gt => match (&steps[a], &steps[b]) {
-                (&Object::U8(x), &Object::U8(y)) => Ok(to_bool(x > y)),
-                (&Object::U16(x), &Object::U16(y)) => Ok(to_bool(x > y)),
-                (&Object::U32(x), &Object::U32(y)) => Ok(to_bool(x > y)),
+            Binop::Gt => match (&steps[l], &steps[r]) {
+                (&Object::U8(l), &Object::U8(r)) => Ok(to_bool(l > r)),
+                (&Object::U16(l), &Object::U16(r)) => Ok(to_bool(l > r)),
+                (&Object::U32(l), &Object::U32(r)) => Ok(to_bool(l > r)),
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
-            Binop::Gte => match (&steps[a], &steps[b]) {
-                (&Object::U8(x), &Object::U8(y)) => Ok(to_bool(x >= y)),
-                (&Object::U16(x), &Object::U16(y)) => Ok(to_bool(x >= y)),
-                (&Object::U32(x), &Object::U32(y)) => Ok(to_bool(x >= y)),
+            Binop::Gte => match (&steps[l], &steps[r]) {
+                (&Object::U8(l), &Object::U8(r)) => Ok(to_bool(l >= r)),
+                (&Object::U16(l), &Object::U16(r)) => Ok(to_bool(l >= r)),
+                (&Object::U32(l), &Object::U32(r)) => Ok(to_bool(l >= r)),
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
-            Binop::BitOr => match (&steps[a], &steps[b]) {
-                (&Object::U8(x), &Object::U8(y)) => Ok(Object::U8(x | y)),
-                (&Object::U16(x), &Object::U16(y)) => Ok(Object::U16(x | y)),
-                (&Object::U32(x), &Object::U32(y)) => Ok(Object::U32(x | y)),
-                (&Object::Variant(x, ref v), &Object::Variant(y, ref u)) => {
+            Binop::BitOr => match (&steps[l], &steps[r]) {
+                (&Object::U8(l), &Object::U8(r)) => Ok(Object::U8(l | r)),
+                (&Object::U16(l), &Object::U16(r)) => Ok(Object::U16(l | r)),
+                (&Object::U32(l), &Object::U32(r)) => Ok(Object::U32(l | r)),
+                (&Object::Variant(l, ref v), &Object::Variant(r, ref u)) => {
                     if (v.as_ref() == &Object::Unit && u.as_ref() == &Object::Unit)
-                        && (x == TRUE_TYPE_ID || x == FALSE_TYPE_ID)
-                        && (y == TRUE_TYPE_ID || y == FALSE_TYPE_ID)
+                        && (l == TRUE_TYPE_ID || l == FALSE_TYPE_ID)
+                        && (r == TRUE_TYPE_ID || r == FALSE_TYPE_ID)
                     {
-                        Ok(to_bool(x == TRUE_TYPE_ID || y == TRUE_TYPE_ID))
+                        Ok(to_bool(l == TRUE_TYPE_ID || r == TRUE_TYPE_ID))
                     } else {
                         Err(InterpretError::InvalidOperation(function, block, step))
                     }
                 }
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
-            Binop::BitAnd => match (&steps[a], &steps[b]) {
-                (&Object::U8(x), &Object::U8(y)) => Ok(Object::U8(x & y)),
-                (&Object::U16(x), &Object::U16(y)) => Ok(Object::U16(x & y)),
-                (&Object::U32(x), &Object::U32(y)) => Ok(Object::U32(x & y)),
-                (&Object::Variant(x, ref v), &Object::Variant(y, ref u)) => {
+            Binop::BitAnd => match (&steps[l], &steps[r]) {
+                (&Object::U8(l), &Object::U8(r)) => Ok(Object::U8(l & r)),
+                (&Object::U16(l), &Object::U16(r)) => Ok(Object::U16(l & r)),
+                (&Object::U32(l), &Object::U32(r)) => Ok(Object::U32(l & r)),
+                (&Object::Variant(l, ref v), &Object::Variant(r, ref u)) => {
                     if (v.as_ref() == &Object::Unit && u.as_ref() == &Object::Unit)
-                        && (x == TRUE_TYPE_ID || x == FALSE_TYPE_ID)
-                        && (y == TRUE_TYPE_ID || y == FALSE_TYPE_ID)
+                        && (l == TRUE_TYPE_ID || l == FALSE_TYPE_ID)
+                        && (r == TRUE_TYPE_ID || r == FALSE_TYPE_ID)
                     {
-                        Ok(to_bool(x == TRUE_TYPE_ID && y == TRUE_TYPE_ID))
+                        Ok(to_bool(l == TRUE_TYPE_ID && r == TRUE_TYPE_ID))
                     } else {
                         Err(InterpretError::InvalidOperation(function, block, step))
                     }

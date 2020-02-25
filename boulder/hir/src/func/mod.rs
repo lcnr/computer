@@ -91,19 +91,19 @@ impl<'a> Function<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unr
     }
 
     pub fn set_return(&mut self, ret: Meta<'a, UnresolvedType<'a>>) {
-        self.ret = ret.map(|r| Some(r));
+        self.ret = ret.map(Some);
     }
 
     pub fn set_body(
         &mut self,
         mut body: Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>>,
     ) {
-        if let Expression::Block(a, name, b) = body {
+        if let Expression::Block((), name, b) = body {
             body = Expression::Block(
-                a,
+                (),
                 name.map(|e| {
                     assert!(e.is_none());
-                    Some("fn".into())
+                    Some("fn")
                 }),
                 b,
             );
@@ -189,7 +189,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
         })
     }
 
-    pub fn resolve_expr_types<'b>(
+    pub fn resolve_expr_types(
         self,
         function_definitions: &TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
         types: &mut TVec<TypeId, Type<'a, TypeId>>,
@@ -258,7 +258,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unres
                     ty: v.ty.replace(solution[id]),
                 })
                 .collect(),
-            body: body,
+            body,
         })
     }
 }
@@ -284,13 +284,13 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
         FunctionContextBuilder::build(self)
     }
 
-    pub fn to_mir<'b>(
+    pub fn into_mir<'b>(
         mut self,
         types: &'b TSlice<TypeId, mir::Type>,
         function_definitions: &'b TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
     ) -> Result<mir::Function<'a>, CompileError> {
         #[cfg(feature = "profiler")]
-        profile_scope!("to_mir");
+        profile_scope!("into_mir()");
         let function_context = self.create_function_context()?;
 
         let mut func = mir::Function::new(self.name.item, function_context, self.ret.item);
@@ -306,7 +306,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
         let variable_types: TVec<VariableId, TypeId> =
             self.variables.iter().map(|v| v.ty.item).collect();
 
-        let ret = self.body.to_mir(&mut ToMirContext {
+        let ret = self.body.into_mir(&mut ToMirContext {
             types,
             variable_types: &variable_types,
             function_definitions,

@@ -87,7 +87,7 @@ pub fn resolve<'a>(
     Ok(match &unresolved.item {
         UnresolvedType::Sum(cases) => {
             let type_ids = cases
-                .into_iter()
+                .iter()
                 .map(|c| {
                     if let Some(i) = modules.get_type(at, &c.item) {
                         Ok(i)
@@ -274,19 +274,15 @@ impl<'a> Type<'a, TypeId> {
 
     pub fn get_field(&self, name: &str) -> Option<FieldId> {
         if let Kind::Struct(v) | Kind::Union(v) = &self.kind {
-            Some(
-                v.binary_search_by(|probe| probe.name.cmp(name))
-                    .ok()?
-                    .into(),
-            )
+            Some(v.binary_search_by(|probe| probe.name.cmp(name)).ok()?)
         } else {
             None
         }
     }
 
-    pub fn to_mir(self) -> mir::Type {
+    pub fn into_mir(self) -> mir::Type {
         #[cfg(feature = "profiler")]
-        profile_scope!("to_mir");
+        profile_scope!("into_mir()");
         match self.kind {
             Kind::Unit => mir::Type::Unit,
             Kind::Uninhabited => mir::Type::Uninhabited,

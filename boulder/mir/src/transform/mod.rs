@@ -101,10 +101,10 @@ impl<'a> Function<'a> {
         self[id].input.remove(input);
         for step in self[id].steps.index_iter().rev() {
             if let &mut Action::LoadInput(ref mut i) = &mut self[id][step].action {
-                if *i == input {
-                    self[id].remove_step(step);
-                } else if *i > input {
-                    *i -= 1;
+                match (*i).cmp(&input) {
+                    Ordering::Less => (),
+                    Ordering::Equal => self[id].remove_step(step),
+                    Ordering::Greater => *i -= 1,
                 }
             }
         }
@@ -118,6 +118,15 @@ impl<'a> Function<'a> {
                     }
                 }
                 &mut Terminator::Match(_, ref mut arms) => {
+                    for &mut (_, target, ref mut steps) in arms.iter_mut() {
+                        if let Some(target) = target {
+                            if target == id {
+                                steps.remove(input);
+                            }
+                        }
+                    }
+                }
+                &mut Terminator::MatchByte(_, ref mut arms) => {
                     for &mut (_, target, ref mut steps) in arms.iter_mut() {
                         if let Some(target) = target {
                             if target == id {

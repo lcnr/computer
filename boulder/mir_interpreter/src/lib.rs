@@ -1,3 +1,5 @@
+#![allow(clippy::match_ref_pats)]
+
 #[cfg(feature = "profiler")]
 #[macro_use]
 extern crate thread_profiler;
@@ -17,7 +19,8 @@ pub enum InterpretError {
     InvalidBinopArguments(FunctionId, BlockId, StepId, Object, Object),
     InvalidUnionAccess(FunctionId, BlockId, StepId, Object),
     InvalidReduce(FunctionId, BlockId, StepId, Object),
-    UnresolvedMatch(FunctionId, BlockId, TypeId),
+    UnresolvedMatch(FunctionId, BlockId, TypeId, Object),
+    UnresolvedByteMatch(FunctionId, BlockId, Object),
 }
 
 #[derive(Debug, Clone)]
@@ -177,7 +180,7 @@ impl<'a> BoulderMirInterpreter<'a> {
                         self.execute_unary_operation(&steps, id, curr_block, step_id, op, expr)?
                     }
                     &Action::Binop(binop, a, b) => {
-                        self.execute_binop(&steps, id, curr_block, step_id, binop, a, b)?
+                        self.execute_binop(&steps, (id, curr_block, step_id), binop, a, b)?
                     }
                 });
             }
@@ -243,6 +246,38 @@ impl<'a> BoulderMirInterpreter<'a> {
                     }
 
                     panic!("unexpected_match: {}:{:?}:{:?}", id, curr_block, expr);
+                }
+                &Terminator::MatchByte(expr, ref arms) => {
+                    if let &Object::U8(v) = &steps[expr] {
+                        if let Some(&(_value, block, ref arm_args)) =
+                            arms.iter().find(|arm| v == arm.0)
+                        {
+                            args_storage = arm_args
+                                .iter()
+                                .map(|&id| id.map_or_else(|| Object::U8(v), |id| steps[id].clone()))
+                                .collect();
+                            args = &args_storage;
+                            if let Some(block) = block {
+                                curr_block = block;
+
+                                continue 'outer;
+                            } else {
+                                return Ok(args[0].clone());
+                            }
+                        } else {
+                            return Err(InterpretError::UnresolvedByteMatch(
+                                id,
+                                curr_block,
+                                steps[expr].clone(),
+                            ));
+                        }
+                    } else {
+                        return Err(InterpretError::UnresolvedByteMatch(
+                            id,
+                            curr_block,
+                            steps[expr].clone(),
+                        ));
+                    }
                 }
             }
         }

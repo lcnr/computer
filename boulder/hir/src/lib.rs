@@ -1,3 +1,5 @@
+#![allow(clippy::match_ref_pats, clippy::new_without_default)]
+
 #[cfg(feature = "profiler")]
 #[macro_use]
 extern crate thread_profiler;
@@ -342,7 +344,7 @@ impl<'a> Hir<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>, Option<Unresolved
 }
 
 impl<'a> Hir<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId, TypeId> {
-    pub fn to_mir(mut self) -> Result<Mir<'a>, CompileError> {
+    pub fn into_mir(mut self) -> Result<Mir<'a>, CompileError> {
         let function_definitions = self
             .functions
             .iter()
@@ -351,12 +353,12 @@ impl<'a> Hir<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId, TypeId> {
 
         let ctx = mir_ctx::ContextBuilder::build(&mut self, &function_definitions)?;
 
-        let types: TVec<_, _> = self.types.into_iter().map(|t| t.to_mir()).collect();
+        let types: TVec<_, _> = self.types.into_iter().map(|t| t.into_mir()).collect();
 
         let functions = self
             .functions
             .into_iter()
-            .map(|f| f.to_mir(&types, &function_definitions))
+            .map(|f| f.into_mir(&types, &function_definitions))
             .collect::<Result<TVec<_, _>, CompileError>>()?;
 
         Ok(Mir {

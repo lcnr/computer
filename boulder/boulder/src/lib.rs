@@ -19,7 +19,7 @@ pub fn compile_to_mir<'a>(
     let hir = hir.resolve_types()?;
     let hir = hir.resolve_identifiers()?;
     let hir = hir.resolve_expr_types()?;
-    let mut mir = hir.to_mir()?;
+    let mut mir = hir.into_mir()?;
     mir.validate();
     mir.kill_uninhabited();
     mir.validate();

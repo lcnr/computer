@@ -57,7 +57,7 @@ impl<'a> Module<'a> {
         }
     }
 
-    pub fn get_type(&self, at: &[&'a str], name: &Box<str>) -> Option<TypeId> {
+    pub fn get_type(&self, at: &[&'a str], name: &str) -> Option<TypeId> {
         if let Some((first, rest)) = at.split_first() {
             let inner = self.modules.get(first).unwrap();
             if let Some(id) = inner.get_type(rest, name) {

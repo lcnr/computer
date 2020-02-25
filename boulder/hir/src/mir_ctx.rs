@@ -220,10 +220,10 @@ impl<'a> ContextBuilder<'a> {
                 }
             }
         }
-        builder.to_ctx()
+        builder.into_ctx()
     }
 
-    fn to_ctx(self) -> Result<Context, CompileError> {
+    fn into_ctx(self) -> Result<Context, CompileError> {
         fn unwrap_item<'a, T>(item: Option<Meta<'a, T>>, s: &str) -> Result<T, CompileError> {
             if let Some(i) = item {
                 Ok(i.item)
@@ -327,7 +327,7 @@ impl<'a> FunctionContextBuilder<'a> {
             }
         }
 
-        if func.attributes.len() != 0 {
+        if !func.attributes.is_empty() {
             let mut builder = CompileError::build(
                 &func.name,
                 format_args!("Function with unknown attributes: `{}`", func.name.item),
@@ -340,11 +340,11 @@ impl<'a> FunctionContextBuilder<'a> {
             }
             builder.build()
         } else {
-            builder.to_ctx()
+            builder.into_ctx()
         }
     }
 
-    fn to_ctx(self) -> Result<FunctionContext, CompileError> {
+    fn into_ctx(self) -> Result<FunctionContext, CompileError> {
         Ok(FunctionContext {
             is_test: self.is_test.is_some(),
             export: self.export.is_some(),

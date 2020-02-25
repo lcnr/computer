@@ -347,7 +347,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
             "while" => self.new_token(Token::Keyword(Keyword::While), origin),
             "break" => self.new_token(Token::Keyword(Keyword::Break), origin),
             "return" => self.new_token(Token::Keyword(Keyword::Return), origin),
-            v => self.new_token(Token::Ident(v.into()), origin),
+            v => self.new_token(Token::Ident(v), origin),
         }
     }
 

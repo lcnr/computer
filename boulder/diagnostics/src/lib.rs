@@ -112,7 +112,7 @@ impl<'a> Meta<'a, ()> {
             span,
             file,
             source: src,
-            line: line,
+            line,
         }
     }
 

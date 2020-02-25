@@ -2,7 +2,7 @@ use std::{iter, mem};
 
 use tindex::bitset::TBitSet;
 
-use shared_id::{FunctionId, TypeId};
+use shared_id::FunctionId;
 
 use crate::{
     traits::UpdateStepIds, Action, Block, BlockId, Function, LangItemState, Mir, StepId,
@@ -136,6 +136,14 @@ impl<'a> Mir<'a> {
                             }
                         }
                     }
+                    &Terminator::MatchByte(_, ref arms) => {
+                        for arm in arms.iter() {
+                            if let Some(target) = arm.1 {
+                                allowed.set(target, !used.get(target));
+                                used.add(target);
+                            }
+                        }
+                    }
                 }
             }
 
@@ -249,9 +257,9 @@ impl<'a> Mir<'a> {
     pub fn remove_redirects(&mut self) {
         #[cfg(feature = "profiler")]
         profile_scope!("Mir::remove_redirects");
-        fn match_reduce(
+        fn match_reduce<T>(
             func: &mut Function,
-            arms: &mut Vec<(TypeId, Option<BlockId>, Vec<Option<StepId>>)>,
+            arms: &mut Vec<(T, Option<BlockId>, Vec<Option<StepId>>)>,
             redirects: &TBitSet<BlockId>,
         ) -> bool {
             let mut changed = false;
@@ -273,7 +281,7 @@ impl<'a> Mir<'a> {
                                     })
                                     .collect();
                             }
-                            &Terminator::Match(_, _) => (),
+                            &Terminator::Match(_, _) | &Terminator::MatchByte(_, _) => (),
                         }
                     }
                 }
@@ -316,6 +324,11 @@ impl<'a> Mir<'a> {
                             changed |= match_reduce(func, &mut arms, &redirects);
                             func[i].terminator = Terminator::Match(step, arms);
                         }
+                        &mut Terminator::MatchByte(step, ref mut arms) => {
+                            let mut arms = mem::replace(arms, Vec::new());
+                            changed |= match_reduce(func, &mut arms, &redirects);
+                            func[i].terminator = Terminator::MatchByte(step, arms);
+                        }
                         &mut Terminator::Goto(None, _) => (),
                     }
                 }
@@ -334,6 +347,11 @@ impl Terminator {
             Terminator::Goto(None, _) => (),
             Terminator::Goto(Some(id), _) => f(id),
             Terminator::Match(_, arms) => {
+                arms.iter_mut()
+                    .filter_map(|&mut (_, ref mut t, _)| t.as_mut())
+                    .for_each(f);
+            }
+            Terminator::MatchByte(_, arms) => {
                 arms.iter_mut()
                     .filter_map(|&mut (_, ref mut t, _)| t.as_mut())
                     .for_each(f);

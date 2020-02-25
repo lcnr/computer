@@ -136,7 +136,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                                     format_args!("Cannot find value `{}` in this scope", name.item),
                                 )
                             },
-                            |v| Ok(v),
+                            Ok,
                         )?,
                     UnresolvedVariable::New(name, ty) => {
                         let meta = name.simplify();

@@ -4,7 +4,7 @@ use tindex::TIndex;
 
 use shared_id::{
     FunctionId, TypeId, EMPTY_TYPE_ID, U16_BYTES_TYPE_ID, U16_TYPE_ID, U32_BYTES_TYPE_ID,
-    U32_TYPE_ID,
+    U32_TYPE_ID, U8_TYPE_ID,
 };
 
 use crate::{Action, Mir, Object, StepId, Terminator, Type, UnaryOperation};
@@ -77,15 +77,12 @@ impl<'a> Mir<'a> {
                     }
                     &Action::LoadInput(v) => assert_eq!(block.input[v], step.ty),
                     &Action::LoadConstant(ref c) => {
-                        match &self.types[step.ty] {
-                            &Type::Sum(ref options) => {
-                                if let &Object::Variant(id, _) = c {
-                                    assert!(options.get(id));
-                                } else {
-                                    unreachable!("sum type with non variant object");
-                                }
+                        if let &Type::Sum(ref options) = &self.types[step.ty] {
+                            if let &Object::Variant(id, _) = c {
+                                assert!(options.get(id));
+                            } else {
+                                unreachable!("sum type with non variant object");
                             }
-                            _ => (), // TODO
                         }
                     }
                     &Action::InitializeStruct(ref field_values) => {
@@ -206,6 +203,27 @@ impl<'a> Mir<'a> {
                                 assert_eq!(target_input[i], block[arg].ty)
                             } else {
                                 assert_eq!(target_input[i], ty)
+                            }
+                        }
+                    }
+                }
+                &Terminator::MatchByte(value, ref targets) => {
+                    assert_eq!(block[value].ty, U8_TYPE_ID);
+                    for &(_, target, ref args) in targets.iter() {
+                        let target_input;
+                        let target_input: &[_] = if let Some(target) = target {
+                            &func[target].input
+                        } else {
+                            assert_eq!(args.len(), 1);
+                            target_input = [func.ret];
+                            &target_input
+                        };
+                        assert_eq!(target_input.len(), args.len());
+                        for i in 0..args.len() {
+                            if let Some(arg) = args[i] {
+                                assert_eq!(target_input[i], block[arg].ty)
+                            } else {
+                                assert_eq!(target_input[i], U8_TYPE_ID)
                             }
                         }
                     }

@@ -1,3 +1,5 @@
+#![allow(clippy::new_without_default, clippy::match_ref_pats)]
+
 #[cfg(feature = "profiler")]
 #[macro_use]
 extern crate thread_profiler;
@@ -125,6 +127,7 @@ impl BlockId {
 pub enum Terminator {
     Goto(Option<BlockId>, Vec<StepId>),
     Match(StepId, Vec<(TypeId, Option<BlockId>, Vec<Option<StepId>>)>),
+    MatchByte(StepId, Vec<(u8, Option<BlockId>, Vec<Option<StepId>>)>),
 }
 
 impl Terminator {
@@ -141,6 +144,11 @@ impl Terminator {
                     .filter_map(|&(_, t, _)| t)
                     .for_each(|arm| used.add(arm));
             }
+            &Terminator::MatchByte(_, ref arms) => {
+                arms.iter()
+                    .filter_map(|&(_, t, _)| t)
+                    .for_each(|arm| used.add(arm));
+            }
         }
     }
 
@@ -148,6 +156,16 @@ impl Terminator {
         match self {
             &Terminator::Goto(_, ref steps) => steps.iter().for_each(|&s| used.add(s)),
             &Terminator::Match(step, ref arms) => {
+                used.add(step);
+                arms.iter().for_each(|arm| {
+                    arm.2
+                        .iter()
+                        .copied()
+                        .filter_map(identity)
+                        .for_each(|s| used.add(s))
+                });
+            }
+            &Terminator::MatchByte(step, ref arms) => {
                 used.add(step);
                 arms.iter().for_each(|arm| {
                     arm.2
@@ -272,9 +290,8 @@ impl<'a> Function<'a> {
 
     pub fn used_functions(&self, used: &mut TBitSet<FunctionId>) {
         for step in self.blocks.iter().flat_map(|b| b.steps.iter()) {
-            match step.action {
-                Action::CallFunction(id, _) => used.add(id),
-                _ => (),
+            if let Action::CallFunction(id, _) = step.action {
+                used.add(id)
             }
         }
     }

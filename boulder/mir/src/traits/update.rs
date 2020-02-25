@@ -76,6 +76,16 @@ impl UpdateStepIds for Terminator {
                     }
                 }
             }
+            Terminator::MatchByte(id, arms) => {
+                f(id);
+                for arm in arms {
+                    for arg in arm.2.iter_mut() {
+                        if let Some(arg) = arg.as_mut() {
+                            f(arg);
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -217,7 +227,7 @@ impl UpdateTypeIds for Action {
 impl UpdateTypeIds for Terminator {
     fn update_type_ids(&mut self, f: &mut dyn FnMut(&mut TypeId)) {
         match self {
-            Terminator::Goto(_, _) => (),
+            Terminator::Goto(_, _) | Terminator::MatchByte(_, _) => (),
             Terminator::Match(_, arms) => {
                 for &mut (ref mut ty, _, _) in arms.iter_mut() {
                     f(ty)

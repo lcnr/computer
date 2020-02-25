@@ -18,7 +18,7 @@ pub fn main() {
     if let Some(ref input) = args.next() {
         let output = args.next();
         let output = output.as_ref().map(|t| &**t).unwrap_or("./a.data");
-        if let Some(_) = args.next() {
+        if args.next().is_some() {
             eprintln!("{}", USAGE);
             return;
         }

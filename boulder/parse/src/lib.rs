@@ -1,3 +1,5 @@
+#![allow(clippy::match_ref_pats)]
+
 #[cfg(feature = "profiler")]
 #[macro_use]
 extern crate thread_profiler;
@@ -54,11 +56,11 @@ pub fn parse<'a>(ctx: &'a GlobalCtx, src: &'a str, file: &'a str) -> Result<Hir<
 
     // TODO: allow for no_std
     let std = include_str!("../../_std/lib.bo");
-    hir.add_module(&[], Meta::fake("std".into())).unwrap();
+    hir.add_module(&[], Meta::fake("std")).unwrap();
     parse_module(
         ctx,
         &mut hir,
-        &mut vec!["std".into()],
+        &mut vec!["std"],
         &mut TokenIter::new(std, "./_std/lib.bo"),
     )?;
     consume_token(Token::EOF, iter)?;
@@ -138,7 +140,7 @@ pub fn parse_module<'a>(
                     Token::Keyword(Keyword::Struct),
                     Token::Keyword(Keyword::Union),
                     Token::Keyword(Keyword::Function),
-                    Token::Attribute("".into()),
+                    Token::Attribute(""),
                     Token::EOF,
                 ],
                 &token,
@@ -184,7 +186,7 @@ fn expect_ident<'a>(tok: Meta<'a, Token<'a>>) -> Result<Meta<'a, &'a str>, Compi
         if let Token::Ident(value) = t {
             value
         } else {
-            "".into()
+            ""
         }
     });
     if tok.item.is_empty() {
@@ -205,7 +207,7 @@ fn parse_module_decl<'a>(
     #[cfg(feature = "profiler")]
     profile_scope!("parse_module_decl");
     let module_name = expect_ident(iter.next().unwrap())?;
-    let name = module_name.item.into();
+    let name = module_name.item;
     hir.add_module(&at, module_name.map(Into::into))?;
     at.push(name);
     if try_consume_token(Token::OpenBlock(BlockDelim::Brace), iter) {
@@ -248,7 +250,7 @@ fn parse_module_decl<'a>(
             path_buf.set_extension("bo");
             if let Ok(mut file) = File::open(&path_buf) {
                 let mut src = String::new();
-                if let Ok(_) = file.read_to_string(&mut src) {
+                if file.read_to_string(&mut src).is_ok() {
                     // TODO: add string storage
                     let s = ctx.insert_str(src.into_boxed_str());
                     let f =
@@ -308,14 +310,14 @@ fn parse_pattern<'a>(iter: &mut TokenIter<'a>) -> Result<Pattern<'a>, CompileErr
     let name = match next.item {
         Token::Ident(v) => Some(next.replace(v)),
         Token::Underscore => None,
-        _ => CompileError::expected(&[Token::Ident("".into()), Token::Underscore], &next)?,
+        _ => CompileError::expected(&[Token::Ident(""), Token::Underscore], &next)?,
     };
     consume_token(Token::Colon, iter)?;
     let ty = parse_type(iter)?;
     if let Some(name) = name {
         Ok(Pattern::Named(hir::UnresolvedVariable::New(
             name.map(Into::into),
-            ty.map(|t| Some(t)),
+            ty.map(Some),
         )))
     } else {
         Ok(Pattern::Underscore(ty))
@@ -365,7 +367,7 @@ fn parse_type<'a>(
         Ok(meta.replace(hir::UnresolvedType::Sum(parts)))
     } else {
         iter.step_back(next);
-        Ok(first.map(|f| hir::UnresolvedType::Named(f.into())))
+        Ok(first.map(hir::UnresolvedType::Named))
     }
 }
 
@@ -592,7 +594,7 @@ fn parse_variable_decl<'a>(
     } else {
         None
     }
-    .map_or_else(|| name.simplify().replace(None), |v| v.map(|t| Some(t)));
+    .map_or_else(|| name.simplify().replace(None), |v| v.map(Some));
 
     if try_consume_token(Token::Assignment, iter) {
         let input = parse_expression(iter, expecting_open_brace)?;
@@ -728,8 +730,8 @@ fn parse_binop_rhs<'a>(
         Token::Keyword(Keyword::While) => parse_while(None, start.simplify(), iter)?,
         _ => CompileError::expected(
             &[
-                Token::Scope("".into()),
-                Token::Ident("".into()),
+                Token::Scope(""),
+                Token::Ident(""),
                 Token::Integer(0),
                 Token::Keyword(Keyword::Match),
                 Token::Keyword(Keyword::If),
@@ -904,7 +906,7 @@ fn parse_expression<'a>(
         }
         Token::Keyword(Keyword::Return) => Ok(Expression::Break(
             (),
-            start.replace(Some("fn".into())),
+            start.replace(Some("fn")),
             Box::new(parse_expression(iter, expecting_open_brace)?),
         )),
         Token::Invert => {
@@ -931,12 +933,12 @@ fn parse_expression<'a>(
                             Box::new(parse_expression(iter, expecting_open_brace)?),
                         )
                     } else {
-                        Err(check_expr_terminator(
+                        return Err(check_expr_terminator(
                             next,
                             &[Token::Assignment],
                             expecting_open_brace,
                         )
-                        .unwrap_err())?
+                        .unwrap_err());
                     }
                 }
                 _ => {
@@ -953,14 +955,14 @@ fn parse_expression<'a>(
             &[
                 Token::OpenBlock(BlockDelim::Brace),
                 Token::Keyword(Keyword::Loop),
-                Token::Scope("".into()),
+                Token::Scope(""),
                 Token::OpenBlock(BlockDelim::Parenthesis),
                 Token::Keyword(Keyword::Let),
                 Token::Keyword(Keyword::Match),
                 Token::Keyword(Keyword::If),
                 Token::Keyword(Keyword::Break),
                 Token::Keyword(Keyword::Return),
-                Token::Ident("".into()),
+                Token::Ident(""),
                 Token::Integer(0),
             ],
             &start,
@@ -997,7 +999,7 @@ fn parse_block<'a>(
                             .replace(None)
                             .extend_left('{')
                     },
-                    |v| v.map(|v| Some(v.into())),
+                    |v| v.map(Some),
                 ),
                 block,
             ));
@@ -1118,7 +1120,7 @@ fn parse_function<'a>(
 
         let arg_name = expect_ident(tok)?;
         consume_token(Token::Colon, iter)?;
-        func.add_argument(arg_name.map(Into::into), parse_type(iter)?.map(|t| Some(t)))?;
+        func.add_argument(arg_name.map(Into::into), parse_type(iter)?.map(Some))?;
 
         let tok = iter.next().unwrap();
         if tok.item == Token::CloseBlock(BlockDelim::Parenthesis) {

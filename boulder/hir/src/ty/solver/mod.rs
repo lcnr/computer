@@ -191,7 +191,7 @@ impl EntityState {
                         e.iter().all(|t| upper_limit.get(t))
                     } else {
                         true
-                    } && lower_limit.iter().fold(true, |s, t| s && e.get(t));
+                    } && lower_limit.iter().all(|t| e.get(t));
 
                     if is_valid {
                         allowed_types.add(ty);
@@ -224,7 +224,7 @@ impl solver::EntityState for EntityState {
     fn solved(&self) -> bool {
         match self {
             EntityState::Unbound | EntityState::Restricted { .. } => false,
-            EntityState::Bound(v) => v.iter().skip(1).next().is_none(),
+            EntityState::Bound(v) => v.iter().nth(1).is_none(),
         }
     }
 
@@ -284,9 +284,8 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
         let fields = fields
             .into_iter()
             .map(|(name, field_types)| {
-                let field_name = name.clone();
-                let obj_types = field_types.iter().map(|(o, _)| o.clone()).collect();
-                let field_access = FieldAccess::new(field_name, field_types);
+                let obj_types = field_types.iter().map(|&(o, _)| o).collect();
+                let field_access = FieldAccess::new(name, field_types);
 
                 let id = solver.define_production(Box::new(field_access));
                 (name, (id, obj_types))
@@ -357,11 +356,11 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
                     ),
                 };
 
-                match (!sup.is_empty(), !sub.is_empty()) {
-                    (true, true) => format!("{}, {}", sup, sub),
-                    (true, false) => format!("{}", sup),
-                    (false, true) => format!("a type {}", sub),
-                    (false, false) => unreachable!("empty restriction"),
+                match (sup.is_empty(), sub.is_empty()) {
+                    (false, false) => format!("{}, {}", sup, sub),
+                    (false, true) => sup,
+                    (true, false) => format!("a type {}", sub),
+                    (true, true) => unreachable!("empty restriction"),
                 }
             }
             EntityState::Bound(v) => {
@@ -415,8 +414,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
     }
 
     pub fn add_typed(&mut self, ty: TypeId, meta: Meta<'a, ()>) -> EntityId {
-        let id = self.add_entity(EntityState::Bound(iter::once(ty).collect()), meta);
-        id
+        self.add_entity(EntityState::Bound(iter::once(ty).collect()), meta)
     }
 
     pub fn override_entity(&mut self, id: EntityId, ty: TypeId, meta: Meta<'a, ()>) {
@@ -487,7 +485,7 @@ impl<'a, 'b> TypeSolver<'a, 'b> {
                 } else {
                     "Values with multiple possible types found:"
                 };
-                rest.into_iter()
+                rest.iter()
                     .fold(
                         CompileError::build(&ctx.meta[*start_id], msg).with_help(format_args!(
                             "could be {}",
