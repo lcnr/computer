@@ -169,9 +169,6 @@ fn compile_run() -> Result<(), TestFailure> {
             })) {
                 Ok(()) => (),
                 Err(_) => {
-                    if count - success < 5 {
-                        eprintln!("{}", mir);
-                    }
                     eprintln!("[boulder/{}]: panic during testing", entry.path().display(),);
                     continue;
                 }

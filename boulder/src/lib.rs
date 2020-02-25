@@ -31,6 +31,8 @@ pub fn compile_to_mir<'a>(
 pub fn core_optimizations<'a>(mir: &mut Mir<'a>, e2b: bool, lang_items: LangItemState) {
     #[cfg(feature = "profiler")]
     profile_scope!("core_optimizations");
+    mir.simplify_single_match();
+    mir.validate(e2b);
     mir.unify_blocks();
     mir.validate(e2b);
     mir.remove_unused_steps();
@@ -38,6 +40,8 @@ pub fn core_optimizations<'a>(mir: &mut Mir<'a>, e2b: bool, lang_items: LangItem
     mir.remove_unused_functions(lang_items);
     mir.validate(e2b);
     mir.remove_redirects();
+    mir.validate(e2b);
+    mir.simplify_single_match();
     mir.validate(e2b);
 }
 

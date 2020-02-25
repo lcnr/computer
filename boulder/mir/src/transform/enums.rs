@@ -23,8 +23,6 @@ impl<'a> Mir<'a> {
             }
         }
 
-        println!("used ZST count: {}", used.element_count());
-
         let mut replacements: TVec<TypeId, u8> = iter::repeat(u8::max_value())
             .take(self.types.len())
             .collect();
@@ -32,11 +30,12 @@ impl<'a> Mir<'a> {
             replacements[idx] = i.try_into().expect("enums require more than 256 values");
         }
 
+        if replacements[TRUE_TYPE_ID] < replacements[FALSE_TYPE_ID] {
+            replacements.swap(TRUE_TYPE_ID, FALSE_TYPE_ID);
+        }
+
         self.ctx.true_replacement = replacements[TRUE_TYPE_ID];
         self.ctx.false_replacement = replacements[FALSE_TYPE_ID];
-
-        assert_eq!(self.ctx.true_replacement ^ 1, self.ctx.false_replacement);
-        assert_eq!(self.ctx.false_replacement ^ 1, self.ctx.true_replacement);
 
         for function in self.functions.iter_mut() {
             function.enum_to_byte(&self.types, &replacements);

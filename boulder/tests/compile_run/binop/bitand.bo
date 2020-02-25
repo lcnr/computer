@@ -23,7 +23,9 @@ fn bool_true() -> Bool {
 
 @test
 fn bool_false() -> Bool {
-    !bitand_bool(False, True)
+    let a: Bool = bitand_bool(False, True);
+    dbg(a);
+    !a
 }
 
 @test

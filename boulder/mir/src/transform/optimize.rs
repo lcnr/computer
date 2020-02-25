@@ -10,7 +10,23 @@ use crate::{
 };
 
 impl<'a> Mir<'a> {
-    /// remove blocks where an input is unreachable
+    /// Turns matches into Goto in case there is only one match case
+    pub fn simplify_single_match(&mut self) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("Mir::simplify_single_match");
+        for func in self.functions.iter_mut() {
+            for block in func.blocks.iter_mut() {
+                if let Terminator::Match(s, ref mut arms) = block.terminator {
+                    if arms.len() == 1 {
+                        let arm = arms.pop().unwrap();
+                        block.terminator = Terminator::Goto(arm.target, arm.args.into_iter().map(|t| t.unwrap_or(s)).collect());
+                    }
+                }
+            }
+        }
+    }
+
+    /// Rremoves blocks where an input is unreachable.
     pub fn kill_uninhabited(&mut self) {
         #[cfg(feature = "profiler")]
         profile_scope!("Mir::kill_uninhabited");

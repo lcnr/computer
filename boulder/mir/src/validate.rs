@@ -162,7 +162,9 @@ impl<'a> Mir<'a> {
                                         && step.ty == U32_TYPE_ID
                             );
                         }
-                        UnaryOperation::Debug => assert_eq!(step.ty, EMPTY_TYPE_ID),
+                        UnaryOperation::Debug => if !e2b {
+                            assert_eq!(step.ty, EMPTY_TYPE_ID);
+                        },
                     }
                 }
                 Action::Binop(kind, a, b) => {
