@@ -328,7 +328,7 @@ pub fn resolve<'a, L: Logger>(blocks: &mut [Block<'a>], l: &mut L) -> Result<(),
     let mut used = [false; 256];
     for block in blocks.iter() {
         if let Some(pos) = block.pos {
-            if used[pos as usize] == true {
+            if used[pos as usize] {
                 l.log_err(Error::new(
                     ErrorLevel::Error,
                     Cause::BlockReuse,
@@ -374,7 +374,7 @@ pub fn resolve<'a, L: Logger>(blocks: &mut [Block<'a>], l: &mut L) -> Result<(),
         };
 
         let replace_section_addr = |s: &str, l: &mut L| {
-            if s.starts_with(".") {
+            if s.starts_with('.') {
                 if let Some(&byte) = jmp_addr.get(s) {
                     Ok(MemAddr::Byte(byte))
                 } else {

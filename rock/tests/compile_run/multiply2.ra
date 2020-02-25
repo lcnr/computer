@@ -4,83 +4,79 @@ start:
     mov 2 C;
     mov 5 D;
     
-    mov 0xff M2;
+    # prepare calling multiply
+    mov 0xff M2;        # point to stack
     mov 0 M1;
-    mov mem A;
-    mov 1 B;
+    mov mem A;          # stack length to A
+
+    mov 1 B;            # store return adress byte on the stack
     add M1;
     add A;
     mov .return B;
     mov B mem;
     
-    mov 1 B;
+    mov 1 B;            # store return adress block on the stack
     add M1;
     add A;
     mov start B;
     mov B mem;
-
-    mov 1 B;
-    add M1;
-    add A;
-    mov C mem;
     
-    add M1;
-    add A;
-    mov D mem;
-    
-    mov 0 M1;
+    mov 0 M1;           # update stack pointer
     mov A mem;
 
-    ljmp multiply;
+    ljmp multiply;      # enter multiply function
 
 .return:
     jmp .return;
 
+# calculates D = C * D
+# 
+# expected stack:
+#   - don't care
+#   - ret byte
+#   - ret block <- stack pointer
+#
+# returned stack:
+#   - don't care <- stack pointer
+
 multiply:
-    mov 0xff M2;
+    mov 0xff M2;        # load stack pointer to A
     mov 0 M1;
     mov mem A;
-    mov 0 B;
-    add M1;
+
+    mov 1 B;            # store D on stack
+    add A;
+    mov A M1;
+    mov D mem;          
     
-    mov mem C;
-    
-    mov 1 B;
-    sub M1;
-    mov mem D;
-    
-    mov D A;
+    mov D A;            # check if C or D is 0
     if z jmp .end;
     mov C A;
     if z jmp .end;
-    
+
 .loop:
-    mov C A;
+    mov C A;            # A = C - 1
     mov 1 B;
     sub A;
-    mov A C;
-    if z jmp .end;
-    
-    mov mem A;
+    mov A C;            # C = A
+    if z jmp .end;      
+
+    mov mem A;          # D = mem + D
     mov D B;
     add D;
     jmp .loop;
 
 .end:
-    mov 0 M1;
-    mov 2 B;
+    mov 0 M1;           # load stack pointer
     mov mem A;
-    sub M1;
-    sub A;
+
+    mov 2 B;            # pop return address from stack
+    sub mem;
+
+    mov A M1;   
+    mov mem C;          # load return block to C
+
+    mov 1 B;            # point mem to return byte
+    sub M1;      
     
-    mov mem C;
-    mov 1 B;
-    sub M1;
-    sub A;
-    
-    mov 0 M1;
-    mov A mem;
-    mov A M1;
-    
-    mov D A;
-    ret C mem;
+    ret C mem;          # return

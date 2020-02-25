@@ -28,5 +28,6 @@ Other inspirations:
 
 ## Roadmap
 
-- flatten structs into individual `u8`.
+- match `u8`
+- sum to `u8`
 - generate assembly

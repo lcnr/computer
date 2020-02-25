@@ -203,7 +203,7 @@ impl<'a, C: fmt::Debug, T: EntityState + Clone + std::fmt::Debug, E> ConstraintS
             while let Some(pos) = ids.iter().position(|&id| self.entities[id].solved()) {
                 ids.swap(0, pos);
                 self.apply_entity(ids[0])
-                    .map_err(|e| SolveError::ProductionError(e))?;
+                    .map_err(SolveError::ProductionError)?;
 
                 ids = &mut ids[1..];
 

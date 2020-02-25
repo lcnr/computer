@@ -1,0 +1,17 @@
+[workspace]
+
+members = [
+    "rock",
+    "boulder/global_ctx",
+    "boulder/solver",
+    "boulder/boulder",
+    "boulder/mir_interpreter",
+    "boulder/diagnostics",
+    "boulder/shared_id",
+    "boulder/parse",
+    "boulder/hir",
+    "boulder/mir",
+    "boulder/lir",
+    "remu",
+    "mirco",
+]

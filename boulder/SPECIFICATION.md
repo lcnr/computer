@@ -19,6 +19,7 @@ Three unsigned integers `uN` where n denotes the size in bits: `u8`, `u16`, `u32
 Integers are stored in little endian.
 The unit type `Empty`, implicitly returned by functions and expressions terminated with `;`.
 Empty blocks, `while` loops and an a missing `else` also return `Empty`.
+Boolean Types `True` and `False` aswell as a named sum type called `Bool`.
 
 ### Unit types
 

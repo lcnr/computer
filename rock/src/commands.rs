@@ -385,7 +385,7 @@ fn without_args<'a>(
     l: &mut impl Logger,
     command: Command<'a>,
 ) -> Command<'a> {
-    if args.len() != 0 {
+    if !args.is_empty() {
         l.log_err(Error::at_token(
             ErrorLevel::Error,
             Cause::WrongArgCount(cmd.origin(), 0, args.len()),

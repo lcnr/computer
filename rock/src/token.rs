@@ -160,7 +160,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
             "M1" => TokenType::SectionAddr,
             "M2" => TokenType::BlockAddr,
             sec => {
-                if sec.chars().next().unwrap() == '.' {
+                if sec.starts_with('.') {
                     TokenType::Section
                 } else {
                     TokenType::Ident
