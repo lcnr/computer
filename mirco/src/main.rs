@@ -70,23 +70,24 @@ fn digit_0_3(digit: u8, alu: u8) {
 }
 
 fn digit_4_7(digit: u8, update_register: bool) {
-    let disabled = if update_register { "" } else { " [DISABLED]" };
-
-    println!(
-        "Update register{}: {}",
-        disabled,
-        match digit & 0b0111 {
-            0b000 => "A",
-            0b001 => "B",
-            0b010 => "C",
-            0b011 => "D",
-            0b100 => "M1",
-            0b101 => "M2",
-            0b110 => "P1",
-            0b111 => "P2",
-            _ => unreachable!(),
-        }
-    );
+    if update_register {
+        println!(
+            "Update register: {}",
+            match digit & 0b0111 {
+                0b000 => "A",
+                0b001 => "B",
+                0b010 => "C",
+                0b011 => "D",
+                0b100 => "M1",
+                0b101 => "M2",
+                0b110 => "P1",
+                0b111 => "P2",
+                _ => unreachable!(),
+            }
+        );
+    } else if digit & 0b0111 != 0 {
+        eprintln!("UPDATE REGISTER IS NOT ACTIVE, CONSIDER SETTING IT TO 0");
+    }
 
     if digit & 0b1000 != 0 {
         println!("Reset P1");
