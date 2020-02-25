@@ -122,13 +122,13 @@ impl<'a> Mir<'a> {
             used.add(BlockId::from(0));
             let mut allowed = TBitSet::new();
             for block in func.blocks.iter() {
-                match &block.terminator {
-                    &Terminator::Goto(None, _) => (),
-                    &Terminator::Goto(Some(block), _) => {
+                match block.terminator {
+                    Terminator::Goto(None, _) => (),
+                    Terminator::Goto(Some(block), _) => {
                         allowed.set(block, !used.get(block));
                         used.add(block);
                     }
-                    &Terminator::Match(_, ref arms) => {
+                    Terminator::Match(_, ref arms) => {
                         for arm in arms.iter() {
                             if let Some(target) = arm.target {
                                 allowed.set(target, !used.get(target));
@@ -136,7 +136,7 @@ impl<'a> Mir<'a> {
                             }
                         }
                     }
-                    &Terminator::MatchByte(_, ref arms) => {
+                    Terminator::MatchByte(_, ref arms) => {
                         for arm in arms.iter() {
                             if let Some(target) = arm.target {
                                 allowed.set(target, !used.get(target));
@@ -150,9 +150,7 @@ impl<'a> Mir<'a> {
             let mut to_remove = TBitSet::new();
             for i in 0..func.blocks.len() {
                 let id = BlockId::from(i);
-                if let &mut Terminator::Goto(Some(block), ref mut goto_steps) =
-                    &mut func[id].terminator
-                {
+                if let Terminator::Goto(Some(block), ref mut goto_steps) = func[id].terminator {
                     if allowed.get(block) {
                         let glue = mem::replace(goto_steps, Vec::new());
                         let mut removed = mem::replace(&mut func[block], Block::new());
@@ -305,8 +303,8 @@ impl<'a> Mir<'a> {
             while changed {
                 changed = false;
                 for i in func.blocks.index_iter() {
-                    match &mut func[i].terminator {
-                        &mut Terminator::Goto(Some(target), ref mut steps) => {
+                    match func[i].terminator {
+                        Terminator::Goto(Some(target), ref mut steps) => {
                             if redirects.get(target) {
                                 changed = true;
                                 let removed = mem::replace(steps, Vec::new());
@@ -321,17 +319,17 @@ impl<'a> Mir<'a> {
                                 func[i].terminator = terminator;
                             }
                         }
-                        &mut Terminator::Match(step, ref mut arms) => {
+                        Terminator::Match(step, ref mut arms) => {
                             let mut arms = mem::replace(arms, Vec::new());
                             changed |= match_reduce(func, &mut arms, &redirects);
                             func[i].terminator = Terminator::Match(step, arms);
                         }
-                        &mut Terminator::MatchByte(step, ref mut arms) => {
+                        Terminator::MatchByte(step, ref mut arms) => {
                             let mut arms = mem::replace(arms, Vec::new());
                             changed |= match_reduce(func, &mut arms, &redirects);
                             func[i].terminator = Terminator::MatchByte(step, arms);
                         }
-                        &mut Terminator::Goto(None, _) => (),
+                        Terminator::Goto(None, _) => (),
                     }
                 }
             }

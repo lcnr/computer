@@ -279,12 +279,12 @@ impl<'a> Function<'a> {
             let mut s_id = StepId::from(0);
             while s_id.0 < block.steps.len() {
                 let steps = &mut block.steps;
-                match &mut steps[s_id].action {
-                    &mut Action::LoadConstant(ref mut obj) => {
+                match steps[s_id].action {
+                    Action::LoadConstant(ref mut obj) => {
                         obj.reduce_to_bytes();
                         s_id.0 += 1;
                     }
-                    &mut Action::UnaryOperation(op, target_id) => {
+                    Action::UnaryOperation(op, target_id) => {
                         let new_steps = match (steps[target_id].ty, op) {
                             (U16_TYPE_ID, UnaryOperation::Invert) => invert_u16(),
                             (U32_TYPE_ID, UnaryOperation::Invert) => invert_u32(),
@@ -302,7 +302,7 @@ impl<'a> Function<'a> {
 
                         s_id = block.insert_steps(s_id..=s_id, new_steps, iter::once(target_id))
                     }
-                    &mut Action::Binop(op, a, b) => match (steps[a].ty, steps[b].ty, op) {
+                    Action::Binop(op, a, b) => match (steps[a].ty, steps[b].ty, op) {
                         (U16_TYPE_ID, U16_TYPE_ID, Binop::Add) => {
                             steps[s_id].action = Action::CallFunction(ctx.add16, vec![a, b])
                         }

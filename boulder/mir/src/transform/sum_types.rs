@@ -5,8 +5,7 @@ use tindex::{TSlice, TVec};
 use shared_id::{FieldId, TypeId};
 
 use crate::{
-    traits::UpdateStepIds, Action, BlockId, Function, MatchArm, Mir, Object, Step, StepId,
-    Terminator, Type,
+    traits::UpdateStepIds, Action, BlockId, Function, Mir, Object, Step, StepId, Terminator, Type,
 };
 
 impl<'a> Mir<'a> {
@@ -30,7 +29,7 @@ impl<'a> Mir<'a> {
             .types
             .index_iter()
             .map(|id| {
-                if let &Type::Sum(ref cases) = &self.types[id] {
+                if let Type::Sum(ref cases) = self.types[id] {
                     if cases.iter().all(|f| self.types[f] == Type::Unit) {
                         None
                     } else {
@@ -131,19 +130,14 @@ impl<'a> Function<'a> {
                         Action::StructFieldAccess(step, FieldId::from(0)),
                     ));
 
-                    for MatchArm {
-                        pat: ty,
-                        target,
-                        args: steps,
-                    } in arms.iter_mut()
-                    {
-                        let old_ty = *ty;
-                        if let &Type::Sum(_) = &types[*ty] {
-                            if let Some(arm_replacement_ty) = replacements[*ty] {
-                                *ty = arm_replacement_ty;
+                    for arm in arms.iter_mut() {
+                        let old_ty = arm.pat;
+                        if let Type::Sum(_) = types[arm.pat] {
+                            if let Some(arm_replacement_ty) = replacements[arm.pat] {
+                                arm.pat = arm_replacement_ty;
 
                                 let mut self_steps = Vec::new();
-                                for (i, step) in steps.iter_mut().enumerate() {
+                                for (i, step) in arm.args.iter_mut().enumerate() {
                                     if *step == None {
                                         self_steps.push(StepId::from(i));
                                         *step = Some(union_step);
@@ -151,14 +145,14 @@ impl<'a> Function<'a> {
                                 }
 
                                 if !self_steps.is_empty() {
-                                    steps.push(None);
+                                    arm.args.push(None);
                                     let block = self.add_block();
                                     self.blocks[block].terminator = Terminator::Goto(
-                                        *target,
-                                        (0..steps.len()).map(StepId::from).collect(),
+                                        arm.target,
+                                        (0..arm.args.len()).map(StepId::from).collect(),
                                     );
-                                    *target = Some(block);
-                                    for step in steps.iter() {
+                                    arm.target = Some(block);
+                                    for step in arm.args.iter() {
                                         let ty = self.blocks[block_id].steps[step.unwrap()].ty;
                                         self.blocks[block].add_input(ty);
                                     }
@@ -212,7 +206,7 @@ impl<'a> Function<'a> {
                             } else {
                                 // a unit sum type, we can just reduce the sum and ignore the union
                                 let mut self_steps = Vec::new();
-                                for (i, arm_step) in steps.iter_mut().enumerate() {
+                                for (i, arm_step) in arm.args.iter_mut().enumerate() {
                                     if *arm_step == None {
                                         self_steps.push(StepId::from(i));
                                         *arm_step = Some(step);
@@ -222,18 +216,18 @@ impl<'a> Function<'a> {
                                 if !self_steps.is_empty() {
                                     let block = self.add_block();
                                     self.blocks[block].terminator = Terminator::Goto(
-                                        *target,
-                                        (0..steps.len()).map(StepId::from).collect(),
+                                        arm.target,
+                                        (0..arm.args.len()).map(StepId::from).collect(),
                                     );
-                                    *target = Some(block);
-                                    for step in steps.iter() {
+                                    arm.target = Some(block);
+                                    for step in arm.args.iter() {
                                         let ty = self.blocks[block_id].steps[step.unwrap()].ty;
                                         self.blocks[block].add_input(ty);
                                     }
 
                                     for step in self_steps.into_iter() {
-                                        let reduced_sum =
-                                            self.blocks[block].add_step(*ty, Action::Reduce(step));
+                                        let reduced_sum = self.blocks[block]
+                                            .add_step(arm.pat, Action::Reduce(step));
 
                                         self.blocks[block]
                                             .terminator
@@ -242,10 +236,10 @@ impl<'a> Function<'a> {
                                 }
                             }
                         } else {
-                            *ty = tags[old_ty];
+                            arm.pat = tags[old_ty];
 
                             let mut self_steps = Vec::new();
-                            for (i, step) in steps.iter_mut().enumerate() {
+                            for (i, step) in arm.args.iter_mut().enumerate() {
                                 if *step == None {
                                     self_steps.push(StepId::from(i));
                                     *step = Some(union_step);
@@ -255,11 +249,11 @@ impl<'a> Function<'a> {
                             if !self_steps.is_empty() {
                                 let block = self.add_block();
                                 self.blocks[block].terminator = Terminator::Goto(
-                                    *target,
-                                    (0..steps.len()).map(StepId::from).collect(),
+                                    arm.target,
+                                    (0..arm.args.len()).map(StepId::from).collect(),
                                 );
-                                *target = Some(block);
-                                for step in steps.iter() {
+                                arm.target = Some(block);
+                                for step in arm.args.iter() {
                                     let ty = self.blocks[block_id].steps[step.unwrap()].ty;
                                     self.blocks[block].add_input(ty);
                                 }
@@ -279,7 +273,9 @@ impl<'a> Function<'a> {
             }
 
             for input in self.blocks[block_id].input.iter_mut() {
-                *input = replacements[*input].unwrap_or(*input);
+                if let Some(replacement) = replacements[*input] {
+                    *input = replacement;
+                }
             }
 
             let mut step_id = StepId::from(0);

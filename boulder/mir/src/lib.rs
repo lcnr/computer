@@ -43,7 +43,7 @@ pub enum Type {
 
 impl Type {
     pub fn expect_sum(&self) -> &TBitSet<TypeId> {
-        if let &Self::Sum(ref options) = self {
+        if let Self::Sum(options) = self {
             options
         } else {
             panic!("expected sum, found {:?}", self)
@@ -51,7 +51,7 @@ impl Type {
     }
 
     pub fn expect_union(&self) -> &TBitSet<TypeId> {
-        if let &Self::Union(ref options) = self {
+        if let Self::Union(options) = self {
             options
         } else {
             panic!("expected union, found {:?}", self)
@@ -59,7 +59,7 @@ impl Type {
     }
 
     pub fn expect_struct(&self) -> &TSlice<FieldId, TypeId> {
-        if let &Self::Struct(ref fields) = self {
+        if let Self::Struct(fields) = self {
             fields
         } else {
             panic!("expected struct, found {:?}", self)
@@ -77,8 +77,8 @@ impl Type {
     pub fn is_subtype(ty: TypeId, of: TypeId, types: &TSlice<TypeId, Type>) -> bool {
         if ty == of {
             true
-        } else if let &Type::Sum(ref options) = &types[of] {
-            if let &Type::Sum(ref t) = &types[ty] {
+        } else if let Type::Sum(ref options) = types[of] {
+            if let Type::Sum(ref t) = types[ty] {
                 t.iter().all(|ty| options.get(ty))
             } else {
                 options.get(ty)
@@ -144,14 +144,14 @@ impl Terminator {
 
     pub fn used_blocks(&self, used: &mut TBitSet<BlockId>) {
         match self {
-            &Terminator::Goto(None, _) => (),
+            Terminator::Goto(None, _) => (),
             &Terminator::Goto(Some(block), _) => used.add(block),
             &Terminator::Match(_, ref arms) => {
                 arms.iter()
                     .filter_map(|arm| arm.target)
                     .for_each(|arm| used.add(arm));
             }
-            &Terminator::MatchByte(_, ref arms) => {
+            Terminator::MatchByte(_, arms) => {
                 arms.iter()
                     .filter_map(|arm| arm.target)
                     .for_each(|arm| used.add(arm));
@@ -161,7 +161,7 @@ impl Terminator {
 
     pub fn used_steps(&self, used: &mut TBitSet<StepId>) {
         match self {
-            &Terminator::Goto(_, ref steps) => steps.iter().for_each(|&s| used.add(s)),
+            Terminator::Goto(_, steps) => steps.iter().for_each(|&s| used.add(s)),
             &Terminator::Match(step, ref arms) => {
                 used.add(step);
                 arms.iter().for_each(|arm| {

@@ -20,7 +20,7 @@ pub enum Binop {
 }
 
 impl Binop {
-    pub fn validate(&self, this: &Step, a: &Step, b: &Step) {
+    pub fn validate(self, this: &Step, a: &Step, b: &Step) {
         match self {
             Self::Add
             | Self::Sub
@@ -50,8 +50,8 @@ impl<'a> Mir<'a> {
 
         let mut i = StepId(0);
         while i.0 < function[block].steps.len() {
-            match &function[block].steps[i].action {
-                &Action::Binop(Binop::Mul, a, b) => {
+            match function[block].steps[i].action {
+                Action::Binop(Binop::Mul, a, b) => {
                     let op_ty = function[block].steps[i].ty;
                     function[block].steps[i].action = Action::CallFunction(
                         match self.types[op_ty] {
@@ -63,7 +63,7 @@ impl<'a> Mir<'a> {
                         vec![a, b],
                     );
                 }
-                &Action::Binop(Binop::Div, a, b) => {
+                Action::Binop(Binop::Div, a, b) => {
                     let op_ty = function[block].steps[i].ty;
                     function[block].steps[i].action = Action::CallFunction(
                         match self.types[op_ty] {
@@ -75,7 +75,7 @@ impl<'a> Mir<'a> {
                         vec![a, b],
                     );
                 }
-                &Action::Binop(Binop::Rem, a, b) => {
+                Action::Binop(Binop::Rem, a, b) => {
                     let op_ty = function[block].steps[i].ty;
                     function[block].steps[i].action = Action::CallFunction(
                         match self.types[op_ty] {

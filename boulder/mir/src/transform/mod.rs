@@ -100,7 +100,7 @@ impl<'a> Function<'a> {
         profile_scope!("Function::remove_block_input");
         self[id].input.remove(input);
         for step in self[id].steps.index_iter().rev() {
-            if let &mut Action::LoadInput(ref mut i) = &mut self[id][step].action {
+            if let Action::LoadInput(ref mut i) = self[id][step].action {
                 match (*i).cmp(&input) {
                     Ordering::Less => (),
                     Ordering::Equal => self[id].remove_step(step),
@@ -109,15 +109,15 @@ impl<'a> Function<'a> {
             }
         }
         for block in self.blocks.iter_mut() {
-            match &mut block.terminator {
-                &mut Terminator::Goto(target, ref mut steps) => {
+            match block.terminator {
+                Terminator::Goto(target, ref mut steps) => {
                     if let Some(target) = target {
                         if target == id {
                             steps.remove(input);
                         }
                     }
                 }
-                &mut Terminator::Match(_, ref mut arms) => {
+                Terminator::Match(_, ref mut arms) => {
                     for &mut MatchArm {
                         target,
                         ref mut args,
@@ -131,7 +131,7 @@ impl<'a> Function<'a> {
                         }
                     }
                 }
-                &mut Terminator::MatchByte(_, ref mut arms) => {
+                Terminator::MatchByte(_, ref mut arms) => {
                     for &mut MatchArm {
                         target,
                         ref mut args,
