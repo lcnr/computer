@@ -8,10 +8,10 @@ fn invalid(code: &str) -> ! {
 fn hexdigit(digit: char, code: &str) -> u8 {
     if digit.is_ascii() {
         let digit = digit.to_ascii_lowercase() as u8;
-        if ('a' as u8..='f' as u8).contains(&digit) {
-            digit as u8 - 'a' as u8 + 10
-        } else if ('0' as u8..='9' as u8).contains(&digit) {
-            digit as u8 - '0' as u8
+        if (b'a'..=b'f').contains(&digit) {
+            digit as u8 - b'a' + 10
+        } else if (b'0'..=b'9').contains(&digit) {
+            digit as u8 - b'0'
         } else {
             invalid(code);
         }

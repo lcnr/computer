@@ -831,16 +831,12 @@ fn parse_binop<'a>(
         }
     }
 
-    match &next.item {
-        _ => {
-            iter.step_back(check_expr_terminator(
-                next,
-                &[Token::Binop(Binop::Add), Token::Dot, Token::Colon],
-                expecting_open_brace,
-            )?);
-            Ok(lhs)
-        }
-    }
+    iter.step_back(check_expr_terminator(
+        next,
+        &[Token::Binop(Binop::Add), Token::Dot, Token::Colon],
+        expecting_open_brace,
+    )?);
+    Ok(lhs)
 }
 
 fn parse_expression<'a>(
