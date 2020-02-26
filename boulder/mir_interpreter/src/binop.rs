@@ -2,9 +2,9 @@ use std::convert::TryFrom;
 
 use tindex::{TIndex, TSlice};
 
-use shared_id::{FunctionId, FALSE_TYPE_ID, TRUE_TYPE_ID};
+use shared_id::{BlockId, StepId, FunctionId, FALSE_TYPE_ID, TRUE_TYPE_ID};
 
-use mir::{binop::Binop, BlockId, Object, StepId, UnaryOperation};
+use mir::{binop::Binop, Object, UnaryOperation};
 
 use crate::{BoulderMirInterpreter, InterpretError};
 
@@ -276,7 +276,7 @@ impl<'a> BoulderMirInterpreter<'a> {
                         && (l == TRUE_TYPE_ID || l == FALSE_TYPE_ID)
                         && (r == TRUE_TYPE_ID || r == FALSE_TYPE_ID)
                     {
-                        Ok(self.to_bool((l == TRUE_TYPE_ID )^ (r == TRUE_TYPE_ID)))
+                        Ok(self.to_bool((l == TRUE_TYPE_ID) ^ (r == TRUE_TYPE_ID)))
                     } else {
                         Err(InterpretError::InvalidOperation(function, block, step))
                     }

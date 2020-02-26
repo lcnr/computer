@@ -1,6 +1,6 @@
 use tindex::{TSlice, TVec};
 
-use shared_id::{FunctionId, TypeId};
+use shared_id::{FunctionId, TypeId, StepId};
 
 use diagnostics::{CompileError, Meta};
 
@@ -297,7 +297,7 @@ impl<'a> Function<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>, TypeId> {
         let mut id = func.add_block();
         let start = &mut func[id];
 
-        let mut variables: TVec<VariableId, Option<mir::StepId>> =
+        let mut variables: TVec<VariableId, Option<StepId>> =
             std::iter::repeat(None).take(self.variables.len()).collect();
         for arg in self.arguments.iter().copied() {
             variables[arg] = Some(start.add_input(self.variables[arg].ty.item));

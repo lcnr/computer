@@ -6,11 +6,11 @@ use std::{
 
 use tindex::{bitset::TBitSet, TVec};
 
-use shared_id::{FunctionId, TypeId};
+use shared_id::{BlockId, FunctionId, StepId, TypeId};
 
 use crate::{
     traits::{UpdateFunctionIds, UpdateStepIds},
-    Action, Block, BlockId, Function, MatchArm, Mir, Step, StepId, Terminator, Type,
+    Action, Block, Function, MatchArm, Mir, Step, Terminator, Type,
 };
 
 mod enums;
@@ -24,7 +24,7 @@ fn get_or_insert_union(types: &mut TVec<TypeId, Type>, un: impl Iterator<Item = 
         .iter()
         .position(|ty| ty.is_union() && ty.expect_union() == &bitset)
     {
-        TypeId::from(ty)
+        TypeId(ty)
     } else {
         types.push(Type::Union(bitset))
     }
@@ -211,23 +211,18 @@ impl Block {
 
         inserted_steps
             .iter_mut()
-            .for_each(|s| s.shift_step_ids(StepId::from(0), start as isize));
+            .for_each(|s| s.shift_step_ids(StepId(0), start as isize));
         inserted_steps.iter_mut().for_each(|s| {
             s.shift_step_ids(
-                StepId::from(std::usize::MAX / 4),
+                StepId(std::usize::MAX / 4),
                 -((std::usize::MAX / 4 + start) as isize),
             )
         });
         self.steps[StepId(inserted_end)..].iter_mut().for_each(|s| {
-            s.shift_step_ids(
-                StepId::from(start),
-                inserted_len as isize - removed_len as isize,
-            )
+            s.shift_step_ids(StepId(start), inserted_len as isize - removed_len as isize)
         });
-        self.terminator.shift_step_ids(
-            StepId::from(start),
-            inserted_len as isize - removed_len as isize,
-        );
+        self.terminator
+            .shift_step_ids(StepId(start), inserted_len as isize - removed_len as isize);
         StepId(inserted_end)
     }
 

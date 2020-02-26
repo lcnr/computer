@@ -2,7 +2,9 @@ use std::convert::{identity, TryFrom};
 
 use tindex::{TSlice, TVec};
 
-use shared_id::{FunctionId, TypeId, BOOL_TYPE_ID, EMPTY_TYPE_ID, FALSE_TYPE_ID, TRUE_TYPE_ID};
+use shared_id::{
+    BlockId, FunctionId, StepId, TypeId, BOOL_TYPE_ID, EMPTY_TYPE_ID, FALSE_TYPE_ID, TRUE_TYPE_ID,
+};
 
 use diagnostics::CompileError;
 
@@ -17,21 +19,21 @@ use crate::{
 
 #[derive(Debug)]
 pub struct ExitScopeMeta {
-    origin: mir::BlockId,
-    expr: mir::StepId,
-    variables: TVec<VariableId, Option<mir::StepId>>,
+    origin: BlockId,
+    expr: StepId,
+    variables: TVec<VariableId, Option<StepId>>,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct Temporary {
-    step: mir::StepId,
+    step: StepId,
     ty: TypeId,
 }
 
 pub fn initialized_mir_block(
-    id: mir::BlockId,
+    id: BlockId,
     variables: &TSlice<VariableId, TypeId>,
-    var_lookup: &mut TSlice<VariableId, Option<mir::StepId>>,
+    var_lookup: &mut TSlice<VariableId, Option<StepId>>,
     temporaries: &mut [Temporary],
     func: &mut mir::Function,
 ) {
@@ -54,15 +56,15 @@ pub struct ToMirContext<'a, 'b> {
     pub types: &'b TSlice<TypeId, mir::Type>,
     pub variable_types: &'b TVec<VariableId, TypeId>,
     pub function_definitions: &'b TSlice<FunctionId, FunctionDefinition<'a, TypeId>>,
-    pub var_lookup: &'b mut TVec<VariableId, Option<mir::StepId>>,
-    pub scopes: &'b mut TVec<ScopeId, (mir::BlockId, TypeId, Vec<ExitScopeMeta>)>,
+    pub var_lookup: &'b mut TVec<VariableId, Option<StepId>>,
+    pub scopes: &'b mut TVec<ScopeId, (BlockId, TypeId, Vec<ExitScopeMeta>)>,
     pub temporaries: &'b mut Vec<Temporary>,
-    pub curr: &'b mut mir::BlockId,
+    pub curr: &'b mut BlockId,
     pub func: &'b mut mir::Function<'a>,
 }
 
 impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
-    pub fn into_mir<'b>(self, ctx: &mut ToMirContext<'a, 'b>) -> Result<mir::StepId, CompileError> {
+    pub fn into_mir<'b>(self, ctx: &mut ToMirContext<'a, 'b>) -> Result<StepId, CompileError> {
         #[cfg(feature = "profiler")]
         profile_scope!("into_mir()");
         match self {
@@ -350,7 +352,7 @@ fn match_into_mir<'a, 'b>(
     ty_id: TypeId,
     value: Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>>,
     match_arms: Vec<MatchArm<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>>>,
-) -> Result<mir::StepId, CompileError> {
+) -> Result<StepId, CompileError> {
     let value = value.into_mir(ctx)?;
 
     let old_block = *ctx.curr;
@@ -370,7 +372,7 @@ fn match_into_mir<'a, 'b>(
             ctx.func,
         );
 
-        let mut args: Vec<Option<mir::StepId>> = ctx
+        let mut args: Vec<Option<StepId>> = ctx
             .var_lookup
             .iter()
             .copied()
@@ -434,7 +436,7 @@ fn match_into_mir<'a, 'b>(
 
     for &(block, step, ref vars, ref temporaries) in arms_data.iter() {
         let block = &mut ctx.func[block];
-        let mut steps: Vec<mir::StepId> = vars
+        let mut steps: Vec<StepId> = vars
             .iter()
             .copied()
             .zip(initialized_variables.iter().copied())
@@ -455,7 +457,7 @@ fn loop_into_mir<'a, 'b>(
     ctx: &mut ToMirContext<'a, 'b>,
     ty: TypeId,
     content: Vec<Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>>>,
-) -> Result<mir::StepId, CompileError> {
+) -> Result<StepId, CompileError> {
     let block = ctx.func.add_block();
     ctx.func[*ctx.curr].add_terminator(Terminator::Goto(
         Some(block),
@@ -493,7 +495,7 @@ fn loop_into_mir<'a, 'b>(
     ));
 
     let (_, _, exits) = ctx.scopes.pop().unwrap();
-    *ctx.var_lookup = tindex::tvec![Some(mir::StepId::invalid()); ctx.var_lookup.len()];
+    *ctx.var_lookup = tindex::tvec![Some(StepId::invalid()); ctx.var_lookup.len()];
     for exit in exits.iter() {
         for (v, ex) in ctx.var_lookup.iter_mut().zip(&exit.variables) {
             *v = ex.and(*v);

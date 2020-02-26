@@ -6,9 +6,9 @@ extern crate thread_profiler;
 
 use tindex::TVec;
 
-use shared_id::{FunctionId, TypeId};
+use shared_id::{BlockId, StepId, FunctionId, TypeId};
 
-use mir::{Action, BlockId, Mir, Object, StepId, Terminator, Type};
+use mir::{Action, Mir, Object, Terminator, Type};
 
 mod binop;
 
@@ -65,7 +65,7 @@ impl<'a> BoulderMirInterpreter<'a> {
                 self.step_count += 1;
                 #[cfg(feature = "profiler")]
                 profile_scope!("execute_step");
-                let step_id = StepId::from(step_id);
+                let step_id = StepId(step_id);
                 steps.push(match &step.action {
                     &Action::LoadInput(idx) => {
                         if let Some(obj) = args.get(idx) {

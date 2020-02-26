@@ -2,11 +2,9 @@ use std::{iter, mem};
 
 use tindex::{TSlice, TVec};
 
-use shared_id::{FieldId, TypeId};
+use shared_id::{BlockId, FieldId, StepId, TypeId};
 
-use crate::{
-    traits::UpdateStepIds, Action, BlockId, Function, Mir, Object, Step, StepId, Terminator, Type,
-};
+use crate::{traits::UpdateStepIds, Action, Function, Mir, Object, Step, Terminator, Type};
 
 impl<'a> Mir<'a> {
     /// split all sum types into a union and a tag
@@ -139,7 +137,7 @@ impl<'a> Function<'a> {
                                 let mut self_steps = Vec::new();
                                 for (i, step) in arm.args.iter_mut().enumerate() {
                                     if *step == None {
-                                        self_steps.push(StepId::from(i));
+                                        self_steps.push(StepId(i));
                                         *step = Some(union_step);
                                     }
                                 }
@@ -149,7 +147,7 @@ impl<'a> Function<'a> {
                                     let block = self.add_block();
                                     self.blocks[block].terminator = Terminator::Goto(
                                         arm.target,
-                                        (0..arm.args.len()).map(StepId::from).collect(),
+                                        (0..arm.args.len()).map(StepId).collect(),
                                     );
                                     arm.target = Some(block);
                                     for step in arm.args.iter() {
@@ -208,7 +206,7 @@ impl<'a> Function<'a> {
                                 let mut self_steps = Vec::new();
                                 for (i, arm_step) in arm.args.iter_mut().enumerate() {
                                     if *arm_step == None {
-                                        self_steps.push(StepId::from(i));
+                                        self_steps.push(StepId(i));
                                         *arm_step = Some(step);
                                     }
                                 }
@@ -217,7 +215,7 @@ impl<'a> Function<'a> {
                                     let block = self.add_block();
                                     self.blocks[block].terminator = Terminator::Goto(
                                         arm.target,
-                                        (0..arm.args.len()).map(StepId::from).collect(),
+                                        (0..arm.args.len()).map(StepId).collect(),
                                     );
                                     arm.target = Some(block);
                                     for step in arm.args.iter() {
@@ -241,7 +239,7 @@ impl<'a> Function<'a> {
                             let mut self_steps = Vec::new();
                             for (i, step) in arm.args.iter_mut().enumerate() {
                                 if *step == None {
-                                    self_steps.push(StepId::from(i));
+                                    self_steps.push(StepId(i));
                                     *step = Some(union_step);
                                 }
                             }
@@ -250,7 +248,7 @@ impl<'a> Function<'a> {
                                 let block = self.add_block();
                                 self.blocks[block].terminator = Terminator::Goto(
                                     arm.target,
-                                    (0..arm.args.len()).map(StepId::from).collect(),
+                                    (0..arm.args.len()).map(StepId).collect(),
                                 );
                                 arm.target = Some(block);
                                 for step in arm.args.iter() {
@@ -278,7 +276,7 @@ impl<'a> Function<'a> {
                 }
             }
 
-            let mut step_id = StepId::from(0);
+            let mut step_id = StepId(0);
             while step_id.0 < self.blocks[block_id].steps.len() {
                 if let Some(ty) = replacements[self.blocks[block_id][step_id].ty] {
                     match &self.blocks[block_id][step_id].action {

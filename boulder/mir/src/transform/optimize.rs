@@ -2,11 +2,10 @@ use std::{iter, mem};
 
 use tindex::bitset::TBitSet;
 
-use shared_id::FunctionId;
+use shared_id::{BlockId, FunctionId, StepId};
 
 use crate::{
-    traits::UpdateStepIds, Action, Block, BlockId, Function, LangItemState, MatchArm, Mir, StepId,
-    Terminator, Type,
+    traits::UpdateStepIds, Action, Block, Function, LangItemState, MatchArm, Mir, Terminator, Type,
 };
 
 impl<'a> Mir<'a> {
@@ -19,7 +18,10 @@ impl<'a> Mir<'a> {
                 if let Terminator::Match(s, ref mut arms) = block.terminator {
                     if arms.len() == 1 {
                         let arm = arms.pop().unwrap();
-                        block.terminator = Terminator::Goto(arm.target, arm.args.into_iter().map(|t| t.unwrap_or(s)).collect());
+                        block.terminator = Terminator::Goto(
+                            arm.target,
+                            arm.args.into_iter().map(|t| t.unwrap_or(s)).collect(),
+                        );
                     }
                 }
             }
@@ -180,7 +182,7 @@ impl<'a> Mir<'a> {
                         func[id].terminator = removed.terminator;
                         func[id]
                             .steps
-                            .extend_from_slice(&removed.steps[StepId::from(glue.len())..]);
+                            .extend_from_slice(&removed.steps[StepId(glue.len())..]);
                         to_remove.add(block);
                     }
                 }
@@ -247,7 +249,7 @@ impl<'a> Mir<'a> {
 
                     for step in (func[block].input.len()..func[block].steps.len())
                         .rev()
-                        .map(StepId::from)
+                        .map(StepId)
                     {
                         if !used.get(step) {
                             func[block].remove_step(step);
@@ -256,7 +258,7 @@ impl<'a> Mir<'a> {
 
                     if block.0 != 0 {
                         for i in (0..func[block].input.len()).rev() {
-                            if !used.get(StepId::from(i)) {
+                            if !used.get(StepId(i)) {
                                 changing = true;
                                 func.remove_block_input(block, i);
                             }

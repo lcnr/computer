@@ -3,13 +3,11 @@ use std::{fmt, mem, ops::Drop};
 use tindex::TIndex;
 
 use shared_id::{
-    FunctionId, TypeId, EMPTY_TYPE_ID, U16_BYTES_TYPE_ID, U16_TYPE_ID, U32_BYTES_TYPE_ID,
+    FunctionId, StepId, TypeId, EMPTY_TYPE_ID, U16_BYTES_TYPE_ID, U16_TYPE_ID, U32_BYTES_TYPE_ID,
     U32_TYPE_ID, U8_TYPE_ID,
 };
 
-use crate::{
-    Action, Block, Function, MatchArm, Mir, Object, StepId, Terminator, Type, UnaryOperation,
-};
+use crate::{Action, Block, Function, MatchArm, Mir, Object, Terminator, Type, UnaryOperation};
 
 struct PanicDisplay<'a, 'b>(&'a str, &'b dyn fmt::Display);
 
@@ -56,7 +54,7 @@ impl<'a> Mir<'a> {
         let func = &self.functions[func];
         let block_panic = PanicDisplay("block: ", &block_id);
         for (step_id, step) in block.steps.iter().enumerate() {
-            let step_id = StepId::from(step_id);
+            let step_id = StepId(step_id);
             let step_panic = PanicDisplay("step: ", &step_id.0);
             match step.action {
                 Action::Extend(s) => {
@@ -162,9 +160,11 @@ impl<'a> Mir<'a> {
                                         && step.ty == U32_TYPE_ID
                             );
                         }
-                        UnaryOperation::Debug => if !e2b {
-                            assert_eq!(step.ty, EMPTY_TYPE_ID);
-                        },
+                        UnaryOperation::Debug => {
+                            if !e2b {
+                                assert_eq!(step.ty, EMPTY_TYPE_ID);
+                            }
+                        }
                     }
                 }
                 Action::Binop(kind, a, b) => {

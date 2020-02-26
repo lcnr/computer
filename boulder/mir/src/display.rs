@@ -2,11 +2,9 @@ use std::fmt::{Display, Formatter, Result};
 
 use tindex::TIndex;
 
-use shared_id::{FunctionId, TypeId};
+use shared_id::{FunctionId, StepId, TypeId};
 
-use crate::{
-    binop::Binop, Action, MatchArm, Mir, Object, StepId, Terminator, Type, UnaryOperation,
-};
+use crate::{binop::Binop, Action, MatchArm, Mir, Object, Terminator, Type, UnaryOperation};
 
 impl Display for UnaryOperation {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {

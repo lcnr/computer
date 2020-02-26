@@ -3,7 +3,7 @@ use std::fmt;
 use tindex::TIndex;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TypeId(usize);
+pub struct TypeId(pub usize);
 
 pub const EMPTY_TYPE_ID: TypeId = TypeId(0);
 pub const NEVER_TYPE_ID: TypeId = TypeId(1);
@@ -65,6 +65,52 @@ impl From<usize> for FieldId {
 }
 
 impl TIndex for FieldId {
+    fn as_index(&self) -> usize {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BlockId(pub usize);
+
+impl BlockId {
+    pub fn invalid() -> Self {
+        BlockId(std::usize::MAX)
+    }
+}
+
+impl From<usize> for BlockId {
+    fn from(v: usize) -> Self {
+        Self(v)
+    }
+}
+
+impl TIndex for BlockId {
+    fn as_index(&self) -> usize {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct StepId(pub usize);
+
+impl StepId {
+    pub fn invalid() -> Self {
+        StepId(std::usize::MAX)
+    }
+
+    pub fn replacement(n: usize) -> Self {
+        StepId(std::usize::MAX - n)
+    }
+}
+
+impl From<usize> for StepId {
+    fn from(v: usize) -> Self {
+        Self(v)
+    }
+}
+
+impl TIndex for StepId {
     fn as_index(&self) -> usize {
         self.0
     }

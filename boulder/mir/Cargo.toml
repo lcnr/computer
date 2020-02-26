@@ -9,12 +9,11 @@ edition = "2018"
 [dependencies]
 tindex = { git = "https://github.com/lcnr/tindex.git" }
 
-rock = { path = "../../rock" }
 shared_id = { path = "../shared_id" }
 thread_profiler = { version = "0.3.0", optional = true }
 
 [features]
-profiler = ["thread_profiler", "rock/profiler", "shared_id/profiler"]
+profiler = ["thread_profiler", "shared_id/profiler"]
 
 [lib]
 test = false

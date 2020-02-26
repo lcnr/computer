@@ -2,11 +2,11 @@ use std::{convert::TryInto, iter, mem};
 
 use tindex::{bitset::TBitSet, TSlice, TVec};
 
-use shared_id::{TypeId, BOOL_TYPE_ID, FALSE_TYPE_ID, TRUE_TYPE_ID, U8_TYPE_ID};
+use shared_id::{StepId, TypeId, BOOL_TYPE_ID, FALSE_TYPE_ID, TRUE_TYPE_ID, U8_TYPE_ID};
 
 use crate::{
-    binop::Binop, traits::UpdateTypeIds, Action, Function, MatchArm, Mir, Object, Step, StepId,
-    Terminator, Type, UnaryOperation,
+    binop::Binop, traits::UpdateTypeIds, Action, Function, MatchArm, Mir, Object, Step, Terminator,
+    Type, UnaryOperation,
 };
 
 impl<'a> Mir<'a> {

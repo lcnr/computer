@@ -1,8 +1,8 @@
 use tindex::TIndex;
 
-use shared_id::{FunctionId, TypeId};
+use shared_id::{FunctionId, StepId, TypeId};
 
-use crate::{ctx::Context, Action, Block, Function, Step, StepId, Terminator, Type};
+use crate::{ctx::Context, Action, Block, Function, Step, Terminator, Type};
 
 pub trait UpdateStepIds {
     fn update_step_ids(&mut self, f: &mut dyn FnMut(&mut StepId));

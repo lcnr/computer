@@ -1,6 +1,6 @@
-use shared_id::{FunctionId, BOOL_TYPE_ID, U8_TYPE_ID};
+use shared_id::{BlockId, FunctionId, StepId, BOOL_TYPE_ID, U8_TYPE_ID};
 
-use crate::{Action, BlockId, Mir, Step, StepId, Type};
+use crate::{Action, Mir, Step, Type};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Binop {

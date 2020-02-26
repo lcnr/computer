@@ -3,13 +3,11 @@ use std::iter;
 use tindex::TVec;
 
 use shared_id::{
-    BOOL_TYPE_ID, U16_BYTES_TYPE_ID, U16_TYPE_ID, U32_BYTES_TYPE_ID, U32_TYPE_ID, U8_TYPE_ID,
+    BlockId, StepId, BOOL_TYPE_ID, U16_BYTES_TYPE_ID, U16_TYPE_ID, U32_BYTES_TYPE_ID, U32_TYPE_ID,
+    U8_TYPE_ID,
 };
 
-use crate::{
-    Action, Binop, BlockId, Context, FieldId, Function, Mir, Object, Step, StepId, Type,
-    UnaryOperation,
-};
+use crate::{Action, Binop, Context, FieldId, Function, Mir, Object, Step, Type, UnaryOperation};
 
 impl<'a> Mir<'a> {
     /// reduce all `u32` and `u16` to `u8`
@@ -276,7 +274,7 @@ impl<'a> Function<'a> {
         let mut block_id = BlockId::from(0);
         while block_id.0 < self.blocks.len() {
             let block = &mut self.blocks[block_id];
-            let mut s_id = StepId::from(0);
+            let mut s_id = StepId(0);
             while s_id.0 < block.steps.len() {
                 let steps = &mut block.steps;
                 match steps[s_id].action {

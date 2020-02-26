@@ -19,7 +19,6 @@ use shared_id::{FieldId, FunctionId, TypeId};
 pub mod binop;
 pub mod ctx;
 mod display;
-mod index;
 pub mod traits;
 pub mod transform;
 pub mod validate;
@@ -101,40 +100,18 @@ pub enum Object {
     Undefined,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct StepId(usize);
-
-impl StepId {
-    pub fn invalid() -> Self {
-        StepId(std::usize::MAX)
-    }
-
-    pub fn replacement(n: usize) -> Self {
-        StepId(std::usize::MAX - n)
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct BlockId(usize);
-
-impl BlockId {
-    pub fn invalid() -> Self {
-        BlockId(std::usize::MAX)
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MatchArm<T> {
     pub pat: T,
-    pub target: Option<BlockId>,
-    pub args: Vec<Option<StepId>>,
+    pub target: Option<shared_id::BlockId>,
+    pub args: Vec<Option<shared_id::StepId>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Terminator {
-    Goto(Option<BlockId>, Vec<StepId>),
-    Match(StepId, Vec<MatchArm<TypeId>>),
-    MatchByte(StepId, Vec<MatchArm<u8>>),
+    Goto(Option<shared_id::BlockId>, Vec<shared_id::StepId>),
+    Match(shared_id::StepId, Vec<MatchArm<TypeId>>),
+    MatchByte(shared_id::StepId, Vec<MatchArm<u8>>),
 }
 
 impl Terminator {
@@ -142,7 +119,7 @@ impl Terminator {
         Terminator::Goto(None, Vec::new())
     }
 
-    pub fn used_blocks(&self, used: &mut TBitSet<BlockId>) {
+    pub fn used_blocks(&self, used: &mut TBitSet<shared_id::BlockId>) {
         match self {
             Terminator::Goto(None, _) => (),
             &Terminator::Goto(Some(block), _) => used.add(block),
@@ -159,7 +136,7 @@ impl Terminator {
         }
     }
 
-    pub fn used_steps(&self, used: &mut TBitSet<StepId>) {
+    pub fn used_steps(&self, used: &mut TBitSet<shared_id::StepId>) {
         match self {
             Terminator::Goto(_, steps) => steps.iter().for_each(|&s| used.add(s)),
             &Terminator::Match(step, ref arms) => {
@@ -203,17 +180,17 @@ pub enum LangItemState {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
-    Extend(StepId),
-    Reduce(StepId),
+    Extend(shared_id::StepId),
+    Reduce(shared_id::StepId),
     LoadInput(usize),
     LoadConstant(Object),
-    InitializeStruct(TVec<FieldId, StepId>),
-    InitializeUnion(StepId),
-    CallFunction(FunctionId, Vec<StepId>),
-    StructFieldAccess(StepId, FieldId),
-    UnionFieldAccess(StepId),
-    UnaryOperation(UnaryOperation, StepId),
-    Binop(Binop, StepId, StepId),
+    InitializeStruct(TVec<FieldId, shared_id::StepId>),
+    InitializeUnion(shared_id::StepId),
+    CallFunction(FunctionId, Vec<shared_id::StepId>),
+    StructFieldAccess(shared_id::StepId, FieldId),
+    UnionFieldAccess(shared_id::StepId),
+    UnaryOperation(UnaryOperation, shared_id::StepId),
+    Binop(Binop, shared_id::StepId, shared_id::StepId),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -227,7 +204,7 @@ impl Step {
         Self { ty, action }
     }
 
-    pub fn used_steps(&self, used: &mut TBitSet<StepId>) {
+    pub fn used_steps(&self, used: &mut TBitSet<shared_id::StepId>) {
         match &self.action {
             &Action::Extend(id)
             | &Action::Reduce(id)
@@ -250,20 +227,20 @@ impl Step {
 pub struct Function<'a> {
     pub name: &'a str,
     pub ctx: FunctionContext,
-    pub blocks: TVec<BlockId, Block>,
+    pub blocks: TVec<shared_id::BlockId, Block>,
     pub ret: TypeId,
 }
 
-impl<'a> Index<BlockId> for Function<'a> {
+impl<'a> Index<shared_id::BlockId> for Function<'a> {
     type Output = Block;
 
-    fn index(&self, id: BlockId) -> &Self::Output {
+    fn index(&self, id: shared_id::BlockId) -> &Self::Output {
         &self.blocks[id]
     }
 }
 
-impl<'a> IndexMut<BlockId> for Function<'a> {
-    fn index_mut(&mut self, id: BlockId) -> &mut Self::Output {
+impl<'a> IndexMut<shared_id::BlockId> for Function<'a> {
+    fn index_mut(&mut self, id: shared_id::BlockId) -> &mut Self::Output {
         &mut self.blocks[id]
     }
 }
@@ -278,11 +255,11 @@ impl<'a> Function<'a> {
         }
     }
 
-    pub fn add_block(&mut self) -> BlockId {
+    pub fn add_block(&mut self) -> shared_id::BlockId {
         self.blocks.push(Block::new())
     }
 
-    pub fn clone_block(&mut self, block: BlockId) -> BlockId {
+    pub fn clone_block(&mut self, block: shared_id::BlockId) -> shared_id::BlockId {
         let block = self[block].clone();
         self.blocks.push(block)
     }
@@ -307,20 +284,20 @@ impl<'a> Function<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Block {
     pub input: Vec<TypeId>,
-    pub steps: TVec<StepId, Step>,
+    pub steps: TVec<shared_id::StepId, Step>,
     pub terminator: Terminator,
 }
 
-impl Index<StepId> for Block {
+impl Index<shared_id::StepId> for Block {
     type Output = Step;
 
-    fn index(&self, id: StepId) -> &Self::Output {
+    fn index(&self, id: shared_id::StepId) -> &Self::Output {
         &self.steps[id]
     }
 }
 
-impl IndexMut<StepId> for Block {
-    fn index_mut(&mut self, id: StepId) -> &mut Self::Output {
+impl IndexMut<shared_id::StepId> for Block {
+    fn index_mut(&mut self, id: shared_id::StepId) -> &mut Self::Output {
         &mut self.steps[id]
     }
 }
@@ -334,12 +311,12 @@ impl Block {
         }
     }
 
-    pub fn add_step(&mut self, ty: TypeId, action: Action) -> StepId {
+    pub fn add_step(&mut self, ty: TypeId, action: Action) -> shared_id::StepId {
         let step = Step::new(ty, action);
         self.steps.push(step)
     }
 
-    pub fn add_input(&mut self, ty: TypeId) -> StepId {
+    pub fn add_input(&mut self, ty: TypeId) -> shared_id::StepId {
         let id = self.add_step(ty, Action::LoadInput(self.input.len()));
         self.input.push(ty);
         id
