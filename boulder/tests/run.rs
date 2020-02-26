@@ -115,8 +115,11 @@ fn test_lir(lir: &Lir, stage: &str) {
                 }
             }
             Err(err) => panic!(
-                "interpreter during unit test `{}` at stage `{}`: {:?}",
-                test.name, stage, err
+                "interpreter during unit test `{}` at stage `{}`: {:?}: {:?}",
+                test.name,
+                stage,
+                bli.last_step(),
+                err
             ),
         }
     }

@@ -141,6 +141,7 @@ fn convert_block(
             mir::Action::StructFieldAccess(step, field) => {
                 let step_offset = step_offsets[step] + field_offsets[mir.steps[step].ty][field];
                 *step_offsets.last_mut().unwrap() = step_offset;
+                memory_len -= step_size;
             }
             mir::Action::UnaryOperation(op, id) => match op {
                 mir::UnaryOperation::Invert => {

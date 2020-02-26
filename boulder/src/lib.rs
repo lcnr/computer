@@ -68,5 +68,15 @@ pub fn compile<'a>(
     mir.validate(true);
     core_optimizations(&mut mir, true, LangItemState::ToBytesResolved);
     let lir = mir2lir::convert(mir);
+
+    let mut bli = lir_interpreter::BoulderLirInterpreter::new(&lir);
+    for f in lir
+        .functions
+        .index_iter()
+        .filter(|&f| lir.functions[f].ctx.test)
+    {
+        let ret = bli.execute_function(f, &[]);
+        println!("{}: {:?}: {:?}", f, bli.last_step(), ret);
+    }
     Ok(lir)
 }

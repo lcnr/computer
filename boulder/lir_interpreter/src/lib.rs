@@ -4,7 +4,7 @@ extern crate thread_profiler;
 
 use tindex::tvec;
 
-use shared_id::{BlockId, FunctionId};
+use shared_id::{BlockId, FunctionId, StepId};
 
 use lir::{Action, Binop, Lir, Terminator};
 
@@ -35,6 +35,9 @@ impl Memory {
 pub struct BoulderLirInterpreter<'a> {
     lir: &'a Lir<'a>,
     step_count: usize,
+    function: FunctionId,
+    block: BlockId,
+    step: StepId,
 }
 
 impl<'a> BoulderLirInterpreter<'a> {
@@ -42,7 +45,14 @@ impl<'a> BoulderLirInterpreter<'a> {
         Self {
             lir,
             step_count: 0,
+            function: FunctionId(0),
+            block: BlockId(0),
+            step: StepId(0),
         }
+    }
+
+    pub fn last_step(&self) -> (FunctionId, BlockId, StepId) {
+        (self.function, self.block, self.step)
     }
 
     pub fn step_count(&self) -> usize {
@@ -60,10 +70,13 @@ impl<'a> BoulderLirInterpreter<'a> {
     ) -> Result<Vec<Memory>, Error> {
         #[cfg(feature = "profiler")]
         profile_scope!("execute_function");
+        self.function = id;
+
         let mut args_storage: Vec<_>;
         let mut args = args;
 
         let mut block_id = BlockId::from(0);
+        self.block = block_id;
         loop {
             #[cfg(feature = "profiler")]
             profile_scope!("execute_block");
@@ -75,6 +88,7 @@ impl<'a> BoulderLirInterpreter<'a> {
 
             let mut memory = tvec![Memory::Undefined; block.memory_len];
             for step_id in block.steps.index_iter() {
+                self.step = step_id;
                 let step = &block.steps[step_id];
                 #[cfg(feature = "profiler")]
                 profile_scope!("execute_step");
@@ -91,8 +105,7 @@ impl<'a> BoulderLirInterpreter<'a> {
                     Action::LoadInput(input, o) => memory[o] = args[input],
                     Action::LoadConstant(v, o) => memory[o] = Memory::Byte(v),
                     Action::Binop { op, l, r, out } => {
-                        memory[out] =
-                            Memory::Byte(self.binop(op, memory[l], memory[r])?)
+                        memory[out] = Memory::Byte(self.binop(op, memory[l], memory[r])?)
                     }
                     Action::FunctionCall {
                         id,
@@ -100,7 +113,11 @@ impl<'a> BoulderLirInterpreter<'a> {
                         ref ret,
                     } => {
                         let args: Vec<_> = args.iter().map(|&l| memory[l]).collect();
+                        let func = self.function;
                         let values = self.execute_function(id, &args)?;
+                        self.function = func;
+                        self.block = block_id;
+                        self.step = step_id;
                         for (&adr, v) in ret.iter().zip(values) {
                             memory[adr] = v;
                         }
@@ -116,6 +133,7 @@ impl<'a> BoulderLirInterpreter<'a> {
                     args_storage = input_steps.iter().map(|&id| memory[id]).collect();
                     args = &args_storage;
                     block_id = block;
+                    self.block = block_id;
                 }
                 Terminator::Match(expr, ref arms) => {
                     let value = memory[expr].valid()?;
@@ -123,14 +141,12 @@ impl<'a> BoulderLirInterpreter<'a> {
                     for arm in arms.iter() {
                         if value == arm.pat {
                             match arm.target {
-                                None => {
-                                    return Ok(arm.args.iter().map(|&id| memory[id]).collect())
-                                }
+                                None => return Ok(arm.args.iter().map(|&id| memory[id]).collect()),
                                 Some(block) => {
-                                    args_storage =
-                                        arm.args.iter().map(|&id| memory[id]).collect();
+                                    args_storage = arm.args.iter().map(|&id| memory[id]).collect();
                                     args = &args_storage;
                                     block_id = block;
+                                    self.block = block
                                 }
                             }
                         }
@@ -155,8 +171,8 @@ impl<'a> BoulderLirInterpreter<'a> {
         let inner = |op, l: u8, r: u8| match op {
             Binop::Add => l.checked_add(r),
             Binop::Sub => l.checked_sub(r),
-            Binop::Shl => l.checked_shl(r.into()),
-            Binop::Shr => l.checked_shr(r.into()),
+            Binop::Shl => l.checked_shl(r.into()).or(Some(0)),
+            Binop::Shr => l.checked_shr(r.into()).or(Some(0)),
             Binop::Eq => self.to_bool(l == r),
             Binop::Neq => self.to_bool(l != r),
             Binop::Gt => self.to_bool(l > r),

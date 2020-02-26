@@ -41,6 +41,7 @@ fn overflowing_add(l: u8, r: u8, carry_in: Bool) -> OverflowingByte {
     }
 }
 
+@hidden
 @lang_item(add32)
 fn add32(l: u32, r: u32) -> u32 {
     let l_bytes: u32Bytes = to_bytes(l);

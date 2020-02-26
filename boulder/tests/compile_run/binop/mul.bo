@@ -1,9 +1,8 @@
-# fn mul() -> 102
+# fn mul() -> 99
 fn mul() -> u32 {
-    9 * 11 + 3
+    9 * 11
 }
-
 @test
 fn test() -> Bool {
-    mul() == 102
+    mul() == 99
 }
