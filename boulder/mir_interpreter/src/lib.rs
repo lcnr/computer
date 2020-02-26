@@ -196,7 +196,7 @@ impl<'a> BoulderMirInterpreter<'a> {
                     curr_block = block;
                 }
                 &Terminator::Match(expr, ref arms) => {
-                    if let &Object::Variant(ty, ref obj) = &steps[expr] {
+                    if let Object::Variant(ty, ref obj) = steps[expr] {
                         for arm in arms.iter() {
                             if Type::is_subtype(ty, arm.pat, &self.mir.types) {
                                 args_storage = arm
@@ -253,7 +253,7 @@ impl<'a> BoulderMirInterpreter<'a> {
                     panic!("unexpected_match: {}:{:?}:{:?}", id, curr_block, expr);
                 }
                 &Terminator::MatchByte(expr, ref arms) => {
-                    if let &Object::U8(v) = &steps[expr] {
+                    if let Object::U8(v) = steps[expr] {
                         if let Some(arm) = arms.iter().find(|arm| v == arm.pat) {
                             args_storage = arm
                                 .args

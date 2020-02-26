@@ -207,6 +207,7 @@ fn main() -> Result<(), TestFailure> {
                 test_mir(&mir, true, "enum_to_byte");
 
                 let lir = mir2lir::convert(mir);
+                lir.validate();
                 test_lir(&lir, "mir2lir");
             })) {
                 Ok(()) => (),

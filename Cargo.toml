@@ -17,3 +17,6 @@ members = [
     "remu",
     "mirco",
 ]
+
+[profile.test]
+opt-level = 1

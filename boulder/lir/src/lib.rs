@@ -3,6 +3,7 @@ use tindex::TVec;
 use shared_id::{BlockId, FunctionId, LocationId, StepId};
 
 mod display;
+mod validate;
 
 /// FIXME: reduce restrictions of binops
 /// e.g. 0 & invalid == 0
@@ -97,6 +98,12 @@ pub struct Function<'a> {
     pub ctx: FunctionContext,
     pub blocks: TVec<BlockId, Block>,
     pub return_length: usize,
+}
+
+impl<'a> Function<'a> {
+    pub fn input_len(&self) -> usize {
+        self.blocks[BlockId(0)].input_len
+    }
 }
 
 #[derive(Debug, Clone)]

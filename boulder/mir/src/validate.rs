@@ -1,7 +1,5 @@
 use std::{fmt, mem, ops::Drop};
 
-use tindex::TIndex;
-
 use shared_id::{
     FunctionId, StepId, TypeId, EMPTY_TYPE_ID, U16_BYTES_TYPE_ID, U16_TYPE_ID, U32_BYTES_TYPE_ID,
     U32_TYPE_ID, U8_TYPE_ID,
@@ -22,12 +20,12 @@ impl<'a> Mir<'a> {
     pub fn validate(&self, e2b: bool) {
         #[cfg(feature = "profiler")]
         profile_scope!("validate");
-        for ty in 0..self.types.len() {
-            self.validate_type(ty.into());
+        for ty in self.types.index_iter() {
+            self.validate_type(ty);
         }
 
-        for func in 0..self.functions.len() {
-            self.validate_function(func.into(), e2b);
+        for func in self.functions.index_iter() {
+            self.validate_function(func, e2b);
         }
     }
 
@@ -39,8 +37,7 @@ impl<'a> Mir<'a> {
         #[cfg(feature = "profiler")]
         profile_scope!("validate_function");
         let hir_panic = PanicDisplay("\n", self);
-        let func_panic = func.as_index();
-        let func_panic = PanicDisplay("function: ", &func_panic);
+        let func_panic = PanicDisplay("function: ", &func);
 
         for (block_id, block) in self[func].blocks.iter().enumerate() {
             self.validate_block(func, block_id, block, e2b)
@@ -55,7 +52,7 @@ impl<'a> Mir<'a> {
         let block_panic = PanicDisplay("block: ", &block_id);
         for (step_id, step) in block.steps.iter().enumerate() {
             let step_id = StepId(step_id);
-            let step_panic = PanicDisplay("step: ", &step_id.0);
+            let step_panic = PanicDisplay("step: ", &step_id);
             match step.action {
                 Action::Extend(s) => {
                     assert!(!e2b);
