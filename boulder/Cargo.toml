@@ -18,7 +18,7 @@ profiler = ["thread_profiler", "diagnostics/profiler", "parse/profiler", "mir/pr
 
 [dev-dependencies]
 shared_id = { path = "shared_id"}
-walkdir = "2.2.9"
+walkdir = "2.3.1"
 
 [[bin]]
 name = "boulder"
