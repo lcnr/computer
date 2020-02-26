@@ -60,7 +60,7 @@ impl<'a> Function<'a> {
         replacements: &TSlice<TypeId, u8>,
     ) {
         for block in self.blocks.iter_mut() {
-            for step_id in (0..block.steps.len()).map(StepId).rev() {
+            for step_id in block.steps.index_iter().rev() {
                 let step = &mut block.steps[step_id];
                 match step.action {
                     Action::LoadConstant(ref mut obj) => {

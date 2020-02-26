@@ -100,7 +100,7 @@ impl<'a> Mir<'a> {
             mem::swap(&mut used, &mut new_used);
         }
 
-        for i in (0..self.functions.len()).map(FunctionId::from).rev() {
+        for i in self.functions.index_iter().rev() {
             if !used.get(i) {
                 self.remove_function(i);
             }
