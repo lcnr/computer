@@ -11,6 +11,7 @@ members = [
     "boulder/parse",
     "boulder/hir",
     "boulder/mir",
+    "boulder/mir2lir",
     "boulder/lir",
     "remu",
     "mirco",

@@ -8,6 +8,8 @@ use diagnostics::CompileError;
 
 use mir::{LangItemState, Mir};
 
+use lir::Lir;
+
 pub fn compile_to_mir<'a>(
     ctx: &'a GlobalCtx,
     src: &'a str,
@@ -49,7 +51,7 @@ pub fn compile<'a>(
     ctx: &'a GlobalCtx,
     src: &'a str,
     file: &'a str,
-) -> Result<Mir<'a>, CompileError> {
+) -> Result<Lir<'a>, CompileError> {
     #[cfg(feature = "profiler")]
     profile_scope!("compile");
     let mut mir = compile_to_mir(ctx, src, file)?;
@@ -65,5 +67,6 @@ pub fn compile<'a>(
     mir.enum_to_byte();
     mir.validate(true);
     core_optimizations(&mut mir, true, LangItemState::ToBytesResolved);
-    Ok(mir)
+    let lir = mir2lir::convert(mir);
+    Ok(lir)
 }

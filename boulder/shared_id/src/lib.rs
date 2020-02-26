@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, ops::Add};
 
 use tindex::TIndex;
 
@@ -42,7 +42,7 @@ macro_rules! t {
     }
 }
 
-t!(TypeId: "%", FunctionId: "#", FieldId, BlockId, StepId, LocationId);
+t!(TypeId: "%", FunctionId: "#", FieldId, BlockId, StepId, LocationId: "@");
 
 impl BlockId {
     pub fn invalid() -> Self {
@@ -57,5 +57,21 @@ impl StepId {
 
     pub fn replacement(n: usize) -> Self {
         StepId(std::usize::MAX - n)
+    }
+}
+
+impl Add<usize> for StepId {
+    type Output = Self;
+
+    fn add(self, other: usize) -> Self {
+        StepId(self.0 + other)
+    }
+}
+
+impl Add<usize> for LocationId {
+    type Output = Self;
+
+    fn add(self, other: usize) -> Self {
+        LocationId(self.0 + other)
     }
 }

@@ -168,7 +168,6 @@ impl<'a> Display for Mir<'a> {
                             }
                             writeln!(f, ")")
                         }
-
                         Action::StructFieldAccess(s, a) => writeln!(f, "${}.{}", s.0, a.as_index()),
                         Action::UnionFieldAccess(s) => writeln!(f, "${} as {}", s.0, step.ty),
                         Action::UnaryOperation(kind, expr) => writeln!(f, "{} ${}", kind, expr.0),

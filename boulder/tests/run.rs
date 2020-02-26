@@ -166,6 +166,8 @@ fn compile_run() -> Result<(), TestFailure> {
                 mir.enum_to_byte();
                 mir.validate(true);
                 test_mir(&mir, true, "enum_to_byte");
+
+                mir2lir::convert(mir);
             })) {
                 Ok(()) => (),
                 Err(_) => {

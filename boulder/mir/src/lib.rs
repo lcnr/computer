@@ -41,6 +41,21 @@ pub enum Type {
 }
 
 impl Type {
+    pub fn size(&self, types: &TSlice<TypeId, Type>) -> usize {
+        match self {
+            Type::Unit => 0,
+            Type::Uninhabited => 0,
+            Type::U8 => 1,
+            Type::Struct(fields) => fields.iter().map(|&f| types[f].size(types)).sum(),
+            Type::Union(fields) => fields
+                .iter()
+                .map(|f| types[f].size(types))
+                .max()
+                .expect("empty union"),
+            Type::U16 | Type::U32 | Type::Sum(_) => unreachable!(),
+        }
+    }
+
     pub fn expect_sum(&self) -> &TBitSet<TypeId> {
         if let Self::Sum(options) = self {
             options
