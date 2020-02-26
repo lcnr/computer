@@ -42,7 +42,7 @@ macro_rules! t {
     }
 }
 
-t!(TypeId: "%", FunctionId: "#", FieldId, BlockId, StepId, LocationId: "@");
+t!(TypeId: '%', FunctionId: '#', FieldId, BlockId: '~', StepId: '$', LocationId: '@');
 
 impl BlockId {
     pub fn invalid() -> Self {

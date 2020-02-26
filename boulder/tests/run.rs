@@ -22,6 +22,10 @@ use shared_id::{FunctionId, TRUE_TYPE_ID};
 
 use mir::{LangItemState, Mir, Object};
 
+use lir::Lir;
+
+use lir_interpreter::Memory;
+
 struct OutputShim {
     inner: Arc<Mutex<String>>,
 }
@@ -89,11 +93,43 @@ fn test_mir(mir: &Mir, e2b: bool, stage: &str) {
     }
 }
 
+fn test_lir(lir: &Lir, stage: &str) {
+    #[cfg(feature = "profiler")]
+    profile_scope!("test_mir");
+    let mut bli = lir_interpreter::BoulderLirInterpreter::new(lir);
+    let mut check_count = 0;
+    for (id, test) in lir
+        .functions
+        .iter()
+        .enumerate()
+        .filter(|(_, func)| func.ctx.test)
+    {
+        check_count += 1;
+        match bli.execute_function(FunctionId::from(id), &[]) {
+            Ok(v) => {
+                if v.as_slice() != &[Memory::Byte(lir.ctx.true_replacement)] as &[_] {
+                    panic!(
+                        "unit test `{}` failed at stage `{}`: {:?}",
+                        test.name, stage, v
+                    )
+                }
+            }
+            Err(err) => panic!(
+                "interpreter during unit test `{}` at stage `{}`: {:?}",
+                test.name, stage, err
+            ),
+        }
+    }
+
+    if check_count == 0 && !lir.functions.iter().any(|f| f.ctx.export) {
+        panic!("did not check test any function at stage `{}`", stage)
+    }
+}
+
 #[derive(Debug)]
 struct TestFailure;
 
-#[test]
-fn compile_run() -> Result<(), TestFailure> {
+fn main() -> Result<(), TestFailure> {
     #[cfg(feature = "thread_profiler")]
     thread_profiler::register_thread_with_profiler();
     let mut count = 0;
@@ -167,7 +203,8 @@ fn compile_run() -> Result<(), TestFailure> {
                 mir.validate(true);
                 test_mir(&mir, true, "enum_to_byte");
 
-                mir2lir::convert(mir);
+                let lir = mir2lir::convert(mir);
+                test_lir(&lir, "mir2lir");
             })) {
                 Ok(()) => (),
                 Err(_) => {

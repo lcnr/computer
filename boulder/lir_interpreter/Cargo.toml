@@ -1,20 +1,17 @@
 [package]
-name = "lir"
+name = "lir_interpreter"
 version = "0.1.0"
-authors = ["lcnr/Bastian Kauschke <bastian_kauschke@hotmail.de>"]
+authors = ["Bastian Kauschke <bastian_kauschke@hotmail.de>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-thread_profiler = { version = "0.3.0", optional = true }
 tindex = { git = "https://github.com/lcnr/tindex.git" }
+lir = { path = "../lir" }
 shared_id = { path = "../shared_id" }
 
-[features]
-profiler = ["thread_profiler", "shared_id/profiler"]
+thread_profiler = { version = "0.3.0", optional = true }
 
-[lib]
-test = false
-doctest = false
-bench = false
+[features]
+profiler = ["thread_profiler", "shared_id/profiler", "lir/profiler"]

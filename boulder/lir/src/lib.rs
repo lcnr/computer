@@ -4,34 +4,54 @@ use shared_id::{BlockId, FunctionId, LocationId, StepId};
 
 mod display;
 
+/// FIXME: reduce restrictions of binops
+/// e.g. 0 & invalid == 0
 #[derive(Debug, Clone, Copy)]
 pub enum Binop {
+    /// both arguments must be valid
     Add,
+    /// both arguments must be valid
     Sub,
+    /// both arguments must be valid
     Shl,
+    /// both arguments must be valid
     Shr,
+    /// both arguments must be valid
     Eq,
+    /// both arguments must be valid
     Neq,
+    /// both arguments must be valid
     Gt,
+    /// both arguments must be valid
     Gte,
+    /// both arguments must be valid
     BitOr,
+    /// both arguments must be valid
     BitAnd,
+    /// both arguments must be valid
     BitXor,
 }
 
 #[derive(Debug, Clone)]
 pub enum Action {
+    /// input must be a valid byte.
     Invert(LocationId, LocationId),
+    /// input may not be a valid byte.
     Move(LocationId, LocationId),
+    /// input may not be a valid byte.
     Debug(LocationId),
+    /// input may not be a valid byte.
     LoadInput(usize, LocationId),
+    /// input must be a valid byte.
     LoadConstant(u8, LocationId),
+    /// see binop docs for soundness constraints.
     Binop {
         op: Binop,
         l: LocationId,
         r: LocationId,
         out: LocationId,
     },
+    /// args and ret may both not be valid bytes.
     FunctionCall {
         id: FunctionId,
         args: Vec<LocationId>,
@@ -53,7 +73,14 @@ pub enum Terminator {
 }
 
 #[derive(Debug, Clone)]
+pub struct Context {
+    pub true_replacement: u8,
+    pub false_replacement: u8,
+}
+
+#[derive(Debug, Clone)]
 pub struct Lir<'a> {
+    pub ctx: Context,
     pub functions: TVec<FunctionId, Function<'a>>,
 }
 

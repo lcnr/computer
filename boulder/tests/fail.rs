@@ -38,8 +38,7 @@ impl Write for OutputShim {
 #[derive(Debug)]
 struct TestFailure;
 
-#[test]
-fn compile_fail() -> Result<(), TestFailure> {
+fn main() -> Result<(), TestFailure> {
     #[cfg(feature = "thread_profiler")]
     thread_profiler::register_thread_with_profiler();
     let mut count = 0;

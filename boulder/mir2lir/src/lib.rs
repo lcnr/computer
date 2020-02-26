@@ -13,6 +13,10 @@ pub fn convert(mir: Mir) -> Lir {
     #[cfg(feature = "profiler")]
     profile_scope!("convert");
     let mut lir = Lir {
+        ctx: lir::Context {
+            true_replacement: mir.ctx.true_replacement,
+            false_replacement: mir.ctx.false_replacement,
+        },
         functions: TVec::new(),
     };
 

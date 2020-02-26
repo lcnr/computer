@@ -141,37 +141,37 @@ impl<'a> Display for Mir<'a> {
                 for (i, step) in block.steps.iter().enumerate() {
                     write!(f, "    ${}: {} := ", i, step.ty)?;
                     match &step.action {
-                        Action::Extend(id) => writeln!(f, "extend ${}", id.0),
-                        Action::Reduce(id) => writeln!(f, "reduce ${}", id.0),
+                        Action::Extend(id) => writeln!(f, "extend {}", id),
+                        Action::Reduce(id) => writeln!(f, "reduce {}", id),
                         Action::LoadConstant(obj) => writeln!(f, "load {}", obj),
                         Action::LoadInput(i) => writeln!(f, "load !{}", i),
                         Action::InitializeStruct(fields) => {
                             write!(f, "init struct(")?;
                             if let Some((last, start)) = fields.split_last() {
                                 for arg in start.iter() {
-                                    write!(f, "${}, ", arg.0)?;
+                                    write!(f, "{}, ", arg)?;
                                 }
-                                write!(f, "${}", last.0)?;
+                                write!(f, "{}", last)?;
                             }
                             writeln!(f, ")")
                         }
                         &Action::InitializeUnion(id) => {
-                            writeln!(f, "init union({}: ${})", block[id].ty, id.0)
+                            writeln!(f, "init union({}: {})", block[id].ty, id)
                         }
                         Action::CallFunction(i, args) => {
                             write!(f, "call {}(", i)?;
                             if let Some((last, start)) = args.split_last() {
                                 for arg in start.iter() {
-                                    write!(f, "${}, ", arg.0)?;
+                                    write!(f, "{}, ", arg)?;
                                 }
-                                write!(f, "${}", last.0)?;
+                                write!(f, "{}", last)?;
                             }
                             writeln!(f, ")")
                         }
-                        Action::StructFieldAccess(s, a) => writeln!(f, "${}.{}", s.0, a.as_index()),
-                        Action::UnionFieldAccess(s) => writeln!(f, "${} as {}", s.0, step.ty),
-                        Action::UnaryOperation(kind, expr) => writeln!(f, "{} ${}", kind, expr.0),
-                        Action::Binop(kind, a, b) => writeln!(f, "{} ${} ${}", kind, a.0, b.0),
+                        Action::StructFieldAccess(s, a) => writeln!(f, "{}.{}", s, a.as_index()),
+                        Action::UnionFieldAccess(s) => writeln!(f, "{} as {}", s, step.ty),
+                        Action::UnaryOperation(kind, expr) => writeln!(f, "{} {}", kind, expr),
+                        Action::Binop(kind, a, b) => writeln!(f, "{} {} {}", kind, a, b),
                     }?;
                 }
 
@@ -179,16 +179,16 @@ impl<'a> Display for Mir<'a> {
                 match &block.terminator {
                     Terminator::Goto(block, args) => {
                         if let Some(block) = block {
-                            write!(f, "goto ~{}(", block.0)?;
+                            write!(f, "goto {}(", block)?;
                         } else {
                             write!(f, "return(")?;
                         }
 
                         if let Some((last, start)) = args.split_last() {
                             for arg in start.iter() {
-                                write!(f, "${}, ", arg.0)?;
+                                write!(f, "{}, ", arg)?;
                             }
-                            write!(f, "${}", last.0)?;
+                            write!(f, "{}", last)?;
                         }
                         writeln!(f, ")")
                     }

@@ -1,5 +1,3 @@
-#![allow(clippy::match_ref_pats)]
-
 #[cfg(feature = "profiler")]
 #[macro_use]
 extern crate thread_profiler;
