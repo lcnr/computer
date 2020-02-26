@@ -22,6 +22,7 @@ pub enum Binop {
 #[derive(Debug, Clone)]
 pub enum Action {
     Invert(LocationId, LocationId),
+    Move(LocationId, LocationId),
     Debug(LocationId),
     LoadInput(usize, LocationId),
     LoadConstant(u8, LocationId),

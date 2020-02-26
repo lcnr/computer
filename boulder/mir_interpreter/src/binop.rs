@@ -77,7 +77,7 @@ impl<'a> BoulderMirInterpreter<'a> {
             },
             UnaryOperation::Debug => {
                 println!(
-                    "({}:{}:{}): {:?}",
+                    "debug ({}:{}:{}): {:?}",
                     function.as_index(),
                     block.as_index(),
                     step.as_index(),

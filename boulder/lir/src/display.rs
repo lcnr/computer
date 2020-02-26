@@ -1,8 +1,8 @@
 use std::fmt::{Display, Formatter, Result};
 
-use shared_id::FunctionId;
+use shared_id::{FunctionId, LocationId};
 
-use crate::{Action, Binop, Lir};
+use crate::{Action, Binop, Lir, MatchArm, Terminator};
 
 impl Display for Binop {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
@@ -55,7 +55,7 @@ impl<'a> Display for Lir<'a> {
             }
 
             for (i, block) in func.blocks.iter().enumerate() {
-                write!(
+                writeln!(
                     f,
                     "  block ~{}(input: {}, memory: {})",
                     i, block.input_len, block.memory_len
@@ -65,6 +65,7 @@ impl<'a> Display for Lir<'a> {
                     write!(f, "    ${} := ", i)?;
                     match step {
                         Action::Invert(i, o) => write!(f, "invert {} -> {}", i, o),
+                        Action::Move(i, o) => write!(f, "move {} -> {}", i, o),
                         Action::Debug(i) => write!(f, "debug {}", i),
                         Action::LoadInput(idx, o) => write!(f, "load !{} -> {}", idx, o),
                         Action::LoadConstant(v, o) => write!(f, "load {} -> {}", v, o),
@@ -82,10 +83,46 @@ impl<'a> Display for Lir<'a> {
                     writeln!(f)?;
                 }
 
-                write!(f, "    TERMINATOR TODO")?;
+                write!(f, "    ")?;
+                match &block.terminator {
+                    Terminator::Goto(block, args) => {
+                        if let Some(block) = block {
+                            write!(f, "goto ~{}(", block.0)?;
+                        } else {
+                            write!(f, "return(")?;
+                        }
+
+                        write_list(f, args)?;
+                        writeln!(f, ")")
+                    }
+                    &Terminator::Match(id, ref arms) => print_match(f, id, arms),
+                }?;
             }
         }
 
         Ok(())
     }
+}
+
+fn print_match(f: &mut Formatter, id: LocationId, arms: &[MatchArm]) -> Result {
+    let write_arm = |f: &mut Formatter, arm: &MatchArm| {
+        if let Some(block) = arm.target {
+            write!(f, "{} -> goto ~{}(", arm.pat, block.0)?;
+        } else {
+            write!(f, "{} -> return(", arm.pat)?;
+        }
+
+        write_list(f, &arm.args)?;
+        write!(f, ")")
+    };
+
+    write!(f, "match ${}(", id)?;
+    if let Some((last, start)) = arms.split_last() {
+        for arm in start.iter() {
+            write_arm(f, arm)?;
+            write!(f, ", ")?;
+        }
+        write_arm(f, last)?;
+    }
+    writeln!(f, ")")
 }
