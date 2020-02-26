@@ -1,6 +1,6 @@
 use tindex::TVec;
 
-use shared_id::{BlockId, FunctionId, StepId};
+use shared_id::{BlockId, FunctionId, LocationId, StepId};
 
 pub enum Binop {
     Add,
@@ -8,18 +8,27 @@ pub enum Binop {
 }
 
 pub enum Action {
-    Invert(StepId),
-    Binop(Binop, StepId, StepId),
+    Invert(LocationId, LocationId),
+    Binop {
+        op: Binop, 
+        l: LocationId, 
+        r: LocationId, 
+        out: LocationId
+    },
+    FunctionCall { 
+        args: Vec<LocationId>,
+        ret: Vec<LocationId>,
+    }
 }
 
 pub struct MatchArm {
     pub pat: u8,
     pub target: Option<BlockId>,
-    pub args: Vec<StepId>,
+    pub args: Vec<LocationId>,
 }
 
 pub enum Terminator {
-    Goto(Option<BlockId>, Vec<StepId>),
+    Goto(Option<BlockId>, Vec<LocationId>),
     Match(StepId, Vec<MatchArm>),
 }
 
@@ -33,7 +42,8 @@ pub struct Function<'a> {
 }
 
 pub struct Block {
-    input_len: usize,
-    steps: TVec<StepId, Action>,
-    terminator: Terminator,
+    pub input_len: usize,
+    pub memory_len: usize,
+    pub steps: TVec<StepId, Action>,
+    pub terminator: Terminator,
 }

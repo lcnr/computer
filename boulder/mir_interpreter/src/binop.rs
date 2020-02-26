@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 
 use tindex::{TIndex, TSlice};
 
-use shared_id::{BlockId, StepId, FunctionId, FALSE_TYPE_ID, TRUE_TYPE_ID};
+use shared_id::{BlockId, FunctionId, StepId, FALSE_TYPE_ID, TRUE_TYPE_ID};
 
 use mir::{binop::Binop, Object, UnaryOperation};
 

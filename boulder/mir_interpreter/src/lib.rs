@@ -6,7 +6,7 @@ extern crate thread_profiler;
 
 use tindex::TVec;
 
-use shared_id::{BlockId, StepId, FunctionId, TypeId};
+use shared_id::{BlockId, FunctionId, StepId, TypeId};
 
 use mir::{Action, Mir, Object, Terminator, Type};
 

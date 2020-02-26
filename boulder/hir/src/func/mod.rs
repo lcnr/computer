@@ -1,6 +1,6 @@
 use tindex::{TSlice, TVec};
 
-use shared_id::{FunctionId, TypeId, StepId};
+use shared_id::{FunctionId, StepId, TypeId};
 
 use diagnostics::{CompileError, Meta};
 
