@@ -9,5 +9,4 @@ edition = "2018"
 [dependencies]
 shared_id = { path = "../shared_id"}
 lir = { path = "../lir" }
-rock = { path = "../../rock" }
 tindex = { git = "https://github.com/lcnr/tindex.git" }
