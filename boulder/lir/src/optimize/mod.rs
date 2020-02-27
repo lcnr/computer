@@ -1,4 +1,4 @@
-use tindex::{bitset::TBitSet};
+use tindex::bitset::TBitSet;
 
 use graphc::{Coloring, Graph, NodeId};
 
