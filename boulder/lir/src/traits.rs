@@ -12,6 +12,10 @@ where
     F: FnMut(LocationId) -> LocationId,
 {
     fn update_locations(&mut self, mut f: F) {
+        for input in self.inputs.iter_mut() {
+            *input = f(*input);
+        }
+
         for step in self.steps.iter_mut() {
             step.update_locations(&mut f);
         }
@@ -31,7 +35,7 @@ where
                 *o = f(*o);
             }
             Action::Debug(i) => *i = f(*i),
-            Action::LoadInput(_, o) | Action::LoadConstant(_, o) => *o = f(*o),
+            Action::LoadConstant(_, o) => *o = f(*o),
             Action::Binop { l, r, out, .. } => {
                 *l = f(*l);
                 *r = f(*r);

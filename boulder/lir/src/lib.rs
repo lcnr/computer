@@ -43,8 +43,6 @@ pub enum Action {
     Move(LocationId, LocationId),
     /// input may not be a valid byte.
     Debug(LocationId),
-    /// input may not be a valid byte.
-    LoadInput(usize, LocationId),
     /// input must be a valid byte.
     LoadConstant(u8, LocationId),
     /// see binop docs for soundness constraints.
@@ -104,13 +102,13 @@ pub struct Function<'a> {
 
 impl<'a> Function<'a> {
     pub fn input_len(&self) -> usize {
-        self.blocks[BlockId(0)].input_len
+        self.blocks[BlockId(0)].inputs.len()
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Block {
-    pub input_len: usize,
+    pub inputs: Vec<LocationId>,
     pub memory_len: usize,
     pub steps: TVec<StepId, Action>,
     pub terminator: Terminator,

@@ -82,12 +82,13 @@ fn convert_block(
     #[cfg(feature = "profiler")]
     profile_scope!("convert_block");
     let mut input_offsets = TVec::new();
-    input_offsets.push(0);
+    input_offsets.push(LocationId(0));
     for &input in mir.input.iter() {
         let &prev = input_offsets.last().unwrap();
         input_offsets.push(prev + types[input].size(types));
     }
-    let mut memory_len = 0;
+    let mut memory_len = input_offsets.pop().unwrap().0;
+    let inputs = (0..memory_len).map(LocationId).collect();
 
     let mut steps = TVec::new();
     let mut step_offsets: TVec<StepId, LocationId> = TVec::new();
@@ -102,7 +103,7 @@ fn convert_block(
             mir::Action::LoadInput(id) => {
                 let input_start = input_offsets[id];
                 for i in 0..step_size {
-                    steps.push(lir::Action::LoadInput(input_start + i, step_start + i));
+                    steps.push(lir::Action::Move(input_start + i, step_start + i));
                 }
             }
             mir::Action::LoadConstant(ref obj) => {
@@ -212,7 +213,7 @@ fn convert_block(
     };
 
     lir::Block {
-        input_len: input_offsets.pop().unwrap(),
+        inputs,
         memory_len,
         steps,
         terminator,

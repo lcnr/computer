@@ -370,7 +370,7 @@ pub fn resolve<'a, L: Logger>(blocks: &mut [Block<'a>], l: &mut L) -> Result<(),
         .map(|b| Ok((b.name, register_sections(&b, l)?)))
         .collect::<Result<HashMap<&str, HashMap<&str, u8>>, CodeGenError>>()?;
 
-    for block in blocks.into_iter() {
+    for block in blocks.iter_mut() {
         let line = block.line;
         let name = block.name;
         let replace_block_addr = |s: &str, l: &mut L| {

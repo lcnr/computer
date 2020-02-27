@@ -55,11 +55,9 @@ impl<'a> Display for Lir<'a> {
             }
 
             for (i, block) in func.blocks.iter().enumerate() {
-                writeln!(
-                    f,
-                    "  block ~{}(input: {}, memory: {})",
-                    i, block.input_len, block.memory_len
-                )?;
+                write!(f, "  block ~{}[memory: {}](", i, block.memory_len)?;
+                write_list(f, &block.inputs)?;
+                writeln!(f, ")")?;
 
                 for (i, step) in block.steps.iter().enumerate() {
                     write!(f, "    ${} := ", i)?;
@@ -67,7 +65,6 @@ impl<'a> Display for Lir<'a> {
                         Action::Invert(i, o) => write!(f, "invert {} -> {}", i, o),
                         Action::Move(i, o) => write!(f, "move {} -> {}", i, o),
                         Action::Debug(i) => write!(f, "debug {}", i),
-                        Action::LoadInput(idx, o) => write!(f, "load !{} -> {}", idx, o),
                         Action::LoadConstant(v, o) => write!(f, "load {} -> {}", v, o),
                         Action::Binop { op, l, r, out } => {
                             write!(f, "{} {} {} -> {}", op, l, r, out)
@@ -89,7 +86,7 @@ impl<'a> Display for Lir<'a> {
                         if let Some(block) = block {
                             write!(f, "goto ~{}(", block.0)?;
                         } else {
-                            write!(f, "return(")?;
+                            write!(f, "return (")?;
                         }
 
                         write_list(f, args)?;
@@ -109,7 +106,7 @@ fn print_match(f: &mut Formatter, id: LocationId, arms: &[MatchArm]) -> Result {
         if let Some(block) = arm.target {
             write!(f, "{} -> goto ~{}(", arm.pat, block.0)?;
         } else {
-            write!(f, "{} -> return(", arm.pat)?;
+            write!(f, "{} -> return (", arm.pat)?;
         }
 
         write_list(f, &arm.args)?;

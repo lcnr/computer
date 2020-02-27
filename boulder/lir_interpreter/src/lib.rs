@@ -87,11 +87,15 @@ impl<'a> BoulderLirInterpreter<'a> {
             profile_scope!("execute_block");
 
             let block = &self.lir.functions[id].blocks[block_id];
-            if args.len() != block.input_len {
+            if args.len() != block.inputs.len() {
                 return Err(Error::ArgumentCount);
             }
 
             let mut memory = tvec![Memory::Undefined; block.memory_len];
+            for (&arg, &location) in args.iter().zip(block.inputs.iter()) {
+                memory[location] = arg;
+            }
+
             for step_id in block.steps.index_iter() {
                 self.step = step_id;
                 let step = &block.steps[step_id];
@@ -107,7 +111,6 @@ impl<'a> BoulderLirInterpreter<'a> {
                         "debug ({}:{}:{}): {} = {:?}",
                         id, block_id, step_id, i, memory[i]
                     ),
-                    Action::LoadInput(input, o) => memory[o] = args[input],
                     Action::LoadConstant(v, o) => memory[o] = Memory::Byte(v),
                     Action::Binop { op, l, r, out } => {
                         memory[out] = Memory::Byte(self.binop(op, memory[l], memory[r])?)

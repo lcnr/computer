@@ -41,6 +41,10 @@ impl<'a> Lir<'a> {
 
         let func = &self.functions[func_id];
         let block = &func.blocks[block_id];
+        for input in block.inputs.iter() {
+            assert!(input.0 < block.memory_len);
+        }
+
         for step_id in block.steps.index_iter() {
             let step_panic = PanicDisplay("step: ", &step_id);
             match block.steps[step_id] {
@@ -50,10 +54,6 @@ impl<'a> Lir<'a> {
                 }
                 Action::Debug(i) => {
                     assert!(i.0 < block.memory_len);
-                }
-                Action::LoadInput(i, o) => {
-                    assert!(i < block.input_len);
-                    assert!(o.0 < block.memory_len);
                 }
                 Action::LoadConstant(_, o) => {
                     assert!(o.0 < block.memory_len);
@@ -86,7 +86,7 @@ impl<'a> Lir<'a> {
             match block.terminator {
                 Terminator::Goto(target, ref args) => {
                     if let Some(target) = target {
-                        assert_eq!(func.blocks[target].input_len, args.len());
+                        assert_eq!(func.blocks[target].inputs.len(), args.len());
                     } else {
                         assert_eq!(func.return_length, args.len());
                     }
@@ -99,7 +99,7 @@ impl<'a> Lir<'a> {
                     assert!(value.0 < block.memory_len);
                     for arm in arms.iter() {
                         if let Some(target) = arm.target {
-                            assert_eq!(func.blocks[target].input_len, arm.args.len());
+                            assert_eq!(func.blocks[target].inputs.len(), arm.args.len());
                         } else {
                             assert_eq!(func.return_length, arm.args.len());
                         }

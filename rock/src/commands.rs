@@ -162,11 +162,13 @@ impl<'a> Command<'a> {
             Command::Invalid => false,
             Command::Mov(a, b) => !(a.is_mem_access() && b.is_mem_access()),
             Command::Ret(a, b) => !(a.is_mem_access() && b.is_mem_access()),
-            Command::If(_, cmd) => if let Command::If(_, _) = cmd.as_ref() {
-                false
-            } else {
-                cmd.is_valid()
-            },
+            Command::If(_, cmd) => {
+                if let Command::If(_, _) = cmd.as_ref() {
+                    false
+                } else {
+                    cmd.is_valid()
+                }
+            }
             _ => true,
         }
     }
@@ -275,11 +277,7 @@ fn parse_if<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logger) -> Com
 
         let command = parse_commands(second, rest, l);
         if let Command::If(_, _) = command {
-            l.log_err(Error::at_token(
-                ErrorLevel::Error,
-                Cause::NestedIf,
-                second
-            ));
+            l.log_err(Error::at_token(ErrorLevel::Error, Cause::NestedIf, second));
             Command::Invalid
         } else {
             Command::If(condition, Box::new(command))

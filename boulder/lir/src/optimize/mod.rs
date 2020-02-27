@@ -53,6 +53,7 @@ impl<'a> Lir<'a> {
 
 impl Block {
     pub fn remove_dead_writes(&mut self) {
+        // TODO: this can be used to remove inputs
         let mut last_writes = tvec![None; self.memory_len];
         let mut to_remove = TBitSet::new();
 
@@ -65,7 +66,7 @@ impl Block {
                     }
                 }
                 Action::Debug(i) => last_writes[i] = None,
-                Action::LoadInput(_, o) | Action::LoadConstant(_, o) => {
+                Action::LoadConstant(_, o) => {
                     if let Some(last) = last_writes[o].replace(step_id) {
                         to_remove.add(last);
                     }
@@ -160,7 +161,7 @@ impl Block {
                     add_alive(&mut alive, i);
                 }
                 Action::Debug(i) => add_alive(&mut alive, i),
-                Action::LoadInput(_, o) | Action::LoadConstant(_, o) => {
+                Action::LoadConstant(_, o) => {
                     add_alive(&mut alive, o);
                     alive.remove(o)
                 }
@@ -183,6 +184,11 @@ impl Block {
                     }
                 }
             }
+        }
+
+        for &input in self.inputs.iter().rev() {
+            add_alive(&mut alive, input);
+            alive.remove(input)
         }
 
         g.minimal_coloring()
