@@ -18,3 +18,15 @@ let y: u16 | u32 | Empty = if condition {
 As it is inefficient to check the type of `x` before initializing `y`,  `x` and `y` must have a similar layout.
 The easiest way this can be archived is by defining the layout of all unions. This still allows for most optimizations and
 simplifies the compiler.
+
+## Lir and liveliness
+
+Calculating the liveliness of a memory location goes as follows:
+
+- start at the terminator of each block, all used locations are alive.
+- going backwards through each step:
+    - writing to a location causes it to stop being alive.
+    - reading a location makes it alive.
+
+Every time a location is changed from dead to alive, add an edge to
+all other locations which are currently alive.
