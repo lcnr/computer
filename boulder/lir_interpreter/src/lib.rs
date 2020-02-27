@@ -14,6 +14,7 @@ pub enum Error {
     ReadUndefined,
     /// integer over/underflow etc
     Arithmetic,
+    StackOverflow,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -67,7 +68,11 @@ impl<'a> BoulderLirInterpreter<'a> {
         &mut self,
         id: FunctionId,
         args: &[Memory],
+        stack_depth: u32,
     ) -> Result<Vec<Memory>, Error> {
+        if stack_depth == 0 {
+            return Err(Error::StackOverflow);
+        }
         #[cfg(feature = "profiler")]
         profile_scope!("execute_function");
         self.function = id;
@@ -114,7 +119,7 @@ impl<'a> BoulderLirInterpreter<'a> {
                     } => {
                         let args: Vec<_> = args.iter().map(|&l| memory[l]).collect();
                         let func = self.function;
-                        let values = self.execute_function(id, &args)?;
+                        let values = self.execute_function(id, &args, stack_depth - 1)?;
                         self.function = func;
                         self.block = block_id;
                         self.step = step_id;

@@ -24,7 +24,7 @@ simplifies the compiler.
 Calculating the liveliness of a memory location goes as follows:
 
 - start at the terminator of each block, all used locations are alive.
-- going backwards through each step:
+- going backwards through each step:c
     - writing to a location causes it to stop being alive.
     - reading a location makes it alive.
 

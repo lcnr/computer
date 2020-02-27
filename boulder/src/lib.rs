@@ -67,7 +67,12 @@ pub fn compile<'a>(
     mir.enum_to_byte();
     mir.validate(true);
     core_optimizations(&mut mir, true, LangItemState::ToBytesResolved);
-    let lir = mir2lir::convert(mir);
+    let mut lir = mir2lir::convert(mir);
+    lir.validate();
+    println!("pre: {}", lir);
+    lir.minimize_memory_usage();
+    lir.validate();
+    println!("post: {}", lir);
 
     let mut bli = lir_interpreter::BoulderLirInterpreter::new(&lir);
     for f in lir
@@ -75,7 +80,7 @@ pub fn compile<'a>(
         .index_iter()
         .filter(|&f| lir.functions[f].ctx.test)
     {
-        let ret = bli.execute_function(f, &[]);
+        let ret = bli.execute_function(f, &[], 100);
         println!("{}: {:?}: {:?}", f, bli.last_step(), ret);
     }
     Ok(lir)

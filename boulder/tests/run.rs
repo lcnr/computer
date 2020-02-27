@@ -105,7 +105,7 @@ fn test_lir(lir: &Lir, stage: &str) {
         .filter(|(_, func)| func.ctx.test)
     {
         check_count += 1;
-        match bli.execute_function(FunctionId::from(id), &[]) {
+        match bli.execute_function(FunctionId::from(id), &[], 100) {
             Ok(v) => {
                 if v.as_slice() != &[Memory::Byte(lir.ctx.true_replacement)] as &[_] {
                     panic!(
@@ -206,9 +206,13 @@ fn main() -> Result<(), TestFailure> {
                 mir.validate(true);
                 test_mir(&mir, true, "enum_to_byte");
 
-                let lir = mir2lir::convert(mir);
+                let mut lir = mir2lir::convert(mir);
                 lir.validate();
                 test_lir(&lir, "mir2lir");
+
+                lir.minimize_memory_usage();
+                lir.validate();
+                test_lir(&lir, "lir::minimize_memory_usage");
             })) {
                 Ok(()) => (),
                 Err(_) => {

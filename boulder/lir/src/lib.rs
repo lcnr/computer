@@ -3,6 +3,8 @@ use tindex::TVec;
 use shared_id::{BlockId, FunctionId, LocationId, StepId};
 
 mod display;
+mod optimize;
+mod traits;
 mod validate;
 
 /// FIXME: reduce restrictions of binops

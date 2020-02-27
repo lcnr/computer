@@ -57,7 +57,7 @@ impl<'a> Lir<'a> {
                 Action::LoadConstant(_, o) => {
                     assert!(o.0 < block.memory_len);
                 }
-                Action::Binop { l, r, out, .. } => {
+                Action::Binop { op: _, l, r, out } => {
                     assert!(l.0 < block.memory_len);
                     assert!(r.0 < block.memory_len);
                     assert!(out.0 < block.memory_len);

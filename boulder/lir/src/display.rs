@@ -116,7 +116,7 @@ fn print_match(f: &mut Formatter, id: LocationId, arms: &[MatchArm]) -> Result {
         write!(f, ")")
     };
 
-    write!(f, "match ${}(", id)?;
+    write!(f, "match {}(", id)?;
     if let Some((last, start)) = arms.split_last() {
         for arm in start.iter() {
             write_arm(f, arm)?;
