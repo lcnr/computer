@@ -35,6 +35,7 @@ impl<'a> Lir<'a> {
         mem::forget(lir_panic);
     }
 
+    #[allow(clippy::cognitive_complexity)]
     fn validate_block(&self, func_id: FunctionId, block_id: BlockId) {
         let block_panic = PanicDisplay("block: ", &block_id);
 

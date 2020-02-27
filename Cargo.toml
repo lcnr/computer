@@ -14,9 +14,10 @@ members = [
     "boulder/mir2lir",
     "boulder/lir",
     "boulder/lir_interpreter",
+    "boulder/lir2asm",
     "remu",
     "mirco",
 ]
 
 [profile.test]
-opt-level = 1
+opt-level = 2
