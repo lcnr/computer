@@ -1,5 +1,3 @@
-#[macro_use]
-extern crate serial_test_derive;
 extern crate rock;
 
 use walkdir::WalkDir;
@@ -20,9 +18,7 @@ impl rock::Logger for OutputShim {
     }
 }
 
-#[test]
-#[serial]
-fn compile_fail() -> Result<(), std::io::Error> {
+fn compile_fail() {
     let mut count = 0;
 
     for entry in WalkDir::new("tests/compile_fail") {
@@ -72,7 +68,7 @@ fn compile_fail() -> Result<(), std::io::Error> {
             assert_ne!(
                 count,
                 0,
-                "`{}` did not check any error messages, actual output:\n{}",
+                "`rock/{}` did not check any error messages, actual output:\n{}",
                 entry.path().display(),
                 output.trim(),
             );
@@ -82,8 +78,6 @@ fn compile_fail() -> Result<(), std::io::Error> {
     assert_ne!(count, 0);
 }
 
-#[test]
-#[serial]
 fn compile_run() {
     let mut count = 0;
 
@@ -117,7 +111,7 @@ fn compile_run() {
             let output = output.inner;
             assert!(
                 result.is_ok(),
-                "`{}` failed to compile: `{}`",
+                "`rock/{}` failed to compile: `{}`",
                 entry.path().display(),
                 output
             );
@@ -126,4 +120,9 @@ fn compile_run() {
     }
 
     assert_ne!(count, 0);
+}
+
+fn main() {
+    compile_fail();
+    compile_run();
 }

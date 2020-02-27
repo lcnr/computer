@@ -1,0 +1,9 @@
+start:
+    mov other.inner A;
+other:
+    byte 0;
+    byte 0;
+    byte 0;
+    byte 0;
+  .inner:
+    byte 0;

@@ -28,5 +28,6 @@ Calculating the liveliness of a memory location goes as follows:
     - writing to a location causes it to be alive and then instantly kills it.
     - reading a location makes it alive.
 
-Every time a location is changed from dead to alive, add an edge to
-all other locations which are currently alive.
+A graph where each node represents a location and each edges mean that these two locations
+are alive at the same time. This graph is build by adding an edge to every other living location, 
+everytime a location is made alive.

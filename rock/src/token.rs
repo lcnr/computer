@@ -5,6 +5,7 @@ pub enum TokenType {
     Byte(u8),
     Ident,
     Section,
+    QualifiedSection,
     A,
     B,
     C,
@@ -140,15 +141,18 @@ impl<'a, 'b: 'a> TokenIter<'b> {
     fn parse_ident(&'a mut self) -> Token<'b> {
         let start = self.byte_offset;
         self.advance();
+        let mut allow_dot = !self.src[start..].starts_with('.');
         while let Some(c) = self.current_char() {
-            if !(c.is_alphanumeric() || c == '_') {
-                if c.is_whitespace() || c == ';' || c == ':' {
-                    break;
-                } else {
-                    return self.recover(start);
-                }
+            if c.is_alphanumeric() || c == '_' {
+                self.advance();
+            } else if allow_dot && c == '.' {
+                allow_dot = false;
+                self.advance();
+            } else if c.is_whitespace() || c == ';' || c == ':' {
+                break;
+            } else {
+                return self.recover(start);
             }
-            self.advance();
         }
 
         let ty = match &self.src[start..self.byte_offset] {
@@ -162,6 +166,8 @@ impl<'a, 'b: 'a> TokenIter<'b> {
             sec => {
                 if sec.starts_with('.') {
                     TokenType::Section
+                } else if !allow_dot {
+                    TokenType::QualifiedSection
                 } else {
                     TokenType::Ident
                 }

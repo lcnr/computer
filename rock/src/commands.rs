@@ -157,6 +157,20 @@ impl<'a> Command<'a> {
         }
     }
 
+    pub fn is_valid(&self) -> bool {
+        match self {
+            Command::Invalid => false,
+            Command::Mov(a, b) => !(a.is_mem_access() && b.is_mem_access()),
+            Command::Ret(a, b) => !(a.is_mem_access() && b.is_mem_access()),
+            Command::If(_, cmd) => if let Command::If(_, _) = cmd.as_ref() {
+                false
+            } else {
+                cmd.is_valid()
+            },
+            _ => true,
+        }
+    }
+
     pub fn size(&self) -> u8 {
         match self {
             Command::Invalid | Command::Section(_) => 0,
@@ -213,7 +227,9 @@ fn as_readable<'a>(arg: &Token<'a>, l: &mut impl Logger) -> Option<Readable<'a>>
         TokenType::D => Readable::D,
         TokenType::Mem => Readable::Mem,
         TokenType::Byte(v) => Readable::MemAddr(MemAddr::Byte(v)),
-        TokenType::Ident | TokenType::Section => Readable::MemAddr(MemAddr::Named(arg.origin())),
+        TokenType::Ident | TokenType::Section | TokenType::QualifiedSection => {
+            Readable::MemAddr(MemAddr::Named(arg.origin()))
+        }
         _ => {
             l.log_err(Error::expected(
                 vec![
@@ -257,7 +273,17 @@ fn parse_if<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logger) -> Com
             }
         };
 
-        Command::If(condition, Box::new(parse_commands(second, rest, l)))
+        let command = parse_commands(second, rest, l);
+        if let Command::If(_, _) = command {
+            l.log_err(Error::at_token(
+                ErrorLevel::Error,
+                Cause::NestedIf,
+                second
+            ));
+            Command::Invalid
+        } else {
+            Command::If(condition, Box::new(command))
+        }
     } else {
         l.log_err(Error::at_token(
             ErrorLevel::Error,

@@ -1,0 +1,4 @@
+# Error
+# NestedIf
+start:
+    if z if lte mov A B;

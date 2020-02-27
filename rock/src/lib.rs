@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-mod commands;
+pub mod commands;
 mod token;
 
 use commands::{Command, MemAddr, Readable};
@@ -19,6 +19,7 @@ pub enum Cause<'a> {
         found: TokenType,
     },
     RepeatingSectionIdentifier(&'a str),
+    NestedIf,
     InvalidSection,
     InvalidBlock,
     EmptyBlock,
@@ -98,6 +99,15 @@ pub struct Block<'a> {
 }
 
 impl<'a> Block<'a> {
+    pub fn custom(name: &'a str, pos: Option<u8>, line: usize) -> Self {
+        Block {
+            name,
+            pos,
+            line,
+            content: Vec::new(),
+        }
+    }
+
     fn new<L: Logger>(curr: &mut Vec<Token<'a>>, l: &mut L) -> Self {
         match curr.len() {
             3 => {
@@ -354,9 +364,13 @@ pub fn resolve<'a, L: Logger>(blocks: &mut [Block<'a>], l: &mut L) -> Result<(),
     }
 
     let ljmp_addr = register_blocks(blocks);
-    for block in blocks {
-        let jmp_addr = register_sections(&block, l)?;
 
+    let jmp_addr = blocks
+        .iter()
+        .map(|b| Ok((b.name, register_sections(&b, l)?)))
+        .collect::<Result<HashMap<&str, HashMap<&str, u8>>, CodeGenError>>()?;
+
+    for block in blocks.into_iter() {
         let line = block.line;
         let name = block.name;
         let replace_block_addr = |s: &str, l: &mut L| {
@@ -375,7 +389,7 @@ pub fn resolve<'a, L: Logger>(blocks: &mut [Block<'a>], l: &mut L) -> Result<(),
 
         let replace_section_addr = |s: &str, l: &mut L| {
             if s.starts_with('.') {
-                if let Some(&byte) = jmp_addr.get(s) {
+                if let Some(&byte) = jmp_addr.get(name).unwrap().get(s) {
                     Ok(MemAddr::Byte(byte))
                 } else {
                     l.log_err(Error::new(
@@ -383,6 +397,30 @@ pub fn resolve<'a, L: Logger>(blocks: &mut [Block<'a>], l: &mut L) -> Result<(),
                         Cause::InvalidSection,
                         line,
                         s,
+                    ));
+                    Err(CodeGenError)
+                }
+            } else if let Some(pos) = s.bytes().position(|b| b == b'.') {
+                let block = &s[..pos];
+                let section = &s[pos..];
+                if let Some(block) = jmp_addr.get(block) {
+                    if let Some(&byte) = block.get(section) {
+                        Ok(MemAddr::Byte(byte))
+                    } else {
+                        l.log_err(Error::new(
+                            ErrorLevel::Error,
+                            Cause::InvalidSection,
+                            line,
+                            section,
+                        ));
+                        Err(CodeGenError)
+                    }
+                } else {
+                    l.log_err(Error::new(
+                        ErrorLevel::Error,
+                        Cause::InvalidBlock,
+                        line,
+                        block,
                     ));
                     Err(CodeGenError)
                 }
