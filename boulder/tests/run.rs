@@ -210,9 +210,25 @@ fn main() -> Result<(), TestFailure> {
                 lir.validate();
                 test_lir(&lir, "mir2lir");
 
+                lir.remove_noop_moves();
+                lir.validate();
+                test_lir(&lir, "lir::remove_noop_moves1");
+
                 lir.minimize_memory_usage();
                 lir.validate();
                 test_lir(&lir, "lir::minimize_memory_usage");
+
+                loop {
+                    let prev = lir.clone();
+                    lir.remove_noop_moves();
+                    lir.minimize_memory_usage();
+                    lir.validate();
+                    lir.remove_noop_moves();
+                    test_lir(&lir, "lir::minimize_memory_usage");
+                    if lir == prev {
+                        break;
+                    }
+                }
             })) {
                 Ok(()) => (),
                 Err(_) => {

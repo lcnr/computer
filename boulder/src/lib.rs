@@ -69,10 +69,16 @@ pub fn compile<'a>(
     core_optimizations(&mut mir, true, LangItemState::ToBytesResolved);
     let mut lir = mir2lir::convert(mir);
     lir.validate();
-    println!("pre: {}", lir);
-    lir.minimize_memory_usage();
-    lir.validate();
-    println!("post: {}", lir);
+    loop {
+        let prev = lir.clone();
+        lir.remove_noop_moves();
+        lir.minimize_memory_usage();
+        lir.validate();
+        lir.remove_noop_moves();
+        if lir == prev {
+            break;
+        }
+    }
 
     let mut bli = lir_interpreter::BoulderLirInterpreter::new(&lir);
     for f in lir

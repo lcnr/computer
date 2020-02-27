@@ -32,7 +32,7 @@ where
             }
             Action::Debug(i) => *i = f(*i),
             Action::LoadInput(_, o) | Action::LoadConstant(_, o) => *o = f(*o),
-            Action::Binop { op: _, l, r, out } => {
+            Action::Binop { l, r, out, .. } => {
                 *l = f(*l);
                 *r = f(*r);
                 *out = f(*out);

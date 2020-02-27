@@ -22,6 +22,21 @@ impl<'a> Lir<'a> {
             }
         }
     }
+
+    /// remove all moves where `o == i`.
+    pub fn remove_noop_moves(&mut self) {
+        for function in self.functions.iter_mut() {
+            for block in function.blocks.iter_mut() {
+                block.steps.retain(|s| {
+                    if let Action::Move(o, i) = s {
+                        o != i
+                    } else {
+                        true
+                    }
+                });
+            }
+        }
+    }
 }
 
 impl Block {
@@ -69,16 +84,14 @@ impl Block {
                     add_alive(&mut alive, o);
                     alive.remove(o)
                 }
-                Action::Binop { op: _, l, r, out } => {
+                Action::Binop { l, r, out, .. } => {
                     add_alive(&mut alive, out);
                     alive.remove(out);
                     add_alive(&mut alive, l);
                     add_alive(&mut alive, r);
                 }
                 Action::FunctionCall {
-                    id: _,
-                    ref args,
-                    ref ret,
+                    ref args, ref ret, ..
                 } => {
                     for &v in ret.iter().rev() {
                         add_alive(&mut alive, v);

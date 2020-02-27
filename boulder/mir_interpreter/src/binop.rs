@@ -36,11 +36,11 @@ impl<'a> BoulderMirInterpreter<'a> {
         #[cfg(feature = "profiler")]
         profile_scope!("execute_unary_operation");
         match op {
-            UnaryOperation::Invert => match &steps[expr] {
-                &Object::U8(x) => Ok(Object::U8(!x)),
-                &Object::U16(x) => Ok(Object::U16(!x)),
-                &Object::U32(x) => Ok(Object::U32(!x)),
-                &Object::Variant(x, ref v) => {
+            UnaryOperation::Invert => match steps[expr] {
+                Object::U8(x) => Ok(Object::U8(!x)),
+                Object::U16(x) => Ok(Object::U16(!x)),
+                Object::U32(x) => Ok(Object::U32(!x)),
+                Object::Variant(x, ref v) => {
                     if v.as_ref() == &Object::Unit && (x == TRUE_TYPE_ID || x == FALSE_TYPE_ID) {
                         Ok(self.to_bool(x == FALSE_TYPE_ID))
                     } else {
@@ -49,17 +49,17 @@ impl<'a> BoulderMirInterpreter<'a> {
                 }
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
-            UnaryOperation::ToBytes => match &steps[expr] {
-                &Object::U16(x) => Ok(Object::Struct(
+            UnaryOperation::ToBytes => match steps[expr] {
+                Object::U16(x) => Ok(Object::Struct(
                     x.to_le_bytes().iter().map(|&v| Object::U8(v)).collect(),
                 )),
-                &Object::U32(x) => Ok(Object::Struct(
+                Object::U32(x) => Ok(Object::Struct(
                     x.to_le_bytes().iter().map(|&v| Object::U8(v)).collect(),
                 )),
                 _ => Err(InterpretError::InvalidOperation(function, block, step)),
             },
-            UnaryOperation::FromBytes => match &steps[expr] {
-                &Object::Struct(ref content) => {
+            UnaryOperation::FromBytes => match steps[expr] {
+                Object::Struct(ref content) => {
                     if let Ok(&[Object::U8(a), Object::U8(b)]) =
                         <&[mir::Object; 2]>::try_from(content.to_slice())
                     {

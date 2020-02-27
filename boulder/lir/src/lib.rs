@@ -9,7 +9,7 @@ mod validate;
 
 /// FIXME: reduce restrictions of binops
 /// e.g. 0 & invalid == 0
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Binop {
     /// both arguments must be valid
     Add,
@@ -35,7 +35,7 @@ pub enum Binop {
     BitXor,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     /// input must be a valid byte.
     Invert(LocationId, LocationId),
@@ -62,39 +62,39 @@ pub enum Action {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MatchArm {
     pub pat: u8,
     pub target: Option<BlockId>,
     pub args: Vec<LocationId>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Terminator {
     Goto(Option<BlockId>, Vec<LocationId>),
     Match(LocationId, Vec<MatchArm>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Context {
     pub true_replacement: u8,
     pub false_replacement: u8,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Lir<'a> {
     pub ctx: Context,
     pub functions: TVec<FunctionId, Function<'a>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FunctionContext {
     pub export: bool,
     pub test: bool,
     pub hidden: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Function<'a> {
     pub name: &'a str,
     pub ctx: FunctionContext,
@@ -108,7 +108,7 @@ impl<'a> Function<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Block {
     pub input_len: usize,
     pub memory_len: usize,

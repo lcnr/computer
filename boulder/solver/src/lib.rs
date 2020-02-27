@@ -139,8 +139,8 @@ impl<'a, C: fmt::Debug, T: EntityState + Clone + std::fmt::Debug, E> ConstraintS
         #[cfg(feature = "profiler")]
         profile_scope!("apply_entity");
         for rule in self.rules[id].iter() {
-            match rule {
-                &Rule::ForwardProduction(prod, actual_origin, target_id) => {
+            match *rule {
+                Rule::ForwardProduction(prod, actual_origin, target_id) => {
                     let (begin, end) = self.entities.split_at_mut(id.max(target_id));
                     let (origin, target) = if target_id > id {
                         (&mut begin[id], end.first_mut().unwrap())
@@ -161,7 +161,7 @@ impl<'a, C: fmt::Debug, T: EntityState + Clone + std::fmt::Debug, E> ConstraintS
                     )?;
                     /* */// println!("after {:?}: {:?}, {:?}\n",  rule, origin, target);
                 }
-                &Rule::BackwardsProduction(prod, origin_id, actual_target) => {
+                Rule::BackwardsProduction(prod, origin_id, actual_target) => {
                     let (begin, end) = self.entities.split_at_mut(id.max(origin_id));
                     let (origin, target) = if id > origin_id {
                         (&mut begin[origin_id], end.first_mut().unwrap())
