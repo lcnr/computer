@@ -25,7 +25,7 @@ Calculating the liveliness of a memory location goes as follows:
 
 - start at the terminator of each block, all used locations are alive.
 - going backwards through each step:c
-    - writing to a location causes it to stop being alive.
+    - writing to a location causes it to be alive and then instantly kills it.
     - reading a location makes it alive.
 
 Every time a location is changed from dead to alive, add an edge to
