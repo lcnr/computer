@@ -190,11 +190,13 @@ pub fn convert_block(
                 // TODO: functions currently store their return values at
                 // the start of the memory storage, this could be improved
                 for (i, &ret) in ret.iter().enumerate() {
-                    let i = LocationId(i);
-                    commands.push(Command::MemStorage(id, i));
-                    commands.push(Command::Move(Readable::Mem, Writeable::A));
-                    commands.push(Command::MemStorage(func_id, ret));
-                    commands.push(Command::Move(Readable::A, Writeable::Mem));
+                    if let Some(ret) = ret {
+                        let i = LocationId(i);
+                        commands.push(Command::MemStorage(id, i));
+                        commands.push(Command::Move(Readable::Mem, Writeable::A));
+                        commands.push(Command::MemStorage(func_id, ret));
+                        commands.push(Command::Move(Readable::A, Writeable::Mem));
+                    }
                 }
             }
         }

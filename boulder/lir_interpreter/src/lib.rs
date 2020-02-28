@@ -126,8 +126,10 @@ impl<'a> BoulderLirInterpreter<'a> {
                         self.function = func;
                         self.block = block_id;
                         self.step = step_id;
-                        for (&adr, v) in ret.iter().zip(values) {
-                            memory[adr] = v;
+                        for (&ret, v) in ret.iter().zip(values) {
+                            if let Some(adr) = ret {
+                                memory[adr] = v;
+                            }
                         }
                     }
                 }

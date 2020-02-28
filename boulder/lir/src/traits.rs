@@ -46,7 +46,7 @@ where
                     *arg = f(*arg);
                 }
 
-                for v in ret.iter_mut() {
+                for v in ret.iter_mut().filter_map(Option::as_mut) {
                     *v = f(*v);
                 }
             }

@@ -73,7 +73,7 @@ impl<'a> Lir<'a> {
                         assert!(arg.0 < block.memory_len);
                     }
 
-                    for val in ret.iter() {
+                    for val in ret.iter().filter_map(Option::as_ref) {
                         assert!(val.0 < block.memory_len);
                     }
 

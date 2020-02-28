@@ -56,7 +56,7 @@ pub enum Action {
     FunctionCall {
         id: FunctionId,
         args: TVec<InputId, LocationId>,
-        ret: Vec<LocationId>,
+        ret: Vec<Option<LocationId>>,
     },
 }
 

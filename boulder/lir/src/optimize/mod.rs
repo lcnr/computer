@@ -107,16 +107,19 @@ impl Block {
         enum W {
             Input(InputId),
             Step(StepId),
+            Return(StepId, usize),
         }
 
         // TODO: this can be used to remove inputs
         let mut last_writes = tvec![None; self.memory_len];
+        let mut return_values = tvec![TBitSet::new(); self.steps.len()];
         let mut inputs = TBitSet::new();
         let mut steps = TBitSet::new();
 
         let mut add_to_remove = |elem| match elem {
             W::Input(v) => inputs.add(v),
             W::Step(id) => steps.add(id),
+            W::Return(id, v) => return_values[id].add(v),
         };
 
         for id in self.inputs.index_iter() {
@@ -153,10 +156,12 @@ impl Block {
                         last_writes[arg] = None;
                     }
 
-                    for &v in ret.iter() {
-                        // TODO: FunctionCall should ret should be an Option
-                        if let Some(last) = last_writes[v].take() {
-                            add_to_remove(last);
+                    for i in 0..ret.len() {
+                        if let Some(v) = ret[i] {
+                            // TODO: FunctionCall should ret should be an Option
+                            if let Some(last) = last_writes[v].replace(W::Return(step_id, i)) {
+                                add_to_remove(last);
+                            }
                         }
                     }
                 }
@@ -182,6 +187,16 @@ impl Block {
 
         for step in last_writes.iter().copied().filter_map(identity) {
             add_to_remove(step)
+        }
+
+        for step_id in return_values.index_iter() {
+            for v in return_values[step_id].iter() {
+                if let Action::FunctionCall { ref mut ret, .. } = self.steps[step_id] {
+                    ret[v] = None;
+                } else {
+                    unreachable!()
+                }
+            }
         }
 
         for step in steps.iter().rev() {
@@ -244,7 +259,7 @@ impl Block {
                 Action::FunctionCall {
                     ref args, ref ret, ..
                 } => {
-                    for &v in ret.iter().rev() {
+                    for &v in ret.iter().filter_map(Option::as_ref).rev() {
                         add_alive(&mut alive, v);
                         alive.remove(v);
                     }

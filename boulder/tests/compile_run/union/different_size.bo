@@ -1,0 +1,26 @@
+union Ey {
+    smol: u16,
+    big:  u32,
+}
+
+fn maybe(b: Bool) -> Ey {
+    if b {
+        Ey {
+            smol: 58765,
+        }
+    } else {
+        Ey {
+            big: 173063,
+        }
+    }
+}
+
+@test
+fn maybe_some() -> Bool {
+    maybe(False).big == 173063
+}
+
+@test
+fn maybe_none() -> Bool {
+    maybe(True).smol == 58765
+}

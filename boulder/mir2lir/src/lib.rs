@@ -136,7 +136,10 @@ fn convert_block(
                     .flatten()
                     .collect();
 
-                let ret = (step_start.0..memory_len).map(LocationId).collect();
+                let ret = (step_start.0..memory_len)
+                    .map(LocationId)
+                    .map(Some)
+                    .collect();
                 steps.push(lir::Action::FunctionCall { id, args, ret });
             }
             mir::Action::StructFieldAccess(step, field) => {

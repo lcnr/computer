@@ -34,7 +34,21 @@ impl Display for Action {
                 write!(f, "call {}(", id)?;
                 write_list(f, args)?;
                 write!(f, ") -> (")?;
-                write_list(f, ret)?;
+                let mut ret = ret.iter();
+                if let Some(first) = ret.next() {
+                    if let Some(v) = first {
+                        write!(f, "{}", v)?;
+                    } else {
+                        write!(f, "_")?;
+                    }
+                    for elem in ret {
+                        if let Some(v) = elem {
+                            write!(f, ", {}", v)?;
+                        } else {
+                            write!(f, ", _")?;
+                        }
+                    }
+                }
                 write!(f, ")")
             }
         }
