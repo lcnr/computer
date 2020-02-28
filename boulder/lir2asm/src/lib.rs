@@ -2,7 +2,7 @@ use std::fmt;
 
 use tindex::TSlice;
 
-use shared_id::{BlockId, FunctionId, LocationId};
+use shared_id::{BlockId, FunctionId, InputId, LocationId};
 
 use lir::{Action, Binop, Function, Lir, Terminator};
 
@@ -177,7 +177,8 @@ pub fn convert_block(
                 let inputs = &other.blocks[BlockId(0)].inputs;
 
                 // TODO: consider batching the argument passing
-                for (i, &arg) in args.iter().enumerate() {
+                for i in args.index_iter() {
+                    let arg = args[i];
                     commands.push(Command::MemStorage(func_id, arg));
                     commands.push(Command::Move(Readable::Mem, Writeable::A));
                     commands.push(Command::MemStorage(id, inputs[i]));
@@ -223,28 +224,10 @@ fn terminator_memory<I>(
     commands: &mut Vec<Command>,
     func_id: FunctionId,
     mut inputs: I,
-    args: &[LocationId],
+    args: &TSlice<InputId, LocationId>,
 ) where
     I: Iterator<Item = LocationId>,
 {
-    let mut args_view = args.to_vec();
-    let mut args_view: &mut [_] = &mut args_view;
-    for to in inputs.next() {
-        let from = args_view[0];
-        args_view = &mut args_view[1..];
-        for arg in args_view.iter_mut() {
-            if *arg == to {
-                *arg = from;
-            } else if *arg == from {
-                *arg = to;
-            }
-        }
-        commands.push(Command::MemStorage(func_id, from));
-        commands.push(Command::Move(Readable::Mem, Writeable::A));
-        commands.push(Command::MemStorage(func_id, to));
-        commands.push(Command::Move(Readable::Mem, Writeable::B));
-        commands.push(Command::Move(Readable::A, Writeable::Mem));
-        commands.push(Command::MemStorage(func_id, from));
-        commands.push(Command::Move(Readable::B, Writeable::Mem));
-    }
+    let _ = (commands, func_id, &mut inputs, args);
+    todo!()
 }

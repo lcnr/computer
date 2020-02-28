@@ -41,15 +41,15 @@ impl Display for Action {
     }
 }
 
-fn write_list<T: Display>(f: &mut Formatter<'_>, args: &[T]) -> Result {
-    if let Some((last, start)) = args.split_last() {
-        for arg in start.iter() {
-            write!(f, "{}, ", arg)?;
+fn write_list<T: Display, I: IntoIterator<Item = T>>(f: &mut Formatter<'_>, elems: I) -> Result {
+    let mut iter = elems.into_iter();
+    if let Some(first) = iter.next() {
+        write!(f, "{}", first)?;
+        for elem in iter {
+            write!(f, ", {}", elem)?;
         }
-        write!(f, "{}", last)
-    } else {
-        Ok(())
     }
+    Ok(())
 }
 
 impl<'a> Display for Lir<'a> {

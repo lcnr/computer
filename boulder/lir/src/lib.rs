@@ -1,6 +1,6 @@
 use tindex::TVec;
 
-use shared_id::{BlockId, FunctionId, LocationId, StepId};
+use shared_id::{BlockId, FunctionId, InputId, LocationId, StepId};
 
 mod display;
 mod optimize;
@@ -55,7 +55,7 @@ pub enum Action {
     /// args and ret may both not be valid bytes.
     FunctionCall {
         id: FunctionId,
-        args: Vec<LocationId>,
+        args: TVec<InputId, LocationId>,
         ret: Vec<LocationId>,
     },
 }
@@ -64,12 +64,12 @@ pub enum Action {
 pub struct MatchArm {
     pub pat: u8,
     pub target: Option<BlockId>,
-    pub args: Vec<LocationId>,
+    pub args: TVec<InputId, LocationId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Terminator {
-    Goto(Option<BlockId>, Vec<LocationId>),
+    Goto(Option<BlockId>, TVec<InputId, LocationId>),
     Match(LocationId, Vec<MatchArm>),
 }
 
@@ -108,7 +108,7 @@ impl<'a> Function<'a> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Block {
-    pub inputs: Vec<LocationId>,
+    pub inputs: TVec<InputId, LocationId>,
     pub memory_len: usize,
     pub steps: TVec<StepId, Action>,
     pub terminator: Terminator,

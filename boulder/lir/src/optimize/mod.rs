@@ -4,7 +4,7 @@ use tindex::{bitset::TBitSet, tvec};
 
 use graphc::{Coloring, Graph, NodeId};
 
-use shared_id::{BlockId, FunctionId, LocationId, StepId};
+use shared_id::{BlockId, FunctionId, InputId, LocationId, StepId};
 
 use crate::{traits::UpdateLocation, Action, Block, Function, Lir, Terminator};
 
@@ -60,7 +60,7 @@ impl<'a> Lir<'a> {
     }
 
     /// Removes the given input from each function call, does not update the actual function
-    fn remove_function_input(&mut self, f: FunctionId, input: usize) {
+    fn remove_function_input(&mut self, f: FunctionId, input: InputId) {
         for func in self.functions.iter_mut() {
             for block in func.blocks.iter_mut() {
                 for step in block.steps.iter_mut() {
@@ -79,7 +79,7 @@ impl<'a> Lir<'a> {
 }
 
 impl<'a> Function<'a> {
-    pub fn remove_input(&mut self, b: BlockId, input: usize) {
+    pub fn remove_input(&mut self, b: BlockId, input: InputId) {
         self.blocks[b].inputs.remove(input);
         for block in self.blocks.iter_mut() {
             match block.terminator {
@@ -102,10 +102,10 @@ impl<'a> Function<'a> {
 impl Block {
     /// removes all dead writes from self,
     /// Returns a bitset of unused inputs.
-    pub fn remove_dead_writes(&mut self) -> TBitSet<usize> {
+    pub fn remove_dead_writes(&mut self) -> TBitSet<InputId> {
         #[derive(Debug, Clone, Copy)]
         enum W {
-            Input(usize),
+            Input(InputId),
             Step(StepId),
         }
 
@@ -119,8 +119,8 @@ impl Block {
             W::Step(id) => steps.add(id),
         };
 
-        for (id, &input) in self.inputs.iter().enumerate() {
-            if let Some(last) = last_writes[input].replace(W::Input(id)) {
+        for id in self.inputs.index_iter() {
+            if let Some(last) = last_writes[self.inputs[id]].replace(W::Input(id)) {
                 add_to_remove(last);
             }
         }
