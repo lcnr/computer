@@ -55,6 +55,24 @@ impl Display for Action {
     }
 }
 
+impl Display for Terminator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            Terminator::Goto(block, args) => {
+                if let Some(block) = block {
+                    write!(f, "goto ~{}(", block.0)?;
+                } else {
+                    write!(f, "return (")?;
+                }
+
+                write_list(f, args)?;
+                writeln!(f, ")")
+            }
+            &Terminator::Match(id, ref arms) => print_match(f, id, arms),
+        }
+    }
+}
+
 fn write_list<T: Display, I: IntoIterator<Item = T>>(f: &mut Formatter<'_>, elems: I) -> Result {
     let mut iter = elems.into_iter();
     if let Some(first) = iter.next() {
@@ -96,20 +114,7 @@ impl<'a> Display for Lir<'a> {
                     writeln!(f, "    ${} := {}", i, step)?;
                 }
 
-                write!(f, "    ")?;
-                match &block.terminator {
-                    Terminator::Goto(block, args) => {
-                        if let Some(block) = block {
-                            write!(f, "goto ~{}(", block.0)?;
-                        } else {
-                            write!(f, "return (")?;
-                        }
-
-                        write_list(f, args)?;
-                        writeln!(f, ")")
-                    }
-                    &Terminator::Match(id, ref arms) => print_match(f, id, arms),
-                }?;
+                write!(f, "    {}", block.terminator)?;
             }
         }
 

@@ -6,6 +6,10 @@ Compiling lir into human readable assembly language.
 
 Some notes and implementation details of the current implementation.
 
+### Requirements
+
+Each block input must bind to a unique location.
+
 ### Functions
 
 Exported functions are aligned to a block boundary, other functions may not be.

@@ -51,13 +51,13 @@ pub fn core<'a>(mir: &mut Mir<'a>, lang_items: LangItems) {
 pub const MIR_OPTIMIZATIONS: &[(fn(&mut Mir), &str)] = &[
     (|mir| core(mir, LangItems::Unresolved), "core0"),
     (|mir| mir.reduce_binops(), "reduce_binops"),
-    (|mir| core(mir, LangItems::Unresolved), "core1"),
+    (|mir| core(mir, LangItems::BinopResolved), "core1"),
     (|mir| mir.reduce_sum_types(), "reduce_sum_types"),
-    (|mir| core(mir, LangItems::Unresolved), "core2"),
+    (|mir| core(mir, LangItems::BinopResolved), "core2"),
     (|mir| mir.reduce_to_bytes(), "reduce_to_bytes"),
-    (|mir| core(mir, LangItems::Unresolved), "core3"),
+    (|mir| core(mir, LangItems::ToBytesResolved), "core3"),
     (|mir| mir.enum_to_byte(), "enum_to_byte"),
-    (|mir| core(mir, LangItems::Unresolved), "core4"),
+    (|mir| core(mir, LangItems::ToBytesResolved), "core4"),
 ];
 
 pub const LIR_OPTIMIZATIONS: &[(fn(&mut Lir), &str)] = &[
@@ -74,7 +74,7 @@ pub fn compile<'a>(
     ctx: &'a GlobalCtx,
     src: &'a str,
     file: &'a str,
-) -> Result<Lir<'a>, CompileError> {
+) -> Result<String, CompileError> {
     #[cfg(feature = "profiler")]
     profile_scope!("compile");
     let mut mir = compile_to_mir(ctx, src, file)?;
@@ -86,6 +86,7 @@ pub fn compile<'a>(
     let mut lir = mir2lir::convert(mir);
     lir.validate();
     for (opt, _name) in LIR_OPTIMIZATIONS.iter() {
+        println!("{}", _name);
         opt(&mut lir);
         lir.validate();
     }
@@ -99,5 +100,5 @@ pub fn compile<'a>(
         let ret = bli.execute_function(f, &[], 100);
         println!("{}: {:?}: {:?}", f, bli.last_step(), ret);
     }
-    Ok(lir)
+    Ok(lir2asm::convert(lir))
 }

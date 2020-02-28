@@ -42,7 +42,23 @@ macro_rules! t {
     }
 }
 
-t!(TypeId: '%', FunctionId: '#', FieldId, BlockId: '~', StepId: '$', InputId, LocationId: '@');
+macro_rules! add {
+    ($($n:ident),+) => {
+        $(
+            impl Add<usize> for $n {
+                type Output = Self;
+
+                fn add(self, other: usize) -> Self {
+                    $n(self.0 + other)
+                }
+            }
+        )+
+    }
+}
+
+t!(TypeId: '%', FunctionId: '#', FieldId, BlockId: '~', StepId: '$', InputId, LocationId: '@', TagId);
+
+add!(StepId, LocationId, InputId, TagId);
 
 impl BlockId {
     pub fn invalid() -> Self {
@@ -57,21 +73,5 @@ impl StepId {
 
     pub fn replacement(n: usize) -> Self {
         StepId(std::usize::MAX - n)
-    }
-}
-
-impl Add<usize> for StepId {
-    type Output = Self;
-
-    fn add(self, other: usize) -> Self {
-        StepId(self.0 + other)
-    }
-}
-
-impl Add<usize> for LocationId {
-    type Output = Self;
-
-    fn add(self, other: usize) -> Self {
-        LocationId(self.0 + other)
     }
 }

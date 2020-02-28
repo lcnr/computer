@@ -188,6 +188,8 @@ fn main() -> Result<(), TestFailure> {
                     lir.validate();
                     test_lir(&lir, name);
                 }
+
+                lir2asm::convert(lir);
             })) {
                 Ok(()) => (),
                 Err(_) => {
