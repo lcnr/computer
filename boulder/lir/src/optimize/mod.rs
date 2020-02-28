@@ -4,9 +4,9 @@ use tindex::{bitset::TBitSet, tvec};
 
 use graphc::{Coloring, Graph, NodeId};
 
-use shared_id::LocationId;
+use shared_id::{BlockId, FunctionId, LocationId, StepId};
 
-use crate::{traits::UpdateLocation, Action, Block, Lir, Terminator};
+use crate::{traits::UpdateLocation, Action, Block, Function, Lir, Terminator};
 
 impl<'a> Lir<'a> {
     /// Minimizes the needed memory of each block without
@@ -43,39 +43,107 @@ impl<'a> Lir<'a> {
     /// Removes `w_1` in the sequence `..., w_1, seq , w_2, ...`
     /// where `seq` does not read the given location.
     pub fn remove_dead_writes(&mut self) {
-        for function in self.functions.iter_mut() {
-            for block in function.blocks.iter_mut() {
-                block.remove_dead_writes()
+        for func_id in self.functions.index_iter() {
+            for block_id in self.functions[func_id].blocks.index_iter() {
+                for input in self.functions[func_id].blocks[block_id]
+                    .remove_dead_writes()
+                    .iter()
+                    .rev()
+                {
+                    self.functions[func_id].remove_input(block_id, input);
+                    if block_id == BlockId(0) {
+                        self.remove_function_input(func_id, input);
+                    }
+                }
+            }
+        }
+    }
+
+    /// Removes the given input from each function call, does not update the actual function
+    fn remove_function_input(&mut self, f: FunctionId, input: usize) {
+        for func in self.functions.iter_mut() {
+            for block in func.blocks.iter_mut() {
+                for step in block.steps.iter_mut() {
+                    if let Action::FunctionCall {
+                        id, ref mut args, ..
+                    } = *step
+                    {
+                        if f == id {
+                            args.remove(input);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl<'a> Function<'a> {
+    pub fn remove_input(&mut self, b: BlockId, input: usize) {
+        self.blocks[b].inputs.remove(input);
+        for block in self.blocks.iter_mut() {
+            match block.terminator {
+                Terminator::Goto(Some(target), ref mut args) if target == b => {
+                    args.remove(input);
+                }
+                Terminator::Goto(_, _) => (),
+                Terminator::Match(_, ref mut arms) => {
+                    for arm in arms.iter_mut() {
+                        if arm.target == Some(b) {
+                            arm.args.remove(input);
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 impl Block {
-    pub fn remove_dead_writes(&mut self) {
+    /// removes all dead writes from self,
+    /// Returns a bitset of unused inputs.
+    pub fn remove_dead_writes(&mut self) -> TBitSet<usize> {
+        #[derive(Debug, Clone, Copy)]
+        enum W {
+            Input(usize),
+            Step(StepId),
+        }
+
         // TODO: this can be used to remove inputs
         let mut last_writes = tvec![None; self.memory_len];
-        let mut to_remove = TBitSet::new();
+        let mut inputs = TBitSet::new();
+        let mut steps = TBitSet::new();
+
+        let mut add_to_remove = |elem| match elem {
+            W::Input(v) => inputs.add(v),
+            W::Step(id) => steps.add(id),
+        };
+
+        for (id, &input) in self.inputs.iter().enumerate() {
+            if let Some(last) = last_writes[input].replace(W::Input(id)) {
+                add_to_remove(last);
+            }
+        }
 
         for step_id in self.steps.index_iter() {
             match self.steps[step_id] {
                 Action::Invert(i, o) | Action::Move(i, o) => {
                     last_writes[i] = None;
-                    if let Some(last) = last_writes[o].replace(step_id) {
-                        to_remove.add(last);
+                    if let Some(last) = last_writes[o].replace(W::Step(step_id)) {
+                        add_to_remove(last);
                     }
                 }
                 Action::Debug(i) => last_writes[i] = None,
                 Action::LoadConstant(_, o) => {
-                    if let Some(last) = last_writes[o].replace(step_id) {
-                        to_remove.add(last);
+                    if let Some(last) = last_writes[o].replace(W::Step(step_id)) {
+                        add_to_remove(last);
                     }
                 }
                 Action::Binop { l, r, out, .. } => {
                     last_writes[l] = None;
                     last_writes[r] = None;
-                    if let Some(last) = last_writes[out].replace(step_id) {
-                        to_remove.add(last);
+                    if let Some(last) = last_writes[out].replace(W::Step(step_id)) {
+                        add_to_remove(last);
                     }
                 }
                 Action::FunctionCall {
@@ -88,7 +156,7 @@ impl Block {
                     for &v in ret.iter() {
                         // TODO: FunctionCall should ret should be an Option
                         if let Some(last) = last_writes[v].take() {
-                            to_remove.add(last);
+                            add_to_remove(last);
                         }
                     }
                 }
@@ -113,12 +181,14 @@ impl Block {
         }
 
         for step in last_writes.iter().copied().filter_map(identity) {
-            to_remove.add(step)
+            add_to_remove(step)
         }
 
-        for step in to_remove.iter().rev() {
+        for step in steps.iter().rev() {
             self.steps.remove(step);
         }
+
+        inputs
     }
 
     pub fn calculate_coloring(&self) -> Coloring {

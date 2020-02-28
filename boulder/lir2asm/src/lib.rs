@@ -1,6 +1,6 @@
 use std::fmt;
 
-use tindex::{TSlice, TVec};
+use tindex::TSlice;
 
 use shared_id::{BlockId, FunctionId, LocationId};
 

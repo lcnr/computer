@@ -71,13 +71,13 @@ pub fn compile<'a>(
     lir.validate();
     lir.remove_dead_writes();
     lir.validate();
-
-    lir.minimize_memory_usage();
-    lir.validate();
-
-    lir.remove_noop_moves();
-    lir.remove_dead_writes();
-    lir.validate();
+    for i in 0..2 {
+        lir.minimize_memory_usage();
+        lir.validate();
+        lir.remove_noop_moves();
+        lir.remove_dead_writes();
+        lir.validate();
+    }
 
     let mut bli = lir_interpreter::BoulderLirInterpreter::new(&lir);
     for f in lir
