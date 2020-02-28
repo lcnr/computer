@@ -23,6 +23,8 @@ pub struct Context {
     pub mul32: FunctionId,
     pub mul16: FunctionId,
     pub mul8: FunctionId,
+    /// have enums been converted to bytes
+    pub e2b: bool,
     pub true_replacement: u8,
     pub false_replacement: u8,
 }

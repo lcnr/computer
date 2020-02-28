@@ -25,16 +25,11 @@ pub enum InterpretError {
 pub struct BoulderMirInterpreter<'a> {
     mir: &'a Mir<'a>,
     step_count: usize,
-    e2b: bool,
 }
 
 impl<'a> BoulderMirInterpreter<'a> {
-    pub fn new(mir: &'a Mir<'a>, e2b: bool) -> Self {
-        Self {
-            mir,
-            step_count: 0,
-            e2b,
-        }
+    pub fn new(mir: &'a Mir<'a>) -> Self {
+        Self { mir, step_count: 0 }
     }
 
     pub fn step_count(&self) -> usize {

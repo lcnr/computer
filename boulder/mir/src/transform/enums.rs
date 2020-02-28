@@ -16,6 +16,8 @@ impl<'a> Mir<'a> {
     ///
     /// Requires all sum types to be reduced using `Mir::reduce_sum_types`.
     pub fn enum_to_byte(&mut self) {
+        self.ctx.e2b = true;
+
         let mut used = TBitSet::new();
         for ty in self.types.iter() {
             if let Type::Sum(kinds) = ty {

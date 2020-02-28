@@ -20,11 +20,13 @@ use diagnostics::CompileError;
 
 use shared_id::{FunctionId, TRUE_TYPE_ID};
 
-use mir::{LangItemState, Mir, Object};
+use mir::{Mir, Object};
 
 use lir::Lir;
 
 use lir_interpreter::Memory;
+
+use boulder::{LIR_OPTIMIZATIONS, MIR_OPTIMIZATIONS};
 
 struct OutputShim {
     inner: Arc<Mutex<String>>,
@@ -44,10 +46,10 @@ impl Write for OutputShim {
     }
 }
 
-fn test_mir(mir: &Mir, e2b: bool, stage: &str) {
+fn test_mir(mir: &Mir, stage: &str) {
     #[cfg(feature = "profiler")]
     profile_scope!("test_mir");
-    let mut bmi = mir_interpreter::BoulderMirInterpreter::new(mir, e2b);
+    let mut bmi = mir_interpreter::BoulderMirInterpreter::new(mir);
     let mut check_count = 0;
     for (id, test) in mir
         .functions
@@ -56,15 +58,13 @@ fn test_mir(mir: &Mir, e2b: bool, stage: &str) {
         .filter(|(_, func)| func.ctx.is_test)
     {
         check_count += 1;
-        match panic::catch_unwind(panic::AssertUnwindSafe(|| {
-            bmi.execute_function(FunctionId::from(id), &[])
-        })) {
-            Ok(Ok(obj)) => {
-                if e2b {
+        match bmi.execute_function(FunctionId::from(id), &[]) {
+            Ok(obj) => {
+                if mir.ctx.e2b {
                     if let Object::U8(v) = obj {
                         if v != mir.ctx.true_replacement {
                             panic!(
-                                "unit test `{}` failed at stage `{}`: {:?}",
+                                "unit test `{}` failed at stage `mir::{}`: {:?}",
                                 test.name, stage, obj
                             )
                         }
@@ -72,18 +72,14 @@ fn test_mir(mir: &Mir, e2b: bool, stage: &str) {
                 } else if let Object::Variant(TRUE_TYPE_ID, _) = obj {
                 } else {
                     panic!(
-                        "unit test `{}` failed at stage `{}`: {:?}",
+                        "unit test `{}` failed at stage `mir::{}`: {:?}",
                         test.name, stage, obj
                     )
                 }
             }
-            Ok(Err(err)) => panic!(
-                "interpreter during unit test `{}` at stage `{}`: {:?}",
+            Err(err) => panic!(
+                "interpreter during unit test `{}` at stage `mir::{}`: {:?}",
                 test.name, stage, err
-            ),
-            Err(_) => panic!(
-                "panic during unit test `{}`  at stage `{}`",
-                test.name, stage
             ),
         }
     }
@@ -109,13 +105,13 @@ fn test_lir(lir: &Lir, stage: &str) {
             Ok(v) => {
                 if v.as_slice() != &[Memory::Byte(lir.ctx.true_replacement)] as &[_] {
                     panic!(
-                        "unit test `{}` failed at stage `{}`: {:?}",
+                        "unit test `{}` failed at stage `lir::{}`: {:?}",
                         test.name, stage, v
                     )
                 }
             }
             Err(err) => panic!(
-                "interpreter during unit test `{}` at stage `{}`: {:?}: {:?}",
+                "interpreter during unit test `{}` at stage `lir::{}`: {:?}: {:?}",
                 test.name,
                 stage,
                 bli.last_step(),
@@ -125,7 +121,7 @@ fn test_lir(lir: &Lir, stage: &str) {
     }
 
     if check_count == 0 && !lir.functions.iter().any(|f| f.ctx.export) {
-        panic!("did not check test any function at stage `{}`", stage)
+        panic!("did not check test any function at stage `lir::{}`", stage)
     }
 }
 
@@ -176,52 +172,22 @@ fn main() -> Result<(), TestFailure> {
             match panic::catch_unwind(AssertUnwindSafe(|| {
                 #[cfg(feature = "profiler")]
                 profile_scope!("optimize_and_test");
-                test_mir(&mir, false, "initial");
 
-                boulder::core_optimizations(&mut mir, false, LangItemState::Unresolved);
-                test_mir(&mir, false, "core optimizations");
-
-                mir.reduce_binops();
-                mir.validate(false);
-                test_mir(&mir, false, "reduced binops");
-
-                boulder::core_optimizations(&mut mir, false, LangItemState::BinopResolved);
-                test_mir(&mir, false, "core optimizations post binops");
-
-                mir.reduce_sum_types();
-                mir.validate(false);
-                test_mir(&mir, false, "reduced sum types");
-
-                boulder::core_optimizations(&mut mir, false, LangItemState::BinopResolved);
-                test_mir(&mir, false, "core optimizations post sum types");
-
-                mir.reduce_to_bytes();
-                mir.validate(false);
-                test_mir(&mir, false, "reduced to bytes");
-
-                boulder::core_optimizations(&mut mir, false, LangItemState::ToBytesResolved);
-                test_mir(&mir, false, "core optimizations post bytes");
-
-                mir.enum_to_byte();
-                mir.validate(true);
-                test_mir(&mir, true, "enum_to_byte");
+                test_mir(&mir, "initial");
+                for (opt, name) in MIR_OPTIMIZATIONS.iter() {
+                    opt(&mut mir);
+                    mir.validate();
+                    test_mir(&mir, name);
+                }
 
                 let mut lir = mir2lir::convert(mir);
                 lir.validate();
                 test_lir(&lir, "mir2lir");
-
-                lir.remove_dead_writes();
-                lir.validate();
-                test_lir(&lir, "lir::remove_dead_writes1");
-
-                lir.minimize_memory_usage();
-                lir.validate();
-                test_lir(&lir, "lir::minimize_memory_usage");
-
-                lir.remove_noop_moves();
-                lir.remove_dead_writes();
-                lir.validate();
-                test_lir(&lir, "lir::remove_dead_writes2");
+                for (opt, name) in LIR_OPTIMIZATIONS.iter() {
+                    opt(&mut lir);
+                    lir.validate();
+                    test_lir(&lir, name);
+                }
             })) {
                 Ok(()) => (),
                 Err(_) => {

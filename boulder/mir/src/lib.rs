@@ -187,7 +187,7 @@ pub enum UnaryOperation {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum LangItemState {
+pub enum LangItems {
     Unresolved,
     BinopResolved,
     ToBytesResolved,

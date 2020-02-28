@@ -17,7 +17,7 @@ impl Drop for PanicDisplay<'_, '_> {
 
 impl<'a> Mir<'a> {
     /// check if the MIR is well formed
-    pub fn validate(&self, e2b: bool) {
+    pub fn validate(&self) {
         #[cfg(feature = "profiler")]
         profile_scope!("validate");
         for ty in self.types.index_iter() {
@@ -25,7 +25,7 @@ impl<'a> Mir<'a> {
         }
 
         for func in self.functions.index_iter() {
-            self.validate_function(func, e2b);
+            self.validate_function(func);
         }
     }
 
@@ -33,21 +33,21 @@ impl<'a> Mir<'a> {
         let _ = ty;
     }
 
-    pub fn validate_function(&self, func: FunctionId, e2b: bool) {
+    pub fn validate_function(&self, func: FunctionId) {
         #[cfg(feature = "profiler")]
         profile_scope!("validate_function");
         let hir_panic = PanicDisplay("\n", self);
         let func_panic = PanicDisplay("function: ", &func);
 
         for (block_id, block) in self[func].blocks.iter().enumerate() {
-            self.validate_block(func, block_id, block, e2b)
+            self.validate_block(func, block_id, block)
         }
 
         mem::forget(func_panic);
         mem::forget(hir_panic);
     }
 
-    fn validate_block(&self, func: FunctionId, block_id: usize, block: &Block, e2b: bool) {
+    fn validate_block(&self, func: FunctionId, block_id: usize, block: &Block) {
         let func = &self.functions[func];
         let block_panic = PanicDisplay("block: ", &block_id);
         for (step_id, step) in block.steps.iter().enumerate() {
@@ -55,7 +55,7 @@ impl<'a> Mir<'a> {
             let step_panic = PanicDisplay("step: ", &step_id);
             match step.action {
                 Action::Extend(s) => {
-                    assert!(!e2b);
+                    assert!(!self.ctx.e2b);
                     assert!(s < step_id);
                     if block[s].ty != step.ty {
                         if let Type::Sum(ref v) = self[step.ty] {
@@ -158,7 +158,7 @@ impl<'a> Mir<'a> {
                             );
                         }
                         UnaryOperation::Debug => {
-                            if !e2b {
+                            if !self.ctx.e2b {
                                 assert_eq!(step.ty, EMPTY_TYPE_ID);
                             }
                         }
@@ -167,7 +167,7 @@ impl<'a> Mir<'a> {
                 Action::Binop(kind, a, b) => {
                     assert!(a < step_id);
                     assert!(b < step_id);
-                    kind.validate(step, &block[a], &block[b], e2b);
+                    kind.validate(step, &block[a], &block[b], self.ctx.e2b);
                 } // TODO: validate
             }
             mem::forget(step_panic);

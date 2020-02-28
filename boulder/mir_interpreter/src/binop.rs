@@ -10,7 +10,7 @@ use crate::{BoulderMirInterpreter, InterpretError};
 
 impl<'a> BoulderMirInterpreter<'a> {
     fn to_bool(&self, b: bool) -> Object {
-        if self.e2b {
+        if self.mir.ctx.e2b {
             if b {
                 Object::U8(self.mir.ctx.true_replacement)
             } else {
