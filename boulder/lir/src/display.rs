@@ -22,6 +22,25 @@ impl Display for Binop {
     }
 }
 
+impl Display for Action {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            Action::Invert(i, o) => write!(f, "invert {} -> {}", i, o),
+            Action::Move(i, o) => write!(f, "move {} -> {}", i, o),
+            Action::Debug(i) => write!(f, "debug {}", i),
+            Action::LoadConstant(v, o) => write!(f, "load {} -> {}", v, o),
+            Action::Binop { op, l, r, out } => write!(f, "{} {} {} -> {}", op, l, r, out),
+            Action::FunctionCall { id, args, ret } => {
+                write!(f, "call {}(", id)?;
+                write_list(f, args)?;
+                write!(f, ") -> (")?;
+                write_list(f, ret)?;
+                write!(f, ")")
+            }
+        }
+    }
+}
+
 fn write_list<T: Display>(f: &mut Formatter<'_>, args: &[T]) -> Result {
     if let Some((last, start)) = args.split_last() {
         for arg in start.iter() {
@@ -60,24 +79,7 @@ impl<'a> Display for Lir<'a> {
                 writeln!(f, ")")?;
 
                 for (i, step) in block.steps.iter().enumerate() {
-                    write!(f, "    ${} := ", i)?;
-                    match step {
-                        Action::Invert(i, o) => write!(f, "invert {} -> {}", i, o),
-                        Action::Move(i, o) => write!(f, "move {} -> {}", i, o),
-                        Action::Debug(i) => write!(f, "debug {}", i),
-                        Action::LoadConstant(v, o) => write!(f, "load {} -> {}", v, o),
-                        Action::Binop { op, l, r, out } => {
-                            write!(f, "{} {} {} -> {}", op, l, r, out)
-                        }
-                        Action::FunctionCall { id, args, ret } => {
-                            write!(f, "call {}(", id)?;
-                            write_list(f, args)?;
-                            write!(f, ") -> (")?;
-                            write_list(f, ret)?;
-                            write!(f, ")")
-                        }
-                    }?;
-                    writeln!(f)?;
+                    writeln!(f, "    ${} := {}", i, step)?;
                 }
 
                 write!(f, "    ")?;
