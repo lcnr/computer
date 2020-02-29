@@ -1,4 +1,4 @@
-use crate::{Action, Block, LocationId, Terminator};
+use crate::{Action, Arg, Block, LocationId, Terminator};
 
 pub trait UpdateLocation<F>
 where
@@ -43,7 +43,9 @@ where
             }
             Action::FunctionCall { args, ret, .. } => {
                 for arg in args.iter_mut() {
-                    *arg = f(*arg);
+                    if let Arg::Location(id) = arg {
+                        *id = f(*id);
+                    }
                 }
 
                 for v in ret.iter_mut().filter_map(Option::as_mut) {

@@ -2,7 +2,7 @@ use std::{fmt, mem};
 
 use shared_id::{BlockId, FunctionId};
 
-use crate::{Action, Lir, Terminator};
+use crate::{Action, Arg, Lir, Terminator};
 
 struct PanicDisplay<'a, 'b>(&'a str, &'b dyn fmt::Display);
 
@@ -69,8 +69,10 @@ impl<'a> Lir<'a> {
                     ref ret,
                 } => {
                     let target = &self.functions[id];
-                    for arg in args.iter() {
-                        assert!(arg.0 < block.memory_len);
+                    for &arg in args.iter() {
+                        if let Arg::Location(id) = arg {
+                            assert!(id.0 < block.memory_len);
+                        }
                     }
 
                     for val in ret.iter().filter_map(Option::as_ref) {

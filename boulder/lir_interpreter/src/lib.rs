@@ -6,7 +6,7 @@ use tindex::tvec;
 
 use shared_id::{BlockId, FunctionId, StepId};
 
-use lir::{Action, Binop, Lir, Terminator};
+use lir::{Action, Arg, Binop, Lir, Terminator};
 
 #[derive(Debug, Clone)]
 pub enum Error {
@@ -120,7 +120,14 @@ impl<'a> BoulderLirInterpreter<'a> {
                         ref args,
                         ref ret,
                     } => {
-                        let args: Vec<_> = args.iter().map(|&l| memory[l]).collect();
+                        let args: Vec<_> = args
+                            .iter()
+                            .map(|&l| match l {
+                                Arg::Undefined => Memory::Undefined,
+                                Arg::Byte(v) => Memory::Byte(v),
+                                Arg::Location(location) => memory[location],
+                            })
+                            .collect();
                         let func = self.function;
                         let values = self.execute_function(id, &args, stack_depth - 1)?;
                         self.function = func;

@@ -35,6 +35,13 @@ pub enum Binop {
     BitXor,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Arg {
+    Undefined,
+    Byte(u8),
+    Location(LocationId),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     /// input must be a valid byte.
@@ -55,7 +62,7 @@ pub enum Action {
     /// args and ret may both not be valid bytes.
     FunctionCall {
         id: FunctionId,
-        args: TVec<InputId, LocationId>,
+        args: TVec<InputId, Arg>,
         ret: Vec<Option<LocationId>>,
     },
 }

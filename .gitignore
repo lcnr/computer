@@ -2,4 +2,3 @@ nohup.out
 Cargo.lock
 target
 a.data
-log

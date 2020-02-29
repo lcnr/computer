@@ -6,7 +6,7 @@ use tindex::{tvec, TSlice, TVec};
 
 use shared_id::{FieldId, LocationId, StepId, TypeId};
 
-use lir::Lir;
+use lir::{Arg, Lir};
 use mir::{Mir, Object, Type};
 
 pub fn convert(mir: Mir) -> Lir {
@@ -134,6 +134,7 @@ fn convert_block(
                     .iter()
                     .map(|&arg| (0..types[mir.steps[arg].ty].size(types)).map(move |v| so[arg] + v))
                     .flatten()
+                    .map(Arg::Location)
                     .collect();
 
                 let ret = (step_start.0..memory_len)

@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter, Result};
 
 use shared_id::{FunctionId, LocationId};
 
-use crate::{Action, Binop, Lir, MatchArm, Terminator};
+use crate::{Action, Arg, Binop, Lir, MatchArm, Terminator};
 
 impl Display for Binop {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
@@ -22,13 +22,23 @@ impl Display for Binop {
     }
 }
 
+impl Display for Arg {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            Arg::Byte(v) => write!(f, "b{}", v),
+            Arg::Undefined => write!(f, "_"),
+            Arg::Location(id) => id.fmt(f),
+        }
+    }
+}
+
 impl Display for Action {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Action::Invert(i, o) => write!(f, "invert {} -> {}", i, o),
             Action::Move(i, o) => write!(f, "move {} -> {}", i, o),
             Action::Debug(i) => write!(f, "debug {}", i),
-            Action::LoadConstant(v, o) => write!(f, "load {} -> {}", v, o),
+            Action::LoadConstant(v, o) => write!(f, "load b{} -> {}", v, o),
             Action::Binop { op, l, r, out } => write!(f, "{} {} {} -> {}", op, l, r, out),
             Action::FunctionCall { id, args, ret } => {
                 write!(f, "call {}(", id)?;
@@ -125,9 +135,9 @@ impl<'a> Display for Lir<'a> {
 fn print_match(f: &mut Formatter, id: LocationId, arms: &[MatchArm]) -> Result {
     let write_arm = |f: &mut Formatter, arm: &MatchArm| {
         if let Some(block) = arm.target {
-            write!(f, "{} -> goto ~{}(", arm.pat, block.0)?;
+            write!(f, "b{} -> goto ~{}(", arm.pat, block.0)?;
         } else {
-            write!(f, "{} -> return (", arm.pat)?;
+            write!(f, "b{} -> return (", arm.pat)?;
         }
 
         write_list(f, &arm.args)?;

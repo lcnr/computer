@@ -6,7 +6,9 @@ use graphc::{Coloring, Graph, NodeId};
 
 use shared_id::{BlockId, FunctionId, InputId, LocationId, StepId};
 
-use crate::{traits::UpdateLocation, Action, Block, Function, Lir, Terminator};
+use crate::{traits::UpdateLocation, Action, Arg, Block, Function, Lir, Terminator};
+
+mod const_prop;
 
 impl<'a> Lir<'a> {
     /// Minimizes the needed memory of each block without
@@ -153,7 +155,9 @@ impl Block {
                     ref args, ref ret, ..
                 } => {
                     for &arg in args {
-                        last_writes[arg] = None;
+                        if let Arg::Location(id) = arg {
+                            last_writes[id] = None;
+                        }
                     }
 
                     for i in 0..ret.len() {
@@ -265,7 +269,9 @@ impl Block {
                     }
 
                     for &arg in args {
-                        add_alive(&mut alive, arg);
+                        if let Arg::Location(id) = arg {
+                            add_alive(&mut alive, id);
+                        }
                     }
                 }
             }

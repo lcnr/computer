@@ -6,7 +6,7 @@ use tindex::{bitset::TBitSet, TSlice, TVec};
 
 use shared_id::{BlockId, FunctionId, InputId, LocationId, TagId};
 
-use lir::{Action, Binop, Function, Lir, Terminator};
+use lir::{Action, Arg, Binop, Function, Lir, Terminator};
 
 struct TagManager {
     tag: TagId,
@@ -187,15 +187,19 @@ impl CommandSize for Vec<Command> {
 pub fn convert(lir: Lir) -> String {
     let mut tm = TagManager { tag: TagId(0) };
 
+    let mut total = 0;
     for f in lir.functions.index_iter() {
+        let mut blocks = TVec::new();
         for b in lir.functions[f].blocks.index_iter() {
             let block = &lir.functions[f].blocks[b];
-            println!(
-                "{}{}.max_size(): {}",
-                f,
-                b,
-                convert_block(&mut tm, &lir.ctx, &lir.functions, block, f).max_size()
-            );
+            blocks.push(convert_block(&mut tm, &lir.ctx, &lir.functions, block, f));
+        }
+
+        if !lir.functions[f].ctx.hidden {
+            println!("{}[{}]:", lir.functions[f].name, f);
+            for b in lir.functions[f].blocks.index_iter() {
+                println!("  {}.max_size(): {}", b, blocks[b].max_size());
+            }
         }
     }
 
@@ -285,10 +289,20 @@ fn convert_block(
                 // TODO: consider batching the argument passing
                 for i in args.index_iter() {
                     let arg = args[i];
-                    commands.push(Command::MemStorage(f, arg));
-                    commands.push(Command::Move(Readable::Mem, Writeable::A));
-                    commands.push(Command::MemStorage(id, inputs[i]));
-                    commands.push(Command::Move(Readable::A, Writeable::Mem));
+                    match arg {
+                        Arg::Undefined => (),
+                        Arg::Byte(v) => {
+                            commands.push(Command::Move(Readable::Byte(v), Writeable::A));
+                            commands.push(Command::MemStorage(id, inputs[i]));
+                            commands.push(Command::Move(Readable::A, Writeable::Mem));
+                        }
+                        Arg::Location(location) => {
+                            commands.push(Command::MemStorage(f, location));
+                            commands.push(Command::Move(Readable::Mem, Writeable::A));
+                            commands.push(Command::MemStorage(id, inputs[i]));
+                            commands.push(Command::Move(Readable::A, Writeable::Mem));
+                        }
+                    }
                 }
 
                 // TODO: recursive functions don't work right now
