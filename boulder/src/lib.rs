@@ -93,6 +93,7 @@ pub fn compile<'a>(
         opt(&mut lir);
         lir.validate();
     }
+    println!("{}", lir);
 
     let mut bli = lir_interpreter::BoulderLirInterpreter::new(&lir);
     for f in lir

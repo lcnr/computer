@@ -57,7 +57,7 @@ maybe_some[#1]:
 maybe_none[#2]:
   ~0.max_size(): 71
 temporaries[#0]:
-  ~0.max_size(): 92
+  ~0.max_size(): 74
   ~1.max_size(): 74
   ~2.max_size(): 74
   ~3.max_size(): 164
@@ -102,7 +102,7 @@ type_ascription[#0]:
 test[#1]:
   ~0.max_size(): 162
 test[#0]:
-  ~0.max_size(): 39
+  ~0.max_size(): 10
   ~1.max_size(): 46
   ~2.max_size(): 46
   ~3.max_size(): 19
@@ -137,9 +137,9 @@ access[#0]:
 test[#1]:
   ~0.max_size(): 142
 test[#0]:
-  ~0.max_size(): 155
+  ~0.max_size(): 45
   ~1.max_size(): 121
-  ~2.max_size(): 23
+  ~2.max_size(): 5
   ~3.max_size(): 93
   ~4.max_size(): 19
 mov[#0]:
@@ -191,14 +191,14 @@ if_chain[#1]:
   ~0.max_size(): 34
   ~1.max_size(): 25
   ~2.max_size(): 25
-  ~3.max_size(): 23
+  ~3.max_size(): 5
   ~4.max_size(): 25
   ~5.max_size(): 25
   ~6.max_size(): 91
 if_empty[#2]:
-  ~0.max_size(): 23
-  ~1.max_size(): 67
-  ~2.max_size(): 52
+  ~0.max_size(): 5
+  ~1.max_size(): 25
+  ~2.max_size(): 5
   ~3.max_size(): 34
   ~4.max_size(): 14
   ~5.max_size(): 14
@@ -207,7 +207,7 @@ test_if_empty[#3]:
 test_chain[#4]:
   ~0.max_size(): 122
 test[#0]:
-  ~0.max_size(): 33
+  ~0.max_size(): 5
   ~1.max_size(): 19
   ~2.max_size(): 19
 bool[#0]:
@@ -217,7 +217,7 @@ arm[#1]:
   ~1.max_size(): 19
   ~2.max_size(): 25
 underscore[#0]:
-  ~0.max_size(): 23
+  ~0.max_size(): 5
   ~1.max_size(): 19
   ~2.max_size(): 19
 test[#1]:
@@ -273,21 +273,21 @@ break_one[#2]:
 test[#0]:
   ~0.max_size(): 19
 test_u32[#0]:
-  ~0.max_size(): 43
-  ~1.max_size(): 49
-  ~2.max_size(): 41
+  ~0.max_size(): 25
+  ~1.max_size(): 43
+  ~2.max_size(): 5
   ~3.max_size(): 37
-  ~4.max_size(): 23
+  ~4.max_size(): 5
   ~5.max_size(): 27
   ~6.max_size(): 19
 test_u16[#0]:
-  ~0.max_size(): 28
+  ~0.max_size(): 10
   ~1.max_size(): 27
   ~2.max_size(): 19
 logical[#0]:
   ~0.max_size(): 18
   ~1.max_size(): 18
-  ~2.max_size(): 23
+  ~2.max_size(): 5
   ~3.max_size(): 19
   ~4.max_size(): 18
   ~5.max_size(): 19
@@ -377,7 +377,7 @@ test_int[#3]:
 test_bool[#4]:
   ~0.max_size(): 52
   ~1.max_size(): 52
-  ~2.max_size(): 23
+  ~2.max_size(): 5
   ~3.max_size(): 48
   ~4.max_size(): 19
 parenthesis_a[#0]:

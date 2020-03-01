@@ -5,7 +5,7 @@ use tindex::{TSlice, TVec};
 
 use shared_id::{BlockId, FunctionId, InputId, LocationId};
 
-use crate::{Action, Arg, Binop, Lir, Memory};
+use crate::{Action, Arg, Binop, Lir, Memory, Terminator};
 
 impl<'a> Lir<'a> {
     pub fn const_propagate(&mut self) {
@@ -42,6 +42,45 @@ impl<'a> Lir<'a> {
             .collect();
 
         b!().steps = steps;
+
+        match b!().terminator {
+            Terminator::Goto(_, ref mut args) => {
+                propagate_args(&mut memory, args);
+            }
+            Terminator::Match(expr, ref mut arms) => {
+                match memory[expr] {
+                    Memory::Undefined => panic!("match on undefined: {:?}", self),
+                    Memory::Byte(v) => {
+                        for arm in arms.iter_mut() {
+                            if arm.pat == v {
+                                propagate_args(&mut memory, &mut arm.args);
+                                b!().terminator = Terminator::Goto(arm.target, arm.args.clone());
+                                return;
+                            }
+                        }
+
+                        panic!("match on invalid data");
+                    }
+                    Memory::Unknown => {
+                        for arm in arms.iter_mut() {
+                            propagate_args(&mut memory, &mut arm.args);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn propagate_args(mem: &mut TSlice<LocationId, Memory>, args: &mut TSlice<InputId, Option<Arg>>) {
+    for arg in args.iter_mut() {
+        if let Some(Arg::Location(l)) = *arg {
+            match mem[l] {
+                Memory::Byte(v) => *arg = Some(Arg::Byte(v)),
+                Memory::Undefined => *arg = None,
+                Memory::Unknown => (),
+            }
+        }
     }
 }
 
