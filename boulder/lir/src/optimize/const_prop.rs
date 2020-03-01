@@ -5,7 +5,7 @@ use tindex::{TSlice, TVec};
 
 use shared_id::{BlockId, FunctionId, InputId, LocationId};
 
-use crate::{Action, Arg, Lir, Memory};
+use crate::{Action, Arg, Binop, Lir, Memory};
 
 impl<'a> Lir<'a> {
     pub fn const_propagate(&mut self) {
@@ -46,7 +46,7 @@ impl<'a> Lir<'a> {
 }
 
 impl Action {
-    fn const_propagate(&self, _lir: &Lir, mem: &mut TSlice<LocationId, Memory>) -> Option<Action> {
+    fn const_propagate(&self, lir: &Lir, mem: &mut TSlice<LocationId, Memory>) -> Option<Action> {
         match *self {
             Action::Invert(i, o) => match mem[i] {
                 Memory::Undefined => {
@@ -76,13 +76,13 @@ impl Action {
                     Some(Action::LoadConstant(v, o))
                 }
             },
-            Action::Debug(i) => Some(self.clone()),
+            Action::Debug(_) => Some(self.clone()),
             Action::LoadConstant(v, o) => {
                 mem[o] = Memory::Byte(v);
                 Some(self.clone())
             }
-            Action::Binop { out, .. } => {
-                /* let v = |r| match r {
+            Action::Binop { op, l, r, out } => {
+                let v = |r| match r {
                     Arg::Byte(v) => Memory::Byte(v),
                     Arg::Location(id) => mem[id],
                 };
@@ -92,14 +92,60 @@ impl Action {
                         mem[out] = Memory::Undefined;
                         None
                     }
-                    (Memory::Byte(a), Memory::Byte(b)) => {
-                        mem[o] = match op {
-                            Binop::Add
+                    (Memory::Byte(l), Memory::Byte(r)) => {
+                        let to_bool = |b| {
+                            if b {
+                                Some(lir.ctx.true_replacement)
+                            } else {
+                                Some(lir.ctx.false_replacement)
+                            }
+                        };
+
+                        let v = match op {
+                            Binop::Add => l.checked_add(r),
+                            Binop::Sub => l.checked_sub(r),
+                            Binop::Shl => l.checked_shl(r.into()).or(Some(0)),
+                            Binop::Shr => l.checked_shr(r.into()).or(Some(0)),
+                            Binop::Eq => to_bool(l == r),
+                            Binop::Neq => to_bool(l != r),
+                            Binop::Gt => to_bool(l > r),
+                            Binop::Gte => to_bool(l >= r),
+                            Binop::BitOr => Some(l | r),
+                            Binop::BitAnd => Some(l & r),
+                            Binop::BitXor => Some(l ^ r),
+                        };
+
+                        if let Some(v) = v {
+                            mem[out] = Memory::Byte(v);
+                            Some(Action::LoadConstant(v, out))
+                        } else {
+                            mem[out] = Memory::Undefined;
+                            None
                         }
                     }
-                } */
-                mem[out] = Memory::Unknown;
-                Some(self.clone())
+                    (Memory::Byte(l), Memory::Unknown) => {
+                        mem[out] = Memory::Unknown;
+                        Some(Action::Binop {
+                            op,
+                            l: Arg::Byte(l),
+                            r,
+                            out,
+                        })
+                    }
+                    (Memory::Unknown, Memory::Byte(r)) => {
+                        mem[out] = Memory::Unknown;
+                        Some(Action::Binop {
+                            op,
+                            l,
+                            r: Arg::Byte(r),
+                            out,
+                        })
+                    }
+                    (Memory::Unknown, Memory::Unknown) => {
+                        mem[out] = Memory::Unknown;
+                        Some(self.clone())
+                    }
+                }
             }
             Action::FunctionCall { ref ret, .. } => {
                 for r in ret.iter().copied().filter_map(identity) {

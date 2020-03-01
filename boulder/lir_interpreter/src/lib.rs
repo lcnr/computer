@@ -115,7 +115,7 @@ impl<'a> BoulderLirInterpreter<'a> {
                     Action::Binop { op, l, r, out } => {
                         let v = |p| match p {
                             Arg::Byte(v) => Memory::Byte(v),
-                            Arg::Location(id) => memory[id]
+                            Arg::Location(id) => memory[id],
                         };
                         memory[out] = Memory::Byte(self.binop(op, v(l), v(r))?)
                     }
