@@ -1,4 +1,8 @@
-use crate::{Action, Arg, Block, LocationId, Terminator};
+use tindex::TSlice;
+
+use shared_id::{InputId, LocationId};
+
+use crate::{Action, Arg, Block, Terminator};
 
 pub trait UpdateLocation<F>
 where
@@ -46,11 +50,7 @@ where
                 *out = f(*out);
             }
             Action::FunctionCall { args, ret, .. } => {
-                for arg in args.iter_mut() {
-                    if let Some(Arg::Location(id)) = arg {
-                        *id = f(*id);
-                    }
-                }
+                arg_locations(&mut f, args);
 
                 for v in ret.iter_mut().filter_map(Option::as_mut) {
                     *v = f(*v);
@@ -67,19 +67,26 @@ where
     fn update_locations(&mut self, mut f: F) {
         match self {
             Terminator::Goto(_, args) => {
-                for arg in args.iter_mut() {
-                    *arg = f(*arg);
-                }
+                arg_locations(f, args);
             }
             Terminator::Match(expr, arms) => {
                 *expr = f(*expr);
 
                 for arm in arms.iter_mut() {
-                    for arg in arm.args.iter_mut() {
-                        *arg = f(*arg);
-                    }
+                    arg_locations(&mut f, &mut arm.args);
                 }
             }
+        }
+    }
+}
+
+fn arg_locations<F>(mut f: F, args: &mut TSlice<InputId, Option<Arg>>)
+where
+    F: FnMut(LocationId) -> LocationId,
+{
+    for arg in args.iter_mut() {
+        if let Some(Arg::Location(id)) = arg {
+            *id = f(*id);
         }
     }
 }

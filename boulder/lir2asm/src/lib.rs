@@ -369,7 +369,7 @@ fn goto(
     functions: &TSlice<FunctionId, Function>,
     f: FunctionId,
     target: Option<BlockId>,
-    args: &TSlice<InputId, LocationId>,
+    args: &TSlice<InputId, Option<Arg>>,
 ) {
     if let Some(target) = target {
         let inputs = functions[f].blocks[target].inputs.iter().copied();
@@ -386,41 +386,79 @@ fn terminator_memory<I>(
     commands: &mut Vec<Command>,
     f: FunctionId,
     targets: I,
-    args: &TSlice<InputId, LocationId>,
+    args: &TSlice<InputId, Option<Arg>>,
 ) where
     I: Iterator<Item = LocationId>,
 {
     let mut args: TVec<_, _> = args.to_owned();
     let mut used = TBitSet::new();
     for (id, target) in args.index_iter().zip(targets) {
-        used.add(target);
-        let v = args[id];
-        if v != target {
-            if args[id + 1..].contains(&target) {
-                // target location is still needed, move
-                // to an available space
-                let mut free = LocationId(0);
-                while used.get(free) || args[id + 1..].contains(&free) {
-                    free = free + 1;
-                }
+        match args[id] {
+            None => (),
+            Some(Arg::Location(v)) => {
+                used.add(target);
+                if v != target {
+                    if args[id + 1..].contains(&Some(Arg::Location(target))) {
+                        // target location is still needed, move
+                        // to an available space
+                        let mut free = LocationId(0);
+                        while used.get(free) || args[id + 1..].contains(&Some(Arg::Location(free)))
+                        {
+                            free = free + 1;
+                        }
 
-                for arg in args[id + 1..].iter_mut().filter(|&&mut arg| arg == target) {
-                    *arg = free;
+                        for arg in args[id + 1..]
+                            .iter_mut()
+                            .filter(|&&mut arg| arg == Some(Arg::Location(target)))
+                        {
+                            *arg = Some(Arg::Location(free));
+                        }
+
+                        commands.push(Command::MemStorage(f, target));
+                        commands.push(Command::Move(Readable::Mem, Writeable::C));
+                        commands.push(Command::MemStorage(f, free));
+                        commands.push(Command::Move(Readable::C, Writeable::Mem));
+                    }
+
+                    commands.push(Command::MemStorage(f, v));
+                    commands.push(Command::Move(Readable::Mem, Writeable::C));
+                    commands.push(Command::MemStorage(f, target));
+                    commands.push(Command::Move(Readable::C, Writeable::Mem));
+
+                    for arg in args[id + 1..]
+                        .iter_mut()
+                        .filter(|&&mut arg| arg == Some(Arg::Location(v)))
+                    {
+                        *arg = Some(Arg::Location(target));
+                    }
+                }
+            }
+            Some(Arg::Byte(v)) => {
+                used.add(target);
+                if args[id + 1..].contains(&Some(Arg::Location(target))) {
+                    // target location is still needed, move
+                    // to an available space
+                    let mut free = LocationId(0);
+                    while used.get(free) || args[id + 1..].contains(&Some(Arg::Location(free))) {
+                        free = free + 1;
+                    }
+
+                    for arg in args[id + 1..]
+                        .iter_mut()
+                        .filter(|&&mut arg| arg == Some(Arg::Location(target)))
+                    {
+                        *arg = Some(Arg::Location(free));
+                    }
+
+                    commands.push(Command::MemStorage(f, target));
+                    commands.push(Command::Move(Readable::Mem, Writeable::C));
+                    commands.push(Command::MemStorage(f, free));
+                    commands.push(Command::Move(Readable::C, Writeable::Mem));
                 }
 
                 commands.push(Command::MemStorage(f, target));
-                commands.push(Command::Move(Readable::Mem, Writeable::C));
-                commands.push(Command::MemStorage(f, free));
+                commands.push(Command::Move(Readable::Byte(v), Writeable::C));
                 commands.push(Command::Move(Readable::C, Writeable::Mem));
-            }
-
-            commands.push(Command::MemStorage(f, v));
-            commands.push(Command::Move(Readable::Mem, Writeable::C));
-            commands.push(Command::MemStorage(f, target));
-            commands.push(Command::Move(Readable::C, Writeable::Mem));
-
-            for arg in args[id + 1..].iter_mut().filter(|&&mut arg| arg == v) {
-                *arg = target;
             }
         }
     }

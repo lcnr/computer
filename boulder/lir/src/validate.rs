@@ -1,6 +1,8 @@
 use std::{fmt, mem};
 
-use shared_id::{BlockId, FunctionId};
+use tindex::TSlice;
+
+use shared_id::{BlockId, FunctionId, InputId};
 
 use crate::{Action, Arg, Lir, Terminator};
 
@@ -73,11 +75,7 @@ impl<'a> Lir<'a> {
                     ref ret,
                 } => {
                     let target = &self.functions[id];
-                    for &arg in args.iter() {
-                        if let Some(Arg::Location(id)) = arg {
-                            assert!(id.0 < block.memory_len);
-                        }
-                    }
+                    check_args(block.memory_len, args);
 
                     for val in ret.iter().filter_map(Option::as_ref) {
                         assert!(val.0 < block.memory_len);
@@ -97,9 +95,7 @@ impl<'a> Lir<'a> {
                         assert_eq!(func.return_length, args.len());
                     }
 
-                    for arg in args.iter() {
-                        assert!(arg.0 < block.memory_len);
-                    }
+                    check_args(block.memory_len, args);
                 }
                 Terminator::Match(value, ref arms) => {
                     assert!(value.0 < block.memory_len);
@@ -110,14 +106,20 @@ impl<'a> Lir<'a> {
                             assert_eq!(func.return_length, arm.args.len());
                         }
 
-                        for arg in arm.args.iter() {
-                            assert!(arg.0 < block.memory_len);
-                        }
+                        check_args(block.memory_len, &arm.args);
                     }
                 }
             }
         }
 
         mem::forget(block_panic);
+    }
+}
+
+fn check_args(len: usize, args: &TSlice<InputId, Option<Arg>>) {
+    for &arg in args.iter() {
+        if let Some(Arg::Location(id)) = arg {
+            assert!(id.0 < len);
+        }
     }
 }

@@ -1,6 +1,6 @@
 use std::convert::identity;
 
-use tindex::{bitset::TBitSet, tvec};
+use tindex::{bitset::TBitSet, tvec, TSlice};
 
 use graphc::{Coloring, Graph, NodeId};
 
@@ -124,6 +124,14 @@ impl Block {
             W::Return(id, v) => return_values[id].add(v),
         };
 
+        let arg_update = |last_writes: &mut TSlice<_, _>, args| {
+            for &arg in args {
+                if let Some(Arg::Location(id)) = arg {
+                    last_writes[id] = None;
+                }
+            }
+        };
+
         for id in self.inputs.index_iter() {
             if let Some(last) = last_writes[self.inputs[id]].replace(W::Input(id)) {
                 add_to_remove(last);
@@ -158,11 +166,7 @@ impl Block {
                 Action::FunctionCall {
                     ref args, ref ret, ..
                 } => {
-                    for &arg in args {
-                        if let Some(Arg::Location(id)) = arg {
-                            last_writes[id] = None;
-                        }
-                    }
+                    arg_update(&mut last_writes, args);
 
                     for i in 0..ret.len() {
                         if let Some(v) = ret[i] {
@@ -177,16 +181,10 @@ impl Block {
         }
 
         match self.terminator {
-            Terminator::Goto(_, ref args) => {
-                for &arg in args {
-                    last_writes[arg] = None;
-                }
-            }
+            Terminator::Goto(_, ref args) => arg_update(&mut last_writes, args),
             Terminator::Match(expr, ref arms) => {
                 for arm in arms {
-                    for &arg in arm.args.iter() {
-                        last_writes[arg] = None;
-                    }
+                    arg_update(&mut last_writes, &arm.args)
                 }
 
                 last_writes[expr] = None;
@@ -229,17 +227,27 @@ impl Block {
             alive.add(n);
         };
 
+        fn arg_alive<F>(
+            mut f: F,
+            alive: &mut TBitSet<LocationId>,
+            args: &TSlice<InputId, Option<Arg>>,
+        ) where
+            F: FnMut(&mut TBitSet<LocationId>, LocationId),
+        {
+            for &arg in args.iter() {
+                if let Some(Arg::Location(id)) = arg {
+                    f(alive, id);
+                }
+            }
+        }
+
         match self.terminator {
             Terminator::Goto(_, ref args) => {
-                for &arg in args {
-                    add_alive(&mut alive, arg);
-                }
+                arg_alive(&mut add_alive, &mut alive, args);
             }
             Terminator::Match(expr, ref arms) => {
                 for arm in arms {
-                    for &arg in arm.args.iter() {
-                        add_alive(&mut alive, arg);
-                    }
+                    arg_alive(&mut add_alive, &mut alive, &arm.args);
                 }
 
                 add_alive(&mut alive, expr);
@@ -276,11 +284,7 @@ impl Block {
                         alive.remove(v);
                     }
 
-                    for &arg in args {
-                        if let Some(Arg::Location(id)) = arg {
-                            add_alive(&mut alive, id);
-                        }
-                    }
+                    arg_alive(&mut add_alive, &mut alive, args);
                 }
             }
         }

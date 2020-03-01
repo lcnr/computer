@@ -147,22 +147,29 @@ impl Action {
                     }
                 }
             }
-            Action::FunctionCall { id, ref args, ref ret } => {
+            Action::FunctionCall {
+                id,
+                ref args,
+                ref ret,
+            } => {
                 for r in ret.iter().copied().filter_map(identity) {
                     mem[r] = Memory::Unknown;
                 }
 
-                let args = args.iter().map(|&a| {
-                    if let Some(Arg::Location(id)) = a {
-                        match mem[id] {
-                            Memory::Unknown => Some(Arg::Location(id)),
-                            Memory::Byte(v) => Some(Arg::Byte(v)),
-                            Memory::Undefined => None,
+                let args = args
+                    .iter()
+                    .map(|&a| {
+                        if let Some(Arg::Location(id)) = a {
+                            match mem[id] {
+                                Memory::Unknown => Some(Arg::Location(id)),
+                                Memory::Byte(v) => Some(Arg::Byte(v)),
+                                Memory::Undefined => None,
+                            }
+                        } else {
+                            a
                         }
-                    } else {
-                        a
-                    }
-                }).collect();
+                    })
+                    .collect();
 
                 Some(Action::FunctionCall {
                     id,

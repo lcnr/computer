@@ -60,7 +60,7 @@ impl Display for Terminator {
                     write!(f, "return (")?;
                 }
 
-                write_list(f, args)?;
+                write_maybe_list(f, args)?;
                 writeln!(f, ")")
             }
             &Terminator::Match(id, ref arms) => print_match(f, id, arms),
@@ -147,7 +147,7 @@ fn print_match(f: &mut Formatter, id: LocationId, arms: &[MatchArm]) -> Result {
             write!(f, "b{} -> return (", arm.pat)?;
         }
 
-        write_list(f, &arm.args)?;
+        write_maybe_list(f, &arm.args)?;
         write!(f, ")")
     };
 

@@ -191,6 +191,8 @@ fn convert_block(
                 .iter()
                 .map(|&arg| (0..types[mir.steps[arg].ty].size(types)).map(move |v| so[arg] + v))
                 .flatten()
+                .map(Arg::Location)
+                .map(Some)
                 .collect();
             lir::Terminator::Goto(target, args)
         }
@@ -209,6 +211,8 @@ fn convert_block(
                             (0..types[mir.steps[arg].ty].size(types)).map(move |v| so[arg] + v)
                         })
                         .flatten()
+                        .map(Arg::Location)
+                        .map(Some)
                         .collect(),
                 })
                 .collect();

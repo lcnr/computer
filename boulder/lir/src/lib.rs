@@ -81,12 +81,12 @@ pub enum Action {
 pub struct MatchArm {
     pub pat: u8,
     pub target: Option<BlockId>,
-    pub args: TVec<InputId, LocationId>,
+    pub args: TVec<InputId, Option<Arg>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Terminator {
-    Goto(Option<BlockId>, TVec<InputId, LocationId>),
+    Goto(Option<BlockId>, TVec<InputId, Option<Arg>>),
     Match(LocationId, Vec<MatchArm>),
 }
 

@@ -146,12 +146,16 @@ impl<'a> BoulderLirInterpreter<'a> {
                 }
             }
 
+            let arg2mem = |&id| match id {
+                None => Memory::Undefined,
+                Some(Arg::Location(l)) => memory[l],
+                Some(Arg::Byte(v)) => Memory::Byte(v),
+            };
+
             match block.terminator {
-                Terminator::Goto(None, ref ids) => {
-                    return Ok(ids.iter().map(|&id| memory[id]).collect())
-                }
+                Terminator::Goto(None, ref ids) => return Ok(ids.iter().map(arg2mem).collect()),
                 Terminator::Goto(Some(block), ref input_steps) => {
-                    args_storage = input_steps.iter().map(|&id| memory[id]).collect();
+                    args_storage = input_steps.iter().map(arg2mem).collect();
                     args = &args_storage;
                     block_id = block;
                     self.block = block_id;
@@ -162,9 +166,9 @@ impl<'a> BoulderLirInterpreter<'a> {
                     for arm in arms.iter() {
                         if value == arm.pat {
                             match arm.target {
-                                None => return Ok(arm.args.iter().map(|&id| memory[id]).collect()),
+                                None => return Ok(arm.args.iter().map(arg2mem).collect()),
                                 Some(block) => {
-                                    args_storage = arm.args.iter().map(|&id| memory[id]).collect();
+                                    args_storage = arm.args.iter().map(arg2mem).collect();
                                     args = &args_storage;
                                     block_id = block;
                                     self.block = block
