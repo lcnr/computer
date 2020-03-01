@@ -113,7 +113,11 @@ impl<'a> BoulderLirInterpreter<'a> {
                     ),
                     Action::LoadConstant(v, o) => memory[o] = Memory::Byte(v),
                     Action::Binop { op, l, r, out } => {
-                        memory[out] = Memory::Byte(self.binop(op, memory[l], memory[r])?)
+                        let v = |p| match p {
+                            Arg::Byte(v) => Memory::Byte(v),
+                            Arg::Location(id) => memory[id]
+                        };
+                        memory[out] = Memory::Byte(self.binop(op, v(l), v(r))?)
                     }
                     Action::FunctionCall {
                         id,
@@ -123,9 +127,9 @@ impl<'a> BoulderLirInterpreter<'a> {
                         let args: Vec<_> = args
                             .iter()
                             .map(|&l| match l {
-                                Arg::Undefined => Memory::Undefined,
-                                Arg::Byte(v) => Memory::Byte(v),
-                                Arg::Location(location) => memory[location],
+                                Some(Arg::Byte(v)) => Memory::Byte(v),
+                                Some(Arg::Location(location)) => memory[location],
+                                None => Memory::Undefined,
                             })
                             .collect();
                         let func = self.function;

@@ -26,7 +26,6 @@ impl Display for Arg {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Arg::Byte(v) => write!(f, "b{}", v),
-            Arg::Undefined => write!(f, "_"),
             Arg::Location(id) => id.fmt(f),
         }
     }
@@ -42,23 +41,9 @@ impl Display for Action {
             Action::Binop { op, l, r, out } => write!(f, "{} {} {} -> {}", op, l, r, out),
             Action::FunctionCall { id, args, ret } => {
                 write!(f, "call {}(", id)?;
-                write_list(f, args)?;
+                write_maybe_list(f, args)?;
                 write!(f, ") -> (")?;
-                let mut ret = ret.iter();
-                if let Some(first) = ret.next() {
-                    if let Some(v) = first {
-                        write!(f, "{}", v)?;
-                    } else {
-                        write!(f, "_")?;
-                    }
-                    for elem in ret {
-                        if let Some(v) = elem {
-                            write!(f, ", {}", v)?;
-                        } else {
-                            write!(f, ", _")?;
-                        }
-                    }
-                }
+                write_maybe_list(f, ret)?;
                 write!(f, ")")
             }
         }
@@ -89,6 +74,28 @@ fn write_list<T: Display, I: IntoIterator<Item = T>>(f: &mut Formatter<'_>, elem
         write!(f, "{}", first)?;
         for elem in iter {
             write!(f, ", {}", elem)?;
+        }
+    }
+    Ok(())
+}
+
+fn write_maybe_list<'a, T: Display + 'a, I: IntoIterator<Item = &'a Option<T>> + 'a>(
+    f: &mut Formatter<'_>,
+    elems: I,
+) -> Result {
+    let mut iter = elems.into_iter();
+    if let Some(first) = iter.next() {
+        if let Some(v) = first {
+            write!(f, "{}", v)?;
+        } else {
+            write!(f, "_")?;
+        }
+        for elem in iter {
+            if let Some(v) = elem {
+                write!(f, ", {}", v)?;
+            } else {
+                write!(f, ", _")?;
+            }
         }
     }
     Ok(())

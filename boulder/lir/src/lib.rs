@@ -7,6 +7,13 @@ mod optimize;
 mod traits;
 mod validate;
 
+#[derive(Debug, Clone, Copy)]
+pub enum Memory {
+    Byte(u8),
+    Unknown,
+    Undefined,
+}
+
 /// FIXME: reduce restrictions of binops
 /// e.g. 0 & invalid == 0
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -37,7 +44,6 @@ pub enum Binop {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Arg {
-    Undefined,
     Byte(u8),
     Location(LocationId),
 }
@@ -46,7 +52,11 @@ pub enum Arg {
 pub enum Action {
     /// input must be a valid byte.
     Invert(LocationId, LocationId),
-    /// input may not be a valid byte.
+    /// Input must be a valid byte.
+    ///
+    /// While moving invalid data is not that dangerous,
+    /// it is not guaranteed that `mem[i] == mem[o]` is true
+    /// after a move if `mem[i]` was previously undefined.
     Move(LocationId, LocationId),
     /// input may not be a valid byte.
     Debug(LocationId),
@@ -55,14 +65,14 @@ pub enum Action {
     /// see binop docs for soundness constraints.
     Binop {
         op: Binop,
-        l: LocationId,
-        r: LocationId,
+        l: Arg,
+        r: Arg,
         out: LocationId,
     },
     /// args and ret may both not be valid bytes.
     FunctionCall {
         id: FunctionId,
-        args: TVec<InputId, Arg>,
+        args: TVec<InputId, Option<Arg>>,
         ret: Vec<Option<LocationId>>,
     },
 }

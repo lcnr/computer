@@ -59,8 +59,12 @@ impl<'a> Lir<'a> {
                     assert!(o.0 < block.memory_len);
                 }
                 Action::Binop { l, r, out, .. } => {
-                    assert!(l.0 < block.memory_len);
-                    assert!(r.0 < block.memory_len);
+                    if let Arg::Location(id) = l {
+                        assert!(id.0 < block.memory_len);
+                    }
+                    if let Arg::Location(id) = r {
+                        assert!(id.0 < block.memory_len);
+                    }
                     assert!(out.0 < block.memory_len);
                 }
                 Action::FunctionCall {
@@ -70,7 +74,7 @@ impl<'a> Lir<'a> {
                 } => {
                     let target = &self.functions[id];
                     for &arg in args.iter() {
-                        if let Arg::Location(id) = arg {
+                        if let Some(Arg::Location(id)) = arg {
                             assert!(id.0 < block.memory_len);
                         }
                     }

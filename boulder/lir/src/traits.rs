@@ -37,13 +37,17 @@ where
             Action::Debug(i) => *i = f(*i),
             Action::LoadConstant(_, o) => *o = f(*o),
             Action::Binop { l, r, out, .. } => {
-                *l = f(*l);
-                *r = f(*r);
+                if let Arg::Location(id) = l {
+                    *id = f(*id);
+                }
+                if let Arg::Location(id) = r {
+                    *id = f(*id);
+                }
                 *out = f(*out);
             }
             Action::FunctionCall { args, ret, .. } => {
                 for arg in args.iter_mut() {
-                    if let Arg::Location(id) = arg {
+                    if let Some(Arg::Location(id)) = arg {
                         *id = f(*id);
                     }
                 }

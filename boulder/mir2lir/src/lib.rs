@@ -135,6 +135,7 @@ fn convert_block(
                     .map(|&arg| (0..types[mir.steps[arg].ty].size(types)).map(move |v| so[arg] + v))
                     .flatten()
                     .map(Arg::Location)
+                    .map(Some)
                     .collect();
 
                 let ret = (step_start.0..memory_len)
@@ -165,8 +166,8 @@ fn convert_block(
                 assert_eq!(step_size, 1);
                 steps.push(lir::Action::Binop {
                     op: convert_binop(op),
-                    l: step_offsets[l],
-                    r: step_offsets[r],
+                    l: Arg::Location(step_offsets[l]),
+                    r: Arg::Location(step_offsets[r]),
                     out: step_start,
                 });
             }

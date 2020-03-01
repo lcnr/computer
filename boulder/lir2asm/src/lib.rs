@@ -243,10 +243,22 @@ fn convert_block(
                 commands.push(Command::Move(Readable::A, Writeable::Mem));
             }
             Action::Binop { op, l, r, out } => {
-                commands.push(Command::MemStorage(f, l));
-                commands.push(Command::Move(Readable::Mem, Writeable::A));
-                commands.push(Command::MemStorage(f, r));
-                commands.push(Command::Move(Readable::Mem, Writeable::B));
+                match l {
+                    Arg::Byte(v) => commands.push(Command::Move(Readable::Byte(v), Writeable::A)),
+                    Arg::Location(id) => {
+                        commands.push(Command::MemStorage(f, id));
+                        commands.push(Command::Move(Readable::Mem, Writeable::A));
+                    }
+                }
+
+                match r {
+                    Arg::Byte(v) => commands.push(Command::Move(Readable::Byte(v), Writeable::B)),
+                    Arg::Location(id) => {
+                        commands.push(Command::MemStorage(f, id));
+                        commands.push(Command::Move(Readable::Mem, Writeable::B));
+                    }
+                }
+
                 commands.push(Command::MemStorage(f, out));
                 match op {
                     Binop::Add => commands.push(Command::Op(Operation::Add, Writeable::Mem)),
@@ -290,13 +302,13 @@ fn convert_block(
                 for i in args.index_iter() {
                     let arg = args[i];
                     match arg {
-                        Arg::Undefined => (),
-                        Arg::Byte(v) => {
+                        None => (),
+                        Some(Arg::Byte(v)) => {
                             commands.push(Command::Move(Readable::Byte(v), Writeable::A));
                             commands.push(Command::MemStorage(id, inputs[i]));
                             commands.push(Command::Move(Readable::A, Writeable::Mem));
                         }
-                        Arg::Location(location) => {
+                        Some(Arg::Location(location)) => {
                             commands.push(Command::MemStorage(f, location));
                             commands.push(Command::Move(Readable::Mem, Writeable::A));
                             commands.push(Command::MemStorage(id, inputs[i]));

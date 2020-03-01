@@ -145,8 +145,12 @@ impl Block {
                     }
                 }
                 Action::Binop { l, r, out, .. } => {
-                    last_writes[l] = None;
-                    last_writes[r] = None;
+                    if let Arg::Location(id) = l {
+                        last_writes[id] = None;
+                    }
+                    if let Arg::Location(id) = r {
+                        last_writes[id] = None;
+                    }
                     if let Some(last) = last_writes[out].replace(W::Step(step_id)) {
                         add_to_remove(last);
                     }
@@ -155,7 +159,7 @@ impl Block {
                     ref args, ref ret, ..
                 } => {
                     for &arg in args {
-                        if let Arg::Location(id) = arg {
+                        if let Some(Arg::Location(id)) = arg {
                             last_writes[id] = None;
                         }
                     }
@@ -257,8 +261,12 @@ impl Block {
                 Action::Binop { l, r, out, .. } => {
                     add_alive(&mut alive, out);
                     alive.remove(out);
-                    add_alive(&mut alive, l);
-                    add_alive(&mut alive, r);
+                    if let Arg::Location(id) = l {
+                        add_alive(&mut alive, id);
+                    }
+                    if let Arg::Location(id) = r {
+                        add_alive(&mut alive, id);
+                    }
                 }
                 Action::FunctionCall {
                     ref args, ref ret, ..
@@ -269,7 +277,7 @@ impl Block {
                     }
 
                     for &arg in args {
-                        if let Arg::Location(id) = arg {
+                        if let Some(Arg::Location(id)) = arg {
                             add_alive(&mut alive, id);
                         }
                     }
