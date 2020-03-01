@@ -4,7 +4,7 @@ use std::{
     ops::{Bound, RangeBounds},
 };
 
-use tindex::{bitset::TBitSet, TVec};
+use tindex::{TBitSet, TVec};
 
 use shared_id::{BlockId, FunctionId, StepId, TypeId};
 

@@ -1,6 +1,6 @@
 use std::{iter, mem};
 
-use tindex::bitset::TBitSet;
+use tindex::TBitSet;
 
 use shared_id::{BlockId, FunctionId, StepId};
 

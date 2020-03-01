@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use tindex::{bitset::TBitSet, TSlice, TVec};
+use tindex::{TBitSet, TSlice, TVec};
 
 use shared_id::{BlockId, FunctionId, InputId, LocationId, TagId};
 

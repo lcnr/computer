@@ -12,7 +12,7 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-use tindex::{bitset::TBitSet, TSlice, TVec};
+use tindex::{TBitSet, TSlice, TVec};
 
 use shared_id::{FieldId, FunctionId, TypeId};
 

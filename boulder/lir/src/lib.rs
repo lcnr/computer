@@ -1,4 +1,4 @@
-use tindex::TVec;
+use tindex::{TBitSet, TVec};
 
 use shared_id::{BlockId, FunctionId, InputId, LocationId, StepId};
 
@@ -102,6 +102,22 @@ pub struct Lir<'a> {
     pub functions: TVec<FunctionId, Function<'a>>,
 }
 
+impl<'a> Lir<'a> {
+    pub fn may_recurse(&self, f: FunctionId, b: BlockId, s: StepId) -> bool {
+        let mut called = TBitSet::new();
+        match self.functions[f].blocks[b].steps[s] {
+            Action::FunctionCall { id, .. } => {
+                if id == f {
+                    return true;
+                }
+                called.add(id);
+                self.functions[id].requires(self, &mut called, f)
+            }
+            ref e => unreachable!("may_recurse called on an unexpected step: {:?}", e),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FunctionContext {
     pub export: bool,
@@ -120,6 +136,28 @@ pub struct Function<'a> {
 impl<'a> Function<'a> {
     pub fn input_len(&self) -> usize {
         self.blocks[BlockId(0)].inputs.len()
+    }
+
+    pub fn requires(
+        &self,
+        lir: &Lir<'a>,
+        visited: &mut TBitSet<FunctionId>,
+        f: FunctionId,
+    ) -> bool {
+        for step in self.blocks.iter().flat_map(|b| b.steps.iter()) {
+            if let &Action::FunctionCall { id, .. } = step {
+                if id == f {
+                    return true;
+                } else if !visited.get(id) {
+                    visited.add(id);
+                    if lir.functions[id].requires(lir, visited, f) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        false
     }
 }
 

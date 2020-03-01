@@ -1,6 +1,6 @@
 use std::convert::identity;
 
-use tindex::{bitset::TBitSet, tvec, TSlice};
+use tindex::{tvec, TBitSet, TSlice};
 
 use graphc::{Coloring, Graph, NodeId};
 

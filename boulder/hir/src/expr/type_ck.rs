@@ -1,4 +1,4 @@
-use tindex::{bitset::TBitSet, TSlice, TVec};
+use tindex::{TBitSet, TSlice, TVec};
 
 use shared_id::{
     TypeId, BOOL_TYPE_ID, EMPTY_TYPE_ID, NEVER_TYPE_ID, U16_BYTES_TYPE_ID, U16_TYPE_ID,

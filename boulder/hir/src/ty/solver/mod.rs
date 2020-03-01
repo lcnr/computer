@@ -1,6 +1,6 @@
 use std::{collections::HashMap, iter};
 
-use tindex::{bitset::TBitSet, TSlice, TVec};
+use tindex::{TBitSet, TSlice, TVec};
 
 use shared_id::{TypeId, EMPTY_TYPE_ID};
 

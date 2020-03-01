@@ -47,27 +47,25 @@ impl<'a> Lir<'a> {
             Terminator::Goto(_, ref mut args) => {
                 propagate_args(&mut memory, args);
             }
-            Terminator::Match(expr, ref mut arms) => {
-                match memory[expr] {
-                    Memory::Undefined => panic!("match on undefined: {:?}", self),
-                    Memory::Byte(v) => {
-                        for arm in arms.iter_mut() {
-                            if arm.pat == v {
-                                propagate_args(&mut memory, &mut arm.args);
-                                b!().terminator = Terminator::Goto(arm.target, arm.args.clone());
-                                return;
-                            }
-                        }
-
-                        panic!("match on invalid data");
-                    }
-                    Memory::Unknown => {
-                        for arm in arms.iter_mut() {
+            Terminator::Match(expr, ref mut arms) => match memory[expr] {
+                Memory::Undefined => panic!("match on undefined: {:?}", self),
+                Memory::Byte(v) => {
+                    for arm in arms.iter_mut() {
+                        if arm.pat == v {
                             propagate_args(&mut memory, &mut arm.args);
+                            b!().terminator = Terminator::Goto(arm.target, arm.args.clone());
+                            return;
                         }
+                    }
+
+                    panic!("match on invalid data");
+                }
+                Memory::Unknown => {
+                    for arm in arms.iter_mut() {
+                        propagate_args(&mut memory, &mut arm.args);
                     }
                 }
-            }
+            },
         }
     }
 }

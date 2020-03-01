@@ -1,6 +1,6 @@
 use std::{convert::TryInto, iter, mem};
 
-use tindex::{bitset::TBitSet, TSlice, TVec};
+use tindex::{TBitSet, TSlice, TVec};
 
 use shared_id::{StepId, TypeId, BOOL_TYPE_ID, FALSE_TYPE_ID, TRUE_TYPE_ID, U8_TYPE_ID};
 

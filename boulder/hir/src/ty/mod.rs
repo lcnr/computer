@@ -1,6 +1,6 @@
 use std::iter;
 
-use tindex::{bitset::TBitSet, TSlice, TVec};
+use tindex::{TBitSet, TSlice, TVec};
 
 use shared_id::{FieldId, TypeId};
 
