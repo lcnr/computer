@@ -1,10 +1,10 @@
-fn extend(a: u32) -> u32 | u16 {
+fn extend_arg(a: u32) -> u32 | u16 {
     a
 }
 
 @test
 fn test() -> Bool {
-    match extend(42) {
+    match extend_arg(42) {
         a: u32 -> a == 42,
         b: u16 -> False,
     }
