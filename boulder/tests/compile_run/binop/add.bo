@@ -1,0 +1,18 @@
+fn add32(a: u32, b: u32) -> u32 {
+    a + b
+}
+
+fn add8(a: u8, b: u8) -> u8 {
+    a + b
+}
+
+@test
+fn add_u32() -> Bool {
+    add32(3, 10) == 13
+}
+
+@test
+fn add_u8() -> Bool {
+    add8(4, 11) == 15
+}
+
