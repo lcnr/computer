@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use std::fmt;
+use std::{cmp, fmt, iter};
 
 use tindex::{TBitSet, TSlice, TVec};
 
@@ -8,17 +8,9 @@ use shared_id::{BlockId, FunctionId, InputId, LocationId, TagId};
 
 use lir::{Action, Arg, Binop, Function, Lir, Terminator};
 
-struct TagManager {
-    tag: TagId,
-}
+mod ctx;
 
-impl TagManager {
-    fn next(&mut self) -> TagId {
-        let tag = self.tag;
-        self.tag = tag + 1;
-        tag
-    }
-}
+use ctx::{Context, FunctionData};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Writeable {
@@ -45,22 +37,22 @@ enum Readable {
     D,
     Mem,
     Byte(u8),
-    Tag(TagId),
+    Block(TagId),
+    Section(TagId),
 }
 
 impl Readable {
     fn is_mem_access(self) -> bool {
         match self {
-            Readable::Mem | Readable::Byte(_) | Readable::Tag(_) => true,
+            Readable::Mem | Readable::Byte(_) | Readable::Block(_) | Readable::Section(_) => true,
             _ => false,
         }
     }
 
     fn size(self) -> usize {
-        if let Readable::Byte(_) | Readable::Tag(_) = self {
-            1
-        } else {
-            0
+        match self {
+            Readable::Byte(_) | Readable::Block(_) | Readable::Section(_) => 1,
+            _ => 0,
         }
     }
 }
@@ -113,7 +105,6 @@ enum Command<T: fmt::Debug + Clone + CommandSize = Cond> {
     Comment(Box<str>),
     /// A block internal tag which will be changed into a section address during compilation.
     Tag(TagId),
-    MemStorage(FunctionId, LocationId),
     Move(Readable, Writeable),
     Op(Operation, Writeable),
     /// jump to the given section.
@@ -124,14 +115,7 @@ enum Command<T: fmt::Debug + Clone + CommandSize = Cond> {
     /// Both this command, as well as the given function,
     /// may invalidate any register.
     GotoFunction(FunctionId),
-    /// Jump to the start of a block.
-    ///
-    /// Both this command, as well as the given block,
-    /// may invalidate any register.
-    GotoBlock(FunctionId, BlockId),
-    /// This may invalide any register.
-    ///
-    Return,
+    Return(Readable, Readable),
 }
 
 trait CommandSize {
@@ -142,25 +126,14 @@ impl<T: fmt::Debug + Clone + CommandSize> CommandSize for Command<T> {
     fn max_size(&self) -> usize {
         match self {
             Command::Comment(_) | Command::Tag(_) => 0,
-            Command::MemStorage(_, _) => 2,
             Command::Move(r, _) | Command::Jump(r) => 1 + r.size(),
             Command::Op(_, _) => 1,
             Command::If(v) => 1 + v.max_size(),
             // mov func_block A;
             // mov func_block.func_start B;
             // ret A B;
-            Command::GotoFunction(_) | Command::GotoBlock(_, _) => 5,
-            // 2: mov 0xff M2;         # load stack pointer
-            // 2: mov 0 M1;
-            // 1: mov mem A;
-            // 2: mov 2 B;             # pop return address from stack
-            // 1: sub mem;
-            // 1: mov A M1;
-            // 1: mov mem C;           # load return block to C
-            // 2: mov 1 B;             # point mem to return byte
-            // 1: sub M1;
-            // 1: ret C mem;           # return
-            Command::Return => 14,
+            Command::GotoFunction(_) => 5,
+            Command::Return(b, s) => 1 + b.size() + s.size(),
         }
     }
 }
@@ -185,14 +158,29 @@ impl CommandSize for Vec<Command> {
 
 /// converts `lir` to humanly readable assembler.
 pub fn convert(lir: Lir) -> String {
-    let mut tm = TagManager { tag: TagId(0) };
+    let mut ctx = Context::new();
+
+    let storage: TVec<FunctionId, FunctionData> = lir
+        .functions
+        .iter()
+        .map(|f| FunctionData {
+            blocks: iter::repeat_with(|| ctx.tm.next())
+                .take(f.blocks.len())
+                .collect(),
+            storage: iter::repeat_with(|| ctx.tm.next())
+                .take(cmp::max(
+                    f.return_length,
+                    f.blocks.iter().map(|b| b.memory_len).max().unwrap(),
+                ))
+                .collect(),
+        })
+        .collect();
 
     let mut total = 0;
     for f in lir.functions.index_iter() {
         let mut blocks = TVec::new();
         for b in lir.functions[f].blocks.index_iter() {
-            let block = &lir.functions[f].blocks[b];
-            blocks.push(convert_block(&mut tm, &lir.ctx, &lir.functions, block, f));
+            blocks.push(convert_block(&mut ctx, &storage, &lir, f, b));
         }
 
         if !lir.functions[f].ctx.hidden {
@@ -207,31 +195,57 @@ pub fn convert(lir: Lir) -> String {
 }
 
 fn convert_block(
-    tm: &mut TagManager,
-    ctx: &lir::Context,
-    functions: &TSlice<FunctionId, Function>,
-    lir: &lir::Block,
+    ctx: &mut Context,
+    data: &TSlice<FunctionId, FunctionData>,
+    lir: &Lir,
     f: FunctionId,
+    b: BlockId,
 ) -> Vec<Command> {
     let mut commands = Vec::new();
 
-    for step_id in lir.steps.index_iter() {
-        let step = &lir.steps[step_id];
-        commands.push(Command::Comment(Box::from(format!(
-            "{} := {}",
-            step_id, step
-        ))));
+    let block = &lir.functions[f].blocks[b];
+    for s in block.steps.index_iter() {
+        let step = &block.steps[s];
+        commands.push(Command::Comment(Box::from(format!("{} := {}", s, step))));
         match *step {
             Action::Invert(i, o) => {
-                commands.push(Command::MemStorage(f, i));
+                commands.push(Command::Move(
+                    Readable::Block(data[f].storage[i]),
+                    Writeable::BlockAddr,
+                ));
+                commands.push(Command::Move(
+                    Readable::Section(data[f].storage[i]),
+                    Writeable::SectionAddr,
+                ));
                 commands.push(Command::Move(Readable::Mem, Writeable::A));
-                commands.push(Command::MemStorage(f, o));
+                commands.push(Command::Move(
+                    Readable::Block(data[f].storage[o]),
+                    Writeable::BlockAddr,
+                ));
+                commands.push(Command::Move(
+                    Readable::Section(data[f].storage[o]),
+                    Writeable::SectionAddr,
+                ));
                 commands.push(Command::Op(Operation::Invert, Writeable::Mem));
             }
             Action::Move(i, o) => {
-                commands.push(Command::MemStorage(f, i));
+                commands.push(Command::Move(
+                    Readable::Block(data[f].storage[i]),
+                    Writeable::BlockAddr,
+                ));
+                commands.push(Command::Move(
+                    Readable::Section(data[f].storage[i]),
+                    Writeable::SectionAddr,
+                ));
                 commands.push(Command::Move(Readable::Mem, Writeable::A));
-                commands.push(Command::MemStorage(f, o));
+                commands.push(Command::Move(
+                    Readable::Block(data[f].storage[o]),
+                    Writeable::BlockAddr,
+                ));
+                commands.push(Command::Move(
+                    Readable::Section(data[f].storage[o]),
+                    Writeable::SectionAddr,
+                ));
                 commands.push(Command::Move(Readable::A, Writeable::Mem));
             }
             Action::Debug(_) => {
@@ -239,14 +253,28 @@ fn convert_block(
             }
             Action::LoadConstant(v, o) => {
                 commands.push(Command::Move(Readable::Byte(v), Writeable::A));
-                commands.push(Command::MemStorage(f, o));
+                commands.push(Command::Move(
+                    Readable::Block(data[f].storage[o]),
+                    Writeable::BlockAddr,
+                ));
+                commands.push(Command::Move(
+                    Readable::Section(data[f].storage[o]),
+                    Writeable::SectionAddr,
+                ));
                 commands.push(Command::Move(Readable::A, Writeable::Mem));
             }
             Action::Binop { op, l, r, out } => {
                 match l {
                     Arg::Byte(v) => commands.push(Command::Move(Readable::Byte(v), Writeable::A)),
                     Arg::Location(id) => {
-                        commands.push(Command::MemStorage(f, id));
+                        commands.push(Command::Move(
+                            Readable::Block(data[f].storage[id]),
+                            Writeable::BlockAddr,
+                        ));
+                        commands.push(Command::Move(
+                            Readable::Section(data[f].storage[id]),
+                            Writeable::SectionAddr,
+                        ));
                         commands.push(Command::Move(Readable::Mem, Writeable::A));
                     }
                 }
@@ -254,12 +282,26 @@ fn convert_block(
                 match r {
                     Arg::Byte(v) => commands.push(Command::Move(Readable::Byte(v), Writeable::B)),
                     Arg::Location(id) => {
-                        commands.push(Command::MemStorage(f, id));
+                        commands.push(Command::Move(
+                            Readable::Block(data[f].storage[id]),
+                            Writeable::BlockAddr,
+                        ));
+                        commands.push(Command::Move(
+                            Readable::Section(data[f].storage[id]),
+                            Writeable::SectionAddr,
+                        ));
                         commands.push(Command::Move(Readable::Mem, Writeable::B));
                     }
                 }
 
-                commands.push(Command::MemStorage(f, out));
+                commands.push(Command::Move(
+                    Readable::Block(data[f].storage[out]),
+                    Writeable::BlockAddr,
+                ));
+                commands.push(Command::Move(
+                    Readable::Section(data[f].storage[out]),
+                    Writeable::SectionAddr,
+                ));
                 match op {
                     Binop::Add => commands.push(Command::Op(Operation::Add, Writeable::Mem)),
                     Binop::Sub => commands.push(Command::Op(Operation::Sub, Writeable::Mem)),
@@ -278,12 +320,12 @@ fn convert_block(
                         };
 
                         commands.push(Command::Move(
-                            Readable::Byte(ctx.false_replacement),
+                            Readable::Byte(lir.ctx.false_replacement),
                             Writeable::C,
                         ));
                         commands.push(Command::If(cond(
                             op,
-                            Command::Move(Readable::Byte(ctx.true_replacement), Writeable::C),
+                            Command::Move(Readable::Byte(lir.ctx.true_replacement), Writeable::C),
                         )));
                         commands.push(Command::Move(Readable::C, Writeable::Mem));
                     }
@@ -294,70 +336,248 @@ fn convert_block(
                 ref args,
                 ref ret,
             } => {
-                let other = &functions[id];
+                let temporaries = if lir.may_recurse(f, b, s) {
+                    block.used_locations(s)
+                } else {
+                    TBitSet::new()
+                };
 
-                let inputs = &other.blocks[BlockId(0)].inputs;
+                // get stack ptr
+                commands.push(Command::Move(
+                    Readable::Block(ctx.stack),
+                    Writeable::BlockAddr,
+                ));
+                commands.push(Command::Move(Readable::Byte(0), Writeable::SectionAddr));
 
-                // TODO: consider batching the argument passing
-                for i in args.index_iter() {
-                    let arg = args[i];
-                    match arg {
-                        None => (),
-                        Some(Arg::Byte(v)) => {
-                            commands.push(Command::Move(Readable::Byte(v), Writeable::A));
-                            commands.push(Command::MemStorage(id, inputs[i]));
-                            commands.push(Command::Move(Readable::A, Writeable::Mem));
-                        }
-                        Some(Arg::Location(location)) => {
-                            commands.push(Command::MemStorage(f, location));
-                            commands.push(Command::Move(Readable::Mem, Writeable::A));
-                            commands.push(Command::MemStorage(id, inputs[i]));
-                            commands.push(Command::Move(Readable::A, Writeable::Mem));
-                        }
+                commands.push(Command::Move(Readable::Mem, Writeable::A));
+                commands.push(Command::Move(Readable::Byte(1), Writeable::B));
+
+                // put temporaries on the stack
+                if !temporaries.is_empty() {
+                    for t in temporaries.iter() {
+                        // load location
+                        commands.push(Command::Move(
+                            Readable::Block(data[f].storage[t]),
+                            Writeable::BlockAddr,
+                        ));
+                        commands.push(Command::Move(
+                            Readable::Section(data[f].storage[t]),
+                            Writeable::SectionAddr,
+                        ));
+                        commands.push(Command::Move(Readable::Mem, Writeable::C));
+
+                        // increment stack head
+                        commands.push(Command::Op(Operation::Add, Writeable::A));
+                        commands.push(Command::Move(Readable::A, Writeable::SectionAddr));
+                        commands.push(Command::Move(
+                            Readable::Block(ctx.stack),
+                            Writeable::BlockAddr,
+                        ));
+
+                        // save location
+                        commands.push(Command::Move(Readable::C, Writeable::Mem));
                     }
                 }
 
-                // TODO: recursive functions don't work right now
-                // TODO: return arguments on stack
-                commands.push(Command::GotoFunction(id));
+                // put return address on the stack
+                let return_adr = ctx.tm.next();
+                commands.push(Command::Op(Operation::Add, Writeable::A));
+                commands.push(Command::Move(Readable::A, Writeable::SectionAddr));
+                commands.push(Command::Move(Readable::Block(return_adr), Writeable::C));
 
+                commands.push(Command::Op(Operation::Add, Writeable::A));
+                commands.push(Command::Move(Readable::A, Writeable::SectionAddr));
+                commands.push(Command::Move(Readable::Section(return_adr), Writeable::D));
+
+                // update stack ptr
+                commands.push(Command::Move(Readable::Byte(0), Writeable::SectionAddr));
+                commands.push(Command::Move(Readable::A, Writeable::Mem));
+
+                if id == f {
+                    goto(
+                        &mut commands,
+                        ctx,
+                        data,
+                        &lir.functions,
+                        f,
+                        Some(BlockId(0)),
+                        args,
+                    );
+                } else {
+                    let other = &lir.functions[id];
+                    let inputs = &other.blocks[BlockId(0)].inputs;
+
+                    // TODO: consider batching the argument passing
+                    for i in args.index_iter() {
+                        let arg = args[i];
+                        match arg {
+                            None => (),
+                            Some(Arg::Byte(v)) => {
+                                commands.push(Command::Move(Readable::Byte(v), Writeable::A));
+                                commands.push(Command::Move(
+                                    Readable::Block(data[id].storage[inputs[i]]),
+                                    Writeable::BlockAddr,
+                                ));
+                                commands.push(Command::Move(
+                                    Readable::Section(data[id].storage[inputs[i]]),
+                                    Writeable::SectionAddr,
+                                ));
+                                commands.push(Command::Move(Readable::A, Writeable::Mem));
+                            }
+                            Some(Arg::Location(location)) => {
+                                commands.push(Command::Move(
+                                    Readable::Block(data[f].storage[location]),
+                                    Writeable::BlockAddr,
+                                ));
+                                commands.push(Command::Move(
+                                    Readable::Section(data[f].storage[location]),
+                                    Writeable::SectionAddr,
+                                ));
+                                commands.push(Command::Move(Readable::Mem, Writeable::A));
+                                commands.push(Command::Move(
+                                    Readable::Block(data[id].storage[inputs[i]]),
+                                    Writeable::BlockAddr,
+                                ));
+                                commands.push(Command::Move(
+                                    Readable::Section(data[id].storage[inputs[i]]),
+                                    Writeable::SectionAddr,
+                                ));
+                                commands.push(Command::Move(Readable::A, Writeable::Mem));
+                            }
+                        }
+                    }
+
+                    commands.push(Command::GotoFunction(id));
+                }
+
+                commands.push(Command::Tag(return_adr));
+
+                // load return arguments
                 // TODO: functions currently store their return values at
                 // the start of the memory storage, this could be improved
                 for (i, &ret) in ret.iter().enumerate() {
                     if let Some(ret) = ret {
                         let i = LocationId(i);
-                        commands.push(Command::MemStorage(id, i));
+
+                        commands.push(Command::Move(
+                            Readable::Block(data[id].storage[i]),
+                            Writeable::BlockAddr,
+                        ));
+                        commands.push(Command::Move(
+                            Readable::Section(data[id].storage[i]),
+                            Writeable::SectionAddr,
+                        ));
                         commands.push(Command::Move(Readable::Mem, Writeable::A));
-                        commands.push(Command::MemStorage(f, ret));
+                        commands.push(Command::Move(
+                            Readable::Block(data[f].storage[ret]),
+                            Writeable::BlockAddr,
+                        ));
+                        commands.push(Command::Move(
+                            Readable::Section(data[f].storage[ret]),
+                            Writeable::SectionAddr,
+                        ));
                         commands.push(Command::Move(Readable::A, Writeable::Mem));
                     }
+                }
+
+                // load temporaries
+                // the return address was already popped
+                // put temporaries on the stack
+                if !temporaries.is_empty() {
+                    commands.push(Command::Move(Readable::Mem, Writeable::A));
+                    commands.push(Command::Move(Readable::Byte(1), Writeable::B));
+
+                    // TODO: consider batching temporaries
+                    for t in temporaries.iter().rev() {
+                        // load temp
+                        commands.push(Command::Move(
+                            Readable::Block(ctx.stack),
+                            Writeable::BlockAddr,
+                        ));
+                        commands.push(Command::Move(Readable::A, Writeable::SectionAddr));
+                        commands.push(Command::Move(Readable::Mem, Writeable::C));
+
+                        // store temp in location
+                        commands.push(Command::Move(
+                            Readable::Block(data[f].storage[t]),
+                            Writeable::BlockAddr,
+                        ));
+                        commands.push(Command::Move(
+                            Readable::Section(data[f].storage[t]),
+                            Writeable::SectionAddr,
+                        ));
+                        commands.push(Command::Move(Readable::C, Writeable::Mem));
+
+                        // decrement stack ptr
+                        commands.push(Command::Op(Operation::Sub, Writeable::A));
+                    }
+
+                    // update stack ptr
+                    commands.push(Command::Move(
+                        Readable::Block(ctx.stack),
+                        Writeable::BlockAddr,
+                    ));
+                    commands.push(Command::Move(Readable::Byte(0), Writeable::SectionAddr));
+                    commands.push(Command::Move(Readable::A, Writeable::Mem));
                 }
             }
         }
     }
 
-    commands.push(Command::Comment(Box::from(format!("{}", lir.terminator))));
-    match lir.terminator {
-        Terminator::Goto(target, ref args) => goto(&mut commands, functions, f, target, args),
+    commands.push(Command::Comment(Box::from(format!("{}", block.terminator))));
+    match block.terminator {
+        Terminator::Goto(target, ref args) => {
+            goto(&mut commands, ctx, data, &lir.functions, f, target, args)
+        }
         Terminator::Match(expr, ref arms) => {
-            commands.push(Command::MemStorage(f, expr));
+            commands.push(Command::Move(
+                Readable::Block(data[f].storage[expr]),
+                Writeable::BlockAddr,
+            ));
+            commands.push(Command::Move(
+                Readable::Section(data[f].storage[expr]),
+                Writeable::SectionAddr,
+            ));
             commands.push(Command::Move(Readable::Mem, Writeable::A));
             if let Some((last, rest)) = arms.split_last() {
                 for arm in rest.iter() {
-                    let tag = tm.next();
+                    let tag = ctx.tm.next();
+                    commands.push(Command::Move(Readable::Block(tag), Writeable::C));
                     if arm.pat == 0 {
-                        commands.push(Command::If(Cond::NZero(Command::Jump(Readable::Tag(tag)))));
+                        commands.push(Command::If(Cond::NZero(Command::Return(
+                            Readable::C,
+                            Readable::Section(tag),
+                        ))));
                     } else {
                         commands.push(Command::Move(Readable::Byte(arm.pat), Writeable::B));
-                        commands.push(Command::If(Cond::Neq(Command::Jump(Readable::Tag(tag)))));
+                        commands.push(Command::If(Cond::Neq(Command::Return(
+                            Readable::C,
+                            Readable::Section(tag),
+                        ))));
                     }
-                    goto(&mut commands, functions, f, arm.target, &arm.args);
+                    goto(
+                        &mut commands,
+                        ctx,
+                        data,
+                        &lir.functions,
+                        f,
+                        arm.target,
+                        &arm.args,
+                    );
                     commands.push(Command::Tag(tag));
                 }
 
                 // we can ignore the condition of the last match arm
-                // as it is UB if it would not match
-                goto(&mut commands, functions, f, last.target, &last.args);
+                // as it would be UB if it did not match
+                goto(
+                    &mut commands,
+                    ctx,
+                    data,
+                    &lir.functions,
+                    f,
+                    last.target,
+                    &last.args,
+                );
             }
         }
     }
@@ -366,6 +586,8 @@ fn convert_block(
 
 fn goto(
     commands: &mut Vec<Command>,
+    ctx: &Context,
+    data: &TSlice<FunctionId, FunctionData>,
     functions: &TSlice<FunctionId, Function>,
     f: FunctionId,
     target: Option<BlockId>,
@@ -373,17 +595,37 @@ fn goto(
 ) {
     if let Some(target) = target {
         let inputs = functions[f].blocks[target].inputs.iter().copied();
-        terminator_memory(commands, f, inputs, args);
-        commands.push(Command::GotoBlock(f, target));
+        terminator_memory(commands, data, f, inputs, args);
+        commands.push(Command::Move(
+            Readable::Block(data[f].blocks[target]),
+            Writeable::C,
+        ));
+        commands.push(Command::Return(
+            Readable::C,
+            Readable::Section(data[f].blocks[target]),
+        ));
     } else {
-        terminator_memory(commands, f, (0..args.len()).map(LocationId), args);
-        commands.push(Command::Return);
+        terminator_memory(commands, data, f, (0..args.len()).map(LocationId), args);
+
+        commands.push(Command::Move(
+            Readable::Block(ctx.stack),
+            Writeable::BlockAddr,
+        ));
+        commands.push(Command::Move(Readable::Byte(0), Writeable::SectionAddr));
+        commands.push(Command::Move(Readable::Mem, Writeable::A));
+        commands.push(Command::Move(Readable::Byte(2), Writeable::B));
+        commands.push(Command::Op(Operation::Sub, Writeable::Mem));
+        commands.push(Command::Move(Readable::Byte(1), Writeable::B));
+        commands.push(Command::Move(Readable::A, Writeable::SectionAddr));
+        commands.push(Command::Move(Readable::Mem, Writeable::C));
+        commands.push(Command::Op(Operation::Sub, Writeable::SectionAddr));
+        commands.push(Command::Return(Readable::Mem, Readable::C));
     }
 }
 
-/// This method does not use the A and B registers
 fn terminator_memory<I>(
     commands: &mut Vec<Command>,
+    data: &TSlice<FunctionId, FunctionData>,
     f: FunctionId,
     targets: I,
     args: &TSlice<InputId, Option<Arg>>,
@@ -414,15 +656,43 @@ fn terminator_memory<I>(
                             *arg = Some(Arg::Location(free));
                         }
 
-                        commands.push(Command::MemStorage(f, target));
+                        commands.push(Command::Move(
+                            Readable::Block(data[f].storage[target]),
+                            Writeable::BlockAddr,
+                        ));
+                        commands.push(Command::Move(
+                            Readable::Section(data[f].storage[target]),
+                            Writeable::SectionAddr,
+                        ));
                         commands.push(Command::Move(Readable::Mem, Writeable::C));
-                        commands.push(Command::MemStorage(f, free));
+                        commands.push(Command::Move(
+                            Readable::Block(data[f].storage[free]),
+                            Writeable::BlockAddr,
+                        ));
+                        commands.push(Command::Move(
+                            Readable::Section(data[f].storage[free]),
+                            Writeable::SectionAddr,
+                        ));
                         commands.push(Command::Move(Readable::C, Writeable::Mem));
                     }
 
-                    commands.push(Command::MemStorage(f, v));
+                    commands.push(Command::Move(
+                        Readable::Block(data[f].storage[v]),
+                        Writeable::BlockAddr,
+                    ));
+                    commands.push(Command::Move(
+                        Readable::Section(data[f].storage[v]),
+                        Writeable::SectionAddr,
+                    ));
                     commands.push(Command::Move(Readable::Mem, Writeable::C));
-                    commands.push(Command::MemStorage(f, target));
+                    commands.push(Command::Move(
+                        Readable::Block(data[f].storage[target]),
+                        Writeable::BlockAddr,
+                    ));
+                    commands.push(Command::Move(
+                        Readable::Section(data[f].storage[target]),
+                        Writeable::SectionAddr,
+                    ));
                     commands.push(Command::Move(Readable::C, Writeable::Mem));
 
                     for arg in args[id + 1..]
@@ -450,13 +720,34 @@ fn terminator_memory<I>(
                         *arg = Some(Arg::Location(free));
                     }
 
-                    commands.push(Command::MemStorage(f, target));
+                    commands.push(Command::Move(
+                        Readable::Block(data[f].storage[target]),
+                        Writeable::BlockAddr,
+                    ));
+                    commands.push(Command::Move(
+                        Readable::Section(data[f].storage[target]),
+                        Writeable::SectionAddr,
+                    ));
                     commands.push(Command::Move(Readable::Mem, Writeable::C));
-                    commands.push(Command::MemStorage(f, free));
+                    commands.push(Command::Move(
+                        Readable::Block(data[f].storage[free]),
+                        Writeable::BlockAddr,
+                    ));
+                    commands.push(Command::Move(
+                        Readable::Section(data[f].storage[free]),
+                        Writeable::SectionAddr,
+                    ));
                     commands.push(Command::Move(Readable::C, Writeable::Mem));
                 }
 
-                commands.push(Command::MemStorage(f, target));
+                commands.push(Command::Move(
+                    Readable::Block(data[f].storage[target]),
+                    Writeable::BlockAddr,
+                ));
+                commands.push(Command::Move(
+                    Readable::Section(data[f].storage[target]),
+                    Writeable::SectionAddr,
+                ));
                 commands.push(Command::Move(Readable::Byte(v), Writeable::C));
                 commands.push(Command::Move(Readable::C, Writeable::Mem));
             }

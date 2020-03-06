@@ -25,7 +25,6 @@ start:
     mov A mem;
 
     ljmp multiply;      # enter multiply function
-
 .return:
     jmp .return;
 

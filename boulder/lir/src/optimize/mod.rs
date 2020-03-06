@@ -18,7 +18,17 @@ impl<'a> Lir<'a> {
             for block in function.blocks.iter_mut() {
                 let coloring = block.calculate_coloring();
 
-                block.update_locations(|location| {
+                for input in block.inputs.iter_mut() {
+                    *input = LocationId(coloring.nodes[NodeId::from(input.0)]);
+                }
+
+                block.steps.iter_mut().for_each(|s| {
+                    s.update_locations(|location| {
+                        LocationId(coloring.nodes[NodeId::from(location.0)])
+                    })
+                });
+
+                block.terminator.update_locations(|location| {
                     LocationId(coloring.nodes[NodeId::from(location.0)])
                 });
 
@@ -81,6 +91,7 @@ impl<'a> Lir<'a> {
 }
 
 impl<'a> Function<'a> {
+    /// Requires the given input to already be unused.
     pub fn remove_input(&mut self, b: BlockId, input: InputId) {
         self.blocks[b].inputs.remove(input);
         for block in self.blocks.iter_mut() {

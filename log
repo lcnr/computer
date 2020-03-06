@@ -1,417 +1,417 @@
 test[#0]:
-  ~0.max_size(): 19
+  ~0.max_size(): 21
 test[#0]:
-  ~0.max_size(): 19
+  ~0.max_size(): 21
 inner[#0]:
-  ~0.max_size(): 142
+  ~0.max_size(): 218
 outer[#1]:
-  ~0.max_size(): 87
+  ~0.max_size(): 145
 inner_test[#0]:
-  ~0.max_size(): 19
+  ~0.max_size(): 21
 outer_test[#1]:
-  ~0.max_size(): 19
+  ~0.max_size(): 21
 func[#0]:
-  ~0.max_size(): 34
+  ~0.max_size(): 42
 inner[#1]:
-  ~0.max_size(): 122
+  ~0.max_size(): 190
 second[#2]:
-  ~0.max_size(): 122
+  ~0.max_size(): 190
 is_prime[#0]:
-  ~0.max_size(): 73
-  ~1.max_size(): 19
-  ~2.max_size(): 146
+  ~0.max_size(): 121
+  ~1.max_size(): 21
+  ~2.max_size(): 258
 is_prime_recurse[#1]:
-  ~0.max_size(): 73
-  ~1.max_size(): 19
-  ~2.max_size(): 150
-  ~3.max_size(): 19
-  ~4.max_size(): 146
+  ~0.max_size(): 121
+  ~1.max_size(): 21
+  ~2.max_size(): 264
+  ~3.max_size(): 21
+  ~4.max_size(): 177
 test[#2]:
-  ~0.max_size(): 49
-  ~1.max_size(): 53
-  ~2.max_size(): 19
+  ~0.max_size(): 81
+  ~1.max_size(): 87
+  ~2.max_size(): 21
 fibonacci[#0]:
-  ~0.max_size(): 73
-  ~1.max_size(): 34
-  ~2.max_size(): 343
+  ~0.max_size(): 121
+  ~1.max_size(): 42
+  ~2.max_size(): 759
 five[#1]:
-  ~0.max_size(): 142
+  ~0.max_size(): 218
 ten[#2]:
-  ~0.max_size(): 142
+  ~0.max_size(): 218
 check[#0]:
-  ~0.max_size(): 36
-  ~1.max_size(): 27
-  ~2.max_size(): 49
-test_u8[#1]:
-  ~0.max_size(): 35
-test_u16[#2]:
-  ~0.max_size(): 40
-test[#0]:
-  ~0.max_size(): 19
-maybe[#0]:
-  ~0.max_size(): 18
-  ~1.max_size(): 24
-  ~2.max_size(): 34
-maybe_some[#1]:
-  ~0.max_size(): 127
-maybe_none[#2]:
-  ~0.max_size(): 71
-temporaries[#0]:
-  ~0.max_size(): 74
-  ~1.max_size(): 74
-  ~2.max_size(): 74
-  ~3.max_size(): 164
-test[#1]:
-  ~0.max_size(): 122
-scoped[#0]:
-  ~0.max_size(): 34
-scoped_test[#1]:
-  ~0.max_size(): 122
-simple_scope[#0]:
-  ~0.max_size(): 34
-test[#1]:
-  ~0.max_size(): 122
-break_empty[#0]:
-  ~0.max_size(): 34
-test[#1]:
-  ~0.max_size(): 122
-break_var[#0]:
-  ~0.max_size(): 34
-test[#1]:
-  ~0.max_size(): 122
-block_break[#0]:
-  ~0.max_size(): 19
-ret[#0]:
-  ~0.max_size(): 34
-test[#1]:
-  ~0.max_size(): 122
-test[#0]:
-  ~0.max_size(): 56
-invert_bool[#0]:
-  ~0.max_size(): 19
-test[#0]:
-  ~0.max_size(): 19
-true[#0]:
-  ~0.max_size(): 19
-false[#1]:
-  ~0.max_size(): 19
-test[#2]:
   ~0.max_size(): 50
-type_ascription[#0]:
-  ~0.max_size(): 91
-test[#1]:
-  ~0.max_size(): 162
+  ~1.max_size(): 31
+  ~2.max_size(): 63
+test_u8[#1]:
+  ~0.max_size(): 61
+test_u16[#2]:
+  ~0.max_size(): 68
 test[#0]:
-  ~0.max_size(): 10
-  ~1.max_size(): 46
-  ~2.max_size(): 46
-  ~3.max_size(): 19
+  ~0.max_size(): 21
+maybe[#0]:
+  ~0.max_size(): 20
+  ~1.max_size(): 28
+  ~2.max_size(): 42
+maybe_some[#1]:
+  ~0.max_size(): 197
+maybe_none[#2]:
+  ~0.max_size(): 113
+temporaries[#0]:
+  ~0.max_size(): 123
+  ~1.max_size(): 123
+  ~2.max_size(): 123
+  ~3.max_size(): 288
+test[#1]:
+  ~0.max_size(): 190
+scoped[#0]:
+  ~0.max_size(): 42
+scoped_test[#1]:
+  ~0.max_size(): 190
+simple_scope[#0]:
+  ~0.max_size(): 42
+test[#1]:
+  ~0.max_size(): 190
+break_empty[#0]:
+  ~0.max_size(): 42
+test[#1]:
+  ~0.max_size(): 190
+break_var[#0]:
+  ~0.max_size(): 42
+test[#1]:
+  ~0.max_size(): 190
+block_break[#0]:
+  ~0.max_size(): 21
+ret[#0]:
+  ~0.max_size(): 42
+test[#1]:
+  ~0.max_size(): 190
+test[#0]:
+  ~0.max_size(): 90
+invert_bool[#0]:
+  ~0.max_size(): 21
+test[#0]:
+  ~0.max_size(): 21
+true[#0]:
+  ~0.max_size(): 21
+false[#1]:
+  ~0.max_size(): 21
+test[#2]:
+  ~0.max_size(): 100
+type_ascription[#0]:
+  ~0.max_size(): 157
+test[#1]:
+  ~0.max_size(): 246
+test[#0]:
+  ~0.max_size(): 11
+  ~1.max_size(): 51
+  ~2.max_size(): 51
+  ~3.max_size(): 21
 extend_field[#0]:
   ~0.max_size(): 14
 test[#1]:
-  ~0.max_size(): 37
-  ~1.max_size(): 19
-  ~2.max_size(): 19
+  ~0.max_size(): 65
+  ~1.max_size(): 21
+  ~2.max_size(): 21
 use_field[#0]:
   ~0.max_size(): 14
 test[#1]:
-  ~0.max_size(): 102
-  ~1.max_size(): 19
-  ~2.max_size(): 93
+  ~0.max_size(): 168
+  ~1.max_size(): 21
+  ~2.max_size(): 127
 extend[#0]:
-  ~0.max_size(): 39
+  ~0.max_size(): 49
 test[#1]:
-  ~0.max_size(): 77
-  ~1.max_size(): 19
-  ~2.max_size(): 93
+  ~0.max_size(): 133
+  ~1.max_size(): 21
+  ~2.max_size(): 127
 extend_arg[#0]:
-  ~0.max_size(): 67
+  ~0.max_size(): 101
 test[#1]:
-  ~0.max_size(): 97
-  ~1.max_size(): 19
-  ~2.max_size(): 93
+  ~0.max_size(): 161
+  ~1.max_size(): 21
+  ~2.max_size(): 127
 test[#0]:
-  ~0.max_size(): 19
+  ~0.max_size(): 21
 access[#0]:
   ~0.max_size(): 14
 test[#1]:
-  ~0.max_size(): 142
+  ~0.max_size(): 218
 test[#0]:
-  ~0.max_size(): 45
-  ~1.max_size(): 121
-  ~2.max_size(): 5
-  ~3.max_size(): 93
-  ~4.max_size(): 19
+  ~0.max_size(): 60
+  ~1.max_size(): 173
+  ~2.max_size(): 4
+  ~3.max_size(): 127
+  ~4.max_size(): 21
 mov[#0]:
   ~0.max_size(): 14
 test[#1]:
-  ~0.max_size(): 214
-  ~1.max_size(): 93
-  ~2.max_size(): 19
+  ~0.max_size(): 332
+  ~1.max_size(): 127
+  ~2.max_size(): 21
 field_access[#0]:
-  ~0.max_size(): 91
+  ~0.max_size(): 157
 test[#1]:
-  ~0.max_size(): 162
+  ~0.max_size(): 246
 func[#0]:
-  ~0.max_size(): 241
+  ~0.max_size(): 431
 test[#1]:
-  ~0.max_size(): 182
+  ~0.max_size(): 274
 if_simple[#0]:
-  ~0.max_size(): 18
-  ~1.max_size(): 19
-  ~2.max_size(): 19
+  ~0.max_size(): 20
+  ~1.max_size(): 21
+  ~2.max_size(): 21
 true[#1]:
-  ~0.max_size(): 43
+  ~0.max_size(): 71
 false[#2]:
-  ~0.max_size(): 43
+  ~0.max_size(): 71
 used_match[#0]:
-  ~0.max_size(): 42
-  ~1.max_size(): 25
-  ~2.max_size(): 91
-  ~3.max_size(): 78
+  ~0.max_size(): 60
+  ~1.max_size(): 32
+  ~2.max_size(): 157
+  ~3.max_size(): 135
 test[#1]:
-  ~0.max_size(): 167
+  ~0.max_size(): 253
 test[#0]:
-  ~0.max_size(): 36
+  ~0.max_size(): 40
 true[#1]:
-  ~0.max_size(): 30
+  ~0.max_size(): 54
 false[#2]:
-  ~0.max_size(): 38
+  ~0.max_size(): 66
 match_fn[#0]:
-  ~0.max_size(): 42
-  ~1.max_size(): 34
+  ~0.max_size(): 60
+  ~1.max_size(): 42
   ~2.max_size(): 14
 u32[#1]:
-  ~0.max_size(): 147
+  ~0.max_size(): 225
 invert[#0]:
-  ~0.max_size(): 18
-  ~1.max_size(): 19
-  ~2.max_size(): 19
+  ~0.max_size(): 20
+  ~1.max_size(): 21
+  ~2.max_size(): 21
 if_chain[#1]:
-  ~0.max_size(): 34
-  ~1.max_size(): 25
-  ~2.max_size(): 25
-  ~3.max_size(): 5
-  ~4.max_size(): 25
-  ~5.max_size(): 25
-  ~6.max_size(): 91
+  ~0.max_size(): 60
+  ~1.max_size(): 32
+  ~2.max_size(): 32
+  ~3.max_size(): 4
+  ~4.max_size(): 32
+  ~5.max_size(): 32
+  ~6.max_size(): 157
 if_empty[#2]:
-  ~0.max_size(): 5
-  ~1.max_size(): 25
-  ~2.max_size(): 5
-  ~3.max_size(): 34
+  ~0.max_size(): 4
+  ~1.max_size(): 32
+  ~2.max_size(): 4
+  ~3.max_size(): 42
   ~4.max_size(): 14
   ~5.max_size(): 14
 test_if_empty[#3]:
-  ~0.max_size(): 122
+  ~0.max_size(): 190
 test_chain[#4]:
-  ~0.max_size(): 122
+  ~0.max_size(): 190
 test[#0]:
-  ~0.max_size(): 5
-  ~1.max_size(): 19
-  ~2.max_size(): 19
+  ~0.max_size(): 4
+  ~1.max_size(): 21
+  ~2.max_size(): 21
 bool[#0]:
-  ~0.max_size(): 19
+  ~0.max_size(): 21
 arm[#1]:
-  ~0.max_size(): 29
-  ~1.max_size(): 19
-  ~2.max_size(): 25
+  ~0.max_size(): 53
+  ~1.max_size(): 21
+  ~2.max_size(): 47
 underscore[#0]:
-  ~0.max_size(): 5
-  ~1.max_size(): 19
-  ~2.max_size(): 19
+  ~0.max_size(): 4
+  ~1.max_size(): 21
+  ~2.max_size(): 21
 test[#1]:
-  ~0.max_size(): 38
+  ~0.max_size(): 64
 init_var[#0]:
-  ~0.max_size(): 42
-  ~1.max_size(): 34
+  ~0.max_size(): 60
+  ~1.max_size(): 42
   ~2.max_size(): 14
 empty[#1]:
-  ~0.max_size(): 132
+  ~0.max_size(): 204
 u32[#2]:
-  ~0.max_size(): 147
+  ~0.max_size(): 225
 infer_type[#0]:
-  ~0.max_size(): 229
+  ~0.max_size(): 395
 test[#1]:
-  ~0.max_size(): 122
+  ~0.max_size(): 190
 many_loops[#0]:
-  ~0.max_size(): 229
+  ~0.max_size(): 395
 test[#1]:
-  ~0.max_size(): 122
+  ~0.max_size(): 190
 cond_exit[#0]:
-  ~0.max_size(): 25
-  ~1.max_size(): 106
-  ~2.max_size(): 155
+  ~0.max_size(): 32
+  ~1.max_size(): 171
+  ~2.max_size(): 278
 zero[#1]:
-  ~0.max_size(): 142
+  ~0.max_size(): 218
 three[#2]:
-  ~0.max_size(): 142
+  ~0.max_size(): 218
 one_hundred[#3]:
-  ~0.max_size(): 142
+  ~0.max_size(): 218
 loopidoo[#0]:
-  ~0.max_size(): 34
+  ~0.max_size(): 42
 test[#1]:
-  ~0.max_size(): 122
+  ~0.max_size(): 190
 while_simple[#0]:
-  ~0.max_size(): 25
-  ~1.max_size(): 82
-  ~2.max_size(): 78
+  ~0.max_size(): 32
+  ~1.max_size(): 131
+  ~2.max_size(): 135
 test[#1]:
-  ~0.max_size(): 122
+  ~0.max_size(): 190
 default_type[#0]:
-  ~0.max_size(): 19
+  ~0.max_size(): 21
 test[#1]:
-  ~0.max_size(): 38
+  ~0.max_size(): 64
 break_sum[#0]:
-  ~0.max_size(): 73
-  ~1.max_size(): 19
-  ~2.max_size(): 19
+  ~0.max_size(): 121
+  ~1.max_size(): 21
+  ~2.max_size(): 21
 break_zero[#1]:
-  ~0.max_size(): 45
+  ~0.max_size(): 75
 break_one[#2]:
-  ~0.max_size(): 53
-test[#0]:
-  ~0.max_size(): 19
-test_u32[#0]:
-  ~0.max_size(): 25
-  ~1.max_size(): 43
-  ~2.max_size(): 5
-  ~3.max_size(): 37
-  ~4.max_size(): 5
-  ~5.max_size(): 27
-  ~6.max_size(): 19
-test_u16[#0]:
-  ~0.max_size(): 10
-  ~1.max_size(): 27
-  ~2.max_size(): 19
-logical[#0]:
-  ~0.max_size(): 18
-  ~1.max_size(): 18
-  ~2.max_size(): 5
-  ~3.max_size(): 19
-  ~4.max_size(): 18
-  ~5.max_size(): 19
-  ~6.max_size(): 19
-logical_test[#1]:
-  ~0.max_size(): 39
-  ~1.max_size(): 43
-  ~2.max_size(): 19
-div_subtest[#0]:
-  ~0.max_size(): 86
-rem[#1]:
-  ~0.max_size(): 203
-bitand_int[#0]:
-  ~0.max_size(): 123
-bitand_bool[#1]:
-  ~0.max_size(): 23
-bitand_bool2[#2]:
-  ~0.max_size(): 23
-int_test[#3]:
-  ~0.max_size(): 162
-bool_true[#4]:
-  ~0.max_size(): 35
-bool_false[#5]:
-  ~0.max_size(): 43
-bool2[#6]:
-  ~0.max_size(): 43
-gt[#0]:
-  ~0.max_size(): 69
-gt_lower[#1]:
-  ~0.max_size(): 53
-gt_equal[#2]:
-  ~0.max_size(): 53
-gt_greater[#3]:
-  ~0.max_size(): 45
-mul[#0]:
-  ~0.max_size(): 83
-test[#1]:
-  ~0.max_size(): 122
-shl[#0]:
-  ~0.max_size(): 229
-test[#1]:
-  ~0.max_size(): 122
-div_big[#0]:
-  ~0.max_size(): 263
-  ~1.max_size(): 93
-  ~2.max_size(): 19
-zero_two_u32[#1]:
-  ~0.max_size(): 162
-zero_two_u16[#2]:
-  ~0.max_size(): 86
-lte[#0]:
-  ~0.max_size(): 69
-tle_less[#1]:
-  ~0.max_size(): 58
-tle_eq[#2]:
-  ~0.max_size(): 58
-tle_gt[#3]:
-  ~0.max_size(): 58
-eq_int[#0]:
-  ~0.max_size(): 170
-eq_int_test[#1]:
-  ~0.max_size(): 69
-  ~1.max_size(): 73
-  ~2.max_size(): 19
-test[#0]:
-  ~0.max_size(): 89
-  ~1.max_size(): 69
-  ~2.max_size(): 19
-one_u16[#0]:
-  ~0.max_size(): 86
-one_u32[#1]:
-  ~0.max_size(): 162
-simple[#0]:
-  ~0.max_size(): 58
-shr[#0]:
-  ~0.max_size(): 83
-test[#1]:
-  ~0.max_size(): 122
-bitor_int[#0]:
-  ~0.max_size(): 123
-bitor_bool[#1]:
-  ~0.max_size(): 23
-bitor_bool2[#2]:
-  ~0.max_size(): 23
-test_int[#3]:
-  ~0.max_size(): 162
-test_bool[#4]:
-  ~0.max_size(): 52
-  ~1.max_size(): 52
-  ~2.max_size(): 5
-  ~3.max_size(): 48
-  ~4.max_size(): 19
-parenthesis_a[#0]:
-  ~0.max_size(): 472
-ops[#1]:
-  ~0.max_size(): 162
-run0[#2]:
-  ~0.max_size(): 19
-na[#0]:
-  ~0.max_size(): 34
-test[#1]:
-  ~0.max_size(): 122
-negate[#0]:
-  ~0.max_size(): 49
-negate_test[#1]:
-  ~0.max_size(): 43
-shadow[#0]:
-  ~0.max_size(): 310
-test[#1]:
-  ~0.max_size(): 142
-add[#0]:
-  ~0.max_size(): 91
-increment[#1]:
   ~0.max_size(): 87
-test[#2]:
-  ~0.max_size(): 142
-to_bytes_u32[#0]:
-  ~0.max_size(): 193
-to_bytes_u16[#1]:
-  ~0.max_size(): 99
-delayed[#0]:
-  ~0.max_size(): 34
+test[#0]:
+  ~0.max_size(): 21
+test_u32[#0]:
+  ~0.max_size(): 32
+  ~1.max_size(): 57
+  ~2.max_size(): 4
+  ~3.max_size(): 47
+  ~4.max_size(): 4
+  ~5.max_size(): 31
+  ~6.max_size(): 21
+test_u16[#0]:
+  ~0.max_size(): 11
+  ~1.max_size(): 31
+  ~2.max_size(): 21
+logical[#0]:
+  ~0.max_size(): 20
+  ~1.max_size(): 20
+  ~2.max_size(): 4
+  ~3.max_size(): 21
+  ~4.max_size(): 20
+  ~5.max_size(): 21
+  ~6.max_size(): 21
+logical_test[#1]:
+  ~0.max_size(): 67
+  ~1.max_size(): 73
+  ~2.max_size(): 21
+div_subtest[#0]:
+  ~0.max_size(): 134
+rem[#1]:
+  ~0.max_size(): 365
+bitand_int[#0]:
+  ~0.max_size(): 205
+bitand_bool[#1]:
+  ~0.max_size(): 29
+bitand_bool2[#2]:
+  ~0.max_size(): 29
+int_test[#3]:
+  ~0.max_size(): 246
+bool_true[#4]:
+  ~0.max_size(): 61
+bool_false[#5]:
+  ~0.max_size(): 73
+bool2[#6]:
+  ~0.max_size(): 73
+gt[#0]:
+  ~0.max_size(): 115
+gt_lower[#1]:
+  ~0.max_size(): 87
+gt_equal[#2]:
+  ~0.max_size(): 87
+gt_greater[#3]:
+  ~0.max_size(): 75
+mul[#0]:
+  ~0.max_size(): 133
 test[#1]:
-  ~0.max_size(): 122
+  ~0.max_size(): 190
+shl[#0]:
+  ~0.max_size(): 395
+test[#1]:
+  ~0.max_size(): 190
+div_big[#0]:
+  ~0.max_size(): 423
+  ~1.max_size(): 127
+  ~2.max_size(): 21
+zero_two_u32[#1]:
+  ~0.max_size(): 246
+zero_two_u16[#2]:
+  ~0.max_size(): 134
+lte[#0]:
+  ~0.max_size(): 115
+tle_less[#1]:
+  ~0.max_size(): 92
+tle_eq[#2]:
+  ~0.max_size(): 92
+tle_gt[#3]:
+  ~0.max_size(): 92
+eq_int[#0]:
+  ~0.max_size(): 270
+eq_int_test[#1]:
+  ~0.max_size(): 109
+  ~1.max_size(): 115
+  ~2.max_size(): 21
+test[#0]:
+  ~0.max_size(): 137
+  ~1.max_size(): 115
+  ~2.max_size(): 21
+one_u16[#0]:
+  ~0.max_size(): 134
+one_u32[#1]:
+  ~0.max_size(): 246
+simple[#0]:
+  ~0.max_size(): 92
+shr[#0]:
+  ~0.max_size(): 133
+test[#1]:
+  ~0.max_size(): 190
+bitor_int[#0]:
+  ~0.max_size(): 205
+bitor_bool[#1]:
+  ~0.max_size(): 29
+bitor_bool2[#2]:
+  ~0.max_size(): 29
+test_int[#3]:
+  ~0.max_size(): 246
+test_bool[#4]:
+  ~0.max_size(): 84
+  ~1.max_size(): 84
+  ~2.max_size(): 4
+  ~3.max_size(): 78
+  ~4.max_size(): 21
+parenthesis_a[#0]:
+  ~0.max_size(): 860
+ops[#1]:
+  ~0.max_size(): 246
+run0[#2]:
+  ~0.max_size(): 21
+na[#0]:
+  ~0.max_size(): 42
+test[#1]:
+  ~0.max_size(): 190
+negate[#0]:
+  ~0.max_size(): 71
+negate_test[#1]:
+  ~0.max_size(): 71
+shadow[#0]:
+  ~0.max_size(): 550
+test[#1]:
+  ~0.max_size(): 218
+add[#0]:
+  ~0.max_size(): 157
+increment[#1]:
+  ~0.max_size(): 145
+test[#2]:
+  ~0.max_size(): 218
+to_bytes_u32[#0]:
+  ~0.max_size(): 299
+to_bytes_u16[#1]:
+  ~0.max_size(): 149
+delayed[#0]:
+  ~0.max_size(): 42
+test[#1]:
+  ~0.max_size(): 190
 
 running 0 tests
 

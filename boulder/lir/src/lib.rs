@@ -1,4 +1,4 @@
-use tindex::{TBitSet, TVec};
+use tindex::{tvec, TBitSet, TVec};
 
 use shared_id::{BlockId, FunctionId, InputId, LocationId, StepId};
 
@@ -6,6 +6,8 @@ mod display;
 mod optimize;
 mod traits;
 mod validate;
+
+use crate::traits::{Reads, Writes};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Memory {
@@ -167,4 +169,40 @@ pub struct Block {
     pub memory_len: usize,
     pub steps: TVec<StepId, Action>,
     pub terminator: Terminator,
+}
+
+impl Block {
+    pub fn used_locations(&self, after: StepId) -> TBitSet<LocationId> {
+        #[derive(Clone, Copy, PartialEq, Eq)]
+        enum Location {
+            Unknown,
+            Overwritten,
+            Needed,
+        }
+
+        let mut l = tvec![Location::Unknown; self.memory_len];
+
+        self.steps[after].writes(|id| {
+            if let Location::Unknown = l[id] {
+                l[id] = Location::Overwritten
+            }
+        });
+
+        for step in self.steps[after + 1..].iter() {
+            step.reads(|id| {
+                if let Location::Unknown = l[id] {
+                    l[id] = Location::Needed
+                }
+            });
+            step.writes(|id| {
+                if let Location::Unknown = l[id] {
+                    l[id] = Location::Overwritten
+                }
+            });
+        }
+
+        l.index_iter()
+            .filter(|&i| l[i] == Location::Needed)
+            .collect()
+    }
 }
