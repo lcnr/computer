@@ -377,12 +377,7 @@ pub fn resolve<'a, L: Logger>(blocks: &mut [Block<'a>], l: &mut L) -> Result<(),
             if let Some(&byte) = ljmp_addr.get(s) {
                 Ok(MemAddr::Byte(byte))
             } else {
-                l.log_err(Error::new(
-                    ErrorLevel::Error,
-                    Cause::InvalidSection,
-                    line,
-                    s,
-                ));
+                l.log_err(Error::new(ErrorLevel::Error, Cause::InvalidBlock, line, s));
                 Err(CodeGenError)
             }
         };
@@ -432,14 +427,60 @@ pub fn resolve<'a, L: Logger>(blocks: &mut [Block<'a>], l: &mut L) -> Result<(),
             }
         };
 
+        let replace_section_or_block_addr = |s: &str, l: &mut L| {
+            if s.starts_with('.') {
+                if let Some(&byte) = jmp_addr.get(name).unwrap().get(s) {
+                    Ok(MemAddr::Byte(byte))
+                } else {
+                    l.log_err(Error::new(
+                        ErrorLevel::Error,
+                        Cause::InvalidSection,
+                        line,
+                        s,
+                    ));
+                    Err(CodeGenError)
+                }
+            } else if let Some(pos) = s.bytes().position(|b| b == b'.') {
+                let block = &s[..pos];
+                let section = &s[pos..];
+                if let Some(block) = jmp_addr.get(block) {
+                    if let Some(&byte) = block.get(section) {
+                        Ok(MemAddr::Byte(byte))
+                    } else {
+                        l.log_err(Error::new(
+                            ErrorLevel::Error,
+                            Cause::InvalidSection,
+                            line,
+                            section,
+                        ));
+                        Err(CodeGenError)
+                    }
+                } else {
+                    l.log_err(Error::new(
+                        ErrorLevel::Error,
+                        Cause::InvalidBlock,
+                        line,
+                        block,
+                    ));
+                    Err(CodeGenError)
+                }
+            } else {
+                replace_block_addr(s, l)
+            }
+        };
+
         for mut cmd in block.content.iter_mut() {
             if let Command::If(_, cond) = cmd {
                 cmd = cond;
             }
 
             match cmd {
-                Command::Mov(Readable::MemAddr(ref mut addr), _)
-                | Command::Jmp(Readable::MemAddr(ref mut addr))
+                Command::Mov(Readable::MemAddr(ref mut addr), _) => {
+                    if let MemAddr::Named(s) = addr {
+                        *addr = replace_section_or_block_addr(s, l)?
+                    }
+                }
+                Command::Jmp(Readable::MemAddr(ref mut addr))
                 | Command::Ret(_, Readable::MemAddr(ref mut addr)) => {
                     if let MemAddr::Named(s) = addr {
                         *addr = replace_section_addr(s, l)?

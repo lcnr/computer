@@ -61,7 +61,7 @@ impl Display for Terminator {
                 }
 
                 write_maybe_list(f, args)?;
-                writeln!(f, ")")
+                write!(f, ")")
             }
             &Terminator::Match(id, ref arms) => print_match(f, id, arms),
         }
@@ -131,7 +131,7 @@ impl<'a> Display for Lir<'a> {
                     writeln!(f, "    ${} := {}", i, step)?;
                 }
 
-                write!(f, "    {}", block.terminator)?;
+                writeln!(f, "    {}", block.terminator)?;
             }
         }
 
@@ -159,5 +159,5 @@ fn print_match(f: &mut Formatter, id: LocationId, arms: &[MatchArm]) -> Result {
         }
         write_arm(f, last)?;
     }
-    writeln!(f, ")")
+    write!(f, ")")
 }

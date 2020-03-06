@@ -125,4 +125,5 @@ fn compile_run() {
 fn main() {
     compile_fail();
     compile_run();
+    println!("\ntest result: ok.\n");
 }
