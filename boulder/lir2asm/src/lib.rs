@@ -170,22 +170,23 @@ pub fn convert(lir: Lir) -> String {
 
     let mut total = 0;
     for f in lir.functions.index_iter() {
-        let mut blocks: TVec<BlockId, Vec<Command>> = TVec::new();
         for b in lir.functions[f].blocks.index_iter() {
-            blocks.push(convert_block(&mut ctx, &data, &lir, f, b));
-        }
+            let block_comment =
+                Command::Comment(format!("{}[{}]: {}", lir.functions[f].name, f, b).into());
+            let block = convert_block(&mut ctx, &data, &lir, f, b);
 
-        for (b, block) in blocks.index_iter().zip(blocks.into_iter()) {
+            let block_tag = data[f].blocks[b];
             let block_size = block.max_size();
             if block_size < 256 {
                 if let Some(position) = asm_blocks
                     .iter()
-                    .position(|asm| 255 - asm.max_size() >= block.max_size())
+                    .position(|asm| 256 - asm.max_size() >= block.max_size())
                 {
-                    asm_blocks[position].push(Command::Tag(data[f].blocks[b]));
+                    asm_blocks[position]
+                        .extend_from_slice(&[block_comment, Command::Tag(block_tag)]);
                     asm_blocks[position].extend(block);
                 } else {
-                    let mut v = vec![Command::Tag(data[f].blocks[b])];
+                    let mut v = vec![block_comment, Command::Tag(block_tag)];
                     v.extend(block);
                     asm_blocks.push(v);
                 }
@@ -199,14 +200,13 @@ pub fn convert(lir: Lir) -> String {
 
                 let max_free = asm_blocks
                     .iter()
-                    .map(|asm| asm.max_size())
+                    .map(|asm| 256 - asm.max_size())
                     .max()
                     .unwrap_or(0);
                 let mut block: &[Command] = &block;
-                let mut tag = data[f].blocks[b];
+                let mut tag = block_tag;
+                let mut v = vec![block_comment, Command::Tag(tag)];
                 while block.max_size() > max_free {
-                    let mut v = vec![Command::Tag(tag)];
-
                     'inner: while let Some((first, rest)) = block.split_first() {
                         block = rest;
                         if v.max_size() + first.max_size() < block_section_size {
@@ -219,12 +219,12 @@ pub fn convert(lir: Lir) -> String {
                         }
                     }
 
-                    asm_blocks.push(v);
+                    asm_blocks.push(mem::replace(&mut v, vec![Command::Tag(tag)]));
                 }
 
                 let asm_block = asm_blocks
                     .iter_mut()
-                    .find(|asm| 255 - asm.max_size() >= block.max_size())
+                    .find(|asm| 256 - asm.max_size() >= block.max_size())
                     .unwrap();
                 asm_block.push(Command::Tag(tag));
                 asm_block.extend_from_slice(block);
@@ -234,7 +234,7 @@ pub fn convert(lir: Lir) -> String {
 
     for (f, function) in data.index_iter().zip(data.iter()) {
         for (l, &tag) in function.storage.index_iter().zip(function.storage.iter()) {
-            if let Some(asm_block) = asm_blocks.iter_mut().find(|b| b.max_size() < 255) {
+            if let Some(asm_block) = asm_blocks.iter_mut().find(|b| b.max_size() < 256) {
                 asm_block.push(Command::Comment(
                     format!("{}[{}]: {}", lir.functions[f].name, f, l).into(),
                 ));
@@ -910,7 +910,7 @@ impl<T: Clone + fmt::Debug + CommandSize + ToAsm> Command<T> {
         match self {
             Command::Comment(c) => format!("# {}", c),
             Command::Byte(v) => format!("byte {}", v),
-            Command::Tag(id) => format!(".__tag{}", id.0),
+            Command::Tag(id) => format!(".__tag{}:", id.0),
             Command::Move(r, w) => format!("mov {} {}", r.to_asm(&asm_blocks), w.to_asm()),
             Command::Op(op, w) => format!("{} {}", op.to_asm(), w.to_asm()),
             Command::If(cmd) => format!("if {}", cmd.to_asm(asm_blocks)),
@@ -937,8 +937,8 @@ fn asm_blocks_to_asm(asm_blocks: Vec<Vec<Command>>) -> String {
     for (b, block) in asm_blocks.iter().enumerate() {
         wln!(s, "__block{}:", b);
         for cmd in block.iter() {
-            if let Command::Tag(_) = cmd {
-                wln!(s, "  {}:", cmd.to_asm(&asm_blocks));
+            if let Command::Tag(_) | Command::Comment(_) = cmd {
+                wln!(s, "  {}", cmd.to_asm(&asm_blocks));
             } else {
                 wln!(s, "    {};", cmd.to_asm(&asm_blocks));
             }

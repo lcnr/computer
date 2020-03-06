@@ -52,7 +52,7 @@ impl Readable<'_> {
         }
     }
 
-    fn size(&self) -> u8 {
+    fn size(&self) -> usize {
         if let Readable::MemAddr(_) = self {
             1
         } else {
@@ -173,7 +173,7 @@ impl<'a> Command<'a> {
         }
     }
 
-    pub fn size(&self) -> u8 {
+    pub fn size(&self) -> usize {
         match self {
             Command::Invalid | Command::Section(_) => 0,
             Command::Byte(_)

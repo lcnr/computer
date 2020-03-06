@@ -31,7 +31,7 @@ pub enum Cause<'a> {
     /// the same block position is used twice
     BlockReuse,
     /// more than 256 bytes in one block
-    BlockSize,
+    BlockSize(usize),
     MissingTerminator,
 }
 
@@ -294,10 +294,10 @@ fn register_sections<'a>(
 ) -> Result<HashMap<&'a str, u8>, CodeGenError> {
     let mut map: HashMap<&str, u8> = HashMap::new();
 
-    let mut addr = 0u8;
+    let mut addr: usize = 0;
     for cmd in block.content.iter() {
         match cmd {
-            Command::Section(s) => map.insert(s, addr).map_or(Ok(()), |_| {
+            Command::Section(s) => map.insert(s, addr as u8).map_or(Ok(()), |_| {
                 l.log_err(Error::new(
                     ErrorLevel::Error,
                     Cause::RepeatingSectionIdentifier(s),
@@ -306,19 +306,7 @@ fn register_sections<'a>(
                 ));
                 Err(CodeGenError)
             })?,
-            c => {
-                addr = if let Some(addr) = addr.checked_add(c.size()) {
-                    addr
-                } else {
-                    l.log_err(Error::new(
-                        ErrorLevel::Error,
-                        Cause::BlockSize,
-                        block.line,
-                        block.name,
-                    ));
-                    return Err(CodeGenError);
-                }
-            }
+            c => addr += c.size(),
         }
     }
 
@@ -329,6 +317,14 @@ fn register_sections<'a>(
             block.line,
             block.name,
         ));
+    } else if addr > 256 {
+        l.log_err(Error::new(
+            ErrorLevel::Error,
+            Cause::BlockSize(addr),
+            block.line,
+            block.name,
+        ));
+        return Err(CodeGenError);
     }
 
     Ok(map)
@@ -511,7 +507,7 @@ fn finalize(mut blocks: Vec<Block<'_>>) -> Vec<u8> {
         res.resize(block.pos.unwrap() as usize * 256, 0);
         for mut cmd in block.content {
             if let Command::If(cond, expr) = cmd {
-                res.push(0xc0 + cond as u8 + (expr.size() - 1) * 8);
+                res.push(0xc0 + cond as u8 + (expr.size() as u8 - 1) * 8);
                 cmd = *expr;
             }
 
