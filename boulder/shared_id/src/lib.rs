@@ -1,4 +1,7 @@
-use std::{fmt, ops::Add};
+use std::{
+    fmt,
+    ops::{Add, Sub},
+};
 
 use tindex::TIndex;
 
@@ -56,9 +59,25 @@ macro_rules! add {
     }
 }
 
+macro_rules! sub {
+    ($($n:ident),+) => {
+        $(
+            impl Sub<usize> for $n {
+                type Output = Self;
+
+                fn sub(self, other: usize) -> Self {
+                    $n(self.0 - other)
+                }
+            }
+        )+
+    }
+}
+
 t!(TypeId: '%', FunctionId: '#', FieldId, BlockId: '~', StepId: '$', InputId, LocationId: '@', TagId);
 
 add!(StepId, LocationId, InputId, TagId);
+
+sub!(BlockId);
 
 impl BlockId {
     pub fn invalid() -> Self {

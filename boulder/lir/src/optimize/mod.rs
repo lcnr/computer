@@ -1,4 +1,4 @@
-use std::convert::identity;
+use std::{convert::identity, iter, mem};
 
 use tindex::{tvec, TBitSet, TSlice};
 
@@ -6,7 +6,7 @@ use graphc::{Coloring, Graph, NodeId};
 
 use shared_id::{BlockId, FunctionId, InputId, LocationId, StepId};
 
-use crate::{traits::UpdateLocation, Action, Arg, Block, Function, Lir, Terminator};
+use crate::{traits::Update, Action, Arg, Block, Function, Lir, Terminator};
 
 mod const_prop;
 
@@ -27,12 +27,10 @@ impl<'a> Lir<'a> {
                 }
 
                 block.steps.iter_mut().for_each(|s| {
-                    s.update_locations(|location| {
-                        LocationId(coloring.nodes[NodeId::from(location.0)])
-                    })
+                    s.update(|location| LocationId(coloring.nodes[NodeId::from(location.0)]))
                 });
 
-                block.terminator.update_locations(|location| {
+                block.terminator.update(|location: LocationId| {
                     LocationId(coloring.nodes[NodeId::from(location.0)])
                 });
 
@@ -92,6 +90,36 @@ impl<'a> Lir<'a> {
             }
         }
     }
+
+    /// Removes blocks which can not reached
+    pub fn remove_unused_blocks(&mut self) {
+        for func in self.functions.iter_mut() {
+            let mut used: TBitSet<_> = iter::once(BlockId::from(0)).collect();
+            let mut new_used = TBitSet::new();
+            while used != new_used {
+                for b in used.iter() {
+                    new_used.add(b);
+                    match func.blocks[b].terminator {
+                        Terminator::Goto(target, _) => {
+                            if let Some(target) = target {
+                                new_used.add(target)
+                            }
+                        }
+                        Terminator::Match(_, ref arms) => {
+                            new_used.extend(arms.iter().filter_map(|arm| arm.target))
+                        }
+                    }
+                }
+                mem::swap(&mut used, &mut new_used);
+            }
+
+            for i in func.blocks.index_iter().rev() {
+                if !used.get(i) {
+                    func.remove_block(i);
+                }
+            }
+        }
+    }
 }
 
 impl<'a> Function<'a> {
@@ -114,11 +142,21 @@ impl<'a> Function<'a> {
             }
         }
     }
+
+    pub fn remove_block(&mut self, b: BlockId) {
+        for block in self.blocks.iter_mut() {
+            block
+                .terminator
+                .update(|block: BlockId| if block > b { block - 1 } else { block });
+        }
+
+        self.blocks.remove(b);
+    }
 }
 
 impl Block {
-    /// removes all dead writes from self,
-    /// Returns a bitset of unused inputs.
+    /// Removes all dead writes from self,
+    /// and returns a bitset of unused inputs.
     pub fn remove_dead_writes(&mut self) -> TBitSet<InputId> {
         #[derive(Debug, Clone, Copy)]
         enum W {

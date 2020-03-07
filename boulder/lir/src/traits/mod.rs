@@ -1,13 +1,34 @@
-use shared_id::LocationId;
+use shared_id::{BlockId, LocationId};
 
 mod reads;
 mod writes;
 
-pub trait UpdateLocation<'a, F>
+use crate::Terminator;
+
+pub trait Update<F, V>
 where
-    F: FnMut(LocationId) -> LocationId,
+    F: FnMut(V) -> V,
 {
-    fn update_locations(&'a mut self, f: F);
+    fn update(&mut self, f: F);
+}
+
+impl<F> Update<F, BlockId> for Terminator
+where
+    F: FnMut(BlockId) -> BlockId,
+{
+    fn update(&mut self, mut f: F) {
+        match self {
+            Terminator::Goto(Some(target), _) => *target = f(*target),
+            Terminator::Goto(_, _) => (),
+            Terminator::Match(_, ref mut arms) => {
+                for arm in arms.iter_mut() {
+                    if let Some(ref mut target) = arm.target {
+                        *target = f(*target)
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// # Warning
@@ -18,12 +39,12 @@ where
 ///
 /// Implementing `Reads` and `Writes` for `Block` would therefore
 /// be incorrect.
-impl<'a, F, T: 'a> UpdateLocation<'a, F> for T
+impl<F, T> Update<F, LocationId> for T
 where
     F: FnMut(LocationId) -> LocationId,
     for<'b, 'c> &'b mut T: Reads<&'c mut F> + Writes<&'c mut F>,
 {
-    fn update_locations(&'a mut self, mut f: F) {
+    fn update(&mut self, mut f: F) {
         let f = &mut f;
         self.reads(f);
         self.writes(f);

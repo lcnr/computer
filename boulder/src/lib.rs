@@ -63,14 +63,17 @@ pub const MIR_OPTIMIZATIONS: &[(fn(&mut Mir), &str)] = &[
 pub const LIR_OPTIMIZATIONS: &[(fn(&mut Lir), &str)] = &[
     (|lir| lir.remove_dead_writes(), "dead_writes0"),
     (|lir| lir.const_propagate(), "const_prop0"),
+    (|lir| lir.remove_unused_blocks(), "unused_blocks0"),
     (|lir| lir.minimize_memory_usage(), "minimize_mem0"),
     (|lir| lir.remove_noop_moves(), "noop_moves0"),
     (|lir| lir.const_propagate(), "const_prop1"),
+    (|lir| lir.remove_unused_blocks(), "unused_blocks1"),
     (|lir| lir.remove_dead_writes(), "dead_writes1"),
     (|lir| lir.minimize_memory_usage(), "minimize_mem1"),
     (|lir| lir.remove_noop_moves(), "noop_moves1"),
     (|lir| lir.remove_dead_writes(), "dead_writes2"),
     (|lir| lir.const_propagate(), "const_prop2"),
+    (|lir| lir.remove_unused_blocks(), "unused_blocks2"),
 ];
 
 pub fn compile<'a>(
