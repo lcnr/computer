@@ -191,7 +191,7 @@ fn main() -> Result<(), TestFailure> {
                     test_lir(&lir, name);
                 }
 
-                let asm = lir2asm::convert(lir);
+                let asm = lir2asm::convert(&lir);
 
                 let data = rock::compile(&asm, &mut rock::DebugLogger).unwrap();
 
@@ -199,9 +199,11 @@ fn main() -> Result<(), TestFailure> {
 
                 remu.memory_mut()[0..data.len()].copy_from_slice(&data);
 
-                match remu.run(1000000) {
-                    Ok(steps) => println!("boulder/{}: {}", entry.path().display(), steps),
-                    Err(e) => panic!("{:?}", e),
+                if lir.functions.iter().any(|f| f.ctx.test) {
+                    match remu.run(1000000) {
+                        Ok(steps) => println!("boulder/{}: {}", entry.path().display(), steps),
+                        Err(e) => panic!("{:?}", e),
+                    }
                 }
             })) {
                 Ok(()) => (),

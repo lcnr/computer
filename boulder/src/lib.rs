@@ -93,7 +93,7 @@ pub fn compile<'a>(
         lir.validate();
     }
     println!("{}", lir);
-    let asm = lir2asm::convert(lir);
+    let asm = lir2asm::convert(&lir);
 
     println!("{}", asm);
     let data = rock::compile(&asm, &mut rock::DebugLogger).unwrap();

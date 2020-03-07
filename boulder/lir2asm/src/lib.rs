@@ -150,7 +150,7 @@ impl CommandSize for AsmBlock {
 }
 
 /// converts `lir` to humanly readable assembler.
-pub fn convert(lir: Lir) -> String {
+pub fn convert(lir: &Lir) -> String {
     let mut ctx = Context::new();
 
     let data: TVec<FunctionId, FunctionData> = lir
@@ -185,7 +185,7 @@ pub fn convert(lir: Lir) -> String {
         for b in lir.functions[f].blocks.index_iter() {
             let block_comment =
                 Command::Comment(format!("{}[{}]: {}", lir.functions[f].name, f, b).into());
-            let block = convert_block(&mut ctx, &data, &lir, f, b);
+            let block = convert_block(&mut ctx, &data, lir, f, b);
 
             let block_tag = data[f].blocks[b];
             let block_size = block.max_size();
@@ -231,8 +231,8 @@ pub fn convert(lir: Lir) -> String {
                     tag = ctx.tm.next();
 
                     'inner: while let Some((first, rest)) = block.split_first() {
-                        block = rest;
                         if v.max_size() + first.max_size() < block_section_size {
+                            block = rest;
                             v.push(first.clone());
                         } else {
                             v.push(Command::Move(Readable::Block(tag), Writeable::D));
@@ -351,6 +351,21 @@ fn convert_block(
     let mut commands = Vec::new();
 
     let block = &lir.functions[f].blocks[b];
+    /*
+    for l in (0..block.memory_len).map(LocationId) {
+        commands.extend_from_slice(&[
+            Command::Comment(Box::from(format!("dbg {}", l))),
+            Command::Move(Readable::Block(data[f].storage[l]), Writeable::BlockAddr),
+            Command::Move(
+                Readable::Section(data[f].storage[l]),
+                Writeable::SectionAddr,
+            ),
+            Command::Move(Readable::Mem, Writeable::A),
+            Command::Debug,
+        ]);
+    }
+    */
+
     for s in block.steps.index_iter() {
         let step = &block.steps[s];
         commands.push(Command::Comment(Box::from(format!("{} := {}", s, step))));
