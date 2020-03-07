@@ -230,7 +230,11 @@ impl Remu {
     pub fn run(&mut self, max_steps: usize) -> Result<usize, RunError> {
         for i in 0..max_steps {
             if !self.step()? {
-                return Ok(i);
+                if self.expected.is_empty() {
+                    return Ok(i);
+                } else {
+                    return Err(RunError::MissingChecks);
+                }
             }
         }
 
@@ -255,5 +259,6 @@ impl From<StepError> for RunError {
 #[derive(Debug, Clone)]
 pub enum RunError {
     MaxSteps,
+    MissingChecks,
     StepError(StepError),
 }
