@@ -92,6 +92,19 @@ pub fn compile<'a>(
         opt(&mut lir);
         lir.validate();
     }
+    println!("{}", lir);
+    let asm = lir2asm::convert(lir);
 
-    Ok(lir2asm::convert(lir))
+    println!("{}", asm);
+    let data = rock::compile(&asm, &mut rock::DebugLogger).unwrap();
+    let mut remu = remu::Remu::new();
+
+    remu.memory_mut()[0..data.len()].copy_from_slice(&data);
+
+    match remu.run(100000) {
+        Ok(steps) => println!("./{}: {}", file, steps),
+        Err(e) => panic!("{:?}", e),
+    }
+
+    Ok(asm)
 }

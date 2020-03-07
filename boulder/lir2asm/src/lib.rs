@@ -103,6 +103,8 @@ enum Command<T: fmt::Debug + Clone + CommandSize = Cond> {
     Expect(u8),
     /// Checks the top value of the expected stack. (emulator only)
     Check,
+    /// Prints the current value of `A`. (emulator only)
+    Debug,
 }
 
 trait CommandSize {
@@ -118,7 +120,7 @@ impl<T: CommandSize + fmt::Debug + Clone> CommandSize for Command<T> {
             Command::If(v) => 1 + v.max_size(),
             Command::Return(b, s) => 1 + b.size() + s.size(),
             Command::Expect(_) => 2,
-            Command::Check => 1,
+            Command::Check | Command::Debug => 1,
         }
     }
 }
@@ -393,8 +395,16 @@ fn convert_block(
                 ));
                 commands.push(Command::Move(Readable::A, Writeable::Mem));
             }
-            Action::Debug(_) => {
-                unimplemented!("Debug to ASM");
+            Action::Debug(i) => {
+                commands.extend_from_slice(&[
+                    Command::Move(Readable::Block(data[f].storage[i]), Writeable::BlockAddr),
+                    Command::Move(
+                        Readable::Section(data[f].storage[i]),
+                        Writeable::SectionAddr,
+                    ),
+                    Command::Move(Readable::Mem, Writeable::A),
+                    Command::Debug,
+                ]);
             }
             Action::LoadConstant(v, o) => {
                 commands.push(Command::Move(Readable::Byte(v), Writeable::A));
@@ -794,6 +804,17 @@ fn terminator_memory<I>(
             Some(Arg::Location(v)) => {
                 used.add(target);
                 if v != target {
+                    // store v in B
+                    commands.push(Command::Move(
+                        Readable::Block(data[f].storage[v]),
+                        Writeable::BlockAddr,
+                    ));
+                    commands.push(Command::Move(
+                        Readable::Section(data[f].storage[v]),
+                        Writeable::SectionAddr,
+                    ));
+                    commands.push(Command::Move(Readable::Mem, Writeable::B));
+
                     if args[id + 1..].contains(&Some(Arg::Location(target))) {
                         // target location is still needed, move
                         // to an available space
@@ -828,32 +849,42 @@ fn terminator_memory<I>(
                             Writeable::SectionAddr,
                         ));
                         commands.push(Command::Move(Readable::C, Writeable::Mem));
-                    }
 
-                    commands.push(Command::Move(
-                        Readable::Block(data[f].storage[v]),
-                        Writeable::BlockAddr,
-                    ));
-                    commands.push(Command::Move(
-                        Readable::Section(data[f].storage[v]),
-                        Writeable::SectionAddr,
-                    ));
-                    commands.push(Command::Move(Readable::Mem, Writeable::C));
-                    commands.push(Command::Move(
-                        Readable::Block(data[f].storage[target]),
-                        Writeable::BlockAddr,
-                    ));
-                    commands.push(Command::Move(
-                        Readable::Section(data[f].storage[target]),
-                        Writeable::SectionAddr,
-                    ));
-                    commands.push(Command::Move(Readable::C, Writeable::Mem));
+                        commands.push(Command::Move(
+                            Readable::Block(data[f].storage[target]),
+                            Writeable::BlockAddr,
+                        ));
+                        commands.push(Command::Move(
+                            Readable::Section(data[f].storage[target]),
+                            Writeable::SectionAddr,
+                        ));
+                        commands.push(Command::Move(Readable::B, Writeable::Mem));
 
-                    for arg in args[id + 1..]
-                        .iter_mut()
-                        .filter(|&&mut arg| arg == Some(Arg::Location(v)))
-                    {
-                        *arg = Some(Arg::Location(target));
+                        if v != free {
+                            for arg in args[id + 1..]
+                                .iter_mut()
+                                .filter(|&&mut arg| arg == Some(Arg::Location(v)))
+                            {
+                                *arg = Some(Arg::Location(target));
+                            }
+                        }
+                    } else {
+                        commands.push(Command::Move(
+                            Readable::Block(data[f].storage[target]),
+                            Writeable::BlockAddr,
+                        ));
+                        commands.push(Command::Move(
+                            Readable::Section(data[f].storage[target]),
+                            Writeable::SectionAddr,
+                        ));
+                        commands.push(Command::Move(Readable::B, Writeable::Mem));
+
+                        for arg in args[id + 1..]
+                            .iter_mut()
+                            .filter(|&&mut arg| arg == Some(Arg::Location(v)))
+                        {
+                            *arg = Some(Arg::Location(target));
+                        }
                     }
                 }
             }
@@ -1012,7 +1043,8 @@ impl<T: Clone + fmt::Debug + CommandSize + ToAsm> Command<T> {
             }
             Command::Halt => String::from("halt"),
             Command::Expect(v) => format!("expect {}", v),
-            Command::Check => format!("check"),
+            Command::Check => String::from("check"),
+            Command::Debug => String::from("dbg"),
         }
     }
 }

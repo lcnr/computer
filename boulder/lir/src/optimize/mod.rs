@@ -13,6 +13,10 @@ mod const_prop;
 impl<'a> Lir<'a> {
     /// Minimizes the needed memory of each block without
     /// modifying step order or visible behavior.
+    ///
+    /// TODO: this function is currently unable to reduce the
+    /// memory size to 0, consider checking graphs with only 1 color
+    /// manually
     pub fn minimize_memory_usage(&mut self) {
         for function in self.functions.iter_mut() {
             for block in function.blocks.iter_mut() {

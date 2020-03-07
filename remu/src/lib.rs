@@ -111,7 +111,7 @@ impl Remu {
 
     fn check(&mut self) -> Result<(), StepError> {
         if let Some(expected) = self.expected.pop() {
-            if self.pointee() == expected {
+            if self.reg.a == expected {
                 Ok(())
             } else {
                 Err(StepError::Check {
@@ -205,11 +205,16 @@ impl Remu {
                 self.pc[0] = self.pc[0].wrapping_add(1);
             }
             0xf1 => self.check()?,
+            0xf2 => eprintln!(
+                "[0x{:04x}]: {v:03} 0x{v:02x} 0b{v:08b}",
+                self.program_counter(),
+                v = self.reg.a
+            ),
             0xff => {
                 self.pc[0] = self.pc[0].wrapping_sub(1);
                 return Ok(false);
             }
-            0x5e | 0x5f | 0x8a..=0xbf | 0xd0..=0xef | 0xf2..=0xfe => {
+            0x5e | 0x5f | 0x8a..=0xbf | 0xd0..=0xef | 0xf3..=0xfe => {
                 return Err(StepError::UnknownCommand(command))
             }
         }

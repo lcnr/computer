@@ -228,3 +228,4 @@ There are also some **emulator only** commands, with opcodes starting at `0xf0`.
 | ---------- | ------------ | ----------------------------------------------------------------- |
 | `0xf0$1`   | expect $1    | check_stack.push($1) ; P1 += 2;                                   |
 | `0xf1`     | check        | assert check_stack.pop() == A; P1 += 1;                           |
+| `0xf2`     | dbg          | prints both PC and the A register                                 |

@@ -98,6 +98,8 @@ pub enum Command<'a> {
     Expect(u8),
     /// check the given command. (emulator only)
     Check,
+    /// debugs the current state of `A`. (emulator only)
+    Debug,
 }
 
 pub fn parse_commands<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logger) -> Command<'a> {
@@ -105,6 +107,7 @@ pub fn parse_commands<'a>(cmd: &Token<'a>, args: &[Token<'a>], l: &mut impl Logg
         "byte" => with_byte(cmd, args, l, Command::Byte),
         "expect" => with_byte(cmd, args, l, Command::Expect),
         "check" => without_args(cmd, args, l, Command::Check),
+        "dbg" => without_args(cmd, args, l, Command::Debug),
         "idle" => without_args(cmd, args, l, Command::Idle),
         "add" => with_writeable(cmd, args, l, Command::Add),
         "sub" => with_writeable(cmd, args, l, Command::Sub),
@@ -196,7 +199,8 @@ impl<'a> Command<'a> {
             | Command::Shl(_)
             | Command::Swap
             | Command::Halt
-            | Command::Check => 1,
+            | Command::Check
+            | Command::Debug => 1,
             Command::Expect(_) => 2,
             Command::Mov(r, _) | Command::Jmp(r) | Command::Ljmp(r) => 1 + r.size(),
             Command::Ret(r, s) => 1 + r.size() + s.size(),
