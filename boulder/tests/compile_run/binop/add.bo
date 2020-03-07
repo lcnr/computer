@@ -15,4 +15,3 @@ fn add_u32() -> Bool {
 fn add_u8() -> Bool {
     add8(4, 11) == 15
 }
-

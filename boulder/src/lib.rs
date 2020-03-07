@@ -89,20 +89,9 @@ pub fn compile<'a>(
     let mut lir = mir2lir::convert(mir);
     lir.validate();
     for (opt, _name) in LIR_OPTIMIZATIONS.iter() {
-        println!("{}", _name);
         opt(&mut lir);
         lir.validate();
     }
-    println!("{}", lir);
 
-    let mut bli = lir_interpreter::BoulderLirInterpreter::new(&lir);
-    for f in lir
-        .functions
-        .index_iter()
-        .filter(|&f| lir.functions[f].ctx.test)
-    {
-        let ret = bli.execute_function(f, &[], 100);
-        println!("{}: {:?}: {:?}", f, bli.last_step(), ret);
-    }
     Ok(lir2asm::convert(lir))
 }

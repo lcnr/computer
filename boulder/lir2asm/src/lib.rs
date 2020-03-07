@@ -1,6 +1,4 @@
-#![allow(unused)]
-
-use std::{cmp, fmt, iter, mem};
+use std::{cmp, fmt, iter};
 
 use tindex::{TBitSet, TSlice, TVec};
 
@@ -23,12 +21,7 @@ enum Writeable {
     BlockAddr,
 }
 
-impl Writeable {
-    pub fn is_mem_access(self) -> bool {
-        self == Writeable::Mem
-    }
-}
-
+#[allow(unused)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Readable {
     A,
@@ -42,13 +35,6 @@ enum Readable {
 }
 
 impl Readable {
-    fn is_mem_access(self) -> bool {
-        match self {
-            Readable::Mem | Readable::Byte(_) | Readable::Block(_) | Readable::Section(_) => true,
-            _ => false,
-        }
-    }
-
     fn size(self) -> usize {
         match self {
             Readable::Byte(_) | Readable::Block(_) | Readable::Section(_) => 1,
@@ -73,6 +59,7 @@ enum Operation {
 pub enum Void {}
 
 /// A condition of a `Command::If`, used to remove the need for a box.
+#[allow(unused)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Cond {
     Zero(Command<Void>),
@@ -146,6 +133,12 @@ impl CommandSize for [Command] {
     }
 }
 
+impl CommandSize for AsmBlock {
+    fn max_size(&self) -> usize {
+        self.commands.iter().map(CommandSize::max_size).sum()
+    }
+}
+
 /// converts `lir` to humanly readable assembler.
 pub fn convert(lir: Lir) -> String {
     let mut ctx = Context::new();
@@ -166,10 +159,19 @@ pub fn convert(lir: Lir) -> String {
         })
         .collect();
 
-    let mut asm_blocks: Vec<Vec<Command>> = Vec::new();
+    let mut asm_blocks: Vec<AsmBlock> = Vec::new();
 
-    let mut total = 0;
     for f in lir.functions.index_iter() {
+        if lir.functions[f].ctx.export {
+            asm_blocks.push(AsmBlock {
+                name: lir.functions[f].name.into(),
+                commands: vec![
+                    Command::Move(Readable::Block(data[f].blocks[BlockId(0)]), Writeable::C),
+                    Command::Return(Readable::C, Readable::Section(data[f].blocks[BlockId(0)])),
+                ],
+            });
+        }
+
         for b in lir.functions[f].blocks.index_iter() {
             let block_comment =
                 Command::Comment(format!("{}[{}]: {}", lir.functions[f].name, f, b).into());
@@ -183,12 +185,16 @@ pub fn convert(lir: Lir) -> String {
                     .position(|asm| 256 - asm.max_size() >= block.max_size())
                 {
                     asm_blocks[position]
+                        .commands
                         .extend_from_slice(&[block_comment, Command::Tag(block_tag)]);
-                    asm_blocks[position].extend(block);
+                    asm_blocks[position].commands.extend(block);
                 } else {
                     let mut v = vec![block_comment, Command::Tag(block_tag)];
                     v.extend(block);
-                    asm_blocks.push(v);
+                    asm_blocks.push(AsmBlock {
+                        name: format!("__block{}", asm_blocks.len()).into(),
+                        commands: v,
+                    });
                 }
             } else {
                 let block_section_size = 256
@@ -204,28 +210,38 @@ pub fn convert(lir: Lir) -> String {
                     .max()
                     .unwrap_or(0);
                 let mut block: &[Command] = &block;
+                let mut block_comment = Some(block_comment);
                 let mut tag = block_tag;
-                let mut v = vec![block_comment, Command::Tag(tag)];
                 while block.max_size() > max_free {
+                    let mut v = if let Some(block_comment) = block_comment.take() {
+                        vec![block_comment, Command::Tag(tag)]
+                    } else {
+                        vec![Command::Tag(tag)]
+                    };
+                    tag = ctx.tm.next();
+
                     'inner: while let Some((first, rest)) = block.split_first() {
                         block = rest;
                         if v.max_size() + first.max_size() < block_section_size {
                             v.push(first.clone());
                         } else {
-                            tag = ctx.tm.next();
                             v.push(Command::Move(Readable::Block(tag), Writeable::D));
                             v.push(Command::Return(Readable::D, Readable::Section(tag)));
                             break 'inner;
                         }
                     }
 
-                    asm_blocks.push(mem::replace(&mut v, vec![Command::Tag(tag)]));
+                    asm_blocks.push(AsmBlock {
+                        name: format!("__block{}", asm_blocks.len()).into(),
+                        commands: v,
+                    });
                 }
 
-                let asm_block = asm_blocks
+                let asm_block = &mut asm_blocks
                     .iter_mut()
                     .find(|asm| 256 - asm.max_size() >= block.max_size())
-                    .unwrap();
+                    .unwrap()
+                    .commands;
                 asm_block.push(Command::Tag(tag));
                 asm_block.extend_from_slice(block);
             }
@@ -235,20 +251,24 @@ pub fn convert(lir: Lir) -> String {
     for (f, function) in data.index_iter().zip(data.iter()) {
         for (l, &tag) in function.storage.index_iter().zip(function.storage.iter()) {
             if let Some(asm_block) = asm_blocks.iter_mut().find(|b| b.max_size() < 256) {
-                asm_block.push(Command::Comment(
+                asm_block.commands.push(Command::Comment(
                     format!("{}[{}]: {}", lir.functions[f].name, f, l).into(),
                 ));
-                asm_block.push(Command::Tag(tag));
-                asm_block.push(Command::Byte(0));
+                asm_block.commands.push(Command::Tag(tag));
+                asm_block.commands.push(Command::Byte(0));
+            } else {
+                asm_blocks.push(AsmBlock {
+                    name: format!("__block{}", asm_blocks.len()).into(),
+                    commands: vec![Command::Tag(tag), Command::Byte(0)],
+                })
             }
         }
     }
 
-    asm_blocks.push(vec![
-        Command::Comment(format!("stack").into()),
-        Command::Tag(ctx.stack),
-        Command::Byte(0),
-    ]);
+    asm_blocks.push(AsmBlock {
+        name: format!("stack").into(),
+        commands: vec![Command::Tag(ctx.stack), Command::Byte(0)],
+    });
     asm_blocks_to_asm(asm_blocks)
 }
 
@@ -823,7 +843,7 @@ fn terminator_memory<I>(
 }
 
 impl Readable {
-    fn to_asm(self, asm_blocks: &[Vec<Command>]) -> String {
+    fn to_asm(self, asm_blocks: &[AsmBlock]) -> String {
         match self {
             Readable::A => String::from("A"),
             Readable::B => String::from("B"),
@@ -832,25 +852,31 @@ impl Readable {
             Readable::Mem => String::from("mem"),
             Readable::Byte(v) => format!("{}", v),
             Readable::Block(s) => {
-                for (b, block) in asm_blocks.iter().enumerate() {
-                    if block.contains(&Command::Tag(s)) {
-                        return format!("__block{}", b);
+                for block in asm_blocks.iter() {
+                    if block.commands.contains(&Command::Tag(s)) {
+                        return format!("{}", block.name);
                     }
                 }
 
-                unreachable!("the tag {} does not exist", s.0);
+                unreachable!("the block tag {} does not exist", s.0);
             }
             Readable::Section(s) => {
-                for (b, block) in asm_blocks.iter().enumerate() {
-                    if block.contains(&Command::Tag(s)) {
-                        return format!("__block{}.__tag{}", b, s.0);
+                for block in asm_blocks.iter() {
+                    if block.commands.contains(&Command::Tag(s)) {
+                        return format!("{}.__tag{}", block.name, s.0);
                     }
                 }
 
-                unreachable!("the tag {} does not exist", s.0);
+                unreachable!("the section tag {} does not exist", s.0);
             }
         }
     }
+}
+
+#[derive(Debug)]
+struct AsmBlock {
+    name: Box<str>,
+    commands: Vec<Command>,
 }
 
 impl Writeable {
@@ -883,17 +909,17 @@ impl Operation {
 }
 
 trait ToAsm {
-    fn to_asm(&self, asm_blocks: &[Vec<Command>]) -> String;
+    fn to_asm(&self, asm_blocks: &[AsmBlock]) -> String;
 }
 
 impl ToAsm for Void {
-    fn to_asm(&self, asm_blocks: &[Vec<Command>]) -> String {
+    fn to_asm(&self, _: &[AsmBlock]) -> String {
         unreachable!()
     }
 }
 
 impl ToAsm for Cond {
-    fn to_asm(&self, asm_blocks: &[Vec<Command>]) -> String {
+    fn to_asm(&self, asm_blocks: &[AsmBlock]) -> String {
         match self {
             Cond::Zero(cmd) => format!("z {}", cmd.to_asm(asm_blocks)),
             Cond::NZero(cmd) => format!("nz {}", cmd.to_asm(asm_blocks)),
@@ -906,7 +932,7 @@ impl ToAsm for Cond {
 }
 
 impl<T: Clone + fmt::Debug + CommandSize + ToAsm> Command<T> {
-    fn to_asm(&self, asm_blocks: &[Vec<Command>]) -> String {
+    fn to_asm(&self, asm_blocks: &[AsmBlock]) -> String {
         match self {
             Command::Comment(c) => format!("# {}", c),
             Command::Byte(v) => format!("byte {}", v),
@@ -921,11 +947,8 @@ impl<T: Clone + fmt::Debug + CommandSize + ToAsm> Command<T> {
     }
 }
 
-fn asm_blocks_to_asm(asm_blocks: Vec<Vec<Command>>) -> String {
+fn asm_blocks_to_asm(asm_blocks: Vec<AsmBlock>) -> String {
     use std::fmt::Write;
-    macro_rules! w {
-        ($dst:expr, $($arg:tt)*) => { write!($dst, $($arg)*).unwrap() };
-    }
 
     macro_rules! wln {
         ($dst:expr) => { writeln!($dst).unwrap() };
@@ -934,9 +957,9 @@ fn asm_blocks_to_asm(asm_blocks: Vec<Vec<Command>>) -> String {
     }
 
     let mut s = String::new();
-    for (b, block) in asm_blocks.iter().enumerate() {
-        wln!(s, "__block{}:", b);
-        for cmd in block.iter() {
+    for block in asm_blocks.iter() {
+        wln!(s, "{}:", block.name);
+        for cmd in block.commands.iter() {
             if let Command::Tag(_) | Command::Comment(_) = cmd {
                 wln!(s, "  {}", cmd.to_asm(&asm_blocks));
             } else {
