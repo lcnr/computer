@@ -579,6 +579,9 @@ fn finalize(mut blocks: Vec<Block<'_>>) -> Vec<u8> {
                         }
                     }
                 }
+                Command::Halt => res.push(0xff),
+                Command::Expect(v) => res.extend_from_slice(&[0xf0, v]),
+                Command::Check => res.push(0xf1),
                 Command::Section(_) => (),
                 cmd @ Command::Invalid | cmd @ Command::If(_, _) => {
                     unreachable!("unexpected command: {:?}", cmd)

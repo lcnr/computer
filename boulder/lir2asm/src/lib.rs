@@ -97,6 +97,12 @@ enum Command<T: fmt::Debug + Clone + CommandSize = Cond> {
     Op(Operation, Writeable),
     If(T),
     Return(Readable, Readable),
+    /// Stop the execution of the given program.
+    Halt,
+    /// Builds a stack of expected values in the A register. (emulator only)
+    Expect(u8),
+    /// Checks the top value of the expected stack. (emulator only)
+    Check,
 }
 
 trait CommandSize {
@@ -108,9 +114,11 @@ impl<T: CommandSize + fmt::Debug + Clone> CommandSize for Command<T> {
         match self {
             Command::Comment(_) | Command::Tag(_) => 0,
             Command::Move(r, _) => 1 + r.size(),
-            Command::Op(_, _) | Command::Byte(_) => 1,
+            Command::Op(_, _) | Command::Byte(_) | Command::Halt => 1,
             Command::If(v) => 1 + v.max_size(),
             Command::Return(b, s) => 1 + b.size() + s.size(),
+            Command::Expect(_) => 2,
+            Command::Check => 1,
         }
     }
 }
@@ -269,6 +277,65 @@ pub fn convert(lir: Lir) -> String {
         name: format!("stack").into(),
         commands: vec![Command::Tag(ctx.stack), Command::Byte(0)],
     });
+
+    if lir.functions.iter().any(|f| f.ctx.test) {
+        let mut v = Vec::new();
+
+        for (i, (f, function)) in lir
+            .functions
+            .index_iter()
+            .zip(lir.functions.iter())
+            .filter(|(_, f)| f.ctx.test)
+            .enumerate()
+        {
+            // put return address on the stack
+            let return_adr = ctx.tm.next();
+            let func = data[f].storage[LocationId(0)];
+
+            v.extend_from_slice(&[
+                Command::Comment(format!("test '{}[{}]'", function.name, f).into()),
+                Command::Expect(i as u8),
+                Command::Comment(Box::from("prepare return stack")),
+                Command::Move(Readable::Block(ctx.stack), Writeable::BlockAddr), // store ret address
+                Command::Move(Readable::Byte(0), Writeable::SectionAddr),
+                Command::Move(Readable::Mem, Writeable::A),
+                Command::Move(Readable::Byte(1), Writeable::B),
+                Command::Op(Operation::Add, Writeable::A), // store return block
+                Command::Move(Readable::A, Writeable::SectionAddr),
+                Command::Move(Readable::Block(return_adr), Writeable::C),
+                Command::Move(Readable::C, Writeable::Mem),
+                Command::Op(Operation::Add, Writeable::A), // store return section
+                Command::Move(Readable::A, Writeable::SectionAddr),
+                Command::Move(Readable::Section(return_adr), Writeable::C),
+                Command::Move(Readable::C, Writeable::Mem),
+                Command::Move(Readable::Byte(0), Writeable::SectionAddr), // update stack ptr
+                Command::Move(Readable::A, Writeable::Mem),
+                Command::Comment(Box::from("call test function")),
+                Command::Move(Readable::Block(data[f].blocks[BlockId(0)]), Writeable::C),
+                Command::Return(Readable::C, Readable::Section(data[f].blocks[BlockId(0)])),
+                Command::Tag(return_adr),
+                Command::Comment(Box::from("check function result")),
+                Command::Expect(lir.ctx.true_replacement),
+                Command::Move(Readable::Block(func), Writeable::BlockAddr),
+                Command::Move(Readable::Section(func), Writeable::SectionAddr),
+                Command::Move(Readable::Mem, Writeable::A),
+                Command::Check,
+                Command::Move(Readable::Byte(i as u8), Writeable::A),
+                Command::Check,
+            ]);
+        }
+
+        v.push(Command::Halt);
+
+        asm_blocks.insert(
+            0,
+            AsmBlock {
+                name: format!("__test_runner").into(),
+                commands: v,
+            },
+        );
+    }
+
     asm_blocks_to_asm(asm_blocks)
 }
 
@@ -943,6 +1010,9 @@ impl<T: Clone + fmt::Debug + CommandSize + ToAsm> Command<T> {
             Command::Return(b, s) => {
                 format!("ret {} {}", b.to_asm(asm_blocks), s.to_asm(asm_blocks))
             }
+            Command::Halt => String::from("halt"),
+            Command::Expect(v) => format!("expect {}", v),
+            Command::Check => format!("check"),
         }
     }
 }

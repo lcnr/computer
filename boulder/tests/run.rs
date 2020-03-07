@@ -28,6 +28,8 @@ use lir_interpreter::Memory;
 
 use boulder::{LIR_OPTIMIZATIONS, MIR_OPTIMIZATIONS};
 
+use remu::Remu;
+
 struct OutputShim {
     inner: Arc<Mutex<String>>,
 }
@@ -189,11 +191,22 @@ fn main() -> Result<(), TestFailure> {
                     test_lir(&lir, name);
                 }
 
-                lir2asm::convert(lir);
+                let asm = lir2asm::convert(lir);
+
+                let data = rock::compile(&asm, &mut rock::DebugLogger).unwrap();
+
+                let mut remu = Remu::new();
+
+                remu.memory_mut()[0..data.len()].copy_from_slice(&data);
+
+                match remu.run(100000) {
+                    Ok(steps) => println!("boulder/{}: {}", entry.path().display(), steps),
+                    Err(e) => panic!("{:?}", e),
+                }
             })) {
                 Ok(()) => (),
                 Err(_) => {
-                    eprintln!("[boulder/{}]: panic during testing", entry.path().display(),);
+                    eprintln!("[boulder/{}]: panic during testing", entry.path().display());
                     continue;
                 }
             };

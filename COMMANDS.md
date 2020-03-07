@@ -63,106 +63,104 @@ Notes:
 
 # Commands
 
-*steps are stored in RAM with the order 1, 2, 4, 3 to prevent timing errors. (Huffman code 00 01 11 10)*
-
 - `%n`: a unconditional command `n`, excluding constant access
 - `$q`: a useable constant `q`. `%n $q` calls the command `n` with the constant `q`
 
 | Opcode     | Name         | Function                                                          |
 | ---------- | ------------ | ----------------------------------------------------------------- |
-| `0x00`     | idle         | do nothing/simply increment PC by 1                               |
-| `0x01`     | add A        | A = A + B; PC += 1;                                               |
-| `0x02`     | add B        | B = A + B; PC += 1;                                               |
-| `0x03`     | add C        | C = A + B; PC += 1;                                               |
-| `0x04`     | add D        | D = A + B; PC += 1;                                               |
-| `0x05`     | add mem      | mem[MR] = A + B; PC += 1;                                         |
-| `0x06`     | add M1       | M1 = A + B; PC += 1;                                              |
-| `0x07`     | add M2       | M2 = A + B; PC += 1;                                              |
-| `0x08`     | sub A        | A = A - B; PC += 1;                                               |
-| `0x09`     | sub B        | B = A - B; PC += 1;                                               |
-| `0x0a`     | sub C        | C = A - B; PC += 1;                                               |
-| `0x0b`     | sub D        | D = A - B; PC += 1;                                               |
-| `0x0c`     | sub mem      | mem[MR] = A - B; PC += 1;                                         |
-| `0x0d`     | sub M1       | M1 = A - B; PC += 1;                                              |
-| `0x0e`     | sub M2       | M2 = A - B; PC += 1;                                              |
-| `0x0f`     | and A        | A = A & B; PC += 1;                                               |
-| `0x10`     | and B        | B = A & B; PC += 1;                                               |
-| `0x11`     | and C        | C = A & B; PC += 1;                                               |
-| `0x12`     | and D        | D = A & B; PC += 1;                                               |
-| `0x13`     | and mem      | mem[MR] = A & B; PC += 1;                                         |
-| `0x14`     | and M1       | M1 = A & B; PC += 1;                                              |
-| `0x15`     | and M2       | M2 = A & B; PC += 1;                                              |
-| `0x16`     | or A         | A = A \| B; PC += 1;                                              |
-| `0x17`     | or B         | B = A \| B; PC += 1;                                              |
-| `0x18`     | or C         | C = A \| B; PC += 1;                                              |
-| `0x19`     | or D         | D = A \| B; PC += 1;                                              |
-| `0x1a`     | or mem       | mem[MR] = A \| B; PC += 1;                                        |
-| `0x1b`     | or M1        | M1 = A \| B; PC += 1;                                             |
-| `0x1c`     | or M2        | M2 = A \| B; PC += 1;                                             |
-| `0x1d`     | xor A        | A = A ^ B; PC += 1;                                               |
-| `0x1e`     | xor B        | B = A ^ B; PC += 1;                                               |
-| `0x1f`     | xor C        | C = A ^ B; PC += 1;                                               |
-| `0x20`     | xor D        | D = A ^ B; PC += 1;                                               |
-| `0x21`     | xor mem      | mem[MR] = A ^ B; PC += 1;                                         |
-| `0x22`     | xor M1       | M1 = A ^ B; PC += 1;                                              |
-| `0x23`     | xor M2       | M2 = A ^ B; PC += 1;                                              |
-| `0x24`     | inv A        | A = !A; PC += 1;                                                  |
-| `0x25`     | inv B        | B = !A; PC += 1;                                                  |
-| `0x26`     | inv C        | C = !A; PC += 1;                                                  |
-| `0x27`     | inv D        | D = !A; PC += 1;                                                  |
-| `0x28`     | inv mem      | mem[MR] = !A; PC += 1;                                            |
-| `0x29`     | inv M1       | M1 = !A; PC += 1;                                                 |
-| `0x2a`     | inv M2       | M2 = !A; PC += 1;                                                 |
-| `0x2b`     | shr A        | A = A >> B; PC += 1;                                              |
-| `0x2c`     | shr B        | B = A >> B; PC += 1;                                              |
-| `0x2d`     | shr C        | C = A >> B; PC += 1;                                              |
-| `0x2e`     | shr D        | D = A >> B; PC += 1;                                              |
-| `0x2f`     | shr mem      | mem[MR] = A >> B; PC += 1;                                        |
-| `0x30`     | shr M1       | M1 = A >> B; PC += 1;                                             |
-| `0x31`     | shr M2       | M2 = A >> B; PC += 1;                                             |
-| `0x32`     | shl A        | A = A << B; PC += 1;                                              |
-| `0x33`     | shl B        | B = A << B; PC += 1;                                              |
-| `0x34`     | shl C        | C = A << B; PC += 1;                                              |
-| `0x35`     | shl D        | D = A << B; PC += 1;                                              |
-| `0x36`     | shl mem      | mem[MR] = A << B; PC += 1;                                        |
-| `0x37`     | shl M1       | M1 = A << B; PC += 1;                                             |
-| `0x38`     | shl M2       | M2 = A << B; PC += 1;                                             |
-| `0x39`     | mov A B      | B = A; PC += 1;                                                   |
-| `0x3a`     | mov A C      | C = A; PC += 1;                                                   |
-| `0x3b`     | mov A D      | D = A; PC += 1;                                                   |
-| `0x3c`     | mov A mem    | mem[MR] = A; PC += 1;                                             |
-| `0x3d`     | mov A M1     | M1 = A; PC += 1;                                                  |
-| `0x3e`     | mov A M2     | M2 = A; PC += 1;                                                  |
-| `0x3f`     | mov B A      | A = B; PC += 1;                                                   |
-| `0x40`     | mov B C      | C = B; PC += 1;                                                   |
-| `0x41`     | mov B D      | D = B; PC += 1;                                                   |
-| `0x42`     | mov B mem    | mem[MR] = B; PC += 1;                                             |
-| `0x43`     | mov B M1     | M1 = B; PC += 1;                                                  |
-| `0x44`     | mov B M2     | M2 = B; PC += 1;                                                  |
-| `0x45`     | mov C A      | A = C; PC += 1;                                                   |
-| `0x46`     | mov C B      | B = C; PC += 1;                                                   |
-| `0x47`     | mov C D      | D = C; PC += 1;                                                   |
-| `0x48`     | mov C mem    | mem[MR] = C; PC += 1;                                             |
-| `0x49`     | mov C M1     | M1 = C; PC += 1;                                                  |
-| `0x4a`     | mov C M2     | M2 = C; PC += 1;                                                  |
-| `0x4b`     | mov D A      | A = D; PC += 1;                                                   |
-| `0x4c`     | mov D B      | B = D; PC += 1;                                                   |
-| `0x4d`     | mov D C      | C = D; PC += 1;                                                   |
-| `0x4e`     | mov D mem    | mem[MR] = D; PC += 1;                                             |
-| `0x4f`     | mov D M1     | M1 = D; PC += 1;                                                  |
-| `0x50`     | mov D M2     | M2 = D; PC += 1;                                                  |
-| `0x51`     | mov mem A    | A = mem[MR]; PC += 1;                                             |
-| `0x52`     | mov mem B    | B = mem[MR]; PC += 1;                                             |
-| `0x53`     | mov mem C    | C = mem[MR]; PC += 1;                                             |
-| `0x54`     | mov mem D    | D = mem[MR]; PC += 1;                                             |
-| `0x55`     | mov mem M1   | M1 = mem[MR]; PC += 1;                                            |
-| `0x56`     | mov mem M2   | M2 = mem[MR]; PC += 1;                                            |
-| `0x57$1`   | mov $1 A     | A = mem[PC + 1]; PC += 2;                                         |
-| `0x58$1`   | mov $1 B     | B = mem[PC + 1]; PC += 2;                                         |
-| `0x59$1`   | mov $1 C     | C = mem[PC + 1]; PC += 2;                                         |
-| `0x5a$1`   | mov $1 D     | D = mem[PC + 1]; PC += 2;                                         |
-| `0x5b$1`   | mov $1 M1    | M1 = mem[PC + 1]; PC += 2;                                        |
-| `0x5c$1`   | mov $1 M2    | M2 = mem[PC + 1]; PC += 2;                                        |
+| `0x00`     | idle         | P1 += 1;                                                          |
+| `0x01`     | add A        | A = A + B; P1 += 1;                                               |
+| `0x02`     | add B        | B = A + B; P1 += 1;                                               |
+| `0x03`     | add C        | C = A + B; P1 += 1;                                               |
+| `0x04`     | add D        | D = A + B; P1 += 1;                                               |
+| `0x05`     | add mem      | mem[MR] = A + B; P1 += 1;                                         |
+| `0x06`     | add M1       | M1 = A + B; P1 += 1;                                              |
+| `0x07`     | add M2       | M2 = A + B; P1 += 1;                                              |
+| `0x08`     | sub A        | A = A - B; P1 += 1;                                               |
+| `0x09`     | sub B        | B = A - B; P1 += 1;                                               |
+| `0x0a`     | sub C        | C = A - B; P1 += 1;                                               |
+| `0x0b`     | sub D        | D = A - B; P1 += 1;                                               |
+| `0x0c`     | sub mem      | mem[MR] = A - B; P1 += 1;                                         |
+| `0x0d`     | sub M1       | M1 = A - B; P1 += 1;                                              |
+| `0x0e`     | sub M2       | M2 = A - B; P1 += 1;                                              |
+| `0x0f`     | and A        | A = A & B; P1 += 1;                                               |
+| `0x10`     | and B        | B = A & B; P1 += 1;                                               |
+| `0x11`     | and C        | C = A & B; P1 += 1;                                               |
+| `0x12`     | and D        | D = A & B; P1 += 1;                                               |
+| `0x13`     | and mem      | mem[MR] = A & B; P1 += 1;                                         |
+| `0x14`     | and M1       | M1 = A & B; P1 += 1;                                              |
+| `0x15`     | and M2       | M2 = A & B; P1 += 1;                                              |
+| `0x16`     | or A         | A = A \| B; P1 += 1;                                              |
+| `0x17`     | or B         | B = A \| B; P1 += 1;                                              |
+| `0x18`     | or C         | C = A \| B; P1 += 1;                                              |
+| `0x19`     | or D         | D = A \| B; P1 += 1;                                              |
+| `0x1a`     | or mem       | mem[MR] = A \| B; P1 += 1;                                        |
+| `0x1b`     | or M1        | M1 = A \| B; P1 += 1;                                             |
+| `0x1c`     | or M2        | M2 = A \| B; P1 += 1;                                             |
+| `0x1d`     | xor A        | A = A ^ B; P1 += 1;                                               |
+| `0x1e`     | xor B        | B = A ^ B; P1 += 1;                                               |
+| `0x1f`     | xor C        | C = A ^ B; P1 += 1;                                               |
+| `0x20`     | xor D        | D = A ^ B; P1 += 1;                                               |
+| `0x21`     | xor mem      | mem[MR] = A ^ B; P1 += 1;                                         |
+| `0x22`     | xor M1       | M1 = A ^ B; P1 += 1;                                              |
+| `0x23`     | xor M2       | M2 = A ^ B; P1 += 1;                                              |
+| `0x24`     | inv A        | A = !A; P1 += 1;                                                  |
+| `0x25`     | inv B        | B = !A; P1 += 1;                                                  |
+| `0x26`     | inv C        | C = !A; P1 += 1;                                                  |
+| `0x27`     | inv D        | D = !A; P1 += 1;                                                  |
+| `0x28`     | inv mem      | mem[MR] = !A; P1 += 1;                                            |
+| `0x29`     | inv M1       | M1 = !A; P1 += 1;                                                 |
+| `0x2a`     | inv M2       | M2 = !A; P1 += 1;                                                 |
+| `0x2b`     | shr A        | A = A >> B; P1 += 1;                                              |
+| `0x2c`     | shr B        | B = A >> B; P1 += 1;                                              |
+| `0x2d`     | shr C        | C = A >> B; P1 += 1;                                              |
+| `0x2e`     | shr D        | D = A >> B; P1 += 1;                                              |
+| `0x2f`     | shr mem      | mem[MR] = A >> B; P1 += 1;                                        |
+| `0x30`     | shr M1       | M1 = A >> B; P1 += 1;                                             |
+| `0x31`     | shr M2       | M2 = A >> B; P1 += 1;                                             |
+| `0x32`     | shl A        | A = A << B; P1 += 1;                                              |
+| `0x33`     | shl B        | B = A << B; P1 += 1;                                              |
+| `0x34`     | shl C        | C = A << B; P1 += 1;                                              |
+| `0x35`     | shl D        | D = A << B; P1 += 1;                                              |
+| `0x36`     | shl mem      | mem[MR] = A << B; P1 += 1;                                        |
+| `0x37`     | shl M1       | M1 = A << B; P1 += 1;                                             |
+| `0x38`     | shl M2       | M2 = A << B; P1 += 1;                                             |
+| `0x39`     | mov A B      | B = A; P1 += 1;                                                   |
+| `0x3a`     | mov A C      | C = A; P1 += 1;                                                   |
+| `0x3b`     | mov A D      | D = A; P1 += 1;                                                   |
+| `0x3c`     | mov A mem    | mem[MR] = A; P1 += 1;                                             |
+| `0x3d`     | mov A M1     | M1 = A; P1 += 1;                                                  |
+| `0x3e`     | mov A M2     | M2 = A; P1 += 1;                                                  |
+| `0x3f`     | mov B A      | A = B; P1 += 1;                                                   |
+| `0x40`     | mov B C      | C = B; P1 += 1;                                                   |
+| `0x41`     | mov B D      | D = B; P1 += 1;                                                   |
+| `0x42`     | mov B mem    | mem[MR] = B; P1 += 1;                                             |
+| `0x43`     | mov B M1     | M1 = B; P1 += 1;                                                  |
+| `0x44`     | mov B M2     | M2 = B; P1 += 1;                                                  |
+| `0x45`     | mov C A      | A = C; P1 += 1;                                                   |
+| `0x46`     | mov C B      | B = C; P1 += 1;                                                   |
+| `0x47`     | mov C D      | D = C; P1 += 1;                                                   |
+| `0x48`     | mov C mem    | mem[MR] = C; P1 += 1;                                             |
+| `0x49`     | mov C M1     | M1 = C; P1 += 1;                                                  |
+| `0x4a`     | mov C M2     | M2 = C; P1 += 1;                                                  |
+| `0x4b`     | mov D A      | A = D; P1 += 1;                                                   |
+| `0x4c`     | mov D B      | B = D; P1 += 1;                                                   |
+| `0x4d`     | mov D C      | C = D; P1 += 1;                                                   |
+| `0x4e`     | mov D mem    | mem[MR] = D; P1 += 1;                                             |
+| `0x4f`     | mov D M1     | M1 = D; P1 += 1;                                                  |
+| `0x50`     | mov D M2     | M2 = D; P1 += 1;                                                  |
+| `0x51`     | mov mem A    | A = mem[MR]; P1 += 1;                                             |
+| `0x52`     | mov mem B    | B = mem[MR]; P1 += 1;                                             |
+| `0x53`     | mov mem C    | C = mem[MR]; P1 += 1;                                             |
+| `0x54`     | mov mem D    | D = mem[MR]; P1 += 1;                                             |
+| `0x55`     | mov mem M1   | M1 = mem[MR]; P1 += 1;                                            |
+| `0x56`     | mov mem M2   | M2 = mem[MR]; P1 += 1;                                            |
+| `0x57$1`   | mov $1 A     | A = mem[PC + 1]; P1 += 2;                                         |
+| `0x58$1`   | mov $1 B     | B = mem[PC + 1]; P1 += 2;                                         |
+| `0x59$1`   | mov $1 C     | C = mem[PC + 1]; P1 += 2;                                         |
+| `0x5a$1`   | mov $1 D     | D = mem[PC + 1]; P1 += 2;                                         |
+| `0x5b$1`   | mov $1 M1    | M1 = mem[PC + 1]; P1 += 2;                                        |
+| `0x5c$1`   | mov $1 M2    | M2 = mem[PC + 1]; P1 += 2;                                        |
 | `0x5d`     | swap         | (A, B) = (B, A);                                                  |
 | `0x60`     | jmp A        | P1 = A;                                                           |
 | `0x61`     | jmp B        | P1 = B;                                                           |
@@ -206,19 +204,27 @@ Notes:
 | `0x87$1`   | ret $1 C     | P2 = mem[PC + 1]; P1 = C;                                         |
 | `0x88$1`   | ret $1 D     | P2 = mem[PC + 1]; P1 = D;                                         |
 | `0x89$1`   | ret $1 mem   | P2 = mem[PC + 1]; P1 = mem[MR];                                   |
-| `0xc0%1`   | if z %1      | if A == 0 { execute command %1 } else { PC += 2; }                |
-| `0xc1%1`   | if n %1      | if A != 0 { execute command %1 } else { PC += 2; }                |
-| `0xc2%1`   | if gt %1     | if A > B { execute command %1 } else { PC += 2; }                 |
-| `0xc3%1`   | if gte %1    | if A >= B { execute command %1 } else { PC += 2; }                |
-| `0xc4%1`   | if eq %1     | if A == B { execute command %1 } else { PC += 2; }                |
-| `0xc5%1`   | if neq %1    | if A != B { execute command %1 } else { PC += 2; }                |
-| `0xc6%1`   | if lte %1    | if A <= B { execute command %1 } else { PC += 2; }                |
-| `0xc7%1`   | if lt %1     | if A < B { execute command %1 } else { PC += 2; }                 |
-| `0xc8%1$2` | if z %1 $2   | if A == 0 { execute command %1 $2 } else { PC += 3; }             |
-| `0xc9%1$2` | if nz %1 $2  | if A != 0 { execute command %1 $2 } else { PC += 3; }             |
-| `0xca%1$2` | if gt %1 $2  | if A > B { execute command %1 $2 } else { PC += 3; }              |
-| `0xcb%1$2` | if gte %1 $2 | if A >= B { execute command %1 $2 } else { PC += 3; }             |
-| `0xcc%1$2` | if eq %1 $2  | if A == B { execute command %1 $2 } else { PC += 3; }             |
-| `0xcd%1$2` | if neq %1 $2 | if A != B { execute command %1 $2 } else { PC += 3; }             |
-| `0xce%1$2` | if lte %1 $2 | if A <= B { execute command %1 $2 } else { PC += 3; }             |
-| `0xcf%1$2` | if lt %1 $2  | if A < B { execute command %1 $2 } else { PC += 3; }              |
+| `0xc0%1`   | if z %1      | if A == 0 { execute command %1 } else { P1 += 2; }                |
+| `0xc1%1`   | if n %1      | if A != 0 { execute command %1 } else { P1 += 2; }                |
+| `0xc2%1`   | if gt %1     | if A > B { execute command %1 } else { P1 += 2; }                 |
+| `0xc3%1`   | if gte %1    | if A >= B { execute command %1 } else { P1 += 2; }                |
+| `0xc4%1`   | if eq %1     | if A == B { execute command %1 } else { P1 += 2; }                |
+| `0xc5%1`   | if neq %1    | if A != B { execute command %1 } else { P1 += 2; }                |
+| `0xc6%1`   | if lte %1    | if A <= B { execute command %1 } else { P1 += 2; }                |
+| `0xc7%1`   | if lt %1     | if A < B { execute command %1 } else { P1 += 2; }                 |
+| `0xc8%1$2` | if z %1 $2   | if A == 0 { execute command %1 $2 } else { P1 += 3; }             |
+| `0xc9%1$2` | if nz %1 $2  | if A != 0 { execute command %1 $2 } else { P1 += 3; }             |
+| `0xca%1$2` | if gt %1 $2  | if A > B { execute command %1 $2 } else { P1 += 3; }              |
+| `0xcb%1$2` | if gte %1 $2 | if A >= B { execute command %1 $2 } else { P1 += 3; }             |
+| `0xcc%1$2` | if eq %1 $2  | if A == B { execute command %1 $2 } else { P1 += 3; }             |
+| `0xcd%1$2` | if neq %1 $2 | if A != B { execute command %1 $2 } else { P1 += 3; }             |
+| `0xce%1$2` | if lte %1 $2 | if A <= B { execute command %1 $2 } else { P1 += 3; }             |
+| `0xcf%1$2` | if lt %1 $2  | if A < B { execute command %1 $2 } else { P1 += 3; }              |
+| `0xff`     | halt         | do nothing                                                        |
+
+There are also some **emulator only** commands, with opcodes starting at `0xf0`.
+
+| Opcode     | Name         | Function                                                          |
+| ---------- | ------------ | ----------------------------------------------------------------- |
+| `0xf0$1`   | expect $1    | check_stack.push($1) ; P1 += 2;                                   |
+| `0xf1`     | check        | assert check_stack.pop() == A; P1 += 1;                           |
