@@ -199,7 +199,7 @@ fn main() -> Result<(), TestFailure> {
 
                 remu.memory_mut()[0..data.len()].copy_from_slice(&data);
 
-                match remu.run(100000) {
+                match remu.run(1000000) {
                     Ok(steps) => println!("boulder/{}: {}", entry.path().display(), steps),
                     Err(e) => panic!("{:?}", e),
                 }
