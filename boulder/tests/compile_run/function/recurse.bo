@@ -1,0 +1,12 @@
+fn add(a: u8, b: u8) -> u8 {
+    if a == 0 {
+        b
+    } else {
+        add(a - 1, b + 1)
+    }
+}
+
+@test
+fn test() -> Bool {
+    add(3, 2) == 5
+}

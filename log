@@ -1,417 +1,75 @@
-test[#0]:
-  ~0.max_size(): 21
-test[#0]:
-  ~0.max_size(): 21
-inner[#0]:
-  ~0.max_size(): 218
-outer[#1]:
-  ~0.max_size(): 145
-inner_test[#0]:
-  ~0.max_size(): 21
-outer_test[#1]:
-  ~0.max_size(): 21
-func[#0]:
-  ~0.max_size(): 42
-inner[#1]:
-  ~0.max_size(): 190
-second[#2]:
-  ~0.max_size(): 190
-is_prime[#0]:
-  ~0.max_size(): 121
-  ~1.max_size(): 21
-  ~2.max_size(): 258
-is_prime_recurse[#1]:
-  ~0.max_size(): 121
-  ~1.max_size(): 21
-  ~2.max_size(): 264
-  ~3.max_size(): 21
-  ~4.max_size(): 177
-test[#2]:
-  ~0.max_size(): 81
-  ~1.max_size(): 87
-  ~2.max_size(): 21
-fibonacci[#0]:
-  ~0.max_size(): 121
-  ~1.max_size(): 42
-  ~2.max_size(): 759
-five[#1]:
-  ~0.max_size(): 218
-ten[#2]:
-  ~0.max_size(): 218
-check[#0]:
-  ~0.max_size(): 50
-  ~1.max_size(): 31
-  ~2.max_size(): 63
-test_u8[#1]:
-  ~0.max_size(): 61
-test_u16[#2]:
-  ~0.max_size(): 68
-test[#0]:
-  ~0.max_size(): 21
-maybe[#0]:
-  ~0.max_size(): 20
-  ~1.max_size(): 28
-  ~2.max_size(): 42
-maybe_some[#1]:
-  ~0.max_size(): 197
-maybe_none[#2]:
-  ~0.max_size(): 113
-temporaries[#0]:
-  ~0.max_size(): 123
-  ~1.max_size(): 123
-  ~2.max_size(): 123
-  ~3.max_size(): 288
-test[#1]:
-  ~0.max_size(): 190
-scoped[#0]:
-  ~0.max_size(): 42
-scoped_test[#1]:
-  ~0.max_size(): 190
-simple_scope[#0]:
-  ~0.max_size(): 42
-test[#1]:
-  ~0.max_size(): 190
-break_empty[#0]:
-  ~0.max_size(): 42
-test[#1]:
-  ~0.max_size(): 190
-break_var[#0]:
-  ~0.max_size(): 42
-test[#1]:
-  ~0.max_size(): 190
-block_break[#0]:
-  ~0.max_size(): 21
-ret[#0]:
-  ~0.max_size(): 42
-test[#1]:
-  ~0.max_size(): 190
-test[#0]:
-  ~0.max_size(): 90
-invert_bool[#0]:
-  ~0.max_size(): 21
-test[#0]:
-  ~0.max_size(): 21
-true[#0]:
-  ~0.max_size(): 21
-false[#1]:
-  ~0.max_size(): 21
-test[#2]:
-  ~0.max_size(): 100
-type_ascription[#0]:
-  ~0.max_size(): 157
-test[#1]:
-  ~0.max_size(): 246
-test[#0]:
-  ~0.max_size(): 11
-  ~1.max_size(): 51
-  ~2.max_size(): 51
-  ~3.max_size(): 21
-extend_field[#0]:
-  ~0.max_size(): 14
-test[#1]:
-  ~0.max_size(): 65
-  ~1.max_size(): 21
-  ~2.max_size(): 21
-use_field[#0]:
-  ~0.max_size(): 14
-test[#1]:
-  ~0.max_size(): 168
-  ~1.max_size(): 21
-  ~2.max_size(): 127
-extend[#0]:
-  ~0.max_size(): 49
-test[#1]:
-  ~0.max_size(): 133
-  ~1.max_size(): 21
-  ~2.max_size(): 127
-extend_arg[#0]:
-  ~0.max_size(): 101
-test[#1]:
-  ~0.max_size(): 161
-  ~1.max_size(): 21
-  ~2.max_size(): 127
-test[#0]:
-  ~0.max_size(): 21
-access[#0]:
-  ~0.max_size(): 14
-test[#1]:
-  ~0.max_size(): 218
-test[#0]:
-  ~0.max_size(): 60
-  ~1.max_size(): 173
-  ~2.max_size(): 4
-  ~3.max_size(): 127
-  ~4.max_size(): 21
-mov[#0]:
-  ~0.max_size(): 14
-test[#1]:
-  ~0.max_size(): 332
-  ~1.max_size(): 127
-  ~2.max_size(): 21
-field_access[#0]:
-  ~0.max_size(): 157
-test[#1]:
-  ~0.max_size(): 246
-func[#0]:
-  ~0.max_size(): 431
-test[#1]:
-  ~0.max_size(): 274
-if_simple[#0]:
-  ~0.max_size(): 20
-  ~1.max_size(): 21
-  ~2.max_size(): 21
-true[#1]:
-  ~0.max_size(): 71
-false[#2]:
-  ~0.max_size(): 71
-used_match[#0]:
-  ~0.max_size(): 60
-  ~1.max_size(): 32
-  ~2.max_size(): 157
-  ~3.max_size(): 135
-test[#1]:
-  ~0.max_size(): 253
-test[#0]:
-  ~0.max_size(): 40
-true[#1]:
-  ~0.max_size(): 54
-false[#2]:
-  ~0.max_size(): 66
-match_fn[#0]:
-  ~0.max_size(): 60
-  ~1.max_size(): 42
-  ~2.max_size(): 14
-u32[#1]:
-  ~0.max_size(): 225
-invert[#0]:
-  ~0.max_size(): 20
-  ~1.max_size(): 21
-  ~2.max_size(): 21
-if_chain[#1]:
-  ~0.max_size(): 60
-  ~1.max_size(): 32
-  ~2.max_size(): 32
-  ~3.max_size(): 4
-  ~4.max_size(): 32
-  ~5.max_size(): 32
-  ~6.max_size(): 157
-if_empty[#2]:
-  ~0.max_size(): 4
-  ~1.max_size(): 32
-  ~2.max_size(): 4
-  ~3.max_size(): 42
-  ~4.max_size(): 14
-  ~5.max_size(): 14
-test_if_empty[#3]:
-  ~0.max_size(): 190
-test_chain[#4]:
-  ~0.max_size(): 190
-test[#0]:
-  ~0.max_size(): 4
-  ~1.max_size(): 21
-  ~2.max_size(): 21
-bool[#0]:
-  ~0.max_size(): 21
-arm[#1]:
-  ~0.max_size(): 53
-  ~1.max_size(): 21
-  ~2.max_size(): 47
-underscore[#0]:
-  ~0.max_size(): 4
-  ~1.max_size(): 21
-  ~2.max_size(): 21
-test[#1]:
-  ~0.max_size(): 64
-init_var[#0]:
-  ~0.max_size(): 60
-  ~1.max_size(): 42
-  ~2.max_size(): 14
-empty[#1]:
-  ~0.max_size(): 204
-u32[#2]:
-  ~0.max_size(): 225
-infer_type[#0]:
-  ~0.max_size(): 395
-test[#1]:
-  ~0.max_size(): 190
-many_loops[#0]:
-  ~0.max_size(): 395
-test[#1]:
-  ~0.max_size(): 190
-cond_exit[#0]:
-  ~0.max_size(): 32
-  ~1.max_size(): 171
-  ~2.max_size(): 278
-zero[#1]:
-  ~0.max_size(): 218
-three[#2]:
-  ~0.max_size(): 218
-one_hundred[#3]:
-  ~0.max_size(): 218
-loopidoo[#0]:
-  ~0.max_size(): 42
-test[#1]:
-  ~0.max_size(): 190
-while_simple[#0]:
-  ~0.max_size(): 32
-  ~1.max_size(): 131
-  ~2.max_size(): 135
-test[#1]:
-  ~0.max_size(): 190
-default_type[#0]:
-  ~0.max_size(): 21
-test[#1]:
-  ~0.max_size(): 64
-break_sum[#0]:
-  ~0.max_size(): 121
-  ~1.max_size(): 21
-  ~2.max_size(): 21
-break_zero[#1]:
-  ~0.max_size(): 75
-break_one[#2]:
-  ~0.max_size(): 87
-test[#0]:
-  ~0.max_size(): 21
-test_u32[#0]:
-  ~0.max_size(): 32
-  ~1.max_size(): 57
-  ~2.max_size(): 4
-  ~3.max_size(): 47
-  ~4.max_size(): 4
-  ~5.max_size(): 31
-  ~6.max_size(): 21
-test_u16[#0]:
-  ~0.max_size(): 11
-  ~1.max_size(): 31
-  ~2.max_size(): 21
-logical[#0]:
-  ~0.max_size(): 20
-  ~1.max_size(): 20
-  ~2.max_size(): 4
-  ~3.max_size(): 21
-  ~4.max_size(): 20
-  ~5.max_size(): 21
-  ~6.max_size(): 21
-logical_test[#1]:
-  ~0.max_size(): 67
-  ~1.max_size(): 73
-  ~2.max_size(): 21
-div_subtest[#0]:
-  ~0.max_size(): 134
-rem[#1]:
-  ~0.max_size(): 365
-bitand_int[#0]:
-  ~0.max_size(): 205
-bitand_bool[#1]:
-  ~0.max_size(): 29
-bitand_bool2[#2]:
-  ~0.max_size(): 29
-int_test[#3]:
-  ~0.max_size(): 246
-bool_true[#4]:
-  ~0.max_size(): 61
-bool_false[#5]:
-  ~0.max_size(): 73
-bool2[#6]:
-  ~0.max_size(): 73
-gt[#0]:
-  ~0.max_size(): 115
-gt_lower[#1]:
-  ~0.max_size(): 87
-gt_equal[#2]:
-  ~0.max_size(): 87
-gt_greater[#3]:
-  ~0.max_size(): 75
-mul[#0]:
-  ~0.max_size(): 133
-test[#1]:
-  ~0.max_size(): 190
-shl[#0]:
-  ~0.max_size(): 395
-test[#1]:
-  ~0.max_size(): 190
-div_big[#0]:
-  ~0.max_size(): 423
-  ~1.max_size(): 127
-  ~2.max_size(): 21
-zero_two_u32[#1]:
-  ~0.max_size(): 246
-zero_two_u16[#2]:
-  ~0.max_size(): 134
-lte[#0]:
-  ~0.max_size(): 115
-tle_less[#1]:
-  ~0.max_size(): 92
-tle_eq[#2]:
-  ~0.max_size(): 92
-tle_gt[#3]:
-  ~0.max_size(): 92
-eq_int[#0]:
-  ~0.max_size(): 270
-eq_int_test[#1]:
-  ~0.max_size(): 109
-  ~1.max_size(): 115
-  ~2.max_size(): 21
-test[#0]:
-  ~0.max_size(): 137
-  ~1.max_size(): 115
-  ~2.max_size(): 21
-one_u16[#0]:
-  ~0.max_size(): 134
-one_u32[#1]:
-  ~0.max_size(): 246
-simple[#0]:
-  ~0.max_size(): 92
-shr[#0]:
-  ~0.max_size(): 133
-test[#1]:
-  ~0.max_size(): 190
-bitor_int[#0]:
-  ~0.max_size(): 205
-bitor_bool[#1]:
-  ~0.max_size(): 29
-bitor_bool2[#2]:
-  ~0.max_size(): 29
-test_int[#3]:
-  ~0.max_size(): 246
-test_bool[#4]:
-  ~0.max_size(): 84
-  ~1.max_size(): 84
-  ~2.max_size(): 4
-  ~3.max_size(): 78
-  ~4.max_size(): 21
-parenthesis_a[#0]:
-  ~0.max_size(): 860
-ops[#1]:
-  ~0.max_size(): 246
-run0[#2]:
-  ~0.max_size(): 21
-na[#0]:
-  ~0.max_size(): 42
-test[#1]:
-  ~0.max_size(): 190
-negate[#0]:
-  ~0.max_size(): 71
-negate_test[#1]:
-  ~0.max_size(): 71
-shadow[#0]:
-  ~0.max_size(): 550
-test[#1]:
-  ~0.max_size(): 218
-add[#0]:
-  ~0.max_size(): 157
-increment[#1]:
-  ~0.max_size(): 145
-test[#2]:
-  ~0.max_size(): 218
-to_bytes_u32[#0]:
-  ~0.max_size(): 299
-to_bytes_u16[#1]:
-  ~0.max_size(): 149
-delayed[#0]:
-  ~0.max_size(): 42
-test[#1]:
-  ~0.max_size(): 190
+boulder/tests/compile_run/modules/used.bo: 38
+boulder/tests/compile_run/modules/extern.bo: 38
+boulder/tests/compile_run/modules/simple.bo: 1062
+boulder/tests/compile_run/modules/shadow_ty.bo: 76
+boulder/tests/compile_run/modules/shadow_fn.bo: 326
+boulder/tests/compile_run/examples/primes.bo: 10604187
+boulder/tests/compile_run/examples/fibonacci.bo: 388713
+boulder/tests/compile_run/union/desugared_union.bo: 222
+boulder/tests/compile_run/union/simple.bo: 38
+boulder/tests/compile_run/union/different_size.bo: 294
+boulder/tests/compile_run/scope/temporaries.bo: 3741
+boulder/tests/compile_run/scope/break.bo: 163
+boulder/tests/compile_run/scope/simple.bo: 163
+boulder/tests/compile_run/scope/break_empty.bo: 163
+boulder/tests/compile_run/scope/break_var.bo: 163
+boulder/tests/compile_run/scope/ret.bo: 163
+boulder/tests/compile_run/scope/scoped_block.bo: 613
+boulder/tests/compile_run/unop/invert.bo: 38
+boulder/tests/compile_run/type/use_unit.bo: 38
+boulder/tests/compile_run/type/create_unit.bo: 117
+boulder/tests/compile_run/type/type_ascription.bo: 1086
+boulder/tests/compile_run/type/sum/simple_to_complex.bo: 46
+boulder/tests/compile_run/type/sum/extend_field.bo: 85
+boulder/tests/compile_run/type/sum/field.bo: 205
+boulder/tests/compile_run/type/sum/extend_ret.bo: 205
+boulder/tests/compile_run/type/sum/ret.bo: 247
+boulder/tests/compile_run/type/sum/extend_func.bo: 38
+boulder/tests/compile_run/type/structures/layered_fields.bo: 163
+boulder/tests/compile_run/type/structures/init_field_order.bo: 226
+boulder/tests/compile_run/type/structures/named_fields.bo: 300
+boulder/tests/compile_run/type/structures/field_access.bo: 1086
+boulder/tests/compile_run/type/structures/complex_field_access.bo: 2912
+boulder/tests/compile_run/type/match/if_simple.bo: 182
+boulder/tests/compile_run/type/match/used.bo: 2023
+boulder/tests/compile_run/type/match/match_bool.bo: 159
+boulder/tests/compile_run/type/match/simple.bo: 199
+boulder/tests/compile_run/type/match/if_expr.bo: 1315
+boulder/tests/compile_run/type/match/arm_subtype.bo: 120
+boulder/tests/compile_run/type/match/underscore_pat.bo: 81
+boulder/tests/compile_run/type/match/initialize_var.bo: 378
+boulder/tests/compile_run/type/infer.bo: 78401
+boulder/tests/compile_run/loop/positions.bo: 2838
+boulder/tests/compile_run/loop/conditional_exit.bo: 247635
+boulder/tests/compile_run/loop/simple.bo: 163
+boulder/tests/compile_run/loop/while_simple.bo: 6078
+boulder/tests/compile_run/loop/default_type.bo: 79
+boulder/tests/compile_run/loop/break_sum.bo: 649
+boulder/tests/compile_run/intrinsics/u16_to_bytes_simple.bo: 38
+boulder/tests/compile_run/intrinsics/u32_to_bytes.bo: 113
+boulder/tests/compile_run/intrinsics/u16_to_bytes.bo: 49
+boulder/tests/compile_run/binop/logical.bo: 171
+boulder/tests/compile_run/binop/rem.bo: 233359
+boulder/tests/compile_run/binop/bitand.bo: 1377
+boulder/tests/compile_run/binop/gt.bo: 941
+boulder/tests/compile_run/binop/mul.bo: 80442
+boulder/tests/compile_run/binop/shl.bo: 3374
+boulder/tests/compile_run/binop/div.bo: 617995
+boulder/tests/compile_run/binop/add.bo: 1178
+boulder/tests/compile_run/binop/lte.bo: 954
+boulder/tests/compile_run/binop/eq.bo: 2121
+boulder/tests/compile_run/binop/precendence.bo: 504
+boulder/tests/compile_run/binop/sub.bo: 2008
+boulder/tests/compile_run/binop/gte.bo: 158
+boulder/tests/compile_run/binop/shr.bo: 1479
+boulder/tests/compile_run/binop/bitor.bo: 1338
+boulder/tests/compile_run/function/core_fn.bo: 156783
+boulder/tests/compile_run/function/shadow_unit.bo: 163
+boulder/tests/compile_run/function/negate.bo: 113
+boulder/tests/compile_run/function/shadow.bo: 3771
+boulder/tests/compile_run/function/function_call.bo: 552
+boulder/tests/compile_run/function/recurse.bo: 275
+boulder/tests/compile_run/function/delayed_init.bo: 163
 
 running 0 tests
 
@@ -441,6 +99,9 @@ test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 running 0 tests
 
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+
+test result: ok.
 
 
 running 0 tests

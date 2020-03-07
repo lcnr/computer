@@ -130,8 +130,12 @@ impl Remu {
 
         match command {
             0x00 => (),
-            0x01..=0x07 => *self.write(command - 0x01) = self.reg.a.wrapping_add(self.reg.b),
-            0x08..=0x0e => *self.write(command - 0x08) = self.reg.a.wrapping_sub(self.reg.b),
+            0x01..=0x07 => {
+                *self.write(command - 0x01) = self.reg.a.checked_add(self.reg.b).unwrap()
+            }
+            0x08..=0x0e => {
+                *self.write(command - 0x08) = self.reg.a.checked_sub(self.reg.b).unwrap()
+            }
             0x0f..=0x15 => *self.write(command - 0x0f) = self.reg.a & self.reg.b,
             0x16..=0x1c => *self.write(command - 0x16) = self.reg.a | self.reg.b,
             0x1d..=0x23 => *self.write(command - 0x1d) = self.reg.a ^ self.reg.b,
