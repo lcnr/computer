@@ -122,6 +122,29 @@ impl<'a> Lir<'a> {
     }
 
     pub fn merge_simple_blocks(&mut self) {
+        fn merge(
+            args: &TSlice<InputId, Option<Arg>>,
+            inputs: &TSlice<InputId, LocationId>,
+            mut term: Terminator,
+        ) -> Terminator {
+            term.update(|v: Option<Arg>| {
+                if let Some(Arg::Location(id)) = v {
+                    let iter = args.iter().zip(inputs.iter());
+                    for (&arg, &input) in iter {
+                        if id == input {
+                            return arg;
+                        }
+                    }
+
+                    unreachable!("undefined arg");
+                } else {
+                    v
+                }
+            });
+
+            term
+        }
+
         for func in self.functions.iter_mut() {
             let mut to_merge = TBitSet::new();
             for (b, block) in func.blocks.index_iter().zip(func.blocks.iter()) {
@@ -134,28 +157,33 @@ impl<'a> Lir<'a> {
                 match func.blocks[b].terminator {
                     Terminator::Goto(Some(target), ref args) => {
                         if to_merge.get(target) {
-                            let mut term = func.blocks[target].terminator.clone();
+                            let target_block = &func.blocks[target];
+                            let term = target_block.terminator.clone();
 
-                            term.update(|v: Option<Arg>| {
-                                if let Some(Arg::Location(id)) = v {
-                                    let iter = args.iter().zip(func.blocks[target].inputs.iter());
-                                    for (&arg, &input) in iter {
-                                        if id == input {
-                                            return arg;
-                                        }
-                                    }
-
-                                    unreachable!("undefined arg");
-                                } else {
-                                    v
-                                }
-                            });
-
-                            func.blocks[b].terminator = term;
-                            eprintln!("({}): merging {} into {}", func.name, target, b);
+                            func.blocks[b].terminator = merge(args, &target_block.inputs, term);
                         }
                     }
-                    _ => (),
+                    Terminator::Goto(_, _) => (),
+                    Terminator::Match(expr, ref arms) => {
+                        let mut clone = arms.clone();
+                        for arm in clone.iter_mut() {
+                            if let Some(target) = arm.target {
+                                if to_merge.get(target) {
+                                    let target_block = &func.blocks[target];
+                                    let term = target_block.terminator.clone();
+
+                                    if let Terminator::Goto(to, args) =
+                                        merge(&arm.args, &target_block.inputs, term)
+                                    {
+                                        arm.target = to;
+                                        arm.args = args;
+                                    }
+                                }
+                            }
+                        }
+
+                        func.blocks[b].terminator = Terminator::Match(expr, clone)
+                    }
                 }
             }
         }
