@@ -7,6 +7,7 @@ use shared_id::{BlockId, FunctionId, InputId, LocationId, TagId};
 use lir::{Action, Arg, Binop, Function, Lir, Terminator};
 
 mod ctx;
+mod optimize;
 
 use ctx::{Context, FunctionData};
 
@@ -338,7 +339,7 @@ pub fn convert(lir: &Lir) -> String {
         );
     }
 
-    asm_blocks_to_asm(asm_blocks)
+    asm_blocks_to_asm(optimize::optimize(asm_blocks))
 }
 
 fn convert_block(
@@ -990,7 +991,7 @@ impl Readable {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct AsmBlock {
     name: Box<str>,
     commands: Vec<Command>,
@@ -1052,18 +1053,18 @@ impl<T: Clone + fmt::Debug + CommandSize + ToAsm> Command<T> {
     fn to_asm(&self, asm_blocks: &[AsmBlock]) -> String {
         match self {
             Command::Comment(c) => format!("# {}", c),
-            Command::Byte(v) => format!("byte {}", v),
+            Command::Byte(v) => format!("byte {};", v),
             Command::Tag(id) => format!(".__tag{}:", id.0),
-            Command::Move(r, w) => format!("mov {} {}", r.to_asm(&asm_blocks), w.to_asm()),
-            Command::Op(op, w) => format!("{} {}", op.to_asm(), w.to_asm()),
+            Command::Move(r, w) => format!("mov {} {};", r.to_asm(&asm_blocks), w.to_asm()),
+            Command::Op(op, w) => format!("{} {};", op.to_asm(), w.to_asm()),
             Command::If(cmd) => format!("if {}", cmd.to_asm(asm_blocks)),
             Command::Return(b, s) => {
-                format!("ret {} {}", b.to_asm(asm_blocks), s.to_asm(asm_blocks))
+                format!("ret {} {};", b.to_asm(asm_blocks), s.to_asm(asm_blocks))
             }
-            Command::Halt => String::from("halt"),
-            Command::Expect(v) => format!("expect {}", v),
-            Command::Check => String::from("check"),
-            Command::Debug => String::from("dbg"),
+            Command::Halt => String::from("halt;"),
+            Command::Expect(v) => format!("expect {};", v),
+            Command::Check => String::from("check;"),
+            Command::Debug => String::from("dbg;"),
         }
     }
 }
@@ -1080,11 +1081,11 @@ fn asm_blocks_to_asm(asm_blocks: Vec<AsmBlock>) -> String {
     let mut s = String::new();
     for block in asm_blocks.iter() {
         wln!(s, "{}:", block.name);
-        for cmd in block.commands.iter() {
+        for (i, cmd) in block.commands.iter().enumerate() {
             if let Command::Tag(_) | Command::Comment(_) = cmd {
-                wln!(s, "  {}", cmd.to_asm(&asm_blocks));
+                wln!(s, "  {:62} # {:3}", cmd.to_asm(&asm_blocks), i);
             } else {
-                wln!(s, "    {};", cmd.to_asm(&asm_blocks));
+                wln!(s, "    {:60} # {:3}", cmd.to_asm(&asm_blocks), i);
             }
         }
     }
