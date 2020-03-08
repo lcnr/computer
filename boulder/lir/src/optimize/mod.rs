@@ -2,49 +2,15 @@ use std::{convert::identity, iter, mem};
 
 use tindex::{tvec, TBitSet, TSlice};
 
-use graphc::{Coloring, Graph, NodeId};
-
 use shared_id::{BlockId, FunctionId, InputId, LocationId, StepId};
 
 use crate::{traits::Update, Action, Arg, Block, Function, Lir, Terminator};
 
+mod coloring;
 mod const_prop;
 mod inline;
 
 impl<'a> Lir<'a> {
-    /// Minimizes the needed memory of each block without
-    /// modifying step order or visible behavior.
-    ///
-    /// TODO: this function is currently unable to reduce the
-    /// memory size to 0, consider checking graphs with only 1 color
-    /// manually
-    pub fn minimize_memory_usage(&mut self) {
-        #[cfg(feature = "profiler")]
-        profile_scope!("minimize_memory_usage");
-
-        for function in self.functions.iter_mut() {
-            #[cfg(feature = "profiler")]
-            profile_scope!("merge_simple_blocks::function");
-            for block in function.blocks.iter_mut() {
-                let coloring = block.calculate_coloring();
-
-                for input in block.inputs.iter_mut() {
-                    *input = LocationId(coloring.nodes[NodeId::from(input.0)]);
-                }
-
-                block.steps.iter_mut().for_each(|s| {
-                    s.update(|location| LocationId(coloring.nodes[NodeId::from(location.0)]))
-                });
-
-                block.terminator.update(|location: LocationId| {
-                    LocationId(coloring.nodes[NodeId::from(location.0)])
-                });
-
-                block.memory_len = coloring.k;
-            }
-        }
-    }
-
     /// Remove all moves where `o == i`.
     pub fn remove_noop_moves(&mut self) {
         #[cfg(feature = "profiler")]
@@ -373,93 +339,5 @@ impl Block {
         }
 
         inputs
-    }
-
-    pub fn calculate_coloring(&self) -> Coloring {
-        #[cfg(feature = "profiler")]
-        profile_scope!("mcalculate_coloring");
-
-        let mut g = Graph::new();
-        let mut alive = TBitSet::new();
-
-        for _ in 0..self.memory_len {
-            g.add_node();
-        }
-
-        let mut add_alive = |alive: &mut TBitSet<LocationId>, n: LocationId| {
-            for other in alive.iter() {
-                g.add_edge(NodeId::from(n.0), NodeId::from(other.0));
-            }
-            alive.add(n);
-        };
-
-        fn arg_alive<F>(
-            mut f: F,
-            alive: &mut TBitSet<LocationId>,
-            args: &TSlice<InputId, Option<Arg>>,
-        ) where
-            F: FnMut(&mut TBitSet<LocationId>, LocationId),
-        {
-            for &arg in args.iter() {
-                if let Some(Arg::Location(id)) = arg {
-                    f(alive, id);
-                }
-            }
-        }
-
-        match self.terminator {
-            Terminator::Goto(_, ref args) => {
-                arg_alive(&mut add_alive, &mut alive, args);
-            }
-            Terminator::Match(expr, ref arms) => {
-                for arm in arms {
-                    arg_alive(&mut add_alive, &mut alive, &arm.args);
-                }
-
-                add_alive(&mut alive, expr);
-            }
-        }
-
-        for step in self.steps.iter().rev() {
-            match *step {
-                Action::Invert(i, o) | Action::Move(i, o) => {
-                    add_alive(&mut alive, o);
-                    alive.remove(o);
-                    add_alive(&mut alive, i);
-                }
-                Action::Debug(i) => add_alive(&mut alive, i),
-                Action::LoadConstant(_, o) => {
-                    add_alive(&mut alive, o);
-                    alive.remove(o)
-                }
-                Action::Binop { l, r, out, .. } => {
-                    add_alive(&mut alive, out);
-                    alive.remove(out);
-                    if let Arg::Location(id) = l {
-                        add_alive(&mut alive, id);
-                    }
-                    if let Arg::Location(id) = r {
-                        add_alive(&mut alive, id);
-                    }
-                }
-                Action::FunctionCall {
-                    ref args, ref ret, ..
-                } => {
-                    for &v in ret.iter().filter_map(Option::as_ref).rev() {
-                        add_alive(&mut alive, v);
-                        alive.remove(v);
-                    }
-
-                    arg_alive(&mut add_alive, &mut alive, args);
-                }
-            }
-        }
-
-        for &input in self.inputs.iter().rev() {
-            add_alive(&mut alive, input);
-            alive.remove(input)
-        }
-
-        g.minimal_coloring()
     }
 }
