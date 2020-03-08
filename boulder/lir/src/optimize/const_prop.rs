@@ -193,10 +193,6 @@ impl Action {
                 ref args,
                 ref ret,
             } => {
-                for r in ret.iter().copied().filter_map(identity) {
-                    mem[r] = Memory::Unknown;
-                }
-
                 let args = args
                     .iter()
                     .map(|&a| {
@@ -211,6 +207,10 @@ impl Action {
                         }
                     })
                     .collect();
+
+                for r in ret.iter().copied().filter_map(identity) {
+                    mem[r] = Memory::Unknown;
+                }
 
                 Some(Action::FunctionCall {
                     id,
