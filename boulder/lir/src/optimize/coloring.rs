@@ -22,7 +22,7 @@ impl<'a> Lir<'a> {
 
         for function in self.functions.iter_mut() {
             #[cfg(feature = "profiler")]
-            profile_scope!("merge_simple_blocks::function");
+            profile_scope!("minimize_memory_usage::function");
             for block in function.blocks.iter_mut() {
                 let coloring = block.coloring();
 
@@ -47,7 +47,7 @@ impl<'a> Lir<'a> {
 impl Block {
     pub fn coloring(&mut self) -> Coloring {
         #[cfg(feature = "profiler")]
-        profile_scope!("mcalculate_coloring");
+        profile_scope!("block_coloring");
 
         let mut g = Graph::new();
         let mut alive = TBitSet::new();
