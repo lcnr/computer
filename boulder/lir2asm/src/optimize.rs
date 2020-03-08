@@ -1,6 +1,6 @@
-use tindex::TBitSet;
+use tindex::{TBitSet, TSlice};
 
-use shared_id::TagId;
+use shared_id::{BlockId, TagId};
 
 use crate::{AsmBlock, Command, Readable, Writeable};
 
@@ -13,7 +13,7 @@ pub(crate) fn optimize(mut asm_blocks: Vec<AsmBlock>) -> Vec<AsmBlock> {
     // TODO: optimize asm
 
     // tags may NOT be moved between blocks
-    dedup_loads(&mut asm_blocks);
+    dedup_loads(<&mut TSlice<_, _>>::from(asm_blocks.as_mut_slice()));
 
     asm_blocks
 }
@@ -24,7 +24,7 @@ enum Value {
     /// read from the current memory location
     Memory,
     Section(TagId),
-    Block(TagId),
+    Block(BlockId),
 }
 
 enum Read {
@@ -34,7 +34,7 @@ enum Read {
 }
 
 impl Readable {
-    fn reg(self) -> Read {
+    fn reg(self, blocks: &TSlice<BlockId, AsmBlock>) -> Read {
         match self {
             Readable::A => Read::Reg(0),
             Readable::B => Read::Reg(1),
@@ -42,7 +42,12 @@ impl Readable {
             Readable::D => Read::Reg(3),
             Readable::Mem => Read::Mem,
             Readable::Byte(v) => Read::Value(Value::Byte(v)),
-            Readable::Block(id) => Read::Value(Value::Block(id)),
+            Readable::Block(id) => blocks
+                .iter()
+                .position(|b| b.commands.contains(&Command::Tag(id)))
+                .map(BlockId)
+                .map(|p| Read::Value(Value::Block(p)))
+                .unwrap(),
             Readable::Section(id) => Read::Value(Value::Section(id)),
         }
     }
@@ -63,12 +68,13 @@ impl Writeable {
 }
 
 /// TODO: consider storing the memory locations with a known value
-fn dedup_loads(blocks: &mut [AsmBlock]) {
-    for block in blocks.iter_mut() {
+fn dedup_loads(blocks: &mut TSlice<BlockId, AsmBlock>) {
+    for b in blocks.index_iter() {
+        let block = &blocks[b];
         let mut regs = [None; 6];
         let mut mem = Value::Memory;
         let mut to_remove = TBitSet::new();
-        for (c, command) in block.commands.iter_mut().enumerate() {
+        for (c, command) in block.commands.iter().enumerate() {
             match command {
                 Command::Comment(_)
                 | Command::Byte(_)
@@ -81,7 +87,7 @@ fn dedup_loads(blocks: &mut [AsmBlock]) {
                     regs = [None; 6];
                     mem = Value::Memory;
                 }
-                Command::Move(r, w) => match (r.reg(), w.reg()) {
+                Command::Move(r, w) => match (r.reg(&blocks), w.reg()) {
                     (Read::Reg(r), Some(w)) => {
                         if regs[w].is_some() && regs[r] == regs[w] {
                             to_remove.add(c);
@@ -166,6 +172,7 @@ fn dedup_loads(blocks: &mut [AsmBlock]) {
             }
         }
 
+        let block = &mut blocks[b];
         for i in to_remove.into_iter().rev() {
             block.commands.remove(i);
         }
