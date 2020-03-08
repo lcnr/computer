@@ -120,6 +120,46 @@ impl<'a> Lir<'a> {
             }
         }
     }
+
+    pub fn merge_simple_blocks(&mut self) {
+        for func in self.functions.iter_mut() {
+            let mut to_merge = TBitSet::new();
+            for (b, block) in func.blocks.index_iter().zip(func.blocks.iter()) {
+                if block.steps.is_empty() {
+                    to_merge.add(b);
+                }
+            }
+
+            for b in func.blocks.index_iter() {
+                match func.blocks[b].terminator {
+                    Terminator::Goto(Some(target), ref args) => {
+                        if to_merge.get(target) {
+                            let mut term = func.blocks[target].terminator.clone();
+
+                            term.update(|v: Option<Arg>| {
+                                if let Some(Arg::Location(id)) = v {
+                                    let iter = args.iter().zip(func.blocks[target].inputs.iter());
+                                    for (&arg, &input) in iter {
+                                        if id == input {
+                                            return arg;
+                                        }
+                                    }
+
+                                    unreachable!("undefined arg");
+                                } else {
+                                    v
+                                }
+                            });
+
+                            func.blocks[b].terminator = term;
+                            eprintln!("({}): merging {} into {}", func.name, target, b);
+                        }
+                    }
+                    _ => (),
+                }
+            }
+        }
+    }
 }
 
 impl<'a> Function<'a> {

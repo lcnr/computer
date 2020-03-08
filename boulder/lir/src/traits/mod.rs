@@ -3,13 +3,35 @@ use shared_id::{BlockId, LocationId};
 mod reads;
 mod writes;
 
-use crate::Terminator;
+use crate::{Arg, Terminator};
 
 pub trait Update<F, V>
 where
     F: FnMut(V) -> V,
 {
     fn update(&mut self, f: F);
+}
+
+impl<F> Update<F, Option<Arg>> for Terminator
+where
+    F: FnMut(Option<Arg>) -> Option<Arg>,
+{
+    fn update(&mut self, mut f: F) {
+        match self {
+            Terminator::Goto(_, args) => {
+                for arg in args.iter_mut() {
+                    *arg = f(*arg);
+                }
+            }
+            Terminator::Match(_, ref mut arms) => {
+                for arm in arms.iter_mut() {
+                    for arg in arm.args.iter_mut() {
+                        *arg = f(*arg);
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl<F> Update<F, BlockId> for Terminator
