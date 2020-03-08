@@ -268,8 +268,10 @@ pub fn convert(lir: &Lir) -> String {
             }
         }
     }
-    
+
     for (f, function) in data.index_iter().zip(data.iter()) {
+        assert!(function.storage.len() <= 256, "ok");
+
         let asm_block = if let Some(asm_block) = asm_blocks
             .iter_mut()
             .find(|b| b.max_size() + function.storage.len() <= 256)
@@ -699,46 +701,41 @@ fn convert_block(
                 // the return address was already popped
                 // put temporaries on the stack
                 if !temporaries.is_empty() {
-                    commands.push(Command::Move(
-                        Readable::Block(ctx.stack),
-                        Writeable::BlockAddr,
-                    ));
-                    commands.push(Command::Move(Readable::Byte(0), Writeable::SectionAddr));
-                    commands.push(Command::Move(Readable::Mem, Writeable::A));
-                    commands.push(Command::Move(Readable::Byte(1), Writeable::B));
+                    commands.extend_from_slice(&[
+                        Command::Move(Readable::Block(ctx.stack), Writeable::BlockAddr),
+                        Command::Move(Readable::Byte(0), Writeable::SectionAddr),
+                        Command::Move(Readable::Mem, Writeable::A),
+                        Command::Move(Readable::Byte(1), Writeable::B),
+                    ]);
 
                     // TODO: consider batching temporaries
                     for t in temporaries.iter().rev() {
-                        // load temp
-                        commands.push(Command::Move(
-                            Readable::Block(ctx.stack),
-                            Writeable::BlockAddr,
-                        ));
-                        commands.push(Command::Move(Readable::A, Writeable::SectionAddr));
-                        commands.push(Command::Move(Readable::Mem, Writeable::C));
-
-                        // store temp in location
-                        commands.push(Command::Move(
-                            Readable::Block(data[f].storage[t]),
-                            Writeable::BlockAddr,
-                        ));
-                        commands.push(Command::Move(
-                            Readable::Section(data[f].storage[t]),
-                            Writeable::SectionAddr,
-                        ));
-                        commands.push(Command::Move(Readable::C, Writeable::Mem));
-
-                        // decrement stack ptr
-                        commands.push(Command::Op(Operation::Sub, Writeable::A));
+                        commands.extend_from_slice(&[
+                            // load temp
+                            Command::Move(Readable::Block(ctx.stack), Writeable::BlockAddr),
+                            Command::Move(Readable::A, Writeable::SectionAddr),
+                            Command::Move(Readable::Mem, Writeable::C),
+                            // store temp in location
+                            Command::Move(
+                                Readable::Block(data[f].storage[t]),
+                                Writeable::BlockAddr,
+                            ),
+                            Command::Move(
+                                Readable::Section(data[f].storage[t]),
+                                Writeable::SectionAddr,
+                            ),
+                            Command::Move(Readable::C, Writeable::Mem),
+                            // decrement stack ptr
+                            Command::Op(Operation::Sub, Writeable::A),
+                        ]);
                     }
 
                     // update stack ptr
-                    commands.push(Command::Move(
-                        Readable::Block(ctx.stack),
-                        Writeable::BlockAddr,
-                    ));
-                    commands.push(Command::Move(Readable::Byte(0), Writeable::SectionAddr));
-                    commands.push(Command::Move(Readable::A, Writeable::Mem));
+                    commands.extend_from_slice(&[
+                        Command::Move(Readable::Block(ctx.stack), Writeable::BlockAddr),
+                        Command::Move(Readable::Byte(0), Writeable::SectionAddr),
+                        Command::Move(Readable::A, Writeable::Mem),
+                    ]);
                 }
             }
         }
@@ -830,19 +827,18 @@ fn goto(
     } else {
         terminator_memory(commands, data, f, (0..args.len()).map(LocationId), args);
 
-        commands.push(Command::Move(
-            Readable::Block(ctx.stack),
-            Writeable::BlockAddr,
-        ));
-        commands.push(Command::Move(Readable::Byte(0), Writeable::SectionAddr));
-        commands.push(Command::Move(Readable::Mem, Writeable::A));
-        commands.push(Command::Move(Readable::Byte(2), Writeable::B));
-        commands.push(Command::Op(Operation::Sub, Writeable::Mem));
-        commands.push(Command::Move(Readable::Byte(1), Writeable::B));
-        commands.push(Command::Move(Readable::A, Writeable::SectionAddr));
-        commands.push(Command::Move(Readable::Mem, Writeable::C));
-        commands.push(Command::Op(Operation::Sub, Writeable::SectionAddr));
-        commands.push(Command::Return(Readable::Mem, Readable::C));
+        commands.extend_from_slice(&[
+            Command::Move(Readable::Block(ctx.stack), Writeable::BlockAddr),
+            Command::Move(Readable::Byte(0), Writeable::SectionAddr),
+            Command::Move(Readable::Mem, Writeable::A),
+            Command::Move(Readable::Byte(2), Writeable::B),
+            Command::Op(Operation::Sub, Writeable::Mem),
+            Command::Move(Readable::Byte(1), Writeable::B),
+            Command::Move(Readable::A, Writeable::SectionAddr),
+            Command::Move(Readable::Mem, Writeable::C),
+            Command::Op(Operation::Sub, Writeable::SectionAddr),
+            Command::Return(Readable::Mem, Readable::C),
+        ]);
     }
 }
 
@@ -949,36 +945,37 @@ fn terminator_memory<I>(
                         *arg = Some(Arg::Location(free));
                     }
 
-                    commands.push(Command::Move(
-                        Readable::Block(data[f].storage[target]),
-                        Writeable::BlockAddr,
-                    ));
-                    commands.push(Command::Move(
-                        Readable::Section(data[f].storage[target]),
-                        Writeable::SectionAddr,
-                    ));
-                    commands.push(Command::Move(Readable::Mem, Writeable::C));
-                    commands.push(Command::Move(
-                        Readable::Block(data[f].storage[free]),
-                        Writeable::BlockAddr,
-                    ));
-                    commands.push(Command::Move(
-                        Readable::Section(data[f].storage[free]),
-                        Writeable::SectionAddr,
-                    ));
-                    commands.push(Command::Move(Readable::C, Writeable::Mem));
+                    commands.extend_from_slice(&[
+                        Command::Move(
+                            Readable::Block(data[f].storage[target]),
+                            Writeable::BlockAddr,
+                        ),
+                        Command::Move(
+                            Readable::Section(data[f].storage[target]),
+                            Writeable::SectionAddr,
+                        ),
+                        Command::Move(Readable::Mem, Writeable::C),
+                        Command::Move(Readable::Block(data[f].storage[free]), Writeable::BlockAddr),
+                        Command::Move(
+                            Readable::Section(data[f].storage[free]),
+                            Writeable::SectionAddr,
+                        ),
+                        Command::Move(Readable::C, Writeable::Mem),
+                    ]);
                 }
 
-                commands.push(Command::Move(
-                    Readable::Block(data[f].storage[target]),
-                    Writeable::BlockAddr,
-                ));
-                commands.push(Command::Move(
-                    Readable::Section(data[f].storage[target]),
-                    Writeable::SectionAddr,
-                ));
-                commands.push(Command::Move(Readable::Byte(v), Writeable::C));
-                commands.push(Command::Move(Readable::C, Writeable::Mem));
+                commands.extend_from_slice(&[
+                    Command::Move(
+                        Readable::Block(data[f].storage[target]),
+                        Writeable::BlockAddr,
+                    ),
+                    Command::Move(
+                        Readable::Section(data[f].storage[target]),
+                        Writeable::SectionAddr,
+                    ),
+                    Command::Move(Readable::Byte(v), Writeable::C),
+                    Command::Move(Readable::C, Writeable::Mem),
+                ]);
             }
         }
     }

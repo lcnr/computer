@@ -1,6 +1,6 @@
 # lir2mir
 
-Compiling lir into human readable assembly language.
+Compiling lir into somewhat human readable assembly language.
 
 ## Notes
 
@@ -21,3 +21,8 @@ Each block input must bind to a unique location.
 Exported functions are aligned to a block boundary, other functions may not be.
 
 Functions store their return values at the start of their memory storage.
+
+### ABI
+
+The return address of a function call is stored on the stack by the caller and
+popped by the callee.
