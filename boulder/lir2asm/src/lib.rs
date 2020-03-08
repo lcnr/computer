@@ -1,3 +1,7 @@
+#[cfg(feature = "profiler")]
+#[macro_use]
+extern crate thread_profiler;
+
 use std::{cmp, convert::identity, fmt, iter};
 
 use tindex::{TBitSet, TSlice, TVec};
@@ -152,6 +156,9 @@ impl CommandSize for AsmBlock {
 
 /// converts `lir` to humanly readable assembler.
 pub fn convert(lir: &Lir) -> String {
+    #[cfg(feature = "profiler")]
+    profile_scope!("convert");
+
     let mut ctx = Context::new();
 
     let data: TVec<FunctionId, FunctionData> = lir
@@ -173,6 +180,9 @@ pub fn convert(lir: &Lir) -> String {
     let mut asm_blocks: Vec<AsmBlock> = Vec::new();
 
     for f in lir.functions.index_iter() {
+        #[cfg(feature = "profiler")]
+        profile_scope!("convert_function");
+
         if lir.functions[f].ctx.export {
             asm_blocks.push(AsmBlock {
                 name: lir.functions[f].name.into(),
@@ -258,21 +268,28 @@ pub fn convert(lir: &Lir) -> String {
             }
         }
     }
-
+    
     for (f, function) in data.index_iter().zip(data.iter()) {
+        let asm_block = if let Some(asm_block) = asm_blocks
+            .iter_mut()
+            .find(|b| b.max_size() + function.storage.len() <= 256)
+        {
+            asm_block
+        } else {
+            asm_blocks.push(AsmBlock {
+                name: format!("__block{}", asm_blocks.len()).into(),
+                commands: Vec::new(),
+            });
+
+            asm_blocks.last_mut().unwrap()
+        };
+
         for (l, &tag) in function.storage.index_iter().zip(function.storage.iter()) {
-            if let Some(asm_block) = asm_blocks.iter_mut().find(|b| b.max_size() < 256) {
-                asm_block.commands.push(Command::Comment(
-                    format!("{}[{}]: {}", lir.functions[f].name, f, l).into(),
-                ));
-                asm_block.commands.push(Command::Tag(tag));
-                asm_block.commands.push(Command::Byte(0));
-            } else {
-                asm_blocks.push(AsmBlock {
-                    name: format!("__block{}", asm_blocks.len()).into(),
-                    commands: vec![Command::Tag(tag), Command::Byte(0)],
-                })
-            }
+            asm_block.commands.push(Command::Comment(
+                format!("{}[{}]: {}", lir.functions[f].name, f, l).into(),
+            ));
+            asm_block.commands.push(Command::Tag(tag));
+            asm_block.commands.push(Command::Byte(0));
         }
     }
 
@@ -349,6 +366,8 @@ fn convert_block(
     f: FunctionId,
     b: BlockId,
 ) -> Vec<Command> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("convert_block");
     let mut commands = Vec::new();
 
     let block = &lir.functions[f].blocks[b];
@@ -652,24 +671,26 @@ fn convert_block(
                         if let Some(ret) = ret {
                             let i = LocationId(i);
 
-                            commands.push(Command::Move(
-                                Readable::Block(data[id].storage[i]),
-                                Writeable::BlockAddr,
-                            ));
-                            commands.push(Command::Move(
-                                Readable::Section(data[id].storage[i]),
-                                Writeable::SectionAddr,
-                            ));
-                            commands.push(Command::Move(Readable::Mem, Writeable::A));
-                            commands.push(Command::Move(
-                                Readable::Block(data[f].storage[ret]),
-                                Writeable::BlockAddr,
-                            ));
-                            commands.push(Command::Move(
-                                Readable::Section(data[f].storage[ret]),
-                                Writeable::SectionAddr,
-                            ));
-                            commands.push(Command::Move(Readable::A, Writeable::Mem));
+                            commands.extend_from_slice(&[
+                                Command::Move(
+                                    Readable::Block(data[id].storage[i]),
+                                    Writeable::BlockAddr,
+                                ),
+                                Command::Move(
+                                    Readable::Section(data[id].storage[i]),
+                                    Writeable::SectionAddr,
+                                ),
+                                Command::Move(Readable::Mem, Writeable::A),
+                                Command::Move(
+                                    Readable::Block(data[f].storage[ret]),
+                                    Writeable::BlockAddr,
+                                ),
+                                Command::Move(
+                                    Readable::Section(data[f].storage[ret]),
+                                    Writeable::SectionAddr,
+                                ),
+                                Command::Move(Readable::A, Writeable::Mem),
+                            ]);
                         }
                     }
                 }
@@ -792,6 +813,9 @@ fn goto(
     target: Option<BlockId>,
     args: &TSlice<InputId, Option<Arg>>,
 ) {
+    #[cfg(feature = "profiler")]
+    profile_scope!("goto");
+
     if let Some(target) = target {
         let inputs = functions[f].blocks[target].inputs.iter().copied();
         terminator_memory(commands, data, f, inputs, args);
@@ -1070,6 +1094,9 @@ impl<T: Clone + fmt::Debug + CommandSize + ToAsm> Command<T> {
 }
 
 fn asm_blocks_to_asm(asm_blocks: Vec<AsmBlock>) -> String {
+    #[cfg(feature = "profiler")]
+    profile_scope!("asm_blocks_to_asm");
+
     use std::fmt::Write;
 
     macro_rules! wln {

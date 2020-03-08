@@ -15,3 +15,8 @@ thread_profiler = { version = "0.3.0", optional = true }
 
 [features]
 profiler = ["thread_profiler", "shared_id/profiler", "lir/profiler"]
+
+[lib]
+test = false
+doctest = false
+bench = false

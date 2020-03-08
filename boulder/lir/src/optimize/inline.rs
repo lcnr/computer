@@ -7,6 +7,9 @@ use crate::{traits::Update, Action, Arg, Lir, Terminator};
 impl<'a> Lir<'a> {
     /// inlines single block functions
     pub fn inline_functions(&mut self) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("inline_functions");
+
         let mut to_inline = TBitSet::new();
         for (f, function) in self.functions.index_iter().zip(self.functions.iter()) {
             if let Terminator::Goto(None, _) = function.blocks[BlockId(0)].terminator {

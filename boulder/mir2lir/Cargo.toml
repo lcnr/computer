@@ -13,7 +13,7 @@ mir = { path = "../mir" }
 lir = { path = "../lir" }
 
 [features]
-profiler = ["thread_profiler"]
+profiler = ["thread_profiler", "shared_id/profiler"]
 
 [lib]
 test = false

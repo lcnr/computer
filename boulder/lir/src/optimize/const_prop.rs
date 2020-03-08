@@ -9,6 +9,9 @@ use crate::{Action, Arg, Binop, Lir, Memory, Terminator};
 
 impl<'a> Lir<'a> {
     pub fn const_propagate(&mut self) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("const_propagate");
+
         for f in self.functions.index_iter() {
             for b in self.functions[f].blocks.index_iter() {
                 let inputs: TVec<_, _> = self.functions[f].blocks[b]

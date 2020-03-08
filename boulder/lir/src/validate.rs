@@ -18,6 +18,7 @@ impl<'a> Lir<'a> {
     pub fn validate(&self) {
         #[cfg(feature = "profiler")]
         profile_scope!("validate");
+
         for func in self.functions.index_iter() {
             self.validate_function(func)
         }

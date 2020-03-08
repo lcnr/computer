@@ -16,3 +16,15 @@ walkdir = "2.3.1"
 [[test]]
 name = "test"
 harness = false
+
+[[bin]]
+name = "rock"
+path = "src/main.rs"
+test = false
+doctest = false
+bench = false
+
+[lib]
+test = false
+doctest = false
+bench = false

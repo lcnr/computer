@@ -20,7 +20,18 @@ remu = { path = "../remu" }
 thread_profiler = { version = "0.3.0", optional = true }
 
 [features]
-profiler = ["thread_profiler", "diagnostics/profiler", "parse/profiler", "mir/profiler", "mir_interpreter/profiler", "rock/profiler"]
+profiler = [
+    "thread_profiler",
+    "diagnostics/profiler",
+    "parse/profiler",
+    "mir/profiler",
+    "mir_interpreter/profiler",
+    "mir2lir/profiler",
+    "lir/profiler",
+    "lir_interpreter/profiler",
+    "lir2asm/profiler",
+    "rock/profiler",
+]
 
 [dev-dependencies]
 shared_id = { path = "shared_id"}

@@ -8,6 +8,9 @@ use crate::{AsmBlock, Command, Readable, Writeable};
 ///
 /// - the first block remains first
 pub(crate) fn optimize(mut asm_blocks: Vec<AsmBlock>) -> Vec<AsmBlock> {
+    #[cfg(feature = "profiler")]
+    profile_scope!("optimize");
+
     // tags may still be moved between blocks
 
     // TODO: optimize asm
@@ -69,6 +72,41 @@ impl Writeable {
 
 /// TODO: consider storing the memory locations with a known value
 fn dedup_loads(blocks: &mut TSlice<BlockId, AsmBlock>) {
+    #[cfg(feature = "profiler")]
+    profile_scope!("dedup_loads");
+    fn update_reg(
+        regs: &mut [Option<Value>; 6],
+        mem: &mut Value,
+        w: Option<usize>,
+        r: Option<Value>,
+    ) {
+        if let Some(w) = w {
+            regs[w] = r;
+            if w == 4 || w == 5 {
+                for v in regs.iter_mut() {
+                    if *v == Some(Value::Memory) {
+                        *v = None;
+                    }
+                }
+                *mem = Value::Memory;
+            }
+        } else {
+            if let Some(v) = r {
+                *mem = v;
+            } else {
+                *mem = Value::Memory;
+            }
+
+            if r != Some(Value::Memory) {
+                for v in regs.iter_mut() {
+                    if *v == Some(Value::Memory) {
+                        *v = None;
+                    }
+                }
+            }
+        }
+    }
+
     for b in blocks.index_iter() {
         let block = &blocks[b];
         let mut regs = [None; 6];
@@ -92,74 +130,34 @@ fn dedup_loads(blocks: &mut TSlice<BlockId, AsmBlock>) {
                         if regs[w].is_some() && regs[r] == regs[w] {
                             to_remove.add(c);
                         } else {
-                            regs[w] = regs[r];
-                            if w == 4 || w == 5 {
-                                for v in regs.iter_mut() {
-                                    if *v == Some(Value::Memory) {
-                                        *v = None;
-                                    }
-                                }
-                                mem = Value::Memory;
-                            }
+                            let value = regs[r];
+                            update_reg(&mut regs, &mut mem, Some(w), value);
                         }
                     }
                     (Read::Reg(r), None) => {
-                        if let Some(v) = regs[r] {
-                            mem = v;
-                        }
-
-                        if regs[r] != Some(Value::Memory) {
-                            for v in regs.iter_mut() {
-                                if *v == Some(Value::Memory) {
-                                    *v = None;
-                                }
-                            }
-                        }
+                        let value = regs[r];
+                        update_reg(&mut regs, &mut mem, None, value);
                     }
                     (Read::Mem, Some(w)) => {
                         if Some(mem) == regs[w] {
                             to_remove.add(c);
                         } else {
-                            regs[w] = Some(mem);
-                            if w == 4 || w == 5 {
-                                for v in regs.iter_mut() {
-                                    if *v == Some(Value::Memory) {
-                                        *v = None;
-                                    }
-                                }
-                                mem = Value::Memory;
-                            }
+                            let value = Some(mem);
+                            update_reg(&mut regs, &mut mem, Some(w), value);
                         }
                     }
                     (Read::Value(v), Some(w)) => {
                         if Some(v) == regs[w] {
                             to_remove.add(c);
                         } else {
-                            regs[w] = Some(v);
-                            if w == 4 || w == 5 {
-                                for v in regs.iter_mut() {
-                                    if *v == Some(Value::Memory) {
-                                        *v = None;
-                                    }
-                                }
-                                mem = Value::Memory;
-                            }
+                            update_reg(&mut regs, &mut mem, Some(w), Some(v));
                         }
                     }
                     (_, None) => unreachable!("move mem mem"),
                 },
                 Command::Op(_, w) => {
                     // TODO: consider computing the operation.
-                    if let Some(w) = w.reg() {
-                        regs[w] = None;
-                    } else {
-                        for v in regs.iter_mut() {
-                            if *v == Some(Value::Memory) {
-                                *v = None;
-                            }
-                        }
-                        mem = Value::Memory;
-                    }
+                    update_reg(&mut regs, &mut mem, w.reg(), None);
                 }
                 Command::If(_) => {
                     // TODO: actually look into the if statement.

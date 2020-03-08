@@ -1,3 +1,7 @@
+#[cfg(feature = "profiler")]
+#[macro_use]
+extern crate thread_profiler;
+
 use tindex::{tvec, TBitSet, TVec};
 
 use shared_id::{BlockId, FunctionId, InputId, LocationId, StepId};

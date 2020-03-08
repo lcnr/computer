@@ -19,7 +19,12 @@ impl<'a> Lir<'a> {
     /// memory size to 0, consider checking graphs with only 1 color
     /// manually
     pub fn minimize_memory_usage(&mut self) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("minimize_memory_usage");
+
         for function in self.functions.iter_mut() {
+            #[cfg(feature = "profiler")]
+            profile_scope!("merge_simple_blocks::function");
             for block in function.blocks.iter_mut() {
                 let coloring = block.calculate_coloring();
 
@@ -42,6 +47,9 @@ impl<'a> Lir<'a> {
 
     /// Remove all moves where `o == i`.
     pub fn remove_noop_moves(&mut self) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("remove_noop_moves");
+
         for function in self.functions.iter_mut() {
             for block in function.blocks.iter_mut() {
                 block.steps.retain(|s| {
@@ -58,6 +66,9 @@ impl<'a> Lir<'a> {
     /// Removes `w_1` in the sequence `..., w_1, seq , w_2, ...`
     /// where `seq` does not read the given location.
     pub fn remove_dead_writes(&mut self) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("remove_dead_writes");
+
         for func_id in self.functions.index_iter() {
             for block_id in self.functions[func_id].blocks.index_iter() {
                 for input in self.functions[func_id].blocks[block_id]
@@ -74,26 +85,10 @@ impl<'a> Lir<'a> {
         }
     }
 
-    /// Removes the given input from each function call, does not update the actual function
-    fn remove_function_input(&mut self, f: FunctionId, input: InputId) {
-        for func in self.functions.iter_mut() {
-            for block in func.blocks.iter_mut() {
-                for step in block.steps.iter_mut() {
-                    if let Action::FunctionCall {
-                        id, ref mut args, ..
-                    } = *step
-                    {
-                        if f == id {
-                            args.remove(input);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     /// Removes blocks which can not reached
     pub fn remove_unused_blocks(&mut self) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("remove_unused_blocks");
         for func in self.functions.iter_mut() {
             let mut used: TBitSet<_> = iter::once(BlockId::from(0)).collect();
             let mut new_used = TBitSet::new();
@@ -123,6 +118,9 @@ impl<'a> Lir<'a> {
     }
 
     pub fn merge_simple_blocks(&mut self) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("merge_simple_blocks");
+
         fn merge(
             args: &TSlice<InputId, Option<Arg>>,
             inputs: &TSlice<InputId, LocationId>,
@@ -184,6 +182,24 @@ impl<'a> Lir<'a> {
                         }
 
                         func.blocks[b].terminator = Terminator::Match(expr, clone)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Removes the given input from each function call, does not update the actual function
+    fn remove_function_input(&mut self, f: FunctionId, input: InputId) {
+        for func in self.functions.iter_mut() {
+            for block in func.blocks.iter_mut() {
+                for step in block.steps.iter_mut() {
+                    if let Action::FunctionCall {
+                        id, ref mut args, ..
+                    } = *step
+                    {
+                        if f == id {
+                            args.remove(input);
+                        }
                     }
                 }
             }
@@ -335,6 +351,9 @@ impl Block {
     }
 
     pub fn calculate_coloring(&self) -> Coloring {
+        #[cfg(feature = "profiler")]
+        profile_scope!("mcalculate_coloring");
+
         let mut g = Graph::new();
         let mut alive = TBitSet::new();
 

@@ -1,14 +1,14 @@
 boulder/tests/compile_run/modules/used.bo: 38
 boulder/tests/compile_run/modules/extern.bo: 38
-boulder/tests/compile_run/modules/simple.bo: 707
+boulder/tests/compile_run/modules/simple.bo: 690
 boulder/tests/compile_run/modules/shadow_ty.bo: 76
 boulder/tests/compile_run/modules/shadow_fn.bo: 76
-boulder/tests/compile_run/examples/primes.bo: 8341296
-boulder/tests/compile_run/examples/fibonacci.bo: 286770
+boulder/tests/compile_run/examples/primes.bo: 8062041
+boulder/tests/compile_run/examples/fibonacci.bo: 280579
 boulder/tests/compile_run/union/desugared_union.bo: 205
 boulder/tests/compile_run/union/simple.bo: 38
 boulder/tests/compile_run/union/different_size.bo: 253
-boulder/tests/compile_run/scope/temporaries.bo: 2584
+boulder/tests/compile_run/scope/temporaries.bo: 2554
 boulder/tests/compile_run/scope/break.bo: 38
 boulder/tests/compile_run/scope/simple.bo: 38
 boulder/tests/compile_run/scope/break_empty.bo: 38
@@ -18,56 +18,56 @@ boulder/tests/compile_run/scope/scoped_block.bo: 498
 boulder/tests/compile_run/unop/invert.bo: 38
 boulder/tests/compile_run/type/use_unit.bo: 38
 boulder/tests/compile_run/type/create_unit.bo: 38
-boulder/tests/compile_run/type/type_ascription.bo: 710
+boulder/tests/compile_run/type/type_ascription.bo: 690
 boulder/tests/compile_run/type/sum/simple_to_complex.bo: 40
 boulder/tests/compile_run/type/sum/extend_field.bo: 38
 boulder/tests/compile_run/type/sum/field.bo: 95
 boulder/tests/compile_run/type/sum/extend_ret.bo: 95
-boulder/tests/compile_run/type/sum/ret.bo: 102
+boulder/tests/compile_run/type/sum/ret.bo: 95
 boulder/tests/compile_run/type/sum/extend_func.bo: 38
 boulder/tests/compile_run/type/structures/layered_fields.bo: 38
-boulder/tests/compile_run/type/structures/init_field_order.bo: 181
+boulder/tests/compile_run/type/structures/init_field_order.bo: 176
 boulder/tests/compile_run/type/structures/named_fields.bo: 94
-boulder/tests/compile_run/type/structures/field_access.bo: 710
-boulder/tests/compile_run/type/structures/complex_field_access.bo: 1898
+boulder/tests/compile_run/type/structures/field_access.bo: 690
+boulder/tests/compile_run/type/structures/complex_field_access.bo: 1979
 boulder/tests/compile_run/type/match/if_simple.bo: 168
-boulder/tests/compile_run/type/match/used.bo: 1427
+boulder/tests/compile_run/type/match/used.bo: 1386
 boulder/tests/compile_run/type/match/match_bool.bo: 161
 boulder/tests/compile_run/type/match/simple.bo: 161
-boulder/tests/compile_run/type/match/if_expr.bo: 972
+boulder/tests/compile_run/type/match/if_expr.bo: 975
 boulder/tests/compile_run/type/match/arm_subtype.bo: 76
 boulder/tests/compile_run/type/match/underscore_pat.bo: 74
 boulder/tests/compile_run/type/match/initialize_var.bo: 307
-boulder/tests/compile_run/type/infer.bo: 61094
-boulder/tests/compile_run/loop/positions.bo: 1902
-boulder/tests/compile_run/loop/conditional_exit.bo: 180110
+boulder/tests/compile_run/type/infer.bo: 58560
+boulder/tests/compile_run/loop/positions.bo: 1926
+boulder/tests/compile_run/loop/conditional_exit.bo: 176866
 boulder/tests/compile_run/loop/simple.bo: 38
-boulder/tests/compile_run/loop/while_simple.bo: 4392
+boulder/tests/compile_run/loop/while_simple.bo: 4356
 boulder/tests/compile_run/loop/default_type.bo: 38
 boulder/tests/compile_run/loop/break_sum.bo: 554
 boulder/tests/compile_run/intrinsics/u16_to_bytes_simple.bo: 38
 boulder/tests/compile_run/intrinsics/u32_to_bytes.bo: 101
 boulder/tests/compile_run/intrinsics/u16_to_bytes.bo: 47
 boulder/tests/compile_run/binop/logical.bo: 162
-boulder/tests/compile_run/binop/rem.bo: 180193
-boulder/tests/compile_run/binop/bitand.bo: 808
-boulder/tests/compile_run/binop/gt.bo: 702
-boulder/tests/compile_run/binop/mul.bo: 62168
-boulder/tests/compile_run/binop/shl.bo: 2514
-boulder/tests/compile_run/binop/div.bo: 482892
-boulder/tests/compile_run/binop/add.bo: 748
-boulder/tests/compile_run/binop/lte.bo: 708
-boulder/tests/compile_run/binop/eq.bo: 1421
+boulder/tests/compile_run/binop/rem.bo: 178697
+boulder/tests/compile_run/binop/bitand.bo: 794
+boulder/tests/compile_run/binop/gt.bo: 687
+boulder/tests/compile_run/binop/mul.bo: 60493
+boulder/tests/compile_run/binop/shl.bo: 2519
+boulder/tests/compile_run/binop/div.bo: 474838
+boulder/tests/compile_run/binop/add.bo: 728
+boulder/tests/compile_run/binop/lte.bo: 699
+boulder/tests/compile_run/binop/eq.bo: 1357
 boulder/tests/compile_run/binop/precendence.bo: 429
 boulder/tests/compile_run/binop/sub.bo: 1410
 boulder/tests/compile_run/binop/gte.bo: 140
-boulder/tests/compile_run/binop/shr.bo: 1182
-boulder/tests/compile_run/binop/bitor.bo: 720
-boulder/tests/compile_run/function/core_fn.bo: 121684
+boulder/tests/compile_run/binop/shr.bo: 1118
+boulder/tests/compile_run/binop/bitor.bo: 744
+boulder/tests/compile_run/function/core_fn.bo: 117652
 boulder/tests/compile_run/function/shadow_unit.bo: 38
 boulder/tests/compile_run/function/negate.bo: 38
-boulder/tests/compile_run/function/shadow.bo: 2844
-boulder/tests/compile_run/function/function_call.bo: 311
+boulder/tests/compile_run/function/shadow.bo: 2639
+boulder/tests/compile_run/function/function_call.bo: 308
 boulder/tests/compile_run/function/recurse.bo: 243
 boulder/tests/compile_run/function/delayed_init.bo: 38
 
@@ -81,45 +81,5 @@ running 0 tests
 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 
 
-running 0 tests
-
-test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
-
-
-running 0 tests
-
-test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
-
-
-running 0 tests
-
-test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
-
-
-running 0 tests
-
-test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
-
-
 test result: ok.
-
-
-running 0 tests
-
-test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
-
-
-running 0 tests
-
-test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
-
-
-running 0 tests
-
-test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
-
-
-running 0 tests
-
-test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 
