@@ -1,9 +1,9 @@
 // TODO: consider unifying `const_prop` with `lir_interpreter`.
 use std::{convert::identity, iter};
 
-use tindex::{TSlice, TVec};
+use tindex::{tvec, TSlice, TVec};
 
-use shared_id::{BlockId, FunctionId, InputId, LocationId};
+use shared_id::{BlockId, FunctionId, InputId, LocationId, StepId};
 
 use crate::{Action, Arg, Binop, Lir, Memory, Terminator};
 
@@ -72,9 +72,71 @@ impl<'a> Lir<'a> {
             },
         }
     }
+
+    pub fn propagate_block_arguments(&mut self) {
+        #[derive(Debug, Clone, Copy)]
+        pub enum Input {
+            None,
+            Unique(Option<u8>),
+            Multiple,
+        }
+
+        for func in self.functions.iter_mut() {
+            let mut inputs: TVec<BlockId, TVec<InputId, Input>> = func
+                .blocks
+                .iter()
+                .map(|b| tvec![Input::None; b.inputs.len()])
+                .collect();
+
+            let mut update_inputs = |target: BlockId, args: &TSlice<InputId, Option<Arg>>| {
+                let target_inputs = &mut inputs[target];
+                for (target, &arg) in target_inputs.iter_mut().zip(args.iter()) {
+                    match (*target, arg) {
+                        (_, None) | (Input::Multiple, _) => (),
+                        (Input::None, Some(Arg::Location(_))) => *target = Input::Unique(None),
+                        (Input::None, Some(Arg::Byte(v))) => *target = Input::Unique(Some(v)),
+                        (Input::Unique(Some(a)), Some(Arg::Byte(b))) if a == b => (),
+                        (Input::Unique(_), Some(_)) => *target = Input::Multiple,
+                    }
+                }
+            };
+
+            for block in func.blocks.iter() {
+                match block.terminator {
+                    Terminator::Goto(Some(target), ref args) => update_inputs(target, args),
+                    Terminator::Goto(_, _) => (),
+                    Terminator::Match(_, ref arms) => {
+                        for arm in arms.iter() {
+                            if let Some(target) = arm.target {
+                                update_inputs(target, &arm.args);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // skip the first block as its function arguments are currently not checked
+            for b in func.blocks.index_iter().skip(1) {
+                for (i, &input) in inputs[b].index_iter().zip(inputs[b].iter()).rev() {
+                    match input {
+                        Input::None => {
+                            func.remove_input(b, i);
+                        }
+                        Input::Unique(Some(v)) => {
+                            let block = &mut func.blocks[b];
+                            let l = block.inputs[i];
+                            block.steps.insert(StepId(0), Action::LoadConstant(v, l));
+                            func.remove_input(b, i);
+                        }
+                        Input::Unique(None) | Input::Multiple => (),
+                    }
+                }
+            }
+        }
+    }
 }
 
-fn propagate_args(mem: &mut TSlice<LocationId, Memory>, args: &mut TSlice<InputId, Option<Arg>>) {
+fn propagate_args(mem: &TSlice<LocationId, Memory>, args: &mut TSlice<InputId, Option<Arg>>) {
     for arg in args.iter_mut() {
         if let Some(Arg::Location(l)) = *arg {
             match mem[l] {
