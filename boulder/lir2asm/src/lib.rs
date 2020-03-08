@@ -26,6 +26,18 @@ enum Writeable {
     BlockAddr,
 }
 
+impl Writeable {
+    /// used for batching
+    fn from_id(id: usize) -> Self {
+        match id {
+            0 => Writeable::A,
+            1 => Writeable::B,
+            2 => Writeable::C,
+            _ => unreachable!(),
+        }
+    }
+}
+
 #[allow(unused)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Readable {
@@ -37,6 +49,18 @@ enum Readable {
     Byte(u8),
     Block(TagId),
     Section(TagId),
+}
+
+impl Readable {
+    /// used for batching
+    fn from_id(id: usize) -> Self {
+        match id {
+            0 => Readable::A,
+            1 => Readable::B,
+            2 => Readable::C,
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl Readable {
@@ -595,21 +619,21 @@ fn convert_block(
                     let inputs = &other.blocks[BlockId(0)].inputs;
 
                     // TODO: consider batching the argument passing
+                    let mut batch = 0;
+                    let mut batch_start = InputId(0);
                     for i in args.index_iter() {
+                        if batch == 0 {
+                            batch_start = i;
+                        }
+
                         let arg = args[i];
                         match arg {
                             None => (),
                             Some(Arg::Byte(v)) => {
-                                commands.push(Command::Move(Readable::Byte(v), Writeable::A));
                                 commands.push(Command::Move(
-                                    Readable::Block(data[id].storage[inputs[i]]),
-                                    Writeable::BlockAddr,
+                                    Readable::Byte(v),
+                                    Writeable::from_id(batch),
                                 ));
-                                commands.push(Command::Move(
-                                    Readable::Section(data[id].storage[inputs[i]]),
-                                    Writeable::SectionAddr,
-                                ));
-                                commands.push(Command::Move(Readable::A, Writeable::Mem));
                             }
                             Some(Arg::Location(location)) => {
                                 commands.push(Command::Move(
@@ -620,28 +644,42 @@ fn convert_block(
                                     Readable::Section(data[f].storage[location]),
                                     Writeable::SectionAddr,
                                 ));
-                                commands.push(Command::Move(Readable::Mem, Writeable::A));
-                                commands.push(Command::Move(
-                                    Readable::Block(data[id].storage[inputs[i]]),
-                                    Writeable::BlockAddr,
-                                ));
-                                commands.push(Command::Move(
-                                    Readable::Section(data[id].storage[inputs[i]]),
-                                    Writeable::SectionAddr,
-                                ));
-                                commands.push(Command::Move(Readable::A, Writeable::Mem));
+                                commands
+                                    .push(Command::Move(Readable::Mem, Writeable::from_id(batch)));
                             }
+                        }
+
+                        batch += 1;
+                        if batch == 3 {
+                            for i in 0..3 {
+                                let l = data[id].storage[inputs[batch_start + i]];
+                                commands.extend_from_slice(&[
+                                    Command::Move(Readable::Block(l), Writeable::BlockAddr),
+                                    Command::Move(Readable::Section(l), Writeable::SectionAddr),
+                                    Command::Move(Readable::from_id(i), Writeable::Mem),
+                                ]);
+                            }
+
+                            batch = 0;
                         }
                     }
 
-                    commands.push(Command::Move(
-                        Readable::Block(data[id].blocks[BlockId(0)]),
-                        Writeable::C,
-                    ));
-                    commands.push(Command::Return(
-                        Readable::C,
-                        Readable::Section(data[id].blocks[BlockId(0)]),
-                    ));
+                    for i in 0..batch {
+                        let location = data[id].storage[inputs[batch_start + i]];
+                        commands.extend_from_slice(&[
+                            Command::Move(Readable::Block(location), Writeable::BlockAddr),
+                            Command::Move(Readable::Section(location), Writeable::SectionAddr),
+                            Command::Move(Readable::from_id(i), Writeable::Mem),
+                        ]);
+                    }
+
+                    commands.extend_from_slice(&[
+                        Command::Move(Readable::Block(data[id].blocks[BlockId(0)]), Writeable::C),
+                        Command::Return(
+                            Readable::C,
+                            Readable::Section(data[id].blocks[BlockId(0)]),
+                        ),
+                    ]);
                 }
 
                 commands.push(Command::Tag(return_adr));

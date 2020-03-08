@@ -3,9 +3,9 @@ boulder/tests/compile_run/modules/extern.bo: 38
 boulder/tests/compile_run/modules/simple.bo: 690
 boulder/tests/compile_run/modules/shadow_ty.bo: 76
 boulder/tests/compile_run/modules/shadow_fn.bo: 76
-boulder/tests/compile_run/examples/primes.bo: 8062041
-boulder/tests/compile_run/examples/fibonacci.bo: 280579
-boulder/tests/compile_run/union/desugared_union.bo: 205
+boulder/tests/compile_run/examples/primes.bo: 8010523
+boulder/tests/compile_run/examples/fibonacci.bo: 280199
+boulder/tests/compile_run/union/desugared_union.bo: 207
 boulder/tests/compile_run/union/simple.bo: 38
 boulder/tests/compile_run/union/different_size.bo: 253
 boulder/tests/compile_run/scope/temporaries.bo: 2554
@@ -29,57 +29,47 @@ boulder/tests/compile_run/type/structures/layered_fields.bo: 38
 boulder/tests/compile_run/type/structures/init_field_order.bo: 176
 boulder/tests/compile_run/type/structures/named_fields.bo: 94
 boulder/tests/compile_run/type/structures/field_access.bo: 690
-boulder/tests/compile_run/type/structures/complex_field_access.bo: 1979
+boulder/tests/compile_run/type/structures/complex_field_access.bo: 1957
 boulder/tests/compile_run/type/match/if_simple.bo: 168
-boulder/tests/compile_run/type/match/used.bo: 1386
+boulder/tests/compile_run/type/match/used.bo: 1389
 boulder/tests/compile_run/type/match/match_bool.bo: 161
-boulder/tests/compile_run/type/match/simple.bo: 161
-boulder/tests/compile_run/type/match/if_expr.bo: 975
+boulder/tests/compile_run/type/match/simple.bo: 163
+boulder/tests/compile_run/type/match/if_expr.bo: 965
 boulder/tests/compile_run/type/match/arm_subtype.bo: 76
 boulder/tests/compile_run/type/match/underscore_pat.bo: 74
-boulder/tests/compile_run/type/match/initialize_var.bo: 307
-boulder/tests/compile_run/type/infer.bo: 58560
+boulder/tests/compile_run/type/match/initialize_var.bo: 316
+boulder/tests/compile_run/type/infer.bo: 58330
 boulder/tests/compile_run/loop/positions.bo: 1926
-boulder/tests/compile_run/loop/conditional_exit.bo: 176866
+boulder/tests/compile_run/loop/conditional_exit.bo: 176667
 boulder/tests/compile_run/loop/simple.bo: 38
-boulder/tests/compile_run/loop/while_simple.bo: 4356
+boulder/tests/compile_run/loop/while_simple.bo: 4344
 boulder/tests/compile_run/loop/default_type.bo: 38
-boulder/tests/compile_run/loop/break_sum.bo: 554
+boulder/tests/compile_run/loop/break_sum.bo: 562
 boulder/tests/compile_run/intrinsics/u16_to_bytes_simple.bo: 38
 boulder/tests/compile_run/intrinsics/u32_to_bytes.bo: 101
 boulder/tests/compile_run/intrinsics/u16_to_bytes.bo: 47
-boulder/tests/compile_run/binop/logical.bo: 162
-boulder/tests/compile_run/binop/rem.bo: 178697
+boulder/tests/compile_run/binop/logical.bo: 163
+boulder/tests/compile_run/binop/rem.bo: 177417
 boulder/tests/compile_run/binop/bitand.bo: 794
-boulder/tests/compile_run/binop/gt.bo: 687
-boulder/tests/compile_run/binop/mul.bo: 60493
-boulder/tests/compile_run/binop/shl.bo: 2519
-boulder/tests/compile_run/binop/div.bo: 474838
+boulder/tests/compile_run/binop/gt.bo: 693
+boulder/tests/compile_run/binop/mul.bo: 60113
+boulder/tests/compile_run/binop/shl.bo: 2508
+boulder/tests/compile_run/binop/div.bo: 470129
 boulder/tests/compile_run/binop/add.bo: 728
-boulder/tests/compile_run/binop/lte.bo: 699
-boulder/tests/compile_run/binop/eq.bo: 1357
-boulder/tests/compile_run/binop/precendence.bo: 429
+boulder/tests/compile_run/binop/lte.bo: 705
+boulder/tests/compile_run/binop/eq.bo: 1345
+boulder/tests/compile_run/binop/precendence.bo: 433
 boulder/tests/compile_run/binop/sub.bo: 1410
 boulder/tests/compile_run/binop/gte.bo: 140
-boulder/tests/compile_run/binop/shr.bo: 1118
-boulder/tests/compile_run/binop/bitor.bo: 744
-boulder/tests/compile_run/function/core_fn.bo: 117652
+boulder/tests/compile_run/binop/shr.bo: 1122
+boulder/tests/compile_run/binop/bitor.bo: 738
+boulder/tests/compile_run/function/core_fn.bo: 116931
 boulder/tests/compile_run/function/shadow_unit.bo: 38
 boulder/tests/compile_run/function/negate.bo: 38
-boulder/tests/compile_run/function/shadow.bo: 2639
-boulder/tests/compile_run/function/function_call.bo: 308
+boulder/tests/compile_run/function/shadow.bo: 2603
+boulder/tests/compile_run/function/function_call.bo: 306
 boulder/tests/compile_run/function/recurse.bo: 243
 boulder/tests/compile_run/function/delayed_init.bo: 38
-
-running 0 tests
-
-test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
-
-
-running 0 tests
-
-test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
-
 
 test result: ok.
 
