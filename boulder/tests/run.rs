@@ -200,7 +200,7 @@ fn main() -> Result<(), TestFailure> {
                 remu.memory_mut()[0..data.len()].copy_from_slice(&data);
 
                 if lir.functions.iter().any(|f| f.ctx.test) {
-                    match remu.run(20000000) {
+                    match remu.run(20_000_000) {
                         Ok(steps) => println!("boulder/{}: {}", entry.path().display(), steps),
                         Err(e) => panic!("{:?}", e),
                     }

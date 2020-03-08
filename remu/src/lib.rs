@@ -195,12 +195,10 @@ impl Remu {
 
                 if cond {
                     return self.inner_step(true);
+                } else if cmd_offset == offset {
+                    self.pc[0] = self.pc[0].wrapping_add(1);
                 } else {
-                    if cmd_offset == offset {
-                        self.pc[0] = self.pc[0].wrapping_add(1);
-                    } else {
-                        self.pc[0] = self.pc[0].wrapping_add(2);
-                    }
+                    self.pc[0] = self.pc[0].wrapping_add(2);
                 }
             }
             0xf0 => {

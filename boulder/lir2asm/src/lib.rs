@@ -276,7 +276,7 @@ pub fn convert(lir: &Lir) -> String {
     }
 
     asm_blocks.push(AsmBlock {
-        name: format!("stack").into(),
+        name: Box::from("stack"),
         commands: vec![Command::Tag(ctx.stack), Command::Byte(0)],
     });
 
@@ -332,7 +332,7 @@ pub fn convert(lir: &Lir) -> String {
         asm_blocks.insert(
             0,
             AsmBlock {
-                name: format!("__test_runner").into(),
+                name: Box::from("__test_runner"),
                 commands: v,
             },
         );

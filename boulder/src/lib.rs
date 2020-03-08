@@ -109,7 +109,7 @@ pub fn compile<'a>(
 
     remu.memory_mut()[0..data.len()].copy_from_slice(&data);
 
-    match remu.run(100000) {
+    match remu.run(100_000) {
         Ok(steps) => println!("./{}: {}", file, steps),
         Err(e) => panic!("{:?}", e),
     }
