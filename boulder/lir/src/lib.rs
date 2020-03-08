@@ -2,6 +2,24 @@ use tindex::{tvec, TBitSet, TVec};
 
 use shared_id::{BlockId, FunctionId, InputId, LocationId, StepId};
 
+macro_rules! f {
+    ($lir:expr, $f:expr) => {
+        $lir.functions[$f]
+    };
+}
+
+macro_rules! b {
+    ($lir:expr, $f:expr, $b:expr) => {
+        $lir.functions[$f].blocks[$b]
+    };
+}
+
+macro_rules! s {
+    ($lir:expr, $f:expr, $b:expr, $s:expr) => {
+        $lir.functions[$f].blocks[$b].steps[$s]
+    };
+}
+
 mod display;
 mod optimize;
 mod traits;

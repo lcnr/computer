@@ -9,6 +9,7 @@ use shared_id::{BlockId, FunctionId, InputId, LocationId, StepId};
 use crate::{traits::Update, Action, Arg, Block, Function, Lir, Terminator};
 
 mod const_prop;
+mod inline;
 
 impl<'a> Lir<'a> {
     /// Minimizes the needed memory of each block without
