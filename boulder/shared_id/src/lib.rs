@@ -45,6 +45,18 @@ macro_rules! t {
     }
 }
 
+macro_rules! invalid {
+    ($($n:ident),+) => {
+        $(
+            impl $n {
+                pub const fn invalid() -> Self {
+                    $n(usize::max_value())
+                }
+            }
+        )+
+    }
+}
+
 macro_rules! add {
     ($($n:ident),+) => {
         $(
@@ -75,21 +87,12 @@ macro_rules! sub {
 
 t!(TypeId: '%', FunctionId: '#', FieldId, BlockId: '~', StepId: '$', InputId, LocationId: '@', TagId);
 
-add!(StepId, LocationId, InputId, TagId);
+invalid!(BlockId, FunctionId, StepId);
 
-sub!(BlockId);
+add!(InputId, FunctionId, StepId, LocationId, TagId);
 
-impl BlockId {
-    pub fn invalid() -> Self {
-        BlockId(std::usize::MAX)
-    }
-}
-
+sub!(BlockId, FunctionId);
 impl StepId {
-    pub fn invalid() -> Self {
-        StepId(std::usize::MAX)
-    }
-
     pub fn replacement(n: usize) -> Self {
         StepId(std::usize::MAX - n)
     }

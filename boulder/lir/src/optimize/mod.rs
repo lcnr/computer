@@ -85,7 +85,32 @@ impl<'a> Lir<'a> {
         }
     }
 
-    /// Removes blocks which can not reached
+    /// Removes function which are unused and not exported
+    pub fn remove_unused_functions(&mut self) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("remove_unused_functions");
+
+        let mut used = TBitSet::new();
+        for (f, func) in self.functions.index_iter().zip(self.functions.iter()) {
+            if func.ctx.test || func.ctx.export {
+                let mut visited = TBitSet::new();
+                visited.add(f);
+                func.requires(&self, &mut visited, FunctionId::invalid());
+                used.extend(visited)
+            }
+        }
+
+        for i in self.functions.index_iter().rev() {
+            if !used.get(i) {
+                self.functions.remove(i);
+                for func in self.functions.iter_mut() {
+                    func.update(|f: FunctionId| if f > i { f - 1 } else { f });
+                }
+            }
+        }
+    }
+
+    /// Removes blocks which can not be reached
     pub fn remove_unused_blocks(&mut self) {
         #[cfg(feature = "profiler")]
         profile_scope!("remove_unused_blocks");

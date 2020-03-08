@@ -1,15 +1,30 @@
-use shared_id::{BlockId, LocationId};
+use shared_id::{BlockId, FunctionId, LocationId};
 
 mod reads;
 mod writes;
 
-use crate::{Arg, Terminator};
+use crate::{Action, Arg, Function, Terminator};
 
 pub trait Update<F, V>
 where
     F: FnMut(V) -> V,
 {
     fn update(&mut self, f: F);
+}
+
+impl<'a, F> Update<F, FunctionId> for Function<'a>
+where
+    F: FnMut(FunctionId) -> FunctionId,
+{
+    fn update(&mut self, mut f: F) {
+        for block in self.blocks.iter_mut() {
+            for step in block.steps.iter_mut() {
+                if let Action::FunctionCall { id, .. } = step {
+                    *id = f(*id);
+                }
+            }
+        }
+    }
 }
 
 impl<F> Update<F, Option<Arg>> for Terminator
