@@ -62,6 +62,7 @@ impl<'a> Lir<'a> {
                 }
                 Memory::Unknown => {
                     for arm in arms.iter_mut() {
+                        memory[expr] = Memory::Byte(arm.pat);
                         propagate_args(&mut memory, &mut arm.args);
                     }
                 }

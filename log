@@ -32,7 +32,7 @@ boulder/tests/compile_run/type/structures/field_access.bo: 1012
 boulder/tests/compile_run/type/structures/complex_field_access.bo: 2690
 boulder/tests/compile_run/type/match/if_simple.bo: 178
 boulder/tests/compile_run/type/match/used.bo: 1875
-boulder/tests/compile_run/type/match/match_bool.bo: 159
+boulder/tests/compile_run/type/match/match_bool.bo: 167
 boulder/tests/compile_run/type/match/simple.bo: 197
 boulder/tests/compile_run/type/match/if_expr.bo: 1233
 boulder/tests/compile_run/type/match/arm_subtype.bo: 118
@@ -48,7 +48,7 @@ boulder/tests/compile_run/loop/break_sum.bo: 641
 boulder/tests/compile_run/intrinsics/u16_to_bytes_simple.bo: 38
 boulder/tests/compile_run/intrinsics/u32_to_bytes.bo: 113
 boulder/tests/compile_run/intrinsics/u16_to_bytes.bo: 49
-boulder/tests/compile_run/binop/logical.bo: 165
+boulder/tests/compile_run/binop/logical.bo: 173
 boulder/tests/compile_run/binop/rem.bo: 229351
 boulder/tests/compile_run/binop/bitand.bo: 1303
 boulder/tests/compile_run/binop/gt.bo: 935
