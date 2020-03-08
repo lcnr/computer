@@ -55,7 +55,7 @@ impl Display for Terminator {
         match self {
             Terminator::Goto(block, args) => {
                 if let Some(block) = block {
-                    write!(f, "goto ~{}(", block.0)?;
+                    write!(f, "goto {}(", block)?;
                 } else {
                     write!(f, "return (")?;
                 }
@@ -142,7 +142,7 @@ impl<'a> Display for Lir<'a> {
 fn print_match(f: &mut Formatter, id: LocationId, arms: &[MatchArm]) -> Result {
     let write_arm = |f: &mut Formatter, arm: &MatchArm| {
         if let Some(block) = arm.target {
-            write!(f, "b{} -> goto ~{}(", arm.pat, block.0)?;
+            write!(f, "b{} -> goto {}(", arm.pat, block)?;
         } else {
             write!(f, "b{} -> return (", arm.pat)?;
         }

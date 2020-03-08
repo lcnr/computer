@@ -62,6 +62,7 @@ pub const MIR_OPTIMIZATIONS: &[(fn(&mut Mir), &str)] = &[
 
 pub const LIR_OPTIMIZATIONS: &[(fn(&mut Lir), &str)] = &[
     (|lir| lir.remove_dead_writes(), "dead_writes0"),
+    (|lir| lir.remove_unused_functions(), "unused_functions0"),
     (|lir| lir.const_propagate(), "const_prop0"),
     (|lir| lir.merge_simple_blocks(), "merge_simple_blocks0"),
     (|lir| lir.remove_unused_blocks(), "unused_blocks0"),
@@ -72,10 +73,12 @@ pub const LIR_OPTIMIZATIONS: &[(fn(&mut Lir), &str)] = &[
     (|lir| lir.merge_simple_blocks(), "merge_simple_blocks1"),
     (|lir| lir.remove_unused_blocks(), "unused_blocks1"),
     (|lir| lir.remove_dead_writes(), "dead_writes1"),
+    (|lir| lir.remove_unused_functions(), "unused_functions1"),
     (|lir| lir.inline_functions(), "inline_functions1"),
     (|lir| lir.minimize_memory_usage(), "minimize_mem1"),
     (|lir| lir.remove_noop_moves(), "noop_moves1"),
     (|lir| lir.remove_dead_writes(), "dead_writes2"),
+    (|lir| lir.remove_unused_functions(), "unused_functions2"),
     (|lir| lir.const_propagate(), "const_prop2"),
     (|lir| lir.merge_simple_blocks(), "merge_simple_blocks2"),
     (|lir| lir.remove_unused_blocks(), "unused_blocks2"),
@@ -101,6 +104,7 @@ pub fn compile<'a>(
         lir.validate();
     }
 
+    println!("{}", lir);
     let asm = lir2asm::convert(&lir);
 
     let data = rock::compile(&asm, &mut rock::DebugLogger).unwrap();

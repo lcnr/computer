@@ -1,0 +1,22 @@
+fn size_diff(arg: Empty | u32) -> u16 {
+    match arg {
+        _: Empty -> 7,
+        v: u32 -> {
+            let value: u32Bytes = to_bytes(v);
+            from_bytes(u16Bytes {
+                a: value.c,
+                b: value.d,
+            })
+        }
+    }
+}
+
+@test
+fn empty() -> Bool {
+    size_diff(Empty) == 7
+}
+
+@test
+fn value() -> Bool {
+    size_diff(0x01_02_03_04) == 0x01_02 
+}
