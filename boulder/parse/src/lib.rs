@@ -383,7 +383,7 @@ fn parse_ident_expr<'a>(
         Token::OpenBlock(BlockDelim::Parenthesis) => {
             let mut args = Vec::new();
             while !try_consume_token(Token::CloseBlock(BlockDelim::Parenthesis), iter) {
-                args.push(parse_expression(iter, false)?);
+                args.push(parse_expr(iter, false, None)?);
 
                 if !try_consume_token(Token::Comma, iter)
                     && !peek_token(Token::CloseBlock(BlockDelim::Parenthesis), iter)
@@ -435,7 +435,7 @@ fn parse_ident_expr<'a>(
                 while !try_consume_token(Token::CloseBlock(BlockDelim::Brace), iter) {
                     let field_name = expect_ident(iter.next().unwrap())?.map(Into::into);
                     consume_token(Token::Colon, iter)?;
-                    let expr = parse_expression(iter, false)?;
+                    let expr = parse_expr(iter, false, None)?;
                     fields.push((field_name, expr));
 
                     if !try_consume_token(Token::Comma, iter)
@@ -463,13 +463,21 @@ fn parse_ident_expr<'a>(
 }
 
 /// the `match` is already consumed
+///
+/// ```plain
+/// match expr {
+/// #     ^
+///     binding: pat -> expr,
+///     binding: pat -> expr,
+/// }
+/// ```
 fn parse_match<'a>(
     keyword: Meta<'a, ()>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Expression<'a>, CompileError> {
     #[cfg(feature = "profiler")]
     profile_scope!("parse_match");
-    let value = parse_expression(iter, true)?;
+    let value = parse_expr(iter, true, None)?;
     consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
     let mut match_arms = Vec::new();
     loop {
@@ -479,7 +487,7 @@ fn parse_match<'a>(
 
         let pattern = parse_pattern(iter)?;
         consume_token(Token::Arrow, iter)?;
-        let expr = parse_expression(iter, false)?;
+        let expr = parse_expr(iter, false, None)?;
 
         match_arms.push(MatchArm { pattern, expr });
 
@@ -552,13 +560,24 @@ fn desugar_logical_ops<'a>(
 }
 
 /// the `if` is already consumed
+///
+/// # Examples
+///
+/// ```plain
+/// if cond {
+/// #  ^
+///     expr
+/// } else {
+///     expr
+/// }
+/// ```
 fn parse_if<'a>(
     if_meta: Meta<'a, ()>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Expression<'a>, CompileError> {
     #[cfg(feature = "profiler")]
     profile_scope!("desugar_if");
-    let expr = parse_expression(iter, true)?;
+    let expr = parse_expr(iter, true, None)?;
     let expr = Expression::TypeRestriction(
         Box::new(expr),
         if_meta.replace(hir::UnresolvedType::Named("Bool".into())),
@@ -597,7 +616,7 @@ fn parse_variable_decl<'a>(
     .map_or_else(|| name.simplify().replace(None), |v| v.map(Some));
 
     if try_consume_token(Token::Assignment, iter) {
-        let input = parse_expression(iter, expecting_open_brace)?;
+        let input = parse_expr(iter, expecting_open_brace, None)?;
         Ok(Expression::Assignment(
             (),
             hir::UnresolvedVariable::New(name, ty),
@@ -617,6 +636,18 @@ fn parse_variable_decl<'a>(
     }
 }
 
+/// Examples
+///
+/// ```plain
+/// 'scope: { expr; expr }
+/// #       ^
+///
+/// 'scope: loop { expr; expr }
+/// #       ^
+///
+/// 'scope: while { expr; expr }
+/// #       ^
+/// ```
 fn parse_scope<'a>(
     scope: Meta<'a, &'a str>,
     iter: &mut TokenIter<'a>,
@@ -647,6 +678,9 @@ fn parse_scope<'a>(
     }
 }
 
+/// # Examples
+///
+/// ```plain
 fn parse_while<'a>(
     name: Option<Meta<'a, &'a str>>,
     meta: Meta<'a, ()>,
@@ -654,7 +688,7 @@ fn parse_while<'a>(
 ) -> Result<Expression<'a>, CompileError> {
     #[cfg(feature = "profiler")]
     profile_scope!("parse_while");
-    let expr = parse_expression(iter, true)?;
+    let expr = parse_expr(iter, true, None)?;
     consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
     let stay = MatchArm {
         pattern: Pattern::Underscore(Meta::fake(hir::UnresolvedType::Named("True".into()))),
@@ -690,243 +724,36 @@ fn parse_while<'a>(
     }
 }
 
-/// parse the rhs of a binary operation, each binop must have a priority greater than `priority`.
-fn parse_binop_rhs<'a>(
-    priority: u32,
+/// parse an expr which may be the rhs of a binary operation,
+/// in which case each binop must have a priority greater than `priority`.
+fn parse_expr<'a>(
     iter: &mut TokenIter<'a>,
     expecting_open_brace: bool,
+    priority: Option<u32>,
 ) -> Result<Expression<'a>, CompileError> {
     #[cfg(feature = "profiler")]
-    profile_scope!("parse_binop_rhs");
+    profile_scope!("parse_expr");
     let start = iter.next().unwrap();
     let mut expr = match start.item {
         Token::Scope(v) => parse_scope(start.replace(v), iter)?,
         Token::Invert => {
-            let expr = parse_binop_rhs(std::u32::MAX, iter, expecting_open_brace)?;
+            let expr = parse_expr(iter, expecting_open_brace, Some(std::u32::MAX))?;
             Expression::UnaryOperation(
                 (),
                 start.replace(hir::expr::UnaryOperation::Invert),
                 Box::new(expr),
             )
         }
-        Token::Ident(v) => parse_ident_expr(start.replace(v), iter, expecting_open_brace)?,
-        Token::Integer(c) => Expression::Lit((), start.replace(Literal::Integer(c))),
-        Token::Keyword(Keyword::Match) => parse_match(start.simplify(), iter)?,
-        Token::Keyword(Keyword::If) => parse_if(start.simplify(), iter)?,
-        Token::OpenBlock(BlockDelim::Parenthesis) => {
-            let expr = parse_expression(iter, false)?;
-            consume_token(Token::CloseBlock(BlockDelim::Parenthesis), iter)?;
-            expr
-        }
-        Token::OpenBlock(BlockDelim::Brace) => parse_block(None, iter)?,
-        Token::Keyword(Keyword::Loop) => {
-            consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
-            if let Expression::Block((), scope, body) = parse_block(None, iter)? {
-                Expression::Loop((), scope, body)
-            } else {
-                unreachable!("parse_block returned an unexpected expression")
-            }
-        }
-        Token::Keyword(Keyword::While) => parse_while(None, start.simplify(), iter)?,
-        _ => CompileError::expected(
-            &[
-                Token::Scope(""),
-                Token::Ident(""),
-                Token::Integer(0),
-                Token::Keyword(Keyword::Match),
-                Token::Keyword(Keyword::If),
-                Token::Keyword(Keyword::Loop),
-                Token::Keyword(Keyword::While),
-                Token::OpenBlock(BlockDelim::Parenthesis),
-            ],
-            &start,
-        )?,
-    };
-
-    let next = iter.next().unwrap();
-    Ok(match &next.item {
-        Token::Binop(_) => {
-            let mut next = next;
-            while let Token::Binop(op) = next.item {
-                if op.priority() > priority {
-                    expr = op.as_hir_expr(
-                        next,
-                        expr,
-                        parse_binop_rhs(op.priority(), iter, expecting_open_brace)?,
-                    );
-                } else {
-                    break;
-                }
-                next = iter.next().unwrap();
-            }
-            iter.step_back(next);
-            expr
-        }
-        Token::Dot => {
-            let mut next = next;
-            while let Token::Dot = next.item {
-                expr = Expression::FieldAccess(
-                    (),
-                    Box::new(expr),
-                    expect_ident(iter.next().unwrap())?.map(Into::into),
-                );
-                next = iter.next().unwrap();
-            }
-
-            while let Token::Binop(op) = next.item {
-                if op.priority() > priority {
-                    expr = op.as_hir_expr(
-                        next,
-                        expr,
-                        parse_binop_rhs(op.priority(), iter, expecting_open_brace)?,
-                    );
-                } else {
-                    break;
-                }
-                next = iter.next().unwrap();
-            }
-            iter.step_back(next);
-
-            expr
-        }
-        Token::Colon => Expression::TypeRestriction(Box::new(expr), parse_type(iter)?),
-        _ => {
-            iter.step_back(next);
-            expr
-        }
-    })
-}
-
-fn parse_binop<'a>(
-    mut lhs: Expression<'a>,
-    iter: &mut TokenIter<'a>,
-    expecting_open_brace: bool,
-) -> Result<Expression<'a>, CompileError> {
-    #[cfg(feature = "profiler")]
-    profile_scope!("parse_binop");
-    let mut next = iter.next().unwrap();
-    loop {
-        match next.item {
-            Token::Binop(op) => {
-                lhs = op.as_hir_expr(
-                    next.simplify(),
-                    lhs,
-                    parse_binop_rhs(op.priority(), iter, expecting_open_brace)?,
-                );
-                next = iter.next().unwrap();
-            }
-            Token::Dot => {
-                lhs = Expression::FieldAccess(
-                    (),
-                    Box::new(lhs),
-                    expect_ident(iter.next().unwrap())?.map(Into::into),
-                );
-                next = iter.next().unwrap();
-            }
-            Token::Colon => {
-                lhs = Expression::TypeRestriction(Box::new(lhs), parse_type(iter)?);
-                next = iter.next().unwrap();
-            }
-            _ => break,
-        }
-    }
-
-    iter.step_back(check_expr_terminator(
-        next,
-        &[Token::Binop(Binop::Add), Token::Dot, Token::Colon],
-        expecting_open_brace,
-    )?);
-    Ok(lhs)
-}
-
-fn parse_expression<'a>(
-    iter: &mut TokenIter<'a>,
-    expecting_open_brace: bool,
-) -> Result<Expression<'a>, CompileError> {
-    #[cfg(feature = "profiler")]
-    profile_scope!("parse_expression");
-    let start = iter.next().unwrap();
-    match start.item {
-        Token::OpenBlock(BlockDelim::Brace) => {
-            let block = parse_block(None, iter)?;
-            parse_binop(block, iter, expecting_open_brace)
-        }
-        Token::Keyword(Keyword::Loop) => {
-            consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
-            if let Expression::Block((), scope, body) = parse_block(None, iter)? {
-                parse_binop(
-                    Expression::Loop((), scope, body),
-                    iter,
-                    expecting_open_brace,
-                )
-            } else {
-                unreachable!("parse_block returned an unexpected expression")
-            }
-        }
-        Token::Keyword(Keyword::While) => {
-            let expr = parse_while(None, start.simplify(), iter)?;
-            parse_binop(expr, iter, expecting_open_brace)
-        }
-        Token::Scope(v) => parse_binop(
-            parse_scope(start.replace(v), iter)?,
-            iter,
-            expecting_open_brace,
-        ),
-        Token::OpenBlock(BlockDelim::Parenthesis) => {
-            let expr = parse_expression(iter, false)?;
-            consume_token(Token::CloseBlock(BlockDelim::Parenthesis), iter)?;
-            parse_binop(expr, iter, expecting_open_brace)
-        }
-        Token::Keyword(Keyword::Let) => parse_variable_decl(iter, expecting_open_brace),
-        Token::Keyword(Keyword::Match) => {
-            let expr = parse_match(start.simplify(), iter)?;
-            parse_binop(expr, iter, expecting_open_brace)
-        }
-        Token::Keyword(Keyword::If) => {
-            let expr = parse_if(start.simplify(), iter)?;
-            parse_binop(expr, iter, expecting_open_brace)
-        }
-        Token::Keyword(Keyword::Break) => {
-            let next = iter.next().unwrap();
-            let scope = if let Token::Scope(v) = next.item {
-                next.replace(Some(v))
-            } else {
-                iter.step_back(next);
-                start.replace(None)
-            };
-            Ok(Expression::Break(
-                (),
-                scope.map(|v| v.map(Into::into)),
-                Box::new(parse_expression(iter, expecting_open_brace)?),
-            ))
-        }
-        Token::Keyword(Keyword::Return) => Ok(Expression::Break(
-            (),
-            start.replace(Some("fn")),
-            Box::new(parse_expression(iter, expecting_open_brace)?),
-        )),
-        Token::Invert => {
-            let expr = parse_binop_rhs(std::u32::MAX, iter, expecting_open_brace)?;
-            parse_binop(
-                Expression::UnaryOperation(
-                    (),
-                    start.replace(hir::expr::UnaryOperation::Invert),
-                    Box::new(expr),
-                ),
-                iter,
-                expecting_open_brace,
-            )
-        }
         Token::Ident(v) => {
             let expr = parse_ident_expr(start.replace(v), iter, expecting_open_brace)?;
             let next = iter.next().unwrap();
-            Ok(match &next.item {
+            match &next.item {
                 Token::Assignment => {
                     if let Expression::Variable((), var) = expr {
                         Expression::Assignment(
                             (),
                             var,
-                            Box::new(parse_expression(iter, expecting_open_brace)?),
+                            Box::new(parse_expr(iter, expecting_open_brace, None)?),
                         )
                     } else {
                         return Err(check_expr_terminator(
@@ -939,35 +766,111 @@ fn parse_expression<'a>(
                 }
                 _ => {
                     iter.step_back(next);
-                    parse_binop(expr, iter, expecting_open_brace)?
+                    expr
                 }
-            })
+            }
         }
-        Token::Integer(c) => {
-            let expr = Expression::Lit((), start.replace(Literal::Integer(c)));
-            parse_binop(expr, iter, expecting_open_brace)
+        Token::Integer(c) => Expression::Lit((), start.replace(Literal::Integer(c))),
+        Token::Keyword(Keyword::Let) => {
+            if let Some(_priority) = priority {
+                CompileError::new(&start, "`let` binding may not be using in a binop")
+            } else {
+                parse_variable_decl(iter, expecting_open_brace)
+            }?
         }
+        Token::Keyword(Keyword::Match) => parse_match(start.simplify(), iter)?,
+        Token::Keyword(Keyword::If) => parse_if(start.simplify(), iter)?,
+        Token::Keyword(Keyword::Loop) => {
+            consume_token(Token::OpenBlock(BlockDelim::Brace), iter)?;
+            if let Expression::Block((), scope, body) = parse_block(None, iter)? {
+                Expression::Loop((), scope, body)
+            } else {
+                unreachable!("parse_block returned an unexpected expression")
+            }
+        }
+        Token::Keyword(Keyword::While) => parse_while(None, start.simplify(), iter)?,
+        Token::Keyword(Keyword::Break) => {
+            let next = iter.next().unwrap();
+            let scope = if let Token::Scope(v) = next.item {
+                next.replace(Some(v))
+            } else {
+                iter.step_back(next);
+                start.replace(None)
+            };
+
+            Expression::Break(
+                (),
+                scope.map(|v| v.map(Into::into)),
+                Box::new(parse_expr(iter, expecting_open_brace, None)?),
+            )
+        }
+        Token::Keyword(Keyword::Return) => Expression::Break(
+            (),
+            start.replace(Some("fn")),
+            Box::new(parse_expr(iter, expecting_open_brace, None)?),
+        ),
+        Token::OpenBlock(BlockDelim::Parenthesis) => {
+            let expr = parse_expr(iter, false, None)?;
+            consume_token(Token::CloseBlock(BlockDelim::Parenthesis), iter)?;
+            expr
+        }
+        Token::OpenBlock(BlockDelim::Brace) => parse_block(None, iter)?,
         _ => CompileError::expected(
             &[
-                Token::OpenBlock(BlockDelim::Brace),
-                Token::Keyword(Keyword::Loop),
                 Token::Scope(""),
-                Token::OpenBlock(BlockDelim::Parenthesis),
+                Token::Ident(""),
+                Token::Integer(0),
                 Token::Keyword(Keyword::Let),
                 Token::Keyword(Keyword::Match),
                 Token::Keyword(Keyword::If),
+                Token::Keyword(Keyword::Loop),
+                Token::Keyword(Keyword::While),
                 Token::Keyword(Keyword::Break),
                 Token::Keyword(Keyword::Return),
-                Token::Ident(""),
-                Token::Integer(0),
+                Token::OpenBlock(BlockDelim::Parenthesis),
+                Token::OpenBlock(BlockDelim::Brace),
             ],
             &start,
-        ),
+        )?,
+    };
+
+    loop {
+        let next = iter.next().unwrap();
+        match next.item {
+            Token::Binop(op) => {
+                if priority.map_or(true, |p| p < op.priority()) {
+                    expr = op.as_hir_expr(
+                        next,
+                        expr,
+                        parse_expr(iter, expecting_open_brace, Some(op.priority()))?,
+                    );
+                } else {
+                    iter.step_back(next);
+                    return Ok(expr);
+                }
+            }
+            Token::Dot => {
+                expr = Expression::FieldAccess(
+                    (),
+                    Box::new(expr),
+                    expect_ident(iter.next().unwrap())?.map(Into::into),
+                );
+            }
+            Token::Colon => expr = Expression::TypeRestriction(Box::new(expr), parse_type(iter)?),
+            _ => {
+                iter.step_back(check_expr_terminator(
+                    next,
+                    &[Token::Binop(Binop::Add), Token::Dot, Token::Colon],
+                    expecting_open_brace,
+                )?);
+                return Ok(expr);
+            }
+        }
     }
 }
 
 fn parse_block<'a>(
-    name: Option<Meta<'a, &'a str>>,
+    scope: Option<Meta<'a, &'a str>>,
     iter: &mut TokenIter<'a>,
 ) -> Result<Expression<'a>, CompileError> {
     #[cfg(feature = "profiler")]
@@ -989,7 +892,7 @@ fn parse_block<'a>(
             let end = iter.current_offset();
             return Ok(Expression::Block(
                 (),
-                name.map_or_else(
+                scope.map_or_else(
                     || {
                         Meta::empty(iter.source(), iter.file(), line, start..end)
                             .replace(None)
@@ -1002,7 +905,7 @@ fn parse_block<'a>(
         }
 
         iter.step_back(tok);
-        block.push(parse_expression(iter, false)?);
+        block.push(parse_expr(iter, false, None)?);
     }
 }
 

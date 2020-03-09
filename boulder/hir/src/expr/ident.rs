@@ -277,7 +277,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 } else {
                     let scope_id = ctx.scope_lookup.last_id().unwrap();
                     if ctx.scope_lookup[scope_id].map_or(false, |n| n == "fn") {
-                        CompileError::new(&scope, format_args!("`break` outside of scope"))?
+                        CompileError::new(&scope, "`break` outside of scope")?
                     } else {
                         Expression::Break(
                             (),

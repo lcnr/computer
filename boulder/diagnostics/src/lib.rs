@@ -231,6 +231,7 @@ impl<'a, T: fmt::Debug> fmt::Debug for Meta<'a, T> {
             .field("span", &&self.source[self.span.clone()])
             .field("file", &self.file)
             .field("line", &self.line)
+            .field("culumn", &self.line_offset())
             .finish()
     }
 }
