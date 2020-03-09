@@ -1,0 +1,11 @@
+# Expected
+# Comma
+# found `;`
+# (8
+
+fn test() -> u8 {
+    match True: Bool {
+        _: True -> 8;
+        _: False -> 7,
+    }
+}
