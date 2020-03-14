@@ -1,6 +1,8 @@
-use shared_id::{BlockId, FunctionId, StepId, BOOL_TYPE_ID, U8_TYPE_ID};
+use shared_id::{
+    BlockId, FunctionId, StepId, BOOL_TYPE_ID, FALSE_TYPE_ID, TRUE_TYPE_ID, U8_TYPE_ID,
+};
 
-use crate::{Action, Mir, Step, Type};
+use crate::{ctx::Context, Action, Mir, Object, Step, Type};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Binop {
@@ -20,7 +22,126 @@ pub enum Binop {
     BitXor,
 }
 
+fn bool_op<F>(ctx: &Context, l: Object, r: Object, f: F) -> Option<Object>
+where
+    F: FnOnce(bool, bool) -> bool,
+{
+    if let (Object::Variant(l, v), Object::Variant(r, u)) = (l, r) {
+        if (*v == Object::Unit && *u == Object::Unit)
+            && (l == TRUE_TYPE_ID || l == FALSE_TYPE_ID)
+            && (r == TRUE_TYPE_ID || r == FALSE_TYPE_ID)
+        {
+            Some(ctx.bool_to_object(f(l == TRUE_TYPE_ID, r == TRUE_TYPE_ID)))
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+
 impl Binop {
+    pub fn execute(self, ctx: &Context, lhs: Object, rhs: Object) -> Option<Object> {
+        match self {
+            Binop::Add => match (lhs, rhs) {
+                (Object::U8(l), Object::U8(r)) => l.checked_add(r).map(Object::U8),
+                (Object::U16(l), Object::U16(r)) => l.checked_add(r).map(Object::U16),
+                (Object::U32(l), Object::U32(r)) => l.checked_add(r).map(Object::U32),
+                _ => None,
+            },
+            Binop::Sub => match (lhs, rhs) {
+                (Object::U8(l), Object::U8(r)) => l.checked_sub(r).map(Object::U8),
+                (Object::U16(l), Object::U16(r)) => l.checked_sub(r).map(Object::U16),
+                (Object::U32(l), Object::U32(r)) => l.checked_sub(r).map(Object::U32),
+                _ => None,
+            },
+            Binop::Mul => match (lhs, rhs) {
+                (Object::U8(l), Object::U8(r)) => l.checked_mul(r).map(Object::U8),
+                (Object::U16(l), Object::U16(r)) => l.checked_mul(r).map(Object::U16),
+                (Object::U32(l), Object::U32(r)) => l.checked_mul(r).map(Object::U32),
+                _ => None,
+            },
+            Binop::Div => match (lhs, rhs) {
+                (Object::U8(l), Object::U8(r)) => l.checked_div(r).map(Object::U8),
+                (Object::U16(l), Object::U16(r)) => l.checked_div(r).map(Object::U16),
+                (Object::U32(l), Object::U32(r)) => l.checked_div(r).map(Object::U32),
+                _ => None,
+            },
+            Binop::Rem => match (lhs, rhs) {
+                (Object::U8(l), Object::U8(r)) => l.checked_rem(r).map(Object::U8),
+                (Object::U16(l), Object::U16(r)) => l.checked_rem(r).map(Object::U16),
+                (Object::U32(l), Object::U32(r)) => l.checked_rem(r).map(Object::U32),
+                _ => None,
+            },
+            Binop::Shl => match (lhs, rhs) {
+                (Object::U8(l), Object::U8(r)) => {
+                    Some(Object::U8(l.checked_shl(r.into()).unwrap_or(0)))
+                }
+                (Object::U16(l), Object::U16(r)) => {
+                    Some(Object::U16(l.checked_shl(r.into()).unwrap_or(0)))
+                }
+                (Object::U32(l), Object::U32(r)) => {
+                    Some(Object::U32(l.checked_shl(r).unwrap_or(0)))
+                }
+                _ => None,
+            },
+            Binop::Shr => match (lhs, rhs) {
+                (Object::U8(l), Object::U8(r)) => {
+                    Some(Object::U8(l.checked_shr(r.into()).unwrap_or(0)))
+                }
+                (Object::U16(l), Object::U16(r)) => {
+                    Some(Object::U16(l.checked_shr(r.into()).unwrap_or(0)))
+                }
+                (Object::U32(l), Object::U32(r)) => {
+                    Some(Object::U32(l.checked_shr(r).unwrap_or(0)))
+                }
+                _ => None,
+            },
+            Binop::Eq => match (lhs, rhs) {
+                (Object::U8(l), Object::U8(r)) => Some(ctx.bool_to_object(l == r)),
+                (Object::U16(l), Object::U16(r)) => Some(ctx.bool_to_object(l == r)),
+                (Object::U32(l), Object::U32(r)) => Some(ctx.bool_to_object(l == r)),
+                (l, r) => bool_op(ctx, l, r, |l, r| l == r),
+            },
+            Binop::Neq => match (lhs, rhs) {
+                (Object::U8(l), Object::U8(r)) => Some(ctx.bool_to_object(l != r)),
+                (Object::U16(l), Object::U16(r)) => Some(ctx.bool_to_object(l != r)),
+                (Object::U32(l), Object::U32(r)) => Some(ctx.bool_to_object(l != r)),
+                (l, r) => bool_op(ctx, l, r, |l, r| l != r),
+            },
+            Binop::Gt => match (lhs, rhs) {
+                (Object::U8(l), Object::U8(r)) => Some(ctx.bool_to_object(l > r)),
+                (Object::U16(l), Object::U16(r)) => Some(ctx.bool_to_object(l > r)),
+                (Object::U32(l), Object::U32(r)) => Some(ctx.bool_to_object(l > r)),
+                (l, r) => bool_op(ctx, l, r, |l, r| l > r),
+            },
+            Binop::Gte => match (lhs, rhs) {
+                (Object::U8(l), Object::U8(r)) => Some(ctx.bool_to_object(l >= r)),
+                (Object::U16(l), Object::U16(r)) => Some(ctx.bool_to_object(l >= r)),
+                (Object::U32(l), Object::U32(r)) => Some(ctx.bool_to_object(l >= r)),
+                (l, r) => bool_op(ctx, l, r, |l, r| l >= r),
+            },
+            Binop::BitOr => match (lhs, rhs) {
+                (Object::U8(l), Object::U8(r)) => Some(Object::U8(l | r)),
+                (Object::U16(l), Object::U16(r)) => Some(Object::U16(l | r)),
+                (Object::U32(l), Object::U32(r)) => Some(Object::U32(l | r)),
+                (l, r) => bool_op(ctx, l, r, |l, r| l | r),
+            },
+            Binop::BitAnd => match (lhs, rhs) {
+                (Object::U8(l), Object::U8(r)) => Some(Object::U8(l & r)),
+                (Object::U16(l), Object::U16(r)) => Some(Object::U16(l & r)),
+                (Object::U32(l), Object::U32(r)) => Some(Object::U32(l & r)),
+                (l, r) => bool_op(ctx, l, r, |l, r| l & r),
+            },
+            Binop::BitXor => match (lhs, rhs) {
+                (Object::U8(l), Object::U8(r)) => Some(Object::U8(l ^ r)),
+                (Object::U16(l), Object::U16(r)) => Some(Object::U16(l ^ r)),
+                (Object::U32(l), Object::U32(r)) => Some(Object::U32(l ^ r)),
+                (l, r) => bool_op(ctx, l, r, |l, r| l ^ r),
+            },
+        }
+    }
+
     pub fn validate(self, this: &Step, a: &Step, b: &Step, e2b: bool) {
         match self {
             Self::Add

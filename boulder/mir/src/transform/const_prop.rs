@@ -1,7 +1,10 @@
-use crate::{Action, Mir, Object, Type};
+use shared_id::{FALSE_TYPE_ID, TRUE_TYPE_ID};
+
+use crate::{Action, Mir, Object, Type, UnaryOperation};
 
 impl<'a> Mir<'a> {
     pub fn const_propagate(&mut self) {
+        let ctx = &self.ctx;
         for func in self.functions.iter_mut() {
             for block in func.blocks.iter_mut() {
                 for s in block.steps.index_iter() {
@@ -64,10 +67,74 @@ impl<'a> Mir<'a> {
                                 block.steps[s].action = Action::LoadConstant(*obj);
                             }
                         }
-                        _ => {} /*
-                                    UnaryOperation(UnaryOperation, shared_id::StepId),
-                                    Binop(Binop, shared_id::StepId, shared_id::StepId),
-                                */
+                        Action::UnaryOperation(op, id) => {
+                            if let Some(obj) = block.try_const(id) {
+                                match (op, obj) {
+                                    (UnaryOperation::Debug, _) => (),
+                                    (UnaryOperation::FromBytes, Object::Struct(fields)) => {
+                                        block.steps[s].action = Action::LoadConstant(
+                                            match fields.to_slice() {
+                                                &[Object::U8(a), Object::U8(b)] => {
+                                                    Object::U16(u16::from_le_bytes([a, b]))
+                                                }
+                                                &[Object::U8(a), Object::U8(b), Object::U8(c), Object::U8(d)] => {
+                                                    Object::U32(u32::from_le_bytes([a, b, c, d]))
+                                                }
+                                                fields => unreachable!(
+                                                    "invalid to_bytes argument: {:?}",
+                                                    fields
+                                                ),
+                                            },
+                                        )
+                                    }
+                                    (UnaryOperation::ToBytes, Object::U16(v)) => {
+                                        block.steps[s].action =
+                                            Action::LoadConstant(Object::Struct(
+                                                v.to_le_bytes()
+                                                    .iter()
+                                                    .copied()
+                                                    .map(Object::U8)
+                                                    .collect(),
+                                            ))
+                                    }
+                                    (UnaryOperation::ToBytes, Object::U32(v)) => {
+                                        block.steps[s].action =
+                                            Action::LoadConstant(Object::Struct(
+                                                v.to_le_bytes()
+                                                    .iter()
+                                                    .copied()
+                                                    .map(Object::U8)
+                                                    .collect(),
+                                            ))
+                                    }
+                                    (UnaryOperation::Invert, obj) => {
+                                        block.steps[s].action = Action::LoadConstant(match obj {
+                                            Object::U8(v) => Object::U8(!v),
+                                            Object::U16(v) => Object::U16(!v),
+                                            Object::U32(v) => Object::U32(!v),
+                                            Object::Variant(TRUE_TYPE_ID, obj) => {
+                                                Object::Variant(FALSE_TYPE_ID, obj)
+                                            }
+                                            Object::Variant(FALSE_TYPE_ID, obj) => {
+                                                Object::Variant(TRUE_TYPE_ID, obj)
+                                            }
+                                            obj => unreachable!("invalid invert: {:?}", obj),
+                                        })
+                                    }
+                                    _ => unreachable!("invalid unary operation"),
+                                }
+                            }
+                        }
+                        Action::Binop(op, a, b) => {
+                            match (op, block.try_const(a), block.try_const(b)) {
+                                (op, Some(a), Some(b)) => {
+                                    block.steps[s].action = Action::LoadConstant(
+                                        op.execute(ctx, a, b).expect("undefined"),
+                                    )
+                                }
+                                _ => (),
+                            }
+                        }
                     }
                 }
             }

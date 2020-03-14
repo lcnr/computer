@@ -1,4 +1,6 @@
-use shared_id::FunctionId;
+use shared_id::{FunctionId, FALSE_TYPE_ID, TRUE_TYPE_ID};
+
+use crate::Object;
 
 #[derive(Debug, Clone)]
 pub struct Context {
@@ -27,6 +29,23 @@ pub struct Context {
     pub e2b: bool,
     pub true_replacement: u8,
     pub false_replacement: u8,
+}
+
+impl Context {
+    pub fn bool_to_object(&self, b: bool) -> Object {
+        if self.e2b {
+            if b {
+                Object::U8(self.true_replacement)
+            } else {
+                Object::U8(self.false_replacement)
+            }
+        } else {
+            Object::Variant(
+                if b { TRUE_TYPE_ID } else { FALSE_TYPE_ID },
+                Box::new(Object::Unit),
+            )
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
