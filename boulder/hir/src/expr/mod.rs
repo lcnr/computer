@@ -96,7 +96,7 @@ where
             Expression::Assignment(_, var, expr) => var.span().simplify().append(expr.span()),
             Expression::InitializeStruct(_, name, _) => name.span(),
             Expression::FunctionCall(_, name, _args) => name.span(),
-            Expression::FieldAccess(_, _, field) => field.span().extend_left('.'),
+            Expression::FieldAccess(_, expr, field) => expr.span().append(field.span()),
             Expression::Match(_, meta, _, _) => meta.clone(),
             Expression::Loop(_, scope, _) => scope.span().simplify(),
             Expression::Break(_, scope, _) => scope.span().simplify(),

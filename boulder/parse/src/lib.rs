@@ -744,32 +744,7 @@ fn parse_expr<'a>(
                 Box::new(expr),
             )
         }
-        Token::Ident(v) => {
-            let expr = parse_ident_expr(start.replace(v), iter, expecting_open_brace)?;
-            let next = iter.next().unwrap();
-            match &next.item {
-                Token::Assignment => {
-                    if let Expression::Variable((), var) = expr {
-                        Expression::Assignment(
-                            (),
-                            var,
-                            Box::new(parse_expr(iter, expecting_open_brace, None)?),
-                        )
-                    } else {
-                        return Err(check_expr_terminator(
-                            next,
-                            &[Token::Assignment],
-                            expecting_open_brace,
-                        )
-                        .unwrap_err());
-                    }
-                }
-                _ => {
-                    iter.step_back(next);
-                    expr
-                }
-            }
-        }
+        Token::Ident(v) => parse_ident_expr(start.replace(v), iter, expecting_open_brace)?,
         Token::Integer(c) => Expression::Lit((), start.replace(Literal::Integer(c))),
         Token::Keyword(Keyword::Let) => {
             if let Some(_priority) = priority {
@@ -857,6 +832,31 @@ fn parse_expr<'a>(
                 );
             }
             Token::Colon => expr = Expression::TypeRestriction(Box::new(expr), parse_type(iter)?),
+            Token::Assignment => {
+                let err = |meta| {
+                    CompileError::build(meta, "Invalid left-hand side of assignment")
+                        .with_help("try comparing for equality using `==`")
+                        .build()
+                };
+
+                match expr {
+                    Expression::Variable((), var) => {
+                        return Ok(Expression::Assignment(
+                            (),
+                            var,
+                            Box::new(parse_expr(iter, expecting_open_brace, None)?),
+                        ));
+                    }
+                    Expression::FieldAccess((), expr, _field) => {
+                        if let Expression::Variable((), _var) = *expr {
+                            unimplemented!("overwriting fields")
+                        } else {
+                            return err(&expr.span());
+                        }
+                    }
+                    expr => return err(&expr.span()),
+                }
+            }
             _ => {
                 iter.step_back(check_expr_terminator(
                     next,

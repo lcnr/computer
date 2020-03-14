@@ -74,8 +74,7 @@ fn test_mir(mir: &Mir, stage: &str) {
                             )
                         }
                     }
-                } else if let Object::Variant(TRUE_TYPE_ID, _) = obj {
-                } else {
+                } else if !matches!(obj, Object::Variant(TRUE_TYPE_ID, _)) {
                     panic!(
                         "unit test `{}` failed at stage `mir::{}`: {:?}",
                         test.name, stage, obj

@@ -47,8 +47,10 @@ fn main() -> Result<(), TestFailure> {
     'outer: for entry in WalkDir::new("tests/compile_fail") {
         let entry = entry.unwrap();
         if entry.metadata().unwrap().is_file() {
+            let file_str = format!("bouder/{}", entry.path().display());
+
             #[cfg(feature = "profiler")]
-            profile_scope!(format!("{}", entry.path().display()));
+            profile_scope!(file_str);
             let ctx = GlobalCtx::new();
             count += 1;
             let mut file = File::open(entry.path()).unwrap();
@@ -65,16 +67,15 @@ fn main() -> Result<(), TestFailure> {
                 inner: output.clone(),
             }));
 
-            let s = entry.path().to_string_lossy();
             let content = match panic::catch_unwind(AssertUnwindSafe(|| {
-                boulder::compile_to_mir(&ctx, &content, &s)
+                boulder::compile_to_mir(&ctx, &content, &file_str)
             })) {
                 Ok(c) => c,
                 Err(_) => {
                     let output = output.lock().unwrap();
                     eprintln!(
-                        "[boulder/{}]: panic during compilation, output:\n{}",
-                        entry.path().display(),
+                        "[{}]: panic during compilation, output:\n{}",
+                        file_str,
                         output
                     );
                     continue 'outer;
@@ -83,8 +84,8 @@ fn main() -> Result<(), TestFailure> {
 
             if content.is_ok() {
                 eprintln!(
-                    "[boulder/{}]: did not fail to compile",
-                    entry.path().display()
+                    "[{}]: did not fail to compile",
+                    file_str,
                 );
                 continue 'outer;
             }
@@ -97,8 +98,8 @@ fn main() -> Result<(), TestFailure> {
                 check_count += 1;
                 if !output.contains(expected) {
                     eprintln!(
-                        "[boulder/{}]: did not contain \"{}\":\n{}",
-                        entry.path().display(),
+                        "[{}]: did not contain \"{}\":\n{}",
+                        file_str,
                         expected,
                         output.trim(),
                     );
@@ -108,8 +109,8 @@ fn main() -> Result<(), TestFailure> {
 
             if check_count == 0 {
                 eprintln!(
-                    "[boulder/{}]: did not check any error messages, actual output:\n{}",
-                    entry.path().display(),
+                    "[{}]: did not check any error messages, actual output:\n{}",
+                    file_str,
                     output.trim(),
                 );
                 continue 'outer;

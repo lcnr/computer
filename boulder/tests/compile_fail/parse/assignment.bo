@@ -1,0 +1,16 @@
+# Invalid left-hand side of assignment
+# (15:
+
+struct A {
+    f: u8
+}
+
+fn a() -> A {
+    A {
+        f: 10,
+    }
+}
+
+fn assign() -> Bool {
+    a().f = 10
+}

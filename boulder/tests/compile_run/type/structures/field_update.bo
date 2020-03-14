@@ -1,0 +1,14 @@
+struct A {
+    field: u8,
+}
+
+@test
+fn simple() -> Bool {
+    let a = A {
+        field: 7,
+    };
+
+    a.field = 8;
+    
+    a.field == 8
+}
