@@ -4,7 +4,7 @@ extern crate thread_profiler;
 
 use tindex::TVec;
 
-use shared_id::{BlockId, FunctionId, StepId, TypeId};
+use shared_id::{BlockId, FunctionId, StepId};
 
 use mir::{Action, Mir, Object, Terminator, Type};
 
@@ -17,7 +17,7 @@ pub enum InterpretError {
     InvalidBinopArguments(FunctionId, BlockId, StepId, Object, Object),
     InvalidUnionAccess(FunctionId, BlockId, StepId, Object),
     InvalidReduce(FunctionId, BlockId, StepId, Object),
-    UnresolvedMatch(FunctionId, BlockId, TypeId, Object),
+    UnresolvedMatch(FunctionId, BlockId, Object),
     UnresolvedByteMatch(FunctionId, BlockId, Object),
 }
 
@@ -83,23 +83,14 @@ impl<'a> BoulderMirInterpreter<'a> {
                     }
                     Action::UnionFieldAccess(target) => {
                         if let Object::Field(actual_ty, ref actual_field) = steps[target] {
-                            if step.ty != actual_ty {
-                                if let Type::Union(ref target_fields) = self.mir.types[step.ty] {
-                                    if let Object::Field(field_ty, ref actual_field) =
-                                        *actual_field.as_ref()
-                                    {
-                                        if target_fields.get(field_ty) {
-                                            actual_field.as_ref().clone()
-                                        } else {
-                                            return Err(InterpretError::InvalidUnionAccess(
-                                                id,
-                                                curr_block,
-                                                step_id,
-                                                steps[target].clone(),
-                                            ));
-                                        }
-                                    } else if target_fields.get(actual_ty) {
-                                        steps[target].clone()
+                            if step.ty == actual_ty {
+                                actual_field.as_ref().clone()
+                            } else if let Type::Union(ref target_fields) = self.mir.types[step.ty] {
+                                if let Object::Field(field_ty, ref actual_field) =
+                                    *actual_field.as_ref()
+                                {
+                                    if target_fields.get(field_ty) {
+                                        actual_field.as_ref().clone()
                                     } else {
                                         return Err(InterpretError::InvalidUnionAccess(
                                             id,
@@ -108,6 +99,8 @@ impl<'a> BoulderMirInterpreter<'a> {
                                             steps[target].clone(),
                                         ));
                                     }
+                                } else if target_fields.get(actual_ty) {
+                                    steps[target].clone()
                                 } else {
                                     return Err(InterpretError::InvalidUnionAccess(
                                         id,
@@ -117,7 +110,12 @@ impl<'a> BoulderMirInterpreter<'a> {
                                     ));
                                 }
                             } else {
-                                actual_field.as_ref().clone()
+                                return Err(InterpretError::InvalidUnionAccess(
+                                    id,
+                                    curr_block,
+                                    step_id,
+                                    steps[target].clone(),
+                                ));
                             }
                         } else {
                             return Err(InterpretError::InvalidOperation(id, curr_block, step_id));
@@ -245,7 +243,11 @@ impl<'a> BoulderMirInterpreter<'a> {
                         }
                     }
 
-                    panic!("unexpected_match: {}:{:?}:{:?}", id, curr_block, expr);
+                    return Err(InterpretError::UnresolvedMatch(
+                        id,
+                        curr_block,
+                        steps[expr].clone(),
+                    ));
                 }
                 Terminator::MatchByte(expr, ref arms) => {
                     if let Object::U8(v) = steps[expr] {

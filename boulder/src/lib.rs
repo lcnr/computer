@@ -37,6 +37,8 @@ pub fn core<'a>(mir: &mut Mir<'a>, lang_items: LangItems) {
     mir.validate();
     mir.unify_blocks();
     mir.validate();
+    mir.const_propagate();
+    mir.validate();
     mir.remove_unused_steps();
     mir.validate();
     mir.remove_unused_functions(lang_items);

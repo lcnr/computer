@@ -66,7 +66,7 @@ impl<'a> Function<'a> {
                 let step = &mut block.steps[step_id];
                 match step.action {
                     Action::LoadConstant(ref mut obj) => {
-                        obj.enum_to_byte(step.ty, types, replacements)
+                        obj.enum_to_byte(step.ty, types, replacements);
                     }
                     Action::UnaryOperation(UnaryOperation::Invert, id) => {
                         if step.ty == BOOL_TYPE_ID {
@@ -142,7 +142,12 @@ impl Object {
                 assert_eq!(**obj, Object::Unit);
                 *self = Object::U8(replacements[v]);
             }
-            &mut Object::Field(field, ref mut obj) => obj.enum_to_byte(field, types, replacements),
+            &mut Object::Field(ref mut field, ref mut obj) => {
+                if let Type::Sum(_) | Type::Unit = types[*field] {
+                    *field = U8_TYPE_ID;
+                }
+                obj.enum_to_byte(*field, types, replacements)
+            }
         }
     }
 }

@@ -1,0 +1,11 @@
+fn inner(a: u8 | u16 | u32) -> Bool {
+    match a {
+        _: u8 | u16 -> True,
+        _: u32 -> False,
+    }
+}
+
+@test
+fn test() -> Bool {
+    inner(7: u8)
+}

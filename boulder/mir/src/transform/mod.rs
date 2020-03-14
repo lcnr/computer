@@ -10,9 +10,10 @@ use shared_id::{BlockId, FunctionId, StepId, TypeId};
 
 use crate::{
     traits::{UpdateFunctionIds, UpdateStepIds},
-    Action, Block, Function, MatchArm, Mir, Step, Terminator, Type,
+    Action, Block, Function, MatchArm, Mir, Object, Step, Terminator, Type,
 };
 
+mod const_prop;
 mod enums;
 mod optimize;
 mod sum_types;
@@ -151,6 +152,16 @@ impl<'a> Function<'a> {
 }
 
 impl Block {
+    /// Returns the step result of step `s` if it is a constant,
+    /// `None` otherwise.
+    pub fn try_const(&self, id: StepId) -> Option<Object> {
+        if let Action::LoadConstant(ref obj) = self.steps[id].action {
+            Some(obj.clone())
+        } else {
+            None
+        }
+    }
+
     /// Removes a step from this block, this leads to unspecified behavior if the step is still referenced.
     ///
     /// Consider `replace_step` if the step is still needed in some action.

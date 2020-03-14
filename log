@@ -22,6 +22,7 @@ boulder/tests/compile_run/type/type_ascription.bo: 617
 boulder/tests/compile_run/type/sum/simple_to_complex.bo: 38
 boulder/tests/compile_run/type/sum/size_difference.bo: 105
 boulder/tests/compile_run/type/sum/extend_field.bo: 38
+boulder/tests/compile_run/type/sum/to_bytes.bo: 38
 boulder/tests/compile_run/type/sum/field.bo: 40
 boulder/tests/compile_run/type/sum/extend_ret.bo: 40
 boulder/tests/compile_run/type/sum/ret.bo: 40
