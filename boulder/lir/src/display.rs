@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter, Result};
 
 use shared_id::{FunctionId, LocationId};
 
-use crate::{Action, Arg, Binop, Lir, MatchArm, Terminator};
+use crate::{Action, Arg, Binop, Function, Lir, MatchArm, Terminator};
 
 impl Display for Binop {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
@@ -101,38 +101,59 @@ fn write_maybe_list<'a, T: Display + 'a, I: IntoIterator<Item = &'a Option<T>> +
     Ok(())
 }
 
+pub struct FunctionDisplay<'a, 'b> {
+    inner: &'a Function<'b>,
+    id: FunctionId,
+}
+
+impl<'a, 'b> Display for FunctionDisplay<'a, 'b> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        let func = self.inner;
+
+        if func.ctx.test {
+            writeln!(f, "@test")?;
+        }
+        if func.ctx.export {
+            writeln!(f, "@export")?;
+        }
+        writeln!(
+            f,
+            "fn {}[{}] -> {}:",
+            func.name, self.id, func.return_length
+        )?;
+
+        if func.ctx.hidden {
+            writeln!(f, "    [HIDDEN]",)?;
+            return Ok(());
+        }
+
+        for (i, block) in func.blocks.iter().enumerate() {
+            write!(f, "  block ~{}[memory: {}](", i, block.memory_len)?;
+            write_list(f, &block.inputs)?;
+            writeln!(f, ")")?;
+
+            for (i, step) in block.steps.iter().enumerate() {
+                writeln!(f, "    ${} := {}", i, step)?;
+            }
+
+            writeln!(f, "    {}", block.terminator)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl<'a> Function<'a> {
+    pub fn display<'b>(&'b self, id: FunctionId) -> FunctionDisplay<'b, 'a> {
+        FunctionDisplay { inner: self, id }
+    }
+}
+
 impl<'a> Display for Lir<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         for (i, func) in self.functions.iter().enumerate() {
-            let func_id: FunctionId = i.into();
-            if func.ctx.test {
-                writeln!(f, "@test")?;
-            }
-            if func.ctx.export {
-                writeln!(f, "@export")?;
-            }
-            writeln!(
-                f,
-                "fn {}[{}] -> {}:",
-                func.name, func_id, func.return_length
-            )?;
-
-            if func.ctx.hidden {
-                writeln!(f, "    [HIDDEN]",)?;
-                continue;
-            }
-
-            for (i, block) in func.blocks.iter().enumerate() {
-                write!(f, "  block ~{}[memory: {}](", i, block.memory_len)?;
-                write_list(f, &block.inputs)?;
-                writeln!(f, ")")?;
-
-                for (i, step) in block.steps.iter().enumerate() {
-                    writeln!(f, "    ${} := {}", i, step)?;
-                }
-
-                writeln!(f, "    {}", block.terminator)?;
-            }
+            let id: FunctionId = i.into();
+            writeln!(f, "{}", func.display(id))?;
         }
 
         Ok(())

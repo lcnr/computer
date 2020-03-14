@@ -117,6 +117,18 @@ impl<'a> Lir<'a> {
             inputs: &TSlice<InputId, LocationId>,
             mut term: Terminator,
         ) -> Terminator {
+            if let Terminator::Match(ref mut expr, ref mut arms) = term {
+                let pos = inputs.iter().position(|&l| l == *expr).unwrap();
+                match args[InputId(pos)] {
+                    None => panic!("undefined behavior"),
+                    Some(Arg::Byte(v)) => {
+                        let arm = arms.iter().find(|arm| arm.pat == v).expect("match undef");
+                        term = Terminator::Goto(arm.target, arm.args.clone());
+                    }
+                    Some(Arg::Location(id)) => *expr = id,
+                }
+            }
+
             term.update(|v: Option<Arg>| {
                 if let Some(Arg::Location(id)) = v {
                     let iter = args.iter().zip(inputs.iter());
@@ -149,7 +161,6 @@ impl<'a> Lir<'a> {
                         if to_merge.get(target) {
                             let target_block = &func.blocks[target];
                             let term = target_block.terminator.clone();
-
                             func.blocks[b].terminator = merge(args, &target_block.inputs, term);
                         }
                     }
@@ -297,12 +308,14 @@ impl Block {
                 } => {
                     arg_update(&mut last_writes, args);
 
-                    for i in 0..ret.len() {
-                        if let Some(v) = ret[i] {
-                            // TODO: FunctionCall should ret should be an Option
-                            if let Some(last) = last_writes[v].replace(W::Return(step_id, i)) {
-                                add_to_remove(last);
-                            }
+                    for (i, v) in ret
+                        .iter()
+                        .enumerate()
+                        .filter_map(|(i, r)| r.map(|r| (i, r)))
+                    {
+                        // TODO: FunctionCall should ret should be an Option
+                        if let Some(last) = last_writes[v].replace(W::Return(step_id, i)) {
+                            add_to_remove(last);
                         }
                     }
                 }

@@ -6,21 +6,15 @@ use tindex::{tvec, TBitSet, TVec};
 
 use shared_id::{BlockId, FunctionId, InputId, LocationId, StepId};
 
-macro_rules! f {
-    ($lir:expr, $f:expr) => {
-        $lir.functions[$f]
+macro_rules! l {
+    ($lir:expr, $f:expr, $b:expr, $s:expr) => {
+        $lir.functions[$f].blocks[$b].steps[$s]
     };
-}
-
-macro_rules! b {
     ($lir:expr, $f:expr, $b:expr) => {
         $lir.functions[$f].blocks[$b]
     };
-}
-
-macro_rules! s {
-    ($lir:expr, $f:expr, $b:expr, $s:expr) => {
-        $lir.functions[$f].blocks[$b].steps[$s]
+    ($lir:expr, $f:expr) => {
+        $lir.functions[$f]
     };
 }
 
@@ -162,6 +156,10 @@ impl<'a> Function<'a> {
         self.blocks[BlockId(0)].inputs.len()
     }
 
+    /// Checks whether this function depends on the function `f`.
+    ///
+    /// In case `f` is `FunctionId::invalid()`, `visited` contains all
+    /// required functions.
     pub fn requires(
         &self,
         lir: &Lir<'a>,
@@ -169,7 +167,7 @@ impl<'a> Function<'a> {
         f: FunctionId,
     ) -> bool {
         for step in self.blocks.iter().flat_map(|b| b.steps.iter()) {
-            if let &Action::FunctionCall { id, .. } = step {
+            if let Action::FunctionCall { id, .. } = *step {
                 if id == f {
                     return true;
                 } else if !visited.get(id) {
@@ -222,6 +220,12 @@ impl Block {
                 }
             });
         }
+
+        self.terminator.reads(|id| {
+            if let Location::Unknown = l[id] {
+                l[id] = Location::Needed
+            }
+        });
 
         l.index_iter()
             .filter(|&i| l[i] == Location::Needed)

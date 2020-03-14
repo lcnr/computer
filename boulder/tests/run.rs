@@ -30,6 +30,9 @@ use boulder::{LIR_OPTIMIZATIONS, MIR_OPTIMIZATIONS};
 
 use remu::Remu;
 
+const MAX_LIR_STEPS: usize = 5_000_000;
+const MAX_ASM_STEPS: usize = 15_000_000;
+
 struct OutputShim {
     inner: Arc<Mutex<String>>,
 }
@@ -103,7 +106,8 @@ fn test_lir(lir: &Lir, stage: &str) {
         .filter(|(_, func)| func.ctx.test)
     {
         check_count += 1;
-        match bli.execute_function(FunctionId::from(id), &[], 100) {
+        bli.reset_step_count();
+        match bli.execute_function(FunctionId::from(id), &[], 100, MAX_LIR_STEPS) {
             Ok(v) => {
                 if v.as_slice() != &[Memory::Byte(lir.ctx.true_replacement)] as &[_] {
                     panic!(
@@ -196,11 +200,10 @@ fn main() -> Result<(), TestFailure> {
                 let data = rock::compile(&asm, &mut rock::DebugLogger).unwrap();
 
                 let mut remu = Remu::new();
-
                 remu.memory_mut()[0..data.len()].copy_from_slice(&data);
 
                 if lir.functions.iter().any(|f| f.ctx.test) {
-                    match remu.run(20_000_000) {
+                    match remu.run(MAX_ASM_STEPS) {
                         Ok(steps) => println!("boulder/{}: {}", entry.path().display(), steps),
                         Err(e) => panic!("{:?}", e),
                     }

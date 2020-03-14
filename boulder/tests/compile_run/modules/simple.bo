@@ -5,6 +5,6 @@ mod inner {
     }
 }
 
-fn outer(a: u32) -> u32 {
+fn outer(a: u16) -> u16 {
     a + 2
 }

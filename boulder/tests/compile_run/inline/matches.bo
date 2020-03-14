@@ -1,0 +1,10 @@
+
+@test
+fn inner() -> Bool {
+    let a: u16 = outer(40);
+    a == 42
+}
+
+fn outer(a: u16) -> u16 {
+    a + 2
+}

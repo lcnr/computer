@@ -1,0 +1,8 @@
+fn inner() -> Bool {
+    True
+}
+
+@test
+fn test() -> Bool {
+    inner()
+}

@@ -67,6 +67,14 @@ macro_rules! add {
                     $n(self.0 + other)
                 }
             }
+
+            impl Add<$n> for $n {
+                type Output = Self;
+
+                fn add(self, other: $n) -> Self {
+                    $n(self.0 + other.0)
+                }
+            }
         )+
     }
 }
@@ -81,6 +89,14 @@ macro_rules! sub {
                     $n(self.0 - other)
                 }
             }
+
+            impl Sub<$n> for $n {
+                type Output = Self;
+
+                fn sub(self, other: $n) -> Self {
+                    $n(self.0 - other.0)
+                }
+            }
         )+
     }
 }
@@ -89,7 +105,7 @@ t!(TypeId: '%', FunctionId: '#', FieldId, BlockId: '~', StepId: '$', InputId, Lo
 
 invalid!(BlockId, FunctionId, StepId);
 
-add!(InputId, FunctionId, StepId, LocationId, TagId);
+add!(BlockId, InputId, FunctionId, LocationId, StepId, TagId);
 
 sub!(BlockId, FunctionId);
 impl StepId {

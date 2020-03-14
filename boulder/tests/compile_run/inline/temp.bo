@@ -1,0 +1,13 @@
+fn interrupt() -> Bool {
+    True
+}
+
+fn inner(a: Bool) -> Bool {
+    let b: Bool = interrupt();
+    a & b
+}
+
+@test
+fn outer() -> Bool {
+    inner(True)
+}

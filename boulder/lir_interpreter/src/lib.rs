@@ -15,6 +15,7 @@ pub enum Error {
     /// integer over/underflow etc
     Arithmetic,
     StackOverflow,
+    MaxSteps,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -69,6 +70,7 @@ impl<'a> BoulderLirInterpreter<'a> {
         id: FunctionId,
         args: &[Memory],
         stack_depth: u32,
+        max_steps: usize,
     ) -> Result<Vec<Memory>, Error> {
         if stack_depth == 0 {
             return Err(Error::StackOverflow);
@@ -103,6 +105,9 @@ impl<'a> BoulderLirInterpreter<'a> {
                 profile_scope!("execute_step");
 
                 self.step_count += 1;
+                if self.step_count >= max_steps {
+                    return Err(Error::MaxSteps);
+                }
 
                 match *step {
                     Action::Invert(i, o) => memory[o] = Memory::Byte(!memory[i].valid()?),
@@ -133,7 +138,8 @@ impl<'a> BoulderLirInterpreter<'a> {
                             })
                             .collect();
                         let func = self.function;
-                        let values = self.execute_function(id, &args, stack_depth - 1)?;
+                        let values =
+                            self.execute_function(id, &args, stack_depth - 1, max_steps)?;
                         self.function = func;
                         self.block = block_id;
                         self.step = step_id;
@@ -144,6 +150,11 @@ impl<'a> BoulderLirInterpreter<'a> {
                         }
                     }
                 }
+            }
+
+            self.step_count += 1;
+            if self.step_count >= max_steps {
+                return Err(Error::MaxSteps);
             }
 
             let arg2mem = |&id| match id {

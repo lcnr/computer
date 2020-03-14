@@ -24,39 +24,34 @@ impl<'a> Lir<'a> {
         }
     }
 
-    fn propagate_block<'b>(&mut self, f: FunctionId, b: BlockId, inputs: &TSlice<InputId, Memory>) {
-        macro_rules! b {
-            () => {
-                self.functions[f].blocks[b]
-            };
-        }
-
+    fn propagate_block(&mut self, f: FunctionId, b: BlockId, inputs: &TSlice<InputId, Memory>) {
         let mut memory: TVec<LocationId, Memory> = iter::repeat(Memory::Undefined)
-            .take(b!().memory_len)
+            .take(l!(self, f, b).memory_len)
             .collect();
-        for (&target, &value) in b!().inputs.iter().zip(inputs.iter()) {
+        for (&target, &value) in l!(self, f, b).inputs.iter().zip(inputs.iter()) {
             memory[target] = value;
         }
 
-        let steps = b!()
+        let steps = l!(self, f, b)
             .steps
             .iter()
             .filter_map(|s| s.const_propagate(&self, &mut memory))
             .collect();
 
-        b!().steps = steps;
+        l!(self, f, b).steps = steps;
 
-        match b!().terminator {
+        match l!(self, f, b).terminator {
             Terminator::Goto(_, ref mut args) => {
-                propagate_args(&mut memory, args);
+                propagate_args(&memory, args);
             }
             Terminator::Match(expr, ref mut arms) => match memory[expr] {
-                Memory::Undefined => panic!("match on undefined: {:?}", self),
+                Memory::Undefined => panic!("match on undefined: \n{}", self),
                 Memory::Byte(v) => {
                     for arm in arms.iter_mut() {
                         if arm.pat == v {
-                            propagate_args(&mut memory, &mut arm.args);
-                            b!().terminator = Terminator::Goto(arm.target, arm.args.clone());
+                            propagate_args(&memory, &mut arm.args);
+                            l!(self, f, b).terminator =
+                                Terminator::Goto(arm.target, arm.args.clone());
                             return;
                         }
                     }
@@ -66,7 +61,7 @@ impl<'a> Lir<'a> {
                 Memory::Unknown => {
                     for arm in arms.iter_mut() {
                         memory[expr] = Memory::Byte(arm.pat);
-                        propagate_args(&mut memory, &mut arm.args);
+                        propagate_args(&memory, &mut arm.args);
                     }
                 }
             },
