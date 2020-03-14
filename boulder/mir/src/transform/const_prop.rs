@@ -7,7 +7,10 @@ impl<'a> Mir<'a> {
                 for s in block.steps.index_iter() {
                     let step = &block.steps[s];
                     match block.steps[s].action {
-                        Action::LoadInput(_) | Action::LoadConstant(_) => {}
+                        // TODO: consider computing functions in const propagate
+                        Action::LoadInput(_)
+                        | Action::LoadConstant(_)
+                        | Action::CallFunction(_, _) => {}
                         Action::Extend(id) => {
                             if let Some(obj) = block.try_const(id) {
                                 if matches!(obj, Object::Variant(_, _)) {
@@ -43,11 +46,20 @@ impl<'a> Mir<'a> {
                                     Action::LoadConstant(Object::Struct(fields));
                             }
                         }
+                        Action::InitializeUnion(id) => {
+                            if let Some(obj) = block.try_const(id) {
+                                block.steps[s].action = Action::LoadConstant(Object::Field(
+                                    block.steps[id].ty,
+                                    Box::new(obj),
+                                ));
+                            }
+                        }
+                        Action::StructFieldAccess(id, field) => {
+                            if let Some(Object::Struct(mut fields)) = block.try_const(id) {
+                                block.steps[s].action = Action::LoadConstant(fields.remove(field));
+                            }
+                        }
                         _ => {} /*
-                                    InitializeStruct(TVec<FieldId, shared_id::StepId>),
-                                    InitializeUnion(shared_id::StepId),
-                                    CallFunction(FunctionId, Vec<shared_id::StepId>),
-                                    StructFieldAccess(shared_id::StepId, FieldId),
                                     UnionFieldAccess(shared_id::StepId),
                                     UnaryOperation(UnaryOperation, shared_id::StepId),
                                     Binop(Binop, shared_id::StepId, shared_id::StepId),

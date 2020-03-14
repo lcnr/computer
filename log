@@ -54,7 +54,7 @@ boulder/tests/compile_run/intrinsics/u16_to_bytes_simple.bo: 38
 boulder/tests/compile_run/intrinsics/u32_to_bytes.bo: 49
 boulder/tests/compile_run/intrinsics/u16_to_bytes.bo: 38
 boulder/tests/compile_run/binop/logical.bo: 44
-boulder/tests/compile_run/binop/rem.bo: 176130
+boulder/tests/compile_run/binop/rem.bo: 176129
 boulder/tests/compile_run/binop/bitand.bo: 738
 boulder/tests/compile_run/binop/gt.bo: 551
 boulder/tests/compile_run/binop/mul.bo: 59765
