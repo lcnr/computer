@@ -83,8 +83,8 @@ fn test_mir(mir: &Mir, stage: &str) {
                 }
             }
             Err(err) => panic!(
-                "interpreter during unit test `{}` at stage `mir::{}`: {:?}",
-                test.name, stage, err
+                "interpreter during unit test `{}` at stage `mir::{}`: {:?}\n{}",
+                test.name, stage, err, mir
             ),
         }
     }
@@ -209,7 +209,7 @@ fn main() -> Result<(), TestFailure> {
                     }
                 }
             })) {
-                Ok(()) => (),
+                Ok(()) => {}
                 Err(_) => {
                     eprintln!("[boulder/{}]: panic during testing", entry.path().display());
                     continue;

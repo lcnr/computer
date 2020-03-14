@@ -385,7 +385,7 @@ impl<'a> Function<'a> {
 impl Object {
     pub fn reduce_to_bytes(&mut self) {
         match self {
-            &mut Object::Unit | &mut Object::U8(_) | &mut Object::Undefined => (),
+            &mut Object::Unit | &mut Object::U8(_) | &mut Object::Undefined => {}
             &mut Object::U16(val) => {
                 *self = Object::Struct(val.to_le_bytes().iter().copied().map(Object::U8).collect())
             }

@@ -14,7 +14,7 @@ where
             | Action::LoadConstant(_, o) => {
                 f(*o);
             }
-            Action::Debug(_) => (),
+            Action::Debug(_) => {}
             Action::FunctionCall { ret, .. } => {
                 for v in ret.iter().filter_map(Option::as_ref) {
                     f(*v);
@@ -36,7 +36,7 @@ where
             | Action::LoadConstant(_, o) => {
                 *o = f(*o);
             }
-            Action::Debug(_) => (),
+            Action::Debug(_) => {}
             Action::FunctionCall { ret, .. } => {
                 for v in ret.iter_mut().filter_map(Option::as_mut) {
                     *v = f(*v);

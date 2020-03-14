@@ -51,7 +51,7 @@ impl<'a> Lir<'a> {
                             let mut actions = Vec::new();
                             for (&arg, &input) in args.iter().zip(other.inputs.iter()) {
                                 match arg {
-                                    None => (),
+                                    None => {}
                                     Some(Arg::Byte(v)) => {
                                         actions.push(Action::LoadConstant(v, input + memory_offset))
                                     }
@@ -69,7 +69,7 @@ impl<'a> Lir<'a> {
                             if let Terminator::Goto(None, ref args) = other.terminator {
                                 for (&ret, &arg) in ret.iter().zip(args.iter()) {
                                     match (ret, arg) {
-                                        (None, _) | (_, None) => (),
+                                        (None, _) | (_, None) => {}
                                         (Some(ret), Some(Arg::Byte(v))) => {
                                             actions.push(Action::LoadConstant(v, ret))
                                         }

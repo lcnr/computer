@@ -7,6 +7,7 @@ edition = "2018"
 [dependencies]
 global_ctx = { path = "global_ctx" }
 diagnostics = { path = "diagnostics" }
+shared_id = { path = "shared_id" }
 parse = { path = "parse"}
 mir = { path = "mir" }
 mir_interpreter = { path = "mir_interpreter" }
@@ -34,7 +35,7 @@ profiler = [
 ]
 
 [dev-dependencies]
-shared_id = { path = "shared_id"}
+
 walkdir = "2.3.1"
 
 [[bin]]

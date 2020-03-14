@@ -56,7 +56,7 @@ where
     fn update(&mut self, mut f: F) {
         match self {
             Terminator::Goto(Some(target), _) => *target = f(*target),
-            Terminator::Goto(_, _) => (),
+            Terminator::Goto(_, _) => {}
             Terminator::Match(_, ref mut arms) => {
                 for arm in arms.iter_mut() {
                     if let Some(ref mut target) = arm.target {

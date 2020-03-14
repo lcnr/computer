@@ -215,7 +215,7 @@ impl<'a> ContextBuilder<'a> {
                     }
                     FunctionAttribute::Hidden
                     | FunctionAttribute::Test
-                    | FunctionAttribute::Export => (),
+                    | FunctionAttribute::Export => {}
                     ref attr @ FunctionAttribute::Str(_) => unreachable!("{:?}", attr),
                 }
             }

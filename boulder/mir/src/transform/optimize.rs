@@ -141,7 +141,7 @@ impl<'a> Mir<'a> {
             let mut allowed = TBitSet::new();
             for block in func.blocks.iter() {
                 match block.terminator {
-                    Terminator::Goto(None, _) => (),
+                    Terminator::Goto(None, _) => {}
                     Terminator::Goto(Some(block), _) => {
                         allowed.set(block, !used.get(block));
                         used.add(block);
@@ -297,7 +297,7 @@ impl<'a> Mir<'a> {
                                     })
                                     .collect();
                             }
-                            &Terminator::Match(_, _) | &Terminator::MatchByte(_, _) => (),
+                            &Terminator::Match(_, _) | &Terminator::MatchByte(_, _) => {}
                         }
                     }
                 }
@@ -347,7 +347,7 @@ impl<'a> Mir<'a> {
                             changed |= match_reduce(func, &mut arms, &redirects);
                             func[i].terminator = Terminator::MatchByte(step, arms);
                         }
-                        Terminator::Goto(None, _) => (),
+                        Terminator::Goto(None, _) => {}
                     }
                 }
             }
@@ -362,7 +362,7 @@ impl Terminator {
         F: FnMut(&mut BlockId),
     {
         match self {
-            Terminator::Goto(None, _) => (),
+            Terminator::Goto(None, _) => {}
             Terminator::Goto(Some(id), _) => f(id),
             Terminator::Match(_, arms) => {
                 arms.iter_mut()

@@ -136,7 +136,7 @@ impl Terminator {
 
     pub fn used_blocks(&self, used: &mut TBitSet<shared_id::BlockId>) {
         match self {
-            Terminator::Goto(None, _) => (),
+            Terminator::Goto(None, _) => {}
             &Terminator::Goto(Some(block), _) => used.add(block),
             &Terminator::Match(_, ref arms) => {
                 arms.iter()
@@ -233,7 +233,7 @@ impl Step {
                 used.add(a);
                 used.add(b);
             }
-            &Action::LoadInput(_) | &Action::LoadConstant(_) => (),
+            &Action::LoadInput(_) | &Action::LoadConstant(_) => {}
         }
     }
 }

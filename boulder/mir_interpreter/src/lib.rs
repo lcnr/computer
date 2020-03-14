@@ -13,6 +13,7 @@ mod binop;
 #[derive(Debug, Clone)]
 pub enum InterpretError {
     InvalidOperation(FunctionId, BlockId, StepId),
+    InvalidFieldAccess(FunctionId, BlockId, StepId, Object),
     InvalidUnaryOperationArguments(FunctionId, BlockId, StepId, Object),
     InvalidBinopArguments(FunctionId, BlockId, StepId, Object, Object),
     InvalidUnionAccess(FunctionId, BlockId, StepId, Object),
@@ -73,17 +74,25 @@ impl<'a> BoulderMirInterpreter<'a> {
                             if let Some(field) = fields.get(field) {
                                 field.clone()
                             } else {
-                                return Err(InterpretError::InvalidOperation(
-                                    id, curr_block, step_id,
+                                return Err(InterpretError::InvalidFieldAccess(
+                                    id,
+                                    curr_block,
+                                    step_id,
+                                    steps[step].clone(),
                                 ));
                             }
                         } else {
-                            return Err(InterpretError::InvalidOperation(id, curr_block, step_id));
+                            return Err(InterpretError::InvalidFieldAccess(
+                                id,
+                                curr_block,
+                                step_id,
+                                steps[step].clone(),
+                            ));
                         }
                     }
                     Action::UnionFieldAccess(target) => {
                         if let Object::Field(actual_ty, ref actual_field) = steps[target] {
-                            if step.ty == actual_ty {
+                            if actual_field.as_ref() == &Object::Undefined || step.ty == actual_ty {
                                 actual_field.as_ref().clone()
                             } else if let Type::Union(ref target_fields) = self.mir.types[step.ty] {
                                 if let Object::Field(field_ty, ref actual_field) =

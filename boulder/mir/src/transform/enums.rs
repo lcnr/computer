@@ -49,7 +49,7 @@ impl<'a> Mir<'a> {
         for ty in self.types.iter_mut() {
             ty.update_type_ids(&mut |id| match types[*id] {
                 Type::Sum(_) | Type::Unit => *id = U8_TYPE_ID,
-                _ => (),
+                _ => {}
             });
         }
     }
@@ -84,7 +84,7 @@ impl<'a> Function<'a> {
                     Action::Extend(id) | Action::Reduce(id) => {
                         block.replace_step_with_existing(step_id, id)
                     }
-                    _ => (),
+                    _ => {}
                 }
             }
 
@@ -117,7 +117,7 @@ impl<'a> Function<'a> {
 
         self.update_type_ids(&mut |id| match types[*id] {
             Type::Sum(_) | Type::Unit => *id = U8_TYPE_ID,
-            _ => (),
+            _ => {}
         });
     }
 }
@@ -133,7 +133,7 @@ impl Object {
             Object::Unit => {
                 *self = Object::U8(replacements[ty]);
             }
-            Object::U8(_) | Object::Undefined | Object::U16(_) | Object::U32(_) => (),
+            Object::U8(_) | Object::Undefined | Object::U16(_) | Object::U32(_) => {}
             Object::Struct(content) => content
                 .iter_mut()
                 .zip(types[ty].expect_struct().iter())

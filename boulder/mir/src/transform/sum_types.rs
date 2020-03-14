@@ -2,7 +2,7 @@ use std::{iter, mem};
 
 use tindex::{TSlice, TVec};
 
-use shared_id::{BlockId, FieldId, StepId, TypeId};
+use shared_id::{FieldId, StepId, TypeId};
 
 use crate::{traits::UpdateStepIds, Action, Function, Mir, Object, Step, Terminator, Type};
 
@@ -47,7 +47,7 @@ impl<'a> Mir<'a> {
 
         for ty in self.types.iter_mut() {
             match ty {
-                Type::Uninhabited | Type::Unit | Type::U8 | Type::U16 | Type::U32 => (),
+                Type::Uninhabited | Type::Unit | Type::U8 | Type::U16 | Type::U32 => {}
                 &mut Type::Struct(ref mut fields) => {
                     for field in fields.iter_mut() {
                         *field = replacements[*field].unwrap_or(*field);
@@ -81,8 +81,7 @@ impl<'a> Function<'a> {
         profile_scope!("Function::reduce_sum_types");
         self.ret = replacements[self.ret].unwrap_or(self.ret);
 
-        let mut block_id = BlockId::from(0);
-        while block_id.0 < self.blocks.len() {
+        for block_id in self.blocks.index_iter() {
             let block = &mut self.blocks[block_id];
             let terminator = mem::replace(&mut block.terminator, Terminator::invalid());
             if let Terminator::Match(mut step, mut arms) = terminator {
@@ -106,9 +105,8 @@ impl<'a> Function<'a> {
                         let old_ty = arm.pat;
                         if let Type::Sum(_) = types[arm.pat] {
                             if let Some(arm_replacement_ty) = replacements[arm.pat] {
-                                let &arm_sum_ty = types[arm_replacement_ty]
-                                    .expect_struct()
-                                    .first().unwrap();
+                                let &arm_sum_ty =
+                                    types[arm_replacement_ty].expect_struct().first().unwrap();
                                 arm.pat = arm_sum_ty;
 
                                 let mut self_steps = Vec::new();
@@ -140,10 +138,8 @@ impl<'a> Function<'a> {
                                             .copied()
                                             .unwrap();
 
-                                        let reduced_sum = self.blocks[block].add_step(
-                                            arm_sum_ty,
-                                            Action::Reduce(block_sum_input),
-                                        );
+                                        let reduced_sum = self.blocks[block]
+                                            .add_step(arm_sum_ty, Action::Reduce(block_sum_input));
 
                                         let union_union_ty = super::get_or_insert_union(
                                             types,
@@ -253,15 +249,14 @@ impl<'a> Function<'a> {
                 }
             }
 
-            let mut step_id = StepId(0);
-            while step_id.0 < self.blocks[block_id].steps.len() {
-                if let Some(ty) = replacements[self.blocks[block_id][step_id].ty] {
+            for step_id in self.blocks[block_id].steps.index_iter().rev() {
+                let step_ty = self.blocks[block_id].steps[step_id].ty;
+                if let Some(ty) = replacements[step_ty] {
                     match self.blocks[block_id][step_id].action {
                         Action::LoadInput(_)
                         | Action::CallFunction(_, _)
                         | Action::StructFieldAccess(_, _) => {
                             self.blocks[block_id][step_id].ty = ty;
-                            step_id.0 += 1;
                         }
                         Action::Extend(target) => {
                             let new_steps = build_extend_steps(
@@ -272,37 +267,31 @@ impl<'a> Function<'a> {
                                 ty,
                             );
 
-                            step_id = self.blocks[block_id].insert_steps(
+                            self.blocks[block_id].insert_steps(
                                 step_id..=step_id,
                                 new_steps,
                                 iter::once(target),
                             );
                         }
-                        Action::LoadConstant(Object::Variant(target_ty, ref obj)) => {
-                            let new_steps = build_load_constant_steps(
+                        Action::LoadConstant(ref mut obj) => {
+                            obj.reduce_sum_types(
                                 types,
                                 replacements,
                                 tags,
-                                target_ty,
-                                ty,
-                                obj.as_ref().clone(),
+                                replacements[step_ty].unwrap_or(step_ty),
                             );
-
-                            step_id = self.blocks[block_id].insert_steps(
-                                step_id..=step_id,
-                                new_steps,
-                                iter::empty(),
-                            );
+                            self.blocks[block_id][step_id].ty = ty;
                         }
                         ref action => {
                             unreachable!("what else can be done with sum types: {:?}", action)
                         }
                     }
-                } else {
-                    step_id.0 += 1;
+                } else if let Action::LoadConstant(ref mut obj) =
+                    self.blocks[block_id][step_id].action
+                {
+                    obj.reduce_sum_types(types, replacements, tags, step_ty);
                 }
             }
-            block_id.0 += 1;
         }
     }
 }
@@ -314,29 +303,14 @@ fn build_extend_steps(
     target_ty: TypeId,
     ty: TypeId,
 ) -> TVec<StepId, Step> {
-    if let Type::Sum(_) = types[target_ty] {
+    if let Some(target_ty) = replacements[target_ty] {
         let mut new_steps = TVec::new();
+        let (&union_ty, &sum_ty) = types[ty]
+            .expect_struct()
+            .split_last()
+            .map(|(last, rest)| (last, rest.first().unwrap()))
+            .unwrap();
 
-        let (&union_ty, &sum_ty) = types[ty]
-            .expect_struct()
-            .split_last()
-            .map(|(last, rest)| (last, rest.first().unwrap()))
-            .unwrap();
-        let union_step =
-            new_steps.push(Step::new(union_ty, Action::LoadConstant(Object::Undefined)));
-        let sum_step = new_steps.push(Step::new(sum_ty, Action::Extend(StepId::replacement(0))));
-        new_steps.push(Step::new(
-            ty,
-            Action::InitializeStruct(tvec![sum_step, union_step]),
-        ));
-        new_steps
-    } else if replacements.contains(&Some(target_ty)) {
-        let mut new_steps = TVec::new();
-        let (&union_ty, &sum_ty) = types[ty]
-            .expect_struct()
-            .split_last()
-            .map(|(last, rest)| (last, rest.first().unwrap()))
-            .unwrap();
         let (&target_union_ty, &target_sum_ty) = types[target_ty]
             .expect_struct()
             .split_last()
@@ -370,6 +344,22 @@ fn build_extend_steps(
             Action::InitializeStruct(tvec![extended_sum, extended_union]),
         ));
         new_steps
+    } else if let Type::Sum(_) = types[target_ty] {
+        let mut new_steps = TVec::new();
+
+        let (&union_ty, &sum_ty) = types[ty]
+            .expect_struct()
+            .split_last()
+            .map(|(last, rest)| (last, rest.first().unwrap()))
+            .unwrap();
+        let union_step =
+            new_steps.push(Step::new(union_ty, Action::LoadConstant(Object::Undefined)));
+        let sum_step = new_steps.push(Step::new(sum_ty, Action::Extend(StepId::replacement(0))));
+        new_steps.push(Step::new(
+            ty,
+            Action::InitializeStruct(tvec![sum_step, union_step]),
+        ));
+        new_steps
     } else {
         let (&union_ty, &sum_ty) = types[ty]
             .expect_struct()
@@ -392,33 +382,47 @@ fn build_extend_steps(
     }
 }
 
-fn build_load_constant_steps(
-    types: &mut TVec<TypeId, Type>,
-    replacements: &TSlice<TypeId, Option<TypeId>>,
-    tags: &TSlice<TypeId, TypeId>,
-    target_ty: TypeId,
-    ty: TypeId,
-    obj: Object,
-) -> TVec<StepId, Step> {
-    if let Type::Sum(_) = types[target_ty] {
-        assert_eq!(obj, Object::Unit);
+impl Object {
+    fn reduce_sum_types(
+        &mut self,
+        types: &mut TVec<TypeId, Type>,
+        replacements: &TSlice<TypeId, Option<TypeId>>,
+        tags: &TSlice<TypeId, TypeId>,
+        ty: TypeId,
+    ) {
+        match *self {
+            Object::U8(_) | Object::Undefined | Object::U16(_) | Object::U32(_) | Object::Unit => {}
+            Object::Field(ty, ref mut inner) => {
+                inner.reduce_sum_types(types, replacements, tags, ty)
+            }
+            Object::Struct(ref mut content) => {
+                let struct_data = types[ty].expect_struct().to_owned();
+                content
+                    .iter_mut()
+                    .zip(struct_data.iter())
+                    .for_each(|(obj, &ty)| obj.reduce_sum_types(types, replacements, tags, ty))
+            }
+            Object::Variant(v, ref obj) => {
+                if replacements.contains(&Some(ty)) {
+                    if let Type::Unit = &types[v] {
+                        assert_eq!(obj.as_ref(), &Object::Unit);
 
-        tvec![Step::new(
-            ty,
-            Action::LoadConstant(Object::Struct(tvec![
-                Object::Variant(target_ty, Box::new(obj)),
-                Object::Undefined
-            ]))
-        )]
-    } else if replacements.contains(&Some(target_ty)) {
-        unreachable!();
-    } else {
-        tvec![Step::new(
-            ty,
-            Action::LoadConstant(Object::Struct(tvec![
-                Object::Variant(tags[target_ty], Box::new(Object::Unit)),
-                Object::Field(target_ty, Box::new(obj)),
-            ]))
-        )]
+                        *self = Object::Struct(tvec![
+                            Object::Variant(v, obj.clone()),
+                            Object::Undefined
+                        ]);
+                    } else if replacements.contains(&Some(v)) {
+                        unreachable!();
+                    } else {
+                        *self = Object::Struct(tvec![
+                            Object::Variant(tags[v], Box::new(Object::Unit)),
+                            Object::Field(v, obj.clone()),
+                        ]);
+                    }
+                } else {
+                    assert_eq!(obj.as_ref(), &Object::Unit,);
+                }
+            }
+        }
     }
 }

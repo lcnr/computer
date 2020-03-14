@@ -628,7 +628,7 @@ fn convert_block(
 
                         let arg = args[i];
                         match arg {
-                            None => (),
+                            None => {}
                             Some(Arg::Byte(v)) => {
                                 commands.push(Command::Move(
                                     Readable::Byte(v),
@@ -893,7 +893,7 @@ fn terminator_memory<I>(
     let mut used = TBitSet::new();
     for (id, target) in args.index_iter().zip(targets) {
         match args[id] {
-            None => (),
+            None => {}
             Some(Arg::Location(v)) => {
                 used.add(target);
                 if v != target {

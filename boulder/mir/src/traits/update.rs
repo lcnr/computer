@@ -54,7 +54,7 @@ impl UpdateStepIds for Action {
                     f(arg);
                 }
             }
-            Action::LoadConstant(_) | Action::LoadInput(_) => (),
+            Action::LoadConstant(_) | Action::LoadInput(_) => {}
         }
     }
 }
@@ -218,7 +218,7 @@ impl UpdateTypeIds for Action {
             | Action::InitializeStruct(_)
             | Action::CallFunction(_, _)
             | Action::LoadConstant(_)
-            | Action::LoadInput(_) => (),
+            | Action::LoadInput(_) => {}
         }
     }
 }
@@ -226,7 +226,7 @@ impl UpdateTypeIds for Action {
 impl UpdateTypeIds for Terminator {
     fn update_type_ids(&mut self, f: &mut dyn FnMut(&mut TypeId)) {
         match self {
-            Terminator::Goto(_, _) | Terminator::MatchByte(_, _) => (),
+            Terminator::Goto(_, _) | Terminator::MatchByte(_, _) => {}
             Terminator::Match(_, arms) => {
                 for arm in arms.iter_mut() {
                     f(&mut arm.pat)
@@ -273,7 +273,7 @@ impl UpdateTypeIds for Type {
                     .collect();
             }
             Type::Struct(fields) => fields.iter_mut().for_each(f),
-            Type::U16 | Type::U32 | Type::U8 | Type::Uninhabited | Type::Unit => (),
+            Type::U16 | Type::U32 | Type::U8 | Type::Uninhabited | Type::Unit => {}
         }
     }
 }

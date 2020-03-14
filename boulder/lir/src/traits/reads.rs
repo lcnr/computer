@@ -36,7 +36,7 @@ where
                 f(*i);
             }
             Action::Debug(i) => f(*i),
-            Action::LoadConstant(_, _) => (),
+            Action::LoadConstant(_, _) => {}
             Action::Binop { l, r, .. } => {
                 if let Arg::Location(id) = l {
                     f(*id);
@@ -62,7 +62,7 @@ where
                 *i = f(*i);
             }
             Action::Debug(i) => *i = f(*i),
-            Action::LoadConstant(_, _) => (),
+            Action::LoadConstant(_, _) => {}
             Action::Binop { l, r, .. } => {
                 if let Arg::Location(id) = l {
                     *id = f(*id);

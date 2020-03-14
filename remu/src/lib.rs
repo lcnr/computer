@@ -129,7 +129,7 @@ impl Remu {
         self.pc[0] = self.pc[0].wrapping_add(1);
 
         match command {
-            0x00 => (),
+            0x00 => {}
             0x01..=0x07 => {
                 *self.write(command - 0x01) = self.reg.a.checked_add(self.reg.b).unwrap()
             }

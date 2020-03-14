@@ -87,10 +87,10 @@ impl<'a> Lir<'a> {
                 let target_inputs = &mut inputs[target];
                 for (target, &arg) in target_inputs.iter_mut().zip(args.iter()) {
                     match (*target, arg) {
-                        (_, None) | (Input::Multiple, _) => (),
+                        (_, None) | (Input::Multiple, _) => {}
                         (Input::None, Some(Arg::Location(_))) => *target = Input::Unique(None),
                         (Input::None, Some(Arg::Byte(v))) => *target = Input::Unique(Some(v)),
-                        (Input::Unique(Some(a)), Some(Arg::Byte(b))) if a == b => (),
+                        (Input::Unique(Some(a)), Some(Arg::Byte(b))) if a == b => {}
                         (Input::Unique(_), Some(_)) => *target = Input::Multiple,
                     }
                 }
@@ -99,7 +99,7 @@ impl<'a> Lir<'a> {
             for block in func.blocks.iter() {
                 match block.terminator {
                     Terminator::Goto(Some(target), ref args) => update_inputs(target, args),
-                    Terminator::Goto(_, _) => (),
+                    Terminator::Goto(_, _) => {}
                     Terminator::Match(_, ref arms) => {
                         for arm in arms.iter() {
                             if let Some(target) = arm.target {
@@ -123,7 +123,7 @@ impl<'a> Lir<'a> {
                             block.steps.insert(StepId(0), Action::LoadConstant(v, l));
                             func.remove_input(b, i);
                         }
-                        Input::Unique(None) | Input::Multiple => (),
+                        Input::Unique(None) | Input::Multiple => {}
                     }
                 }
             }
@@ -137,7 +137,7 @@ fn propagate_args(mem: &TSlice<LocationId, Memory>, args: &mut TSlice<InputId, O
             match mem[l] {
                 Memory::Byte(v) => *arg = Some(Arg::Byte(v)),
                 Memory::Undefined => *arg = None,
-                Memory::Unknown => (),
+                Memory::Unknown => {}
             }
         }
     }

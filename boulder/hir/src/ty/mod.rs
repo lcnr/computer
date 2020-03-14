@@ -186,7 +186,7 @@ pub fn check_recursive_ty(types: &TSlice<TypeId, Type<TypeId>>) -> Result<(), Co
     let mut result = Ok(());
     for (id, t) in types.iter().enumerate() {
         match t.kind {
-            Kind::Sum(_) => (),
+            Kind::Sum(_) => {}
             _ => {
                 if t.contains(id.into(), types, &mut TBitSet::new()) {
                     result = CompileError::new(

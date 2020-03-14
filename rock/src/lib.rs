@@ -251,7 +251,7 @@ fn parse<'a, L: Logger>(src: &'a str, l: &mut L) -> Result<Vec<Block<'a>>, CodeG
                 current_block.push(command);
                 curr.clear();
             }
-            _ => (),
+            _ => {}
         }
     }
 
@@ -488,7 +488,7 @@ pub fn resolve<'a, L: Logger>(blocks: &mut [Block<'a>], l: &mut L) -> Result<(),
                         *addr = replace_block_addr(s, l)?
                     }
                 }
-                _ => (),
+                _ => {}
             }
         }
     }
@@ -583,7 +583,7 @@ fn finalize(mut blocks: Vec<Block<'_>>) -> Vec<u8> {
                 Command::Expect(v) => res.extend_from_slice(&[0xf0, v]),
                 Command::Check => res.push(0xf1),
                 Command::Debug => res.push(0xf2),
-                Command::Section(_) => (),
+                Command::Section(_) => {}
                 cmd @ Command::Invalid | cmd @ Command::If(_, _) => {
                     unreachable!("unexpected command: {:?}", cmd)
                 }

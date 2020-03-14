@@ -118,7 +118,7 @@ fn dedup_loads(blocks: &mut TSlice<BlockId, AsmBlock>) {
                 | Command::Byte(_)
                 | Command::Expect(_)
                 | Command::Check
-                | Command::Debug => (),
+                | Command::Debug => {}
                 // TODO: we currently reset all registers as the tag might be
                 // used as a jump address, this is pessimistic and can be improved.
                 Command::Tag(_) => {

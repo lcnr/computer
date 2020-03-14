@@ -103,7 +103,7 @@ impl<'a> Function<'a> {
         for step in self[id].steps.index_iter().rev() {
             if let Action::LoadInput(ref mut i) = self[id][step].action {
                 match (*i).cmp(&input) {
-                    Ordering::Less => (),
+                    Ordering::Less => {}
                     Ordering::Equal => self[id].remove_step(step),
                     Ordering::Greater => *i -= 1,
                 }

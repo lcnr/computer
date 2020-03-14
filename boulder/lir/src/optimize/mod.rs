@@ -164,7 +164,7 @@ impl<'a> Lir<'a> {
                             func.blocks[b].terminator = merge(args, &target_block.inputs, term);
                         }
                     }
-                    Terminator::Goto(_, _) => (),
+                    Terminator::Goto(_, _) => {}
                     Terminator::Match(expr, ref arms) => {
                         let mut clone = arms.clone();
                         for arm in clone.iter_mut() {
@@ -218,7 +218,7 @@ impl<'a> Function<'a> {
                 Terminator::Goto(Some(target), ref mut args) if target == b => {
                     args.remove(input);
                 }
-                Terminator::Goto(_, _) => (),
+                Terminator::Goto(_, _) => {}
                 Terminator::Match(_, ref mut arms) => {
                     for arm in arms.iter_mut() {
                         if arm.target == Some(b) {
