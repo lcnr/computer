@@ -59,8 +59,12 @@ impl<'a> Mir<'a> {
                                 block.steps[s].action = Action::LoadConstant(fields.remove(field));
                             }
                         }
+                        Action::UnionFieldAccess(id) => {
+                            if let Some(Object::Field(_, obj)) = block.try_const(id) {
+                                block.steps[s].action = Action::LoadConstant(*obj);
+                            }
+                        }
                         _ => {} /*
-                                    UnionFieldAccess(shared_id::StepId),
                                     UnaryOperation(UnaryOperation, shared_id::StepId),
                                     Binop(Binop, shared_id::StepId, shared_id::StepId),
                                 */
