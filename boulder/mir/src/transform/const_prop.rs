@@ -1,6 +1,6 @@
 use shared_id::{FALSE_TYPE_ID, TRUE_TYPE_ID};
 
-use crate::{Action, Mir, Object, Type, UnaryOperation};
+use crate::{binop::Binop, Action, Mir, Object, Type, UnaryOperation};
 
 impl<'a> Mir<'a> {
     pub fn const_propagate(&mut self) {
@@ -131,6 +131,28 @@ impl<'a> Mir<'a> {
                                     block.steps[s].action = Action::LoadConstant(
                                         op.execute(ctx, a, b).expect("undefined"),
                                     )
+                                }
+                                (Binop::BitAnd, Some(obj @ Object::U8(0)), _)
+                                | (Binop::BitAnd, Some(obj @ Object::U16(0)), _)
+                                | (Binop::BitAnd, Some(obj @ Object::U32(0)), _)
+                                | (Binop::BitAnd, _, Some(obj @ Object::U8(0)))
+                                | (Binop::BitAnd, _, Some(obj @ Object::U16(0)))
+                                | (Binop::BitAnd, _, Some(obj @ Object::U32(0))) => {
+                                    block.steps[s].action = Action::LoadConstant(obj);
+                                }
+                                (Binop::Gte, _, Some(Object::U8(0)))
+                                | (Binop::Gte, _, Some(Object::U16(0)))
+                                | (Binop::Gte, _, Some(Object::U32(0)))
+                                | (Binop::BitOr, _, Some(Object::Variant(TRUE_TYPE_ID, _)))
+                                | (Binop::BitOr, Some(Object::Variant(TRUE_TYPE_ID, _)), _) => {
+                                    block.steps[s].action =
+                                        Action::LoadConstant(ctx.bool_to_object(true))
+                                }
+                                (Binop::Gt, Some(Object::U8(0)), _)
+                                | (Binop::Gt, Some(Object::U16(0)), _)
+                                | (Binop::Gt, Some(Object::U32(0)), _) => {
+                                    block.steps[s].action =
+                                        Action::LoadConstant(ctx.bool_to_object(false))
                                 }
                                 _ => (),
                             }

@@ -10,14 +10,20 @@ fn is_prime_recurse(n: u32, i: u32) -> Bool {
     if i < 2 {
         True
     } else {
-        if n % i < 1{
+        if n % i < 1 {
             False
         } else {
             is_prime_recurse(n, i - 1)
         }: Bool
     }
 }
+
 @test
-fn test() -> Bool {
-    is_prime(5) && !is_prime(100)
+fn five() -> Bool {
+    is_prime(5)
+}
+
+@test
+fn one_hundred() -> Bool {
+    !is_prime(100)
 }

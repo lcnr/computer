@@ -6,7 +6,7 @@ boulder/tests/compile_run/modules/shadow_fn.bo: 76
 boulder/tests/compile_run/inline/matches.bo: 261
 boulder/tests/compile_run/inline/simple.bo: 38
 boulder/tests/compile_run/inline/temp.bo: 38
-boulder/tests/compile_run/examples/primes.bo: 7945316
+boulder/tests/compile_run/examples/primes.bo: 7945346
 boulder/tests/compile_run/examples/fibonacci.bo: 276797
 boulder/tests/compile_run/scope/temporaries.bo: 1174
 boulder/tests/compile_run/scope/break.bo: 38
