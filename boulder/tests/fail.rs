@@ -75,18 +75,14 @@ fn main() -> Result<(), TestFailure> {
                     let output = output.lock().unwrap();
                     eprintln!(
                         "[{}]: panic during compilation, output:\n{}",
-                        file_str,
-                        output
+                        file_str, output
                     );
                     continue 'outer;
                 }
             };
 
             if content.is_ok() {
-                eprintln!(
-                    "[{}]: did not fail to compile",
-                    file_str,
-                );
+                eprintln!("[{}]: did not fail to compile", file_str,);
                 continue 'outer;
             }
 
