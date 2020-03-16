@@ -1,4 +1,4 @@
-# `break` outside of scope
+# `break` outside of a scope
 # (5:
 
 fn scopeless_break() -> u32 {

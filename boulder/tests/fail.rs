@@ -47,7 +47,7 @@ fn main() -> Result<(), TestFailure> {
     'outer: for entry in WalkDir::new("tests/compile_fail") {
         let entry = entry.unwrap();
         if entry.metadata().unwrap().is_file() {
-            let file_str = format!("bouder/{}", entry.path().display());
+            let file_str = format!("boulder/{}", entry.path().display());
 
             #[cfg(feature = "profiler")]
             profile_scope!(file_str);
