@@ -60,7 +60,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                     if let Some(id) = get_id(name.clone(), ctx.variable_lookup) {
                         Expression::Variable((), id)
                     } else if let Some(ty) =
-                        ctx.modules.get_type(ctx.at, &Box::<str>::from(name.item))
+                        ctx.modules.get_type(ctx.at, &name.item)
                     {
                         if let ty::Kind::Unit = ctx.types[ty].kind {
                             Expression::Lit((), name.replace(Literal::Unit(ty)))
@@ -277,7 +277,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 } else {
                     let scope_id = ctx.scope_lookup.last_id().unwrap();
                     if ctx.scope_lookup[scope_id].map_or(false, |n| n == "fn") {
-                        CompileError::new(&scope, "`break` outside of scope")?
+                        CompileError::new(&scope, "`break` outside of a scope")?
                     } else {
                         Expression::Break(
                             (),
