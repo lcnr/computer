@@ -59,9 +59,7 @@ impl<'a> Expression<'a, UnresolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                 UnresolvedVariable::Existing(name) => {
                     if let Some(id) = get_id(name.clone(), ctx.variable_lookup) {
                         Expression::Variable((), id)
-                    } else if let Some(ty) =
-                        ctx.modules.get_type(ctx.at, &name.item)
-                    {
+                    } else if let Some(ty) = ctx.modules.get_type(ctx.at, &name.item) {
                         if let ty::Kind::Unit = ctx.types[ty].kind {
                             Expression::Lit((), name.replace(Literal::Unit(ty)))
                         } else {
