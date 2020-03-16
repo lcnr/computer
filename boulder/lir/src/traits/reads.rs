@@ -32,7 +32,7 @@ where
 {
     fn reads(self, mut f: F) {
         match self {
-            Action::Invert(i, _) | Action::Move(i, _) => {
+            Action::Invert(i, _) | Action::BlackBox(i, _) | Action::Move(i, _) => {
                 f(*i);
             }
             Action::Debug(i) => f(*i),
@@ -58,7 +58,7 @@ where
 {
     fn reads(self, mut f: F) {
         match self {
-            Action::Invert(i, _) | Action::Move(i, _) => {
+            Action::Invert(i, _) | Action::BlackBox(i, _) | Action::Move(i, _) => {
                 *i = f(*i);
             }
             Action::Debug(i) => *i = f(*i),

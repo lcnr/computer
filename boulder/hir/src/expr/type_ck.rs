@@ -111,6 +111,11 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, UnresolvedTypes<'a>> {
                         let r = ctx.solver.add_typed(EMPTY_TYPE_ID, op.simplify());
                         Expression::UnaryOperation(r, op, Box::new(expr))
                     }
+                    UnaryOperation::BlackBox => {
+                        let r = ctx.solver.add_unbound(op.simplify());
+                        ctx.solver.add_equality(r, expr.id());
+                        Expression::UnaryOperation(r, op, Box::new(expr))
+                    }
                 }
             }
             Expression::Binop((), op, a, b) => {

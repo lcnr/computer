@@ -70,6 +70,7 @@ impl<'a> BoulderMirInterpreter<'a> {
                 );
                 Ok(Object::Unit)
             }
+            UnaryOperation::BlackBox => Ok(steps[expr].clone()),
         }
     }
 

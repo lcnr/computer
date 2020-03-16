@@ -168,6 +168,7 @@ impl<'a> Mir<'a> {
                                 assert_eq!(step.ty, EMPTY_TYPE_ID);
                             }
                         }
+                        UnaryOperation::BlackBox => assert_eq!(step.ty, block.steps[expr].ty),
                     }
                 }
                 Action::Binop(kind, a, b) => {

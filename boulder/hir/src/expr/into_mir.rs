@@ -175,6 +175,10 @@ impl<'a> Expression<'a, ResolvedIdentifiers<'a>, ResolvedTypes<'a>> {
                     )),
                     UnaryOperation::Debug => Ok(ctx.func[*ctx.curr]
                         .add_step(ty, Action::UnaryOperation(mir::UnaryOperation::Debug, expr))),
+                    UnaryOperation::BlackBox => Ok(ctx.func[*ctx.curr].add_step(
+                        ty,
+                        Action::UnaryOperation(mir::UnaryOperation::BlackBox, expr),
+                    )),
                 }
             }
             Expression::Binop(ty, op, a, b) => {

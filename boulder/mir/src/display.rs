@@ -13,6 +13,7 @@ impl Display for UnaryOperation {
             Self::ToBytes => write!(f, "to_bytes"),
             Self::FromBytes => write!(f, "from_bytes"),
             Self::Debug => write!(f, "dbg"),
+            Self::BlackBox => write!(f, "black_box"),
         }
     }
 }

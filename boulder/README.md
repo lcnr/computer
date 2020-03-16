@@ -1,6 +1,8 @@
 # Boulder
 
-WIP: A high level programming language
+A somewhat high level programming language.
+
+The given compile takes `*.bo` input files and generates `rock` assembly.
 
 ## Features
 
@@ -12,7 +14,7 @@ WIP: A high level programming language
 ## Goals
 
 Learn about type theory, optimizations and other interesting subjects.
-Explore the uses of a strict and *clearly defined* set of undefined behavior.
+~~Explore the uses of a strict and *clearly defined* set of undefined behavior.~~
 
 ## Non-Goals
 
@@ -25,9 +27,3 @@ Other inspirations:
 
 - Haskell
   - sum types
-
-## Roadmap
-
-- match `u8`
-- sum to `u8`
-- generate assembly

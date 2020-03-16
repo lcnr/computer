@@ -286,7 +286,9 @@ impl<'a> Function<'a> {
                         let new_steps = match (steps[target_id].ty, op) {
                             (U16_TYPE_ID, UnaryOperation::Invert) => invert_u16(),
                             (U32_TYPE_ID, UnaryOperation::Invert) => invert_u32(),
-                            (_, UnaryOperation::Invert) | (_, UnaryOperation::Debug) => {
+                            (_, UnaryOperation::Invert)
+                            | (_, UnaryOperation::Debug)
+                            | (_, UnaryOperation::BlackBox) => {
                                 s_id.0 += 1;
                                 continue;
                             }

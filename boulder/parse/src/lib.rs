@@ -410,12 +410,13 @@ fn parse_ident_expr<'a>(
             }
 
             match ident.item {
-                "to_bytes" | "from_bytes" | "dbg" => {
+                "to_bytes" | "from_bytes" | "dbg" | "black_box" => {
                     if args.len() == 1 {
                         let op = ident.map(|i| match i {
                             "to_bytes" => hir::expr::UnaryOperation::ToBytes,
                             "from_bytes" => hir::expr::UnaryOperation::FromBytes,
                             "dbg" => hir::expr::UnaryOperation::Debug,
+                            "black_box" => hir::expr::UnaryOperation::BlackBox,
                             _ => unreachable!(),
                         });
 

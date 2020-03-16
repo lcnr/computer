@@ -44,7 +44,7 @@ boulder/tests/compile_run/type/match/if_expr.bo: 698
 boulder/tests/compile_run/type/match/arm_subtype.bo: 76
 boulder/tests/compile_run/type/match/underscore_pat.bo: 38
 boulder/tests/compile_run/type/match/initialize_var.bo: 134
-boulder/tests/compile_run/type/infer.bo: 38
+boulder/tests/compile_run/type/infer.bo: 57091
 boulder/tests/compile_run/loop/positions.bo: 618
 boulder/tests/compile_run/loop/conditional_exit.bo: 176472
 boulder/tests/compile_run/loop/simple.bo: 38

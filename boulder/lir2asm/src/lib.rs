@@ -432,21 +432,11 @@ fn convert_block(
                     Command::Op(Operation::Invert, Writeable::Mem),
                 ]);
             }
-            Action::Move(i, o) => {
-                commands.extend_from_slice(&[
-                    Command::Move(Readable::Block(data[f].storage[i]), Writeable::BlockAddr),
-                    Command::Move(
-                        Readable::Section(data[f].storage[i]),
-                        Writeable::SectionAddr,
-                    ),
-                    Command::Move(Readable::Mem, Writeable::A),
-                    Command::Move(Readable::Block(data[f].storage[o]), Writeable::BlockAddr),
-                    Command::Move(
-                        Readable::Section(data[f].storage[o]),
-                        Writeable::SectionAddr,
-                    ),
-                    Command::Move(Readable::A, Writeable::Mem),
-                ]);
+            Action::BlackBox(i, o) | Action::Move(i, o) => {
+                if i != o {
+                    load_tag(&mut commands, data[f].storage[i], Writeable::A);
+                    store_tag(&mut commands, data[f].storage[o], Readable::A);
+                }
             }
             Action::Debug(i) => {
                 commands.extend_from_slice(&[

@@ -51,7 +51,7 @@ impl<'a> Lir<'a> {
         for step_id in block.steps.index_iter() {
             let step_panic = PanicDisplay("step: ", &step_id);
             match block.steps[step_id] {
-                Action::Invert(i, o) | Action::Move(i, o) => {
+                Action::Invert(i, o) | Action::BlackBox(i, o) | Action::Move(i, o) => {
                     assert!(i.0 < block.memory_len);
                     assert!(o.0 < block.memory_len);
                 }

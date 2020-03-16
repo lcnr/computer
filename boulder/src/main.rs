@@ -17,7 +17,7 @@ pub fn main() {
     let mut args = env::args().skip(1);
     if let Some(ref input) = args.next() {
         let output = args.next();
-        let output = output.as_ref().map(|t| &**t).unwrap_or("./a.data");
+        let output = output.as_ref().map(|t| &**t).unwrap_or("./out.ra");
         if args.next().is_some() {
             eprintln!("{}", USAGE);
             return;

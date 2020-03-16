@@ -111,7 +111,7 @@ impl<'a> BoulderLirInterpreter<'a> {
 
                 match *step {
                     Action::Invert(i, o) => memory[o] = Memory::Byte(!memory[i].valid()?),
-                    Action::Move(i, o) => memory[o] = memory[i],
+                    Action::BlackBox(i, o) | Action::Move(i, o) => memory[o] = memory[i],
                     Action::Debug(i) => println!(
                         "debug ({}:{}:{}): {} = {:?}",
                         id, block_id, step_id, i, memory[i]

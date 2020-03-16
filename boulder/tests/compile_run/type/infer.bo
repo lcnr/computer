@@ -1,5 +1,5 @@
 fn infer_type() -> u32 {
-    let c = 7;
+    let c = black_box(7);
     let d = 12;
     let e = c + 3;
     let f = c * (d - e);

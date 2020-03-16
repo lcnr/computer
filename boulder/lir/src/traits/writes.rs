@@ -9,6 +9,7 @@ where
     fn writes(self, mut f: F) {
         match self {
             Action::Invert(_, o)
+            | Action::BlackBox(_, o)
             | Action::Move(_, o)
             | Action::Binop { out: o, .. }
             | Action::LoadConstant(_, o) => {
@@ -31,6 +32,7 @@ where
     fn writes(self, mut f: F) {
         match self {
             Action::Invert(_, o)
+            | Action::BlackBox(_, o)
             | Action::Move(_, o)
             | Action::Binop { out: o, .. }
             | Action::LoadConstant(_, o) => {

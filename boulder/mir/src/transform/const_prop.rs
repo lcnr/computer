@@ -70,7 +70,7 @@ impl<'a> Mir<'a> {
                         Action::UnaryOperation(op, id) => {
                             if let Some(obj) = block.try_const(id) {
                                 match (op, obj) {
-                                    (UnaryOperation::Debug, _) => (),
+                                    (UnaryOperation::Debug, _) | (UnaryOperation::BlackBox, _) => {}
                                     (UnaryOperation::FromBytes, Object::Struct(fields)) => {
                                         block.steps[s].action = Action::LoadConstant(
                                             match fields.to_slice() {

@@ -160,6 +160,10 @@ impl Action {
                     Some(Action::LoadConstant(!v, o))
                 }
             },
+            Action::BlackBox(_, o) => {
+                mem[o] = Memory::Unknown;
+                Some(self.clone())
+            }
             Action::Move(i, o) => match mem[i] {
                 Memory::Undefined => {
                     mem[o] = Memory::Undefined;

@@ -70,6 +70,8 @@ pub enum Arg {
 pub enum Action {
     /// input must be a valid byte.
     Invert(LocationId, LocationId),
+    /// Prevent optimizing the output based on the input
+    BlackBox(LocationId, LocationId),
     /// Input must be a valid byte.
     ///
     /// While moving invalid data is not that dangerous,

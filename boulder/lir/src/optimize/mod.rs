@@ -306,7 +306,7 @@ impl Block {
 
         for step_id in self.steps.index_iter() {
             match self.steps[step_id] {
-                Action::Invert(i, o) | Action::Move(i, o) => {
+                Action::Invert(i, o) | Action::Move(i, o) | Action::BlackBox(i, o) => {
                     last_writes[i] = None;
                     if let Some(last) = last_writes[o].replace(W::Step(step_id)) {
                         add_to_remove(last);

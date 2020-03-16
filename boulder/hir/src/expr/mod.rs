@@ -19,6 +19,8 @@ pub enum UnaryOperation {
     ToBytes,
     FromBytes,
     Debug,
+    /// Prevents the compiler from optimizing the variable
+    BlackBox,
 }
 
 #[derive(Debug, Clone, Copy)]

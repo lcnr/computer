@@ -35,6 +35,7 @@ impl Display for Action {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Action::Invert(i, o) => write!(f, "invert {} -> {}", i, o),
+            Action::BlackBox(i, o) => write!(f, "blackbox {} -> {}", i, o),
             Action::Move(i, o) => write!(f, "move {} -> {}", i, o),
             Action::Debug(i) => write!(f, "debug {}", i),
             Action::LoadConstant(v, o) => write!(f, "load b{} -> {}", v, o),

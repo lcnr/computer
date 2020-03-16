@@ -160,6 +160,12 @@ fn convert_block(
                         steps.push(lir::Action::Debug(step_offsets[id] + i));
                     }
                 }
+                mir::UnaryOperation::BlackBox => {
+                    let ty = mir.steps[id].ty;
+                    for i in 0..types[ty].size(types) {
+                        steps.push(lir::Action::BlackBox(step_offsets[id] + i, step_start + i));
+                    }
+                }
                 mir::UnaryOperation::ToBytes | mir::UnaryOperation::FromBytes => unreachable!(),
             },
             mir::Action::Binop(op, l, r) => {

@@ -40,7 +40,7 @@ Unions can be defined using `union <name> { (<field>: <type>),* }` and instantia
 All fields of the union start at the same position, meaning that transmuting between unions is well defined as long as the currently
 initialized type is part of both unions.
 
-## Side effects
+## Side effects (TODO)
 
 Side effects are only achievable by using the `read_volitile`, `write_volitile` and `halt` intrinsics.
 

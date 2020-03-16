@@ -184,6 +184,7 @@ pub enum UnaryOperation {
     ToBytes,
     FromBytes,
     Debug,
+    BlackBox,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
