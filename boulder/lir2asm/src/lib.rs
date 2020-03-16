@@ -880,6 +880,22 @@ fn goto(
     }
 }
 
+fn load_tag(commands: &mut Vec<Command>, tag: TagId, target: Writeable) {
+    commands.extend_from_slice(&[
+        Command::Move(Readable::Block(tag), Writeable::BlockAddr),
+        Command::Move(Readable::Section(tag), Writeable::SectionAddr),
+        Command::Move(Readable::Mem, target),
+    ]);
+}
+
+fn store_tag(commands: &mut Vec<Command>, tag: TagId, source: Readable) {
+    commands.extend_from_slice(&[
+        Command::Move(Readable::Block(tag), Writeable::BlockAddr),
+        Command::Move(Readable::Section(tag), Writeable::SectionAddr),
+        Command::Move(source, Writeable::Mem),
+    ]);
+}
+
 fn terminator_memory<I>(
     commands: &mut Vec<Command>,
     data: &TSlice<FunctionId, FunctionData>,
@@ -889,133 +905,127 @@ fn terminator_memory<I>(
 ) where
     I: Iterator<Item = LocationId>,
 {
-    let mut args: TVec<_, _> = args.to_owned();
     let mut used = TBitSet::new();
-    for (id, target) in args.index_iter().zip(targets) {
-        match args[id] {
-            None => {}
-            Some(Arg::Location(v)) => {
+    let mut bytes = Vec::new();
+
+    let (mut args, targets): (TVec<InputId, LocationId>, TVec<InputId, LocationId>) = args
+        .iter()
+        .zip(targets)
+        .filter_map(|(&arg, target)| match (arg, target) {
+            (None, _) => None,
+            (Some(Arg::Location(l)), r) if l == r => {
                 used.add(target);
-                if v != target {
-                    // store v in B
-                    commands.extend_from_slice(&[
-                        Command::Move(Readable::Block(data[f].storage[v]), Writeable::BlockAddr),
-                        Command::Move(
-                            Readable::Section(data[f].storage[v]),
-                            Writeable::SectionAddr,
-                        ),
-                        Command::Move(Readable::Mem, Writeable::B),
-                    ]);
-
-                    if args[id + 1..].contains(&Some(Arg::Location(target))) {
-                        // target location is still needed, move
-                        // to an available space
-                        let mut free = LocationId(0);
-                        while used.get(free) || args[id + 1..].contains(&Some(Arg::Location(free)))
-                        {
-                            free = free + 1;
-                        }
-
-                        for arg in args[id + 1..]
-                            .iter_mut()
-                            .filter(|&&mut arg| arg == Some(Arg::Location(target)))
-                        {
-                            *arg = Some(Arg::Location(free));
-                        }
-
-                        let free_tag = data[f].storage[free];
-                        let target_tag = data[f].storage[target];
-
-                        commands.extend_from_slice(&[
-                            Command::Move(Readable::Block(target_tag), Writeable::BlockAddr),
-                            Command::Move(Readable::Section(target_tag), Writeable::SectionAddr),
-                            Command::Move(Readable::Mem, Writeable::C),
-                            Command::Move(Readable::Block(free_tag), Writeable::BlockAddr),
-                            Command::Move(Readable::Section(free_tag), Writeable::SectionAddr),
-                            Command::Move(Readable::C, Writeable::Mem),
-                            Command::Move(Readable::Block(target_tag), Writeable::BlockAddr),
-                            Command::Move(Readable::Section(target_tag), Writeable::SectionAddr),
-                            Command::Move(Readable::B, Writeable::Mem),
-                        ]);
-
-                        if v != free {
-                            for arg in args[id + 1..]
-                                .iter_mut()
-                                .filter(|&&mut arg| arg == Some(Arg::Location(v)))
-                            {
-                                *arg = Some(Arg::Location(target));
-                            }
-                        }
-                    } else {
-                        commands.push(Command::Move(
-                            Readable::Block(data[f].storage[target]),
-                            Writeable::BlockAddr,
-                        ));
-                        commands.push(Command::Move(
-                            Readable::Section(data[f].storage[target]),
-                            Writeable::SectionAddr,
-                        ));
-                        commands.push(Command::Move(Readable::B, Writeable::Mem));
-
-                        for arg in args[id + 1..]
-                            .iter_mut()
-                            .filter(|&&mut arg| arg == Some(Arg::Location(v)))
-                        {
-                            *arg = Some(Arg::Location(target));
-                        }
-                    }
-                }
+                None
             }
-            Some(Arg::Byte(v)) => {
-                used.add(target);
-                if args[id + 1..].contains(&Some(Arg::Location(target))) {
-                    // target location is still needed, move
-                    // to an available space
-                    let mut free = LocationId(0);
-                    while used.get(free) || args[id + 1..].contains(&Some(Arg::Location(free))) {
-                        free = free + 1;
-                    }
+            (Some(Arg::Byte(v)), target) => {
+                bytes.push((v, target));
+                None
+            }
+            (Some(Arg::Location(l)), r) => Some((l, r)),
+        })
+        .unzip();
 
-                    for arg in args[id + 1..]
-                        .iter_mut()
-                        .filter(|&&mut arg| arg == Some(Arg::Location(target)))
-                    {
-                        *arg = Some(Arg::Location(free));
-                    }
+    let mut registers = [None; 3];
 
-                    commands.extend_from_slice(&[
-                        Command::Move(
-                            Readable::Block(data[f].storage[target]),
-                            Writeable::BlockAddr,
-                        ),
-                        Command::Move(
-                            Readable::Section(data[f].storage[target]),
-                            Writeable::SectionAddr,
-                        ),
-                        Command::Move(Readable::Mem, Writeable::C),
-                        Command::Move(Readable::Block(data[f].storage[free]), Writeable::BlockAddr),
-                        Command::Move(
-                            Readable::Section(data[f].storage[free]),
-                            Writeable::SectionAddr,
-                        ),
-                        Command::Move(Readable::C, Writeable::Mem),
-                    ]);
-                }
+    let load_register = |commands: &mut Vec<Command>,
+                         used: &TBitSet<LocationId>,
+                         registers: &mut [Option<LocationId>; 3],
+                         args: &mut TSlice<InputId, LocationId>,
+                         id: InputId,
+                         v: LocationId| {
+        if let Some(pos) = registers.iter().position(|&r| r == Some(v)) {
+            // v is already stored in a register
+            pos
+        } else if let Some(pos) = registers.iter().position(|&r| r.is_none()) {
+            // v has to be loaded into an empty register
+            load_tag(commands, data[f].storage[v], Writeable::from_id(pos));
+            registers[pos] = Some(v);
+            pos
+        } else {
+            // v has to replace another value from a register
+            let (to_replace, _) = registers
+                .iter()
+                .map(|&r| r.unwrap())
+                .enumerate()
+                .max_by_key(|(_, r)| args[id..].iter().position(|arg| arg == r).unwrap())
+                .unwrap();
 
-                commands.extend_from_slice(&[
-                    Command::Move(
-                        Readable::Block(data[f].storage[target]),
-                        Writeable::BlockAddr,
-                    ),
-                    Command::Move(
-                        Readable::Section(data[f].storage[target]),
-                        Writeable::SectionAddr,
-                    ),
-                    Command::Move(Readable::Byte(v), Writeable::C),
-                    Command::Move(Readable::C, Writeable::Mem),
-                ]);
+            let location = registers[to_replace].unwrap();
+
+            // store `to_replace` in a free location
+            // TODO: this can still be optimized
+            let mut free = LocationId(0);
+            while used.get(free) || args[id..].contains(&free) {
+                free = free + 1;
+            }
+
+            for arg in args[id..].iter_mut().filter(|&&mut arg| arg == location) {
+                *arg = free;
+            }
+
+            store_tag(
+                commands,
+                data[f].storage[free],
+                Readable::from_id(to_replace),
+            );
+            load_tag(commands, data[f].storage[v], Writeable::from_id(to_replace));
+            registers[to_replace] = Some(v);
+            to_replace
+        }
+    };
+
+    for id in args.index_iter() {
+        let v = args[id];
+        let target = targets[id];
+        used.add(target);
+
+        let register = load_register(commands, &used, &mut registers, &mut args, id + 1, v);
+
+        if args[id + 1..].contains(&target) {
+            load_register(commands, &used, &mut registers, &mut args, id, target);
+        }
+
+        store_tag(
+            commands,
+            data[f].storage[target],
+            Readable::from_id(register),
+        );
+
+        for arg in args[id + 1..].iter_mut().chain(
+            registers
+                .iter_mut()
+                .map(Option::as_mut)
+                .filter_map(identity),
+        ) {
+            if *arg == v {
+                *arg = target;
+            } else if *arg == target {
+                *arg = v;
             }
         }
+
+        for reg in registers.iter_mut() {
+            if let Some(r) = reg {
+                if !args[id + 1..].contains(&r) {
+                    *reg = None;
+                }
+            }
+        }
+    }
+
+    for (v, target) in bytes.into_iter() {
+        commands.extend_from_slice(&[
+            Command::Move(
+                Readable::Block(data[f].storage[target]),
+                Writeable::BlockAddr,
+            ),
+            Command::Move(
+                Readable::Section(data[f].storage[target]),
+                Writeable::SectionAddr,
+            ),
+            Command::Move(Readable::Byte(v), Writeable::C),
+            Command::Move(Readable::C, Writeable::Mem),
+        ]);
     }
 }
 
