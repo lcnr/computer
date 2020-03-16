@@ -212,6 +212,14 @@ impl<'a>
         }
     }
 
+    pub fn add_import(
+        &mut self,
+        at: &[&'a str],
+        import: &[Meta<'a, &'a str>],
+    ) -> Result<(), CompileError> {
+        self.modules.add_import(at, import)
+    }
+
     pub fn add_function(
         &mut self,
         at: &[&'a str],

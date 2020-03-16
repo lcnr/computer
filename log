@@ -3,6 +3,7 @@ boulder/tests/compile_run/modules/extern.bo: 38
 boulder/tests/compile_run/modules/simple.bo: 261
 boulder/tests/compile_run/modules/shadow_ty.bo: 76
 boulder/tests/compile_run/modules/shadow_fn.bo: 76
+boulder/tests/compile_run/modules/use_item.bo: 38
 boulder/tests/compile_run/inline/matches.bo: 261
 boulder/tests/compile_run/inline/simple.bo: 38
 boulder/tests/compile_run/inline/temp.bo: 38

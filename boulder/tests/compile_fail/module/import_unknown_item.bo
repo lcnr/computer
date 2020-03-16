@@ -1,0 +1,8 @@
+# item `b` does not exist
+# (8:
+
+mod inner {
+    fn a() {}
+}
+
+use inner::b;

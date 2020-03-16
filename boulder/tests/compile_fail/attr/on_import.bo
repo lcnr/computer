@@ -1,0 +1,9 @@
+# Cannot apply attribute `hidden` to imports
+# (8:
+
+mod inner {
+    struct A;
+}
+
+@hidden
+use inner::A;

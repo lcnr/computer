@@ -785,15 +785,7 @@ fn convert_block(
             goto(&mut commands, ctx, data, &lir.functions, f, target, args)
         }
         Terminator::Match(expr, ref arms) => {
-            commands.push(Command::Move(
-                Readable::Block(data[f].storage[expr]),
-                Writeable::BlockAddr,
-            ));
-            commands.push(Command::Move(
-                Readable::Section(data[f].storage[expr]),
-                Writeable::SectionAddr,
-            ));
-            commands.push(Command::Move(Readable::Mem, Writeable::A));
+            load_tag(&mut commands, data[f].storage[expr], Writeable::A);
             if let Some((last, rest)) = arms.split_last() {
                 for arm in rest.iter() {
                     let tag = ctx.tm.next();

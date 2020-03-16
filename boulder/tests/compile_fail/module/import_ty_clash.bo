@@ -1,0 +1,13 @@
+# `A` is an already valid type name
+# (8:
+
+mod inner {
+    struct A;
+}
+
+use inner::A;
+
+union A {
+    num: u32,
+    empty: Empty,
+}

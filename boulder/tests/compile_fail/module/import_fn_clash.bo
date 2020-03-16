@@ -1,0 +1,14 @@
+# `a` is an already valid function name
+# (10:
+
+mod inner {
+    fn a() -> Bool {
+        True
+    }
+}
+
+use inner::a;
+
+fn a() -> u32 {
+    7
+}

@@ -1,6 +1,6 @@
 use std::collections::hash_map::{Entry, HashMap};
 
-use diagnostics::Meta;
+use diagnostics::{CompileError, Meta};
 
 use shared_id::{FunctionId, TypeId};
 
@@ -39,6 +39,62 @@ impl<'a> Module<'a> {
                     Ok(())
                 }
             }
+        }
+    }
+
+    pub fn add_import(
+        &mut self,
+        at: &[&'a str],
+        import: &[Meta<'a, &'a str>],
+    ) -> Result<(), CompileError> {
+        if let Some((last, rest)) = import.split_last() {
+            let mut current = &*self;
+            for step in rest.iter() {
+                if let Some(inner) = current.modules.get(step.item) {
+                    current = &inner;
+                } else {
+                    return CompileError::new(
+                        &step,
+                        format_args!("The sub module `{}` does not exist.", step.item),
+                    );
+                }
+            }
+
+            let f = current.functions.get(last.item).copied();
+            let t = current.types.get(last.item).copied();
+            if let Some(f) = f {
+                self.add_function(at, last.item, f).or_else(|_| {
+                    CompileError::new(
+                        &last,
+                        format_args!(
+                            "`{}` is an already valid function name in the current module",
+                            last.item
+                        ),
+                    )
+                })?;
+            }
+            if let Some(t) = t {
+                self.add_type(at, Box::from(last.item), t).or_else(|_| {
+                    CompileError::new(
+                        &last,
+                        format_args!(
+                            "`{}` is an already valid type name in the current module",
+                            last.item
+                        ),
+                    )
+                })?;
+            }
+
+            if f.is_none() && t.is_none() {
+                CompileError::new(
+                    &last,
+                    format_args!("Invalid import, the item `{}` does not exist", last.item),
+                )
+            } else {
+                Ok(())
+            }
+        } else {
+            unreachable!("empty import");
         }
     }
 

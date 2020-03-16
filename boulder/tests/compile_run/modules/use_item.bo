@@ -1,0 +1,12 @@
+mod inner {
+    fn do_it() -> Bool {
+        True
+    }
+}
+
+use inner::do_it;
+
+@test
+fn test() -> Bool {
+    do_it()
+}

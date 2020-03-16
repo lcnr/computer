@@ -10,6 +10,8 @@ pub enum Keyword {
     Module,
     /// `fn`
     Function,
+    /// `use`,
+    Use,
     /// `let`
     Let,
     /// `struct`
@@ -166,6 +168,8 @@ pub enum Token<'a> {
     Assignment,
     SemiColon,
     Colon,
+    /// `::`
+    DoubleColon,
     Comma,
     Dot,
     Arrow,
@@ -337,6 +341,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
             "_" => self.new_token(Token::Underscore, origin),
             "mod" => self.new_token(Token::Keyword(Keyword::Module), origin),
             "fn" => self.new_token(Token::Keyword(Keyword::Function), origin),
+            "use" => self.new_token(Token::Keyword(Keyword::Use), origin),
             "let" => self.new_token(Token::Keyword(Keyword::Let), origin),
             "struct" => self.new_token(Token::Keyword(Keyword::Struct), origin),
             "union" => self.new_token(Token::Keyword(Keyword::Union), origin),
@@ -394,7 +399,7 @@ impl<'a, 'b: 'a> TokenIter<'b> {
         }
     }
 
-    fn next_token(&mut self) -> Meta<'a, Token<'a>> {
+    pub fn next_token(&mut self) -> Meta<'a, Token<'a>> {
         let first = if let Some(c) = self.current_char() {
             c
         } else {
@@ -422,7 +427,12 @@ impl<'a, 'b: 'a> TokenIter<'b> {
                 }
                 ':' => {
                     self.advance();
-                    self.new_token(Token::Colon, self.byte_offset - 1..self.byte_offset)
+                    if self.current_char().map(|c| c == ':').unwrap_or(false) {
+                        self.advance();
+                        self.new_token(Token::DoubleColon, self.byte_offset - 2..self.byte_offset)
+                    } else {
+                        self.new_token(Token::Colon, self.byte_offset - 1..self.byte_offset)
+                    }
                 }
                 ',' => {
                     self.advance();

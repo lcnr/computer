@@ -1,0 +1,8 @@
+# sub module `iner` does not exist
+# (8:
+
+mod inner {
+    struct A;
+}
+
+use iner::A;
