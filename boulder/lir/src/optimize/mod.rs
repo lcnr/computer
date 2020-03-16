@@ -29,6 +29,32 @@ impl<'a> Lir<'a> {
         }
     }
 
+    /// Convert tail recursion into loops.
+    pub fn loopify_tail_recursion(&mut self) {
+        #[cfg(feature = "profiler")]
+        profile_scope!("loopify_tail_recursion");
+
+        for f in self.functions.index_iter() {
+            for b in l!(self, f).blocks.index_iter() {
+                if let Terminator::Goto(None, ref ret_args) = l!(self, f, b).terminator {
+                    let last_step = l!(self, f, b).steps.last();
+                    if let Some(Action::FunctionCall { id, args, ret }) = last_step {
+                        let cond = *id == f && ret.iter().zip(ret_args.iter()).all(|(l, r)| {
+                            matches!((l, r), (Some(l), Some(Arg::Location(r))) if l == r)
+                        });
+
+                        if cond {
+                            l!(self, f, b).terminator =
+                                Terminator::Goto(Some(BlockId(0)), args.clone());
+
+                            l!(self, f, b).steps.pop();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// Removes `w_1` in the sequence `..., w_1, seq , w_2, ...`
     /// where `seq` does not read the given location.
     pub fn remove_dead_writes(&mut self) {
