@@ -94,6 +94,8 @@ impl<'a> Lir<'a> {
                 }
             }
         }
+
+        self.remove_moves();
     }
 
     /// Inlines a given function call.

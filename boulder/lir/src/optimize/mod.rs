@@ -38,7 +38,7 @@ impl<'a> Lir<'a> {
                         }
                     })
                     .collect();
-                
+
                 block.terminator.update(|s: LocationId| replacements[s]);
             }
         }
@@ -330,14 +330,6 @@ impl Block {
             W::Return(id, v) => return_values[id].add(v),
         };
 
-        let arg_update = |last_writes: &mut TSlice<_, _>, args| {
-            for &arg in args {
-                if let Some(Arg::Location(id)) = arg {
-                    last_writes[id] = None;
-                }
-            }
-        };
-
         for id in self.inputs.index_iter() {
             if let Some(last) = last_writes[self.inputs[id]].replace(W::Input(id)) {
                 add_to_remove(last);
@@ -345,59 +337,27 @@ impl Block {
         }
 
         for step_id in self.steps.index_iter() {
-            match self.steps[step_id] {
-                Action::Invert(i, o) | Action::Move(i, o) | Action::BlackBox(i, o) => {
-                    last_writes[i] = None;
-                    if let Some(last) = last_writes[o].replace(W::Step(step_id)) {
+            self.steps[step_id].reads(|s| last_writes[s] = None);
+            if let Action::FunctionCall { ref ret, .. } = self.steps[step_id] {
+                for (i, r) in ret
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, r)| r.map(|r| (i, r)))
+                {
+                    if let Some(last) = last_writes[r].replace(W::Return(step_id, i)) {
                         add_to_remove(last);
                     }
                 }
-                Action::Debug(i) => last_writes[i] = None,
-                Action::LoadConstant(_, o) => {
-                    if let Some(last) = last_writes[o].replace(W::Step(step_id)) {
+            } else {
+                self.steps[step_id].writes(|s| {
+                    if let Some(last) = last_writes[s].replace(W::Step(step_id)) {
                         add_to_remove(last);
                     }
-                }
-                Action::Binop { l, r, out, .. } => {
-                    if let Arg::Location(id) = l {
-                        last_writes[id] = None;
-                    }
-                    if let Arg::Location(id) = r {
-                        last_writes[id] = None;
-                    }
-                    if let Some(last) = last_writes[out].replace(W::Step(step_id)) {
-                        add_to_remove(last);
-                    }
-                }
-                Action::FunctionCall {
-                    ref args, ref ret, ..
-                } => {
-                    arg_update(&mut last_writes, args);
-
-                    for (i, v) in ret
-                        .iter()
-                        .enumerate()
-                        .filter_map(|(i, r)| r.map(|r| (i, r)))
-                    {
-                        // TODO: FunctionCall should ret should be an Option
-                        if let Some(last) = last_writes[v].replace(W::Return(step_id, i)) {
-                            add_to_remove(last);
-                        }
-                    }
-                }
+                });
             }
         }
 
-        match self.terminator {
-            Terminator::Goto(_, ref args) => arg_update(&mut last_writes, args),
-            Terminator::Match(expr, ref arms) => {
-                for arm in arms {
-                    arg_update(&mut last_writes, &arm.args)
-                }
-
-                last_writes[expr] = None;
-            }
-        }
+        self.terminator.reads(|s| last_writes[s] = None);
 
         for step in last_writes.iter().copied().filter_map(identity) {
             add_to_remove(step)

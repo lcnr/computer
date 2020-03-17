@@ -65,7 +65,7 @@ pub const MIR_OPTIMIZATIONS: &[(fn(&mut Mir), &str)] = &[
 ];
 
 pub const LIR_OPTIMIZATIONS: &[(fn(&mut Lir), &str)] = &[
-    (|lir| lir.remove_moves(), "remove_moves0"),
+    (|lir| lir.remove_moves(), "remove_moves"),
     (|lir| lir.remove_dead_writes(), "dead_writes0"),
     (|lir| lir.loopify_tail_recursion(), "tail_recurse0"),
     (|lir| lir.remove_unused_functions(), "unused_functions0"),
@@ -74,8 +74,6 @@ pub const LIR_OPTIMIZATIONS: &[(fn(&mut Lir), &str)] = &[
     (|lir| lir.merge_simple_blocks(), "merge_simple_blocks0"),
     (|lir| lir.remove_unused_blocks(), "unused_blocks0"),
     (|lir| lir.inline_functions(), "inline_functions0"),
-    (|lir| lir.minimize_memory_usage(), "minimize_mem0"),
-    (|lir| lir.remove_moves(), "remove_moves1"),
     (|lir| lir.inline_all(), "inline_all"),
     (|lir| lir.propagate_block_arguments(), "block_arguments1"),
     (|lir| lir.const_propagate(), "const_prop1"),
@@ -87,8 +85,6 @@ pub const LIR_OPTIMIZATIONS: &[(fn(&mut Lir), &str)] = &[
     (|lir| lir.loopify_tail_recursion(), "tail_recurse2"),
     (|lir| lir.remove_unused_functions(), "unused_functions1"),
     (|lir| lir.inline_functions(), "inline_functions1"),
-    (|lir| lir.remove_moves(), "remove_moves2"),
-    (|lir| lir.minimize_memory_usage(), "minimize_mem1"),
     (|lir| lir.remove_dead_writes(), "dead_writes3"),
     (|lir| lir.loopify_tail_recursion(), "tail_recurse3"),
     (|lir| lir.remove_unused_functions(), "unused_functions2"),
@@ -97,8 +93,7 @@ pub const LIR_OPTIMIZATIONS: &[(fn(&mut Lir), &str)] = &[
     (|lir| lir.merge_simple_blocks(), "merge_simple_blocks2"),
     (|lir| lir.remove_unused_blocks(), "unused_blocks2"),
     (|lir| lir.remove_dead_writes(), "dead_writes4"),
-    (|lir| lir.remove_moves(), "remove_moves3"),
-    (|lir| lir.minimize_memory_usage(), "final_minimize_mem")
+    (|lir| lir.minimize_memory_usage(), "final_minimize_mem"),
 ];
 
 pub fn compile<'a>(
