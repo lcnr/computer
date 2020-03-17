@@ -14,20 +14,32 @@ mod const_prop;
 mod inline;
 
 impl<'a> Lir<'a> {
-    /// Remove all moves where `o == i`.
-    pub fn remove_noop_moves(&mut self) {
+    /// Remove all moves.
+    pub fn remove_moves(&mut self) {
         #[cfg(feature = "profiler")]
-        profile_scope!("remove_noop_moves");
+        profile_scope!("remove_moves");
 
         for function in self.functions.iter_mut() {
             for block in function.blocks.iter_mut() {
-                block.steps.retain(|s| {
-                    if let Action::Move(o, i) = s {
-                        o != i
-                    } else {
-                        true
-                    }
-                });
+                block.uniquify();
+
+                let mut replacements: TVec<LocationId, LocationId> =
+                    (0..block.memory_len).map(LocationId).collect();
+
+                block.steps = mem::take(&mut block.steps)
+                    .into_iter()
+                    .filter_map(|mut step| {
+                        if let Action::Move(i, o) = step {
+                            replacements[o] = replacements[i];
+                            None
+                        } else {
+                            step.update(|s| replacements[s]);
+                            Some(step)
+                        }
+                    })
+                    .collect();
+                
+                block.terminator.update(|s: LocationId| replacements[s]);
             }
         }
     }
