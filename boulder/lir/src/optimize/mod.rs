@@ -1,10 +1,13 @@
 use std::{convert::identity, iter, mem};
 
-use tindex::{tvec, TBitSet, TSlice};
+use tindex::{tvec, TBitSet, TSlice, TVec};
 
 use shared_id::{BlockId, FunctionId, InputId, LocationId, StepId};
 
-use crate::{traits::Update, Action, Arg, Block, Function, Lir, Terminator};
+use crate::{
+    traits::{Reads, Update, Writes},
+    Action, Arg, Block, Function, Lir, Terminator,
+};
 
 mod coloring;
 mod const_prop;
@@ -268,6 +271,31 @@ impl<'a> Function<'a> {
 }
 
 impl Block {
+    /// Give a unique location to each write.
+    pub fn uniquify(&mut self) {
+        let mut replacements: TVec<LocationId, LocationId> =
+            (0..).map(LocationId).take(self.memory_len).collect();
+
+        let mut repl = (self.memory_len..).map(LocationId);
+
+        for step in self.steps.iter_mut().rev() {
+            step.writes(|s| {
+                let updated = replacements[s];
+                replacements[s] = repl.next().unwrap();
+                updated
+            });
+            step.reads(|s| replacements[s]);
+        }
+
+        for input in self.inputs.iter_mut().rev() {
+            let updated = replacements[*input];
+            replacements[*input] = repl.next().unwrap();
+            *input = updated;
+        }
+
+        self.memory_len = repl.next().unwrap().0;
+    }
+
     /// Removes all dead writes from self,
     /// and returns a bitset of unused inputs.
     pub fn remove_dead_writes(&mut self) -> TBitSet<InputId> {
