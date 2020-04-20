@@ -2,7 +2,7 @@
 
 A somewhat high level programming language.
 
-The given compile takes `*.bo` input files and generates `rock` assembly.
+The given compiler takes `*.bo` input files and generates `rock` assembly.
 
 ## Features
 
