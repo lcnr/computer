@@ -1,6 +1,6 @@
 # A computer build from scratch
 
-WIP
+8 bit registers with 16 bit memory addresses. The available commands are listed in [COMMANDS.md](https://github.com/lcnr/computer/blob/master/COMMANDS.rs).
 
 ## Roadmap
 
@@ -12,6 +12,6 @@ WIP
 - [ ] build it in real life
 
 [logisim]: http://www.cburch.com/logisim
-[rock]: ./rock/README.md
-[remu]: ./remu/README.md
-[boulder]: ./boulder/README.md
+[rock]: https://github.com/lcnr/computer/blob/master/rock/README.md
+[remu]: https://github.com/lcnr/computer/blob/master/remu/README.md
+[boulder]: https://github.com/lcnr/computer/blob/master/boulder/README.md
