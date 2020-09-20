@@ -149,6 +149,7 @@ impl<'a> Lir<'a> {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FunctionContext {
+    pub inline: bool,
     pub export: bool,
     pub test: bool,
     pub hidden: bool,

@@ -253,7 +253,9 @@ impl Action {
                         }),
                     },
                     (Memory::Unknown, Memory::Byte(r)) => match op {
-                        Binop::Add | Binop::BitOr | Binop::BitXor if r == 0 => {
+                        Binop::Add | Binop::BitOr | Binop::BitXor | Binop::Shl | Binop::Shr
+                            if r == 0 =>
+                        {
                             Some(Action::Move(l.expect_location(), out))
                         }
                         Binop::BitAnd if r == u8::MAX => {

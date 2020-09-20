@@ -72,6 +72,7 @@ pub enum LangItem {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum FunctionAttribute<'a> {
     LangItem(LangItem),
+    Inline,
     Test,
     Export,
     /// The function does not get printed during a panic.
@@ -124,6 +125,7 @@ impl<'a> FunctionAttribute<'a> {
                     )?
                 }
             }
+            "inline" => name.replace(FunctionAttribute::Inline),
             "test" => name.replace(FunctionAttribute::Test),
             "export" => name.replace(FunctionAttribute::Export),
             "hidden" => name.replace(FunctionAttribute::Hidden),

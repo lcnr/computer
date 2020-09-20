@@ -50,6 +50,7 @@ impl Context {
 
 #[derive(Debug, Clone)]
 pub struct FunctionContext {
+    pub inline: bool,
     pub export: bool,
     pub is_test: bool,
     pub hidden: bool,

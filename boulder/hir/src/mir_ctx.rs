@@ -214,6 +214,7 @@ impl<'a> ContextBuilder<'a> {
                         func.attributes.remove(i);
                     }
                     FunctionAttribute::Hidden
+                    | FunctionAttribute::Inline
                     | FunctionAttribute::Test
                     | FunctionAttribute::Export => {}
                     ref attr @ FunctionAttribute::Str(_) => unreachable!("{:?}", attr),
@@ -263,6 +264,7 @@ impl<'a> ContextBuilder<'a> {
 
 #[derive(Debug, Default)]
 pub struct FunctionContextBuilder<'a> {
+    inline: Option<Meta<'a, ()>>,
     is_test: Option<Meta<'a, ()>>,
     export: Option<Meta<'a, ()>>,
     hidden: Option<Meta<'a, ()>>,
@@ -325,6 +327,19 @@ impl<'a> FunctionContextBuilder<'a> {
                         func.attributes.remove(i);
                     }
                 }
+                FunctionAttribute::Inline => {
+                    if let Some(ref inline) = builder.inline {
+                        CompileError::build(
+                            &attr,
+                            "Attribute `inline` used more than once on function",
+                        )
+                        .with_location(&inline)
+                        .build()?;
+                    } else {
+                        builder.inline = Some(attr.simplify());
+                        func.attributes.remove(i);
+                    }
+                }
                 ref attr @ FunctionAttribute::Str(_)
                 | ref attr @ FunctionAttribute::LangItem(_) => unreachable!("{:?}", attr),
             }
@@ -349,6 +364,7 @@ impl<'a> FunctionContextBuilder<'a> {
 
     fn into_ctx(self) -> Result<FunctionContext, CompileError> {
         Ok(FunctionContext {
+            inline: self.inline.is_some(),
             is_test: self.is_test.is_some(),
             export: self.export.is_some(),
             hidden: self.hidden.is_some(),

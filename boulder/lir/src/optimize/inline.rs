@@ -43,7 +43,16 @@ impl<'a> Lir<'a> {
                 let mut s = StepId(0);
                 while s < l!(self, f, b).steps.range_end() {
                     if let Action::FunctionCall { id, .. } = l!(self, f, b, s) {
-                        if self.should_inline(id, MAX_INLINE_COST).is_some() {
+                        let function_inline_cost = if l!(self, id).ctx.inline {
+                            MAX_INLINE_COST * 10
+                        } else {
+                            MAX_INLINE_COST
+                        };
+                        let inline_cost =
+                            function_inline_cost.saturating_sub(32usize.saturating_pow(
+                                l!(self, f, b).used_locations(s).element_count() as u32,
+                            ));
+                        if self.should_inline(id, inline_cost).is_some() {
                             self.inline_location(f, b, s);
                         }
                     }

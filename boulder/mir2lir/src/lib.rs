@@ -61,6 +61,7 @@ pub fn convert_function<'a>(
     }
 
     let ctx = lir::FunctionContext {
+        inline: mir.ctx.inline,
         test: mir.ctx.is_test,
         export: mir.ctx.export,
         hidden: mir.ctx.hidden,

@@ -633,8 +633,10 @@ fn convert_block(
                                         Readable::Section(data[f].storage[location]),
                                         Writeable::SectionAddr,
                                     ));
-                                    commands
-                                        .push(Command::Move(Readable::Mem, Writeable::from_id(batch)));
+                                    commands.push(Command::Move(
+                                        Readable::Mem,
+                                        Writeable::from_id(batch),
+                                    ));
                                 }
                             }
                         }

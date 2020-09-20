@@ -1,3 +1,4 @@
+@inline
 @hidden
 fn bool_to_u8(b: Bool) -> u8 {
     match b {
@@ -11,6 +12,7 @@ struct OverflowingByte {
     overflow: Bool
 }
 
+@inline
 @hidden
 fn overflowing_add(l: u8, r: u8, carry_in: Bool) -> OverflowingByte {
     let mask: u8 = 0b1000_0000;
@@ -61,6 +63,7 @@ fn add32(l: u32, r: u32) -> u32 {
 }
 
 @hidden
+@inline
 @lang_item(add16)
 fn add16(l: u16, r: u16) -> u16 {
     let l_bytes: u16Bytes = to_bytes(l);
@@ -95,6 +98,7 @@ fn sub32(l: u32, r: u32) -> u32 {
 }
 
 @hidden
+@inline
 @lang_item(sub16)
 fn sub16(l: u16, r: u16) -> u16 {
     let l_bytes: u16Bytes = to_bytes(l);
@@ -162,6 +166,7 @@ fn shl32(l: u32, r: u32) -> u32 {
 }
 
 @hidden
+@inline
 @lang_item(shl16)
 fn shl16(l: u16, r: u16) -> u16 {
     let l_bytes: u16Bytes = to_bytes(l);
@@ -242,6 +247,7 @@ fn shr32(l: u32, r: u32) -> u32 {
 }
 
 @hidden
+@inline
 @lang_item(shr16)
 fn shr16(l: u16, r: u16) -> u16 {
     let l_bytes: u16Bytes = to_bytes(l);
@@ -270,6 +276,7 @@ fn shr16(l: u16, r: u16) -> u16 {
 }
 
 @hidden
+@inline
 @lang_item(gt32)
 fn gt32(l: u32, r: u32) -> Bool {
     let l_bytes: u32Bytes = to_bytes(l);
@@ -307,6 +314,7 @@ fn gt32(l: u32, r: u32) -> Bool {
 }
 
 @hidden
+@inline
 @lang_item(gt16)
 fn gt16(l: u16, r: u16) -> Bool {
     let l_bytes: u16Bytes = to_bytes(l);
@@ -328,6 +336,7 @@ fn gt16(l: u16, r: u16) -> Bool {
 }
 
 @hidden
+@inline
 @lang_item(gte32)
 fn gte32(l: u32, r: u32) -> Bool {
     let l_bytes: u32Bytes = to_bytes(l);
@@ -365,6 +374,7 @@ fn gte32(l: u32, r: u32) -> Bool {
 }
 
 @hidden
+@inline
 @lang_item(gte16)
 fn gte16(l: u16, r: u16) -> Bool {
     let l_bytes: u16Bytes = to_bytes(l);
