@@ -31,7 +31,7 @@ use boulder::{LIR_OPTIMIZATIONS, MIR_OPTIMIZATIONS};
 use remu::Remu;
 
 const MAX_LIR_STEPS: usize = 5_000_000;
-const MAX_ASM_STEPS: usize = 15_000_000;
+const MAX_ASM_STEPS: usize = 20_000_000;
 
 struct OutputShim {
     inner: Arc<Mutex<String>>,

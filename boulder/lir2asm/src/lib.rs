@@ -2,7 +2,7 @@
 #[macro_use]
 extern crate thread_profiler;
 
-use std::{cmp, convert::identity, fmt, iter};
+use std::{cmp, convert::{identity, TryInto}, fmt, iter};
 
 use tindex::{TBitSet, TSlice, TVec};
 
@@ -324,6 +324,10 @@ pub fn convert(lir: &Lir) -> String {
         name: Box::from("stack"),
         commands: vec![Command::Tag(ctx.stack), Command::Byte(0)],
     });
+    asm_blocks.push(AsmBlock {
+        name: Box::from("scratch_space"),
+        commands: vec![Command::Tag(ctx.scratch_space), Command::Byte(0)],
+    });
 
     if lir.functions.iter().any(|f| f.ctx.test) {
         let mut v = Vec::new();
@@ -545,8 +549,8 @@ fn convert_block(
                     TBitSet::new()
                 };
 
-                // get stack ptr
                 commands.extend_from_slice(&[
+                    Command::Comment(Box::from("get stack pointer")),
                     Command::Move(Readable::Block(ctx.stack), Writeable::BlockAddr),
                     Command::Move(Readable::Byte(0), Writeable::SectionAddr),
                     Command::Move(Readable::Mem, Writeable::A),
@@ -554,28 +558,26 @@ fn convert_block(
                 ]);
 
                 // put temporaries on the stack
-                if !temporaries.is_empty() {
-                    for t in temporaries.iter() {
-                        commands.extend_from_slice(&[
-                            Command::Comment(format!("store {} on stack", t).into()),
-                            // load location
-                            Command::Move(
-                                Readable::Block(data[f].storage[t]),
-                                Writeable::BlockAddr,
-                            ),
-                            Command::Move(
-                                Readable::Section(data[f].storage[t]),
-                                Writeable::SectionAddr,
-                            ),
-                            Command::Move(Readable::Mem, Writeable::C),
-                            // increment stack head
-                            Command::Op(Operation::Add, Writeable::A),
-                            Command::Move(Readable::A, Writeable::SectionAddr),
-                            Command::Move(Readable::Block(ctx.stack), Writeable::BlockAddr),
-                            // save location
-                            Command::Move(Readable::C, Writeable::Mem),
-                        ]);
-                    }
+                for t in temporaries.iter() {
+                    commands.extend_from_slice(&[
+                        Command::Comment(format!("store {} on stack", t).into()),
+                        // load location
+                        Command::Move(
+                            Readable::Block(data[f].storage[t]),
+                            Writeable::BlockAddr,
+                        ),
+                        Command::Move(
+                            Readable::Section(data[f].storage[t]),
+                            Writeable::SectionAddr,
+                        ),
+                        Command::Move(Readable::Mem, Writeable::C),
+                        // increment stack head
+                        Command::Op(Operation::Add, Writeable::A),
+                        Command::Move(Readable::A, Writeable::SectionAddr),
+                        Command::Move(Readable::Block(ctx.stack), Writeable::BlockAddr),
+                        // save location
+                        Command::Move(Readable::C, Writeable::Mem),
+                    ]);
                 }
 
                 // put return address on the stack
@@ -608,8 +610,8 @@ fn convert_block(
                 } else {
                     let other = &lir.functions[id];
                     let inputs = &other.blocks[BlockId(0)].inputs;
+                    assert_eq!(inputs.len(), args.len());
 
-                    // TODO: consider batching the argument passing
                     let mut batch = 0;
                     let mut batch_start = InputId(0);
                     for i in args.index_iter() {
@@ -642,7 +644,7 @@ fn convert_block(
 
                         batch += 1;
                         if batch == 3 {
-                            for i in 0..3 {
+                            for i in 0..batch {
                                 let l = data[id].storage[inputs[batch_start + i]];
                                 commands.extend_from_slice(&[
                                     Command::Move(Readable::Block(l), Writeable::BlockAddr),
@@ -691,6 +693,7 @@ fn convert_block(
                         })
                         .collect();
                     terminator_memory(
+                        ctx,
                         &mut commands,
                         data,
                         f,
@@ -728,9 +731,9 @@ fn convert_block(
 
                 // load temporaries
                 // the return address was already popped
-                // put temporaries on the stack
                 if !temporaries.is_empty() {
                     commands.extend_from_slice(&[
+                        Command::Comment(Box::from("lookup stack pointer")),
                         Command::Move(Readable::Block(ctx.stack), Writeable::BlockAddr),
                         Command::Move(Readable::Byte(0), Writeable::SectionAddr),
                         Command::Move(Readable::Mem, Writeable::A),
@@ -836,7 +839,7 @@ fn goto(
 
     if let Some(target) = target {
         let inputs = functions[f].blocks[target].inputs.iter().copied();
-        terminator_memory(commands, data, f, inputs, args);
+        terminator_memory(ctx, commands, data, f, inputs, args);
         commands.push(Command::Move(
             Readable::Block(data[f].blocks[target]),
             Writeable::C,
@@ -846,7 +849,7 @@ fn goto(
             Readable::Section(data[f].blocks[target]),
         ));
     } else {
-        terminator_memory(commands, data, f, (0..args.len()).map(LocationId), args);
+        terminator_memory(ctx, commands, data, f, (0..args.len()).map(LocationId), args);
 
         commands.extend_from_slice(&[
             Command::Move(Readable::Block(ctx.stack), Writeable::BlockAddr),
@@ -879,7 +882,9 @@ fn store_tag(commands: &mut Vec<Command>, tag: TagId, source: Readable) {
     ]);
 }
 
+/// Writes `args` into the locations given by `targets`.
 fn terminator_memory<I>(
+    ctx: &Context,
     commands: &mut Vec<Command>,
     data: &TSlice<FunctionId, FunctionData>,
     f: FunctionId,
@@ -891,7 +896,7 @@ fn terminator_memory<I>(
     let mut used = TBitSet::new();
     let mut bytes = Vec::new();
 
-    let (mut args, targets): (TVec<InputId, LocationId>, TVec<InputId, LocationId>) = args
+    let (args, targets): (TVec<InputId, LocationId>, TVec<InputId, LocationId>) = args
         .iter()
         .zip(targets)
         .filter_map(|(&arg, target)| match (arg, target) {
@@ -907,94 +912,30 @@ fn terminator_memory<I>(
             (Some(Arg::Location(l)), r) => Some((l, r)),
         })
         .unzip();
-
-    let mut registers = [None; 3];
-
-    let load_register = |commands: &mut Vec<Command>,
-                         used: &TBitSet<LocationId>,
-                         registers: &mut [Option<LocationId>; 3],
-                         args: &mut TSlice<InputId, LocationId>,
-                         id: InputId,
-                         v: LocationId| {
-        if let Some(pos) = registers.iter().position(|&r| r == Some(v)) {
-            // v is already stored in a register
-            pos
-        } else if let Some(pos) = registers.iter().position(|&r| r.is_none()) {
-            // v has to be loaded into an empty register
-            load_tag(commands, data[f].storage[v], Writeable::from_id(pos));
-            registers[pos] = Some(v);
-            pos
-        } else {
-            // v has to replace another value from a register
-            let (to_replace, _) = registers
-                .iter()
-                .map(|&r| r.unwrap())
-                .enumerate()
-                .max_by_key(|(_, r)| args[id..].iter().position(|arg| arg == r).unwrap())
-                .unwrap();
-
-            let location = registers[to_replace].unwrap();
-
-            // store `to_replace` in a free location
-            // TODO: this can still be optimized
-            let mut free = LocationId(0);
-            while used.get(free) || args[id..].contains(&free) {
-                free = free + 1;
-            }
-
-            for arg in args[id..].iter_mut().filter(|&&mut arg| arg == location) {
-                *arg = free;
-            }
-
-            store_tag(
-                commands,
-                data[f].storage[free],
-                Readable::from_id(to_replace),
-            );
-            load_tag(commands, data[f].storage[v], Writeable::from_id(to_replace));
-            registers[to_replace] = Some(v);
-            to_replace
-        }
-    };
-
-    for id in args.index_iter() {
-        let v = args[id];
-        let target = targets[id];
-        used.add(target);
-
-        let register = load_register(commands, &used, &mut registers, &mut args, id + 1, v);
-
-        if args[id + 1..].contains(&target) {
-            load_register(commands, &used, &mut registers, &mut args, id, target);
-        }
-
-        store_tag(
-            commands,
-            data[f].storage[target],
-            Readable::from_id(register),
-        );
-
-        for arg in args[id + 1..].iter_mut().chain(
-            registers
-                .iter_mut()
-                .map(Option::as_mut)
-                .filter_map(identity),
-        ) {
-            if *arg == v {
-                *arg = target;
-            } else if *arg == target {
-                *arg = v;
-            }
-        }
-
-        for reg in registers.iter_mut() {
-            if let Some(r) = reg {
-                if !args[id + 1..].contains(&r) {
-                    *reg = None;
-                }
-            }
-        }
+    
+    // Store inputs in the scratch space
+    for (i, &arg) in args.iter().enumerate() {
+        commands.extend_from_slice(&[
+            Command::Move(Readable::Block(data[f].storage[arg]), Writeable::BlockAddr),
+            Command::Move(Readable::Section(data[f].storage[arg]), Writeable::SectionAddr),
+            Command::Move(Readable::Mem, Writeable::A),
+            Command::Move(Readable::Block(ctx.scratch_space), Writeable::BlockAddr),
+            Command::Move(Readable::Byte(i.try_into().unwrap()), Writeable::SectionAddr),
+            Command::Move(Readable::A, Writeable::Mem),
+        ]);
     }
+
+    for (i, &target) in targets.iter().enumerate() {
+        commands.extend_from_slice(&[
+            Command::Move(Readable::Block(ctx.scratch_space), Writeable::BlockAddr),
+            Command::Move(Readable::Byte(i.try_into().unwrap()), Writeable::SectionAddr),
+            Command::Move(Readable::Mem, Writeable::A),
+            Command::Move(Readable::Block(data[f].storage[target]), Writeable::BlockAddr),
+            Command::Move(Readable::Section(data[f].storage[target]), Writeable::SectionAddr),
+            Command::Move(Readable::A, Writeable::Mem),
+        ]);
+    }
+
 
     for (v, target) in bytes.into_iter() {
         commands.extend_from_slice(&[

@@ -5,6 +5,7 @@ use tindex::TVec;
 #[derive(Debug)]
 pub struct Context {
     pub stack: TagId,
+    pub scratch_space: TagId,
     pub tm: TagManager,
 }
 
@@ -18,7 +19,8 @@ impl Context {
     pub fn new() -> Self {
         let mut tm = TagManager::new();
         let stack = tm.next();
-        Context { stack, tm }
+        let scratch_space = tm.next();
+        Context { stack, scratch_space, tm }
     }
 }
 

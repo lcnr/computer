@@ -4,7 +4,9 @@ use tindex::TBitSet;
 
 use shared_id::{BlockId, FunctionId, LocationId, StepId};
 
-use crate::{traits::Update, Action, Arg, Block, Lir, Terminator};
+use crate::{Action, Arg, Block, Lir, Terminator};
+
+const MAX_INLINE_COST: usize = 500;
 
 impl<'a> Lir<'a> {
     /// Testing stuff
@@ -36,62 +38,24 @@ impl<'a> Lir<'a> {
         }
 
         for f in self.functions.index_iter() {
-            for b in l!(self, f).blocks.index_iter() {
+            let mut b = BlockId(0);
+            while b < l!(self, f).blocks.range_end() {
                 let mut s = StepId(0);
-                'steps: while s < l!(self, f, b).steps.range_end() {
+                while s < l!(self, f, b).steps.range_end() {
                     if let Action::FunctionCall {
                         id,
-                        ref args,
-                        ref ret,
+                        ..
                     } = l!(self, f, b, s)
                     {
-                        if to_inline.get(id) {
-                            let memory_offset = l!(self, f, b).memory_len;
-                            let other = &l!(self, id, BlockId(0));
-                            let mut actions = Vec::new();
-                            for (&arg, &input) in args.iter().zip(other.inputs.iter()) {
-                                match arg {
-                                    None => {}
-                                    Some(Arg::Byte(v)) => {
-                                        actions.push(Action::LoadConstant(v, input + memory_offset))
-                                    }
-                                    Some(Arg::Location(id)) => {
-                                        actions.push(Action::Move(id, input + memory_offset))
-                                    }
-                                }
-                            }
-
-                            for mut step in other.steps.iter().cloned() {
-                                step.update(|l| l + memory_offset);
-                                actions.push(step);
-                            }
-
-                            if let Terminator::Goto(None, ref args) = other.terminator {
-                                for (&ret, &arg) in ret.iter().zip(args.iter()) {
-                                    match (ret, arg) {
-                                        (None, _) | (_, None) => {}
-                                        (Some(ret), Some(Arg::Byte(v))) => {
-                                            actions.push(Action::LoadConstant(v, ret))
-                                        }
-                                        (Some(ret), Some(Arg::Location(id))) => {
-                                            actions.push(Action::Move(id + memory_offset, ret))
-                                        }
-                                    }
-                                }
-                            } else {
-                                unreachable!("unexpected terminator");
-                            }
-
-                            l!(self, f, b).memory_len += other.memory_len;
-                            l!(self, f, b).steps.splice(s..s + 1, actions.into_iter());
-
-                            // do not increment `s`.
-                            continue 'steps;
+                        if self.should_inline(id, MAX_INLINE_COST).is_some() {
+                            self.inline_location(f, b, s);
                         }
                     }
 
                     s = s + 1;
                 }
+
+                b = b + 1;
             }
         }
 
@@ -210,5 +174,33 @@ impl<'a> Lir<'a> {
         } else {
             unreachable!("tried to inline an ordinary step");
         }
+    }
+
+    fn should_inline(&self, f: FunctionId, allowed_cost: usize) -> Option<usize> {
+        let mut current_cost = 0;
+        for block in l!(self, f).blocks.iter() {
+            current_cost += 25;
+
+            for step in block.steps.iter() {
+                current_cost += match *step {
+                    Action::BlackBox(..)
+                    | Action::Move(..)
+                    | Action::Debug(..)
+                    | Action::LoadConstant(..) => 0,
+                    Action::Invert(..) => 5,
+                    Action::Binop { .. } => 20,
+                    Action::FunctionCall { id, .. } => {
+                        self.should_inline(id, allowed_cost.checked_sub(current_cost)?)?
+                    }
+                };
+            }
+
+            current_cost += match block.terminator {
+                Terminator::Goto(..) => 0,
+                Terminator::Match(_, ref arms) => arms.len() * 10,
+            };
+        }
+
+        allowed_cost.checked_sub(current_cost)
     }
 }
