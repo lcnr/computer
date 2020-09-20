@@ -20,7 +20,11 @@ impl Context {
         let mut tm = TagManager::new();
         let stack = tm.next();
         let scratch_space = tm.next();
-        Context { stack, scratch_space, tm }
+        Context {
+            stack,
+            scratch_space,
+            tm,
+        }
     }
 }
 

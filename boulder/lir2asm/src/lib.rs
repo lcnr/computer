@@ -2,7 +2,11 @@
 #[macro_use]
 extern crate thread_profiler;
 
-use std::{cmp, convert::{identity, TryInto}, fmt, iter};
+use std::{
+    cmp,
+    convert::{identity, TryInto},
+    fmt, iter,
+};
 
 use tindex::{TBitSet, TSlice, TVec};
 
@@ -12,8 +16,10 @@ use lir::{Action, Arg, Binop, Function, Lir, Terminator};
 
 mod ctx;
 mod optimize;
+mod util;
 
 use ctx::{Context, FunctionData};
+use util::Chunks;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Writeable {
@@ -195,8 +201,7 @@ pub fn convert(lir: &Lir) -> String {
             storage: iter::repeat_with(|| ctx.tm.next())
                 .take(cmp::max(
                     f.return_length,
-                    // In case all locations are used in a function call.
-                    f.blocks.iter().map(|b| b.memory_len).max().unwrap() + 1,
+                    f.blocks.iter().map(|b| b.memory_len).max().unwrap(),
                 ))
                 .collect(),
         })
@@ -562,10 +567,7 @@ fn convert_block(
                     commands.extend_from_slice(&[
                         Command::Comment(format!("store {} on stack", t).into()),
                         // load location
-                        Command::Move(
-                            Readable::Block(data[f].storage[t]),
-                            Writeable::BlockAddr,
-                        ),
+                        Command::Move(Readable::Block(data[f].storage[t]), Writeable::BlockAddr),
                         Command::Move(
                             Readable::Section(data[f].storage[t]),
                             Writeable::SectionAddr,
@@ -612,58 +614,39 @@ fn convert_block(
                     let inputs = &other.blocks[BlockId(0)].inputs;
                     assert_eq!(inputs.len(), args.len());
 
-                    let mut batch = 0;
-                    let mut batch_start = InputId(0);
-                    for i in args.index_iter() {
-                        if batch == 0 {
-                            batch_start = i;
-                        }
-
-                        let arg = args[i];
-                        match arg {
-                            None => {}
-                            Some(Arg::Byte(v)) => {
-                                commands.push(Command::Move(
-                                    Readable::Byte(v),
-                                    Writeable::from_id(batch),
-                                ));
-                            }
-                            Some(Arg::Location(location)) => {
-                                commands.push(Command::Move(
-                                    Readable::Block(data[f].storage[location]),
-                                    Writeable::BlockAddr,
-                                ));
-                                commands.push(Command::Move(
-                                    Readable::Section(data[f].storage[location]),
-                                    Writeable::SectionAddr,
-                                ));
-                                commands
-                                    .push(Command::Move(Readable::Mem, Writeable::from_id(batch)));
+                    for chunk in Chunks::new(args.index_iter()) {
+                        for (batch, i) in chunk.iter().copied().enumerate() {
+                            match args[i] {
+                                None => {}
+                                Some(Arg::Byte(v)) => {
+                                    commands.push(Command::Move(
+                                        Readable::Byte(v),
+                                        Writeable::from_id(batch),
+                                    ));
+                                }
+                                Some(Arg::Location(location)) => {
+                                    commands.push(Command::Move(
+                                        Readable::Block(data[f].storage[location]),
+                                        Writeable::BlockAddr,
+                                    ));
+                                    commands.push(Command::Move(
+                                        Readable::Section(data[f].storage[location]),
+                                        Writeable::SectionAddr,
+                                    ));
+                                    commands
+                                        .push(Command::Move(Readable::Mem, Writeable::from_id(batch)));
+                                }
                             }
                         }
 
-                        batch += 1;
-                        if batch == 3 {
-                            for i in 0..batch {
-                                let l = data[id].storage[inputs[batch_start + i]];
-                                commands.extend_from_slice(&[
-                                    Command::Move(Readable::Block(l), Writeable::BlockAddr),
-                                    Command::Move(Readable::Section(l), Writeable::SectionAddr),
-                                    Command::Move(Readable::from_id(i), Writeable::Mem),
-                                ]);
-                            }
-
-                            batch = 0;
+                        for (batch, i) in chunk.iter().copied().enumerate() {
+                            let l = data[id].storage[inputs[i]];
+                            commands.extend_from_slice(&[
+                                Command::Move(Readable::Block(l), Writeable::BlockAddr),
+                                Command::Move(Readable::Section(l), Writeable::SectionAddr),
+                                Command::Move(Readable::from_id(batch), Writeable::Mem),
+                            ]);
                         }
-                    }
-
-                    for i in 0..batch {
-                        let location = data[id].storage[inputs[batch_start + i]];
-                        commands.extend_from_slice(&[
-                            Command::Move(Readable::Block(location), Writeable::BlockAddr),
-                            Command::Move(Readable::Section(location), Writeable::SectionAddr),
-                            Command::Move(Readable::from_id(i), Writeable::Mem),
-                        ]);
                     }
 
                     commands.extend_from_slice(&[
@@ -740,7 +723,6 @@ fn convert_block(
                         Command::Move(Readable::Byte(1), Writeable::B),
                     ]);
 
-                    // TODO: consider batching temporaries
                     for t in temporaries.iter().rev() {
                         commands.extend_from_slice(&[
                             // load temp
@@ -849,7 +831,14 @@ fn goto(
             Readable::Section(data[f].blocks[target]),
         ));
     } else {
-        terminator_memory(ctx, commands, data, f, (0..args.len()).map(LocationId), args);
+        terminator_memory(
+            ctx,
+            commands,
+            data,
+            f,
+            (0..args.len()).map(LocationId),
+            args,
+        );
 
         commands.extend_from_slice(&[
             Command::Move(Readable::Block(ctx.stack), Writeable::BlockAddr),
@@ -896,7 +885,7 @@ fn terminator_memory<I>(
     let mut used = TBitSet::new();
     let mut bytes = Vec::new();
 
-    let (args, targets): (TVec<InputId, LocationId>, TVec<InputId, LocationId>) = args
+    let (args, targets): (Vec<LocationId>, Vec<LocationId>) = args
         .iter()
         .zip(targets)
         .filter_map(|(&arg, target)| match (arg, target) {
@@ -912,30 +901,58 @@ fn terminator_memory<I>(
             (Some(Arg::Location(l)), r) => Some((l, r)),
         })
         .unzip();
-    
+
     // Store inputs in the scratch space
-    for (i, &arg) in args.iter().enumerate() {
-        commands.extend_from_slice(&[
-            Command::Move(Readable::Block(data[f].storage[arg]), Writeable::BlockAddr),
-            Command::Move(Readable::Section(data[f].storage[arg]), Writeable::SectionAddr),
-            Command::Move(Readable::Mem, Writeable::A),
-            Command::Move(Readable::Block(ctx.scratch_space), Writeable::BlockAddr),
-            Command::Move(Readable::Byte(i.try_into().unwrap()), Writeable::SectionAddr),
-            Command::Move(Readable::A, Writeable::Mem),
-        ]);
+    for chunk in Chunks::new(args.iter().enumerate()) {
+        for (j, (_, &arg)) in chunk.iter().copied().enumerate() {
+            commands.extend_from_slice(&[
+                Command::Move(Readable::Block(data[f].storage[arg]), Writeable::BlockAddr),
+                Command::Move(
+                    Readable::Section(data[f].storage[arg]),
+                    Writeable::SectionAddr,
+                ),
+                Command::Move(Readable::Mem, Writeable::from_id(j)),
+            ]);
+        }
+
+        for (j, (i, _)) in chunk.iter().copied().enumerate() {
+            commands.extend_from_slice(&[
+                Command::Move(Readable::Block(ctx.scratch_space), Writeable::BlockAddr),
+                Command::Move(
+                    Readable::Byte(i.try_into().unwrap()),
+                    Writeable::SectionAddr,
+                ),
+                Command::Move(Readable::from_id(j), Writeable::Mem),
+            ]);
+        }
     }
 
-    for (i, &target) in targets.iter().enumerate() {
-        commands.extend_from_slice(&[
-            Command::Move(Readable::Block(ctx.scratch_space), Writeable::BlockAddr),
-            Command::Move(Readable::Byte(i.try_into().unwrap()), Writeable::SectionAddr),
-            Command::Move(Readable::Mem, Writeable::A),
-            Command::Move(Readable::Block(data[f].storage[target]), Writeable::BlockAddr),
-            Command::Move(Readable::Section(data[f].storage[target]), Writeable::SectionAddr),
-            Command::Move(Readable::A, Writeable::Mem),
-        ]);
-    }
+    for chunk in Chunks::new(targets.iter().enumerate()) {
+        for (j, (i, _)) in chunk.iter().copied().enumerate() {
+            commands.extend_from_slice(&[
+                Command::Move(Readable::Block(ctx.scratch_space), Writeable::BlockAddr),
+                Command::Move(
+                    Readable::Byte(i.try_into().unwrap()),
+                    Writeable::SectionAddr,
+                ),
+                Command::Move(Readable::Mem, Writeable::from_id(j)),
+            ]);
+        }
 
+        for (j, (_, &target)) in chunk.iter().copied().enumerate() {
+            commands.extend_from_slice(&[
+                Command::Move(
+                    Readable::Block(data[f].storage[target]),
+                    Writeable::BlockAddr,
+                ),
+                Command::Move(
+                    Readable::Section(data[f].storage[target]),
+                    Writeable::SectionAddr,
+                ),
+                Command::Move(Readable::from_id(j), Writeable::Mem),
+            ]);
+        }
+    }
 
     for (v, target) in bytes.into_iter() {
         commands.extend_from_slice(&[

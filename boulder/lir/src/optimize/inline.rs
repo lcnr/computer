@@ -42,11 +42,7 @@ impl<'a> Lir<'a> {
             while b < l!(self, f).blocks.range_end() {
                 let mut s = StepId(0);
                 while s < l!(self, f, b).steps.range_end() {
-                    if let Action::FunctionCall {
-                        id,
-                        ..
-                    } = l!(self, f, b, s)
-                    {
+                    if let Action::FunctionCall { id, .. } = l!(self, f, b, s) {
                         if self.should_inline(id, MAX_INLINE_COST).is_some() {
                             self.inline_location(f, b, s);
                         }
