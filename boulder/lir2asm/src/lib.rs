@@ -195,7 +195,8 @@ pub fn convert(lir: &Lir) -> String {
             storage: iter::repeat_with(|| ctx.tm.next())
                 .take(cmp::max(
                     f.return_length,
-                    f.blocks.iter().map(|b| b.memory_len).max().unwrap(),
+                    // In case all locations are used in a function call.
+                    f.blocks.iter().map(|b| b.memory_len).max().unwrap() + 1,
                 ))
                 .collect(),
         })

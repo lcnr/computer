@@ -115,6 +115,28 @@ pub enum Object {
     Undefined,
 }
 
+impl Object {
+    pub fn try_eval_to_int(&self) -> Option<u32> {
+        match *self {
+            Object::U8(v) => Some(v as u32),
+            Object::U16(v) => Some(v as u32),
+            Object::U32(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn from_int_fn(&self) -> fn(u32) -> Object {
+        match *self {
+            // We are intentially truncating here instead of
+            // checking that the integer fits.
+            Object::U8(_) => |v| Object::U8(v as u8),
+            Object::U16(_) => |v| Object::U16(v as u16),
+            Object::U32(_) => Object::U32,
+            _ => panic!(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MatchArm<T> {
     pub pat: T,

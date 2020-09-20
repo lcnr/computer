@@ -74,7 +74,6 @@ pub const LIR_OPTIMIZATIONS: &[(fn(&mut Lir), &str)] = &[
     (|lir| lir.merge_simple_blocks(), "merge_simple_blocks0"),
     (|lir| lir.remove_unused_blocks(), "unused_blocks0"),
     (|lir| lir.inline_functions(), "inline_functions0"),
-    (|lir| lir.inline_all(), "inline_all"),
     (|lir| lir.propagate_block_arguments(), "block_arguments1"),
     (|lir| lir.const_propagate(), "const_prop1"),
     (|lir| lir.remove_dead_writes(), "dead_writes1"),

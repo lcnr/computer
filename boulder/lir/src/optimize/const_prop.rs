@@ -145,6 +145,14 @@ fn propagate_args(mem: &TSlice<LocationId, Memory>, args: &mut TSlice<InputId, O
 
 impl Action {
     fn const_propagate(&self, lir: &Lir, mem: &mut TSlice<LocationId, Memory>) -> Option<Action> {
+        let to_bool = |b| {
+            if b {
+                lir.ctx.true_replacement
+            } else {
+                lir.ctx.false_replacement
+            }
+        };
+
         match *self {
             Action::Invert(i, o) => match mem[i] {
                 Memory::Undefined => {
@@ -184,6 +192,7 @@ impl Action {
                 Some(self.clone())
             }
             Action::Binop { op, l, r, out } => {
+                mem[out] = Memory::Unknown;
                 let v = |r| match r {
                     Arg::Byte(v) => Memory::Byte(v),
                     Arg::Location(id) => mem[id],
@@ -195,23 +204,15 @@ impl Action {
                         None
                     }
                     (Memory::Byte(l), Memory::Byte(r)) => {
-                        let to_bool = |b| {
-                            if b {
-                                Some(lir.ctx.true_replacement)
-                            } else {
-                                Some(lir.ctx.false_replacement)
-                            }
-                        };
-
                         let v = match op {
                             Binop::Add => l.checked_add(r),
                             Binop::Sub => l.checked_sub(r),
                             Binop::Shl => l.checked_shl(r.into()).or(Some(0)),
                             Binop::Shr => l.checked_shr(r.into()).or(Some(0)),
-                            Binop::Eq => to_bool(l == r),
-                            Binop::Neq => to_bool(l != r),
-                            Binop::Gt => to_bool(l > r),
-                            Binop::Gte => to_bool(l >= r),
+                            Binop::Eq => Some(to_bool(l == r)),
+                            Binop::Neq => Some(to_bool(l != r)),
+                            Binop::Gt => Some(to_bool(l > r)),
+                            Binop::Gte => Some(to_bool(l >= r)),
                             Binop::BitOr => Some(l | r),
                             Binop::BitAnd => Some(l & r),
                             Binop::BitXor => Some(l ^ r),
@@ -225,28 +226,59 @@ impl Action {
                             None
                         }
                     }
-                    (Memory::Byte(l), Memory::Unknown) => {
-                        mem[out] = Memory::Unknown;
-                        Some(Action::Binop {
+                    (Memory::Byte(l), Memory::Unknown) => match op {
+                        Binop::Add | Binop::BitOr | Binop::BitXor if l == 0 => {
+                            Some(Action::Move(r.expect_location(), out))
+                        }
+                        Binop::BitAnd if l == u8::MAX => {
+                            Some(Action::Move(r.expect_location(), out))
+                        }
+                        Binop::BitAnd if l == 0 => {
+                            mem[out] = Memory::Byte(0);
+                            Some(Action::LoadConstant(0, out))
+                        }
+                        Binop::Gt if l == 0 => {
+                            mem[out] = Memory::Byte(to_bool(false));
+                            Some(Action::LoadConstant(to_bool(false), out))
+                        }
+                        Binop::Gte if l == u8::MAX => {
+                            mem[out] = Memory::Byte(to_bool(true));
+                            Some(Action::LoadConstant(to_bool(true), out))
+                        }
+                        _ => Some(Action::Binop {
                             op,
                             l: Arg::Byte(l),
                             r,
                             out,
-                        })
-                    }
-                    (Memory::Unknown, Memory::Byte(r)) => {
-                        mem[out] = Memory::Unknown;
-                        Some(Action::Binop {
+                        }),
+                    },
+                    (Memory::Unknown, Memory::Byte(r)) => match op {
+                        Binop::Add | Binop::BitOr | Binop::BitXor if r == 0 => {
+                            Some(Action::Move(l.expect_location(), out))
+                        }
+                        Binop::BitAnd if r == u8::MAX => {
+                            Some(Action::Move(l.expect_location(), out))
+                        }
+                        Binop::BitAnd if r == 0 => {
+                            mem[out] = Memory::Byte(0);
+                            Some(Action::LoadConstant(0, out))
+                        }
+                        Binop::Gt if r == u8::MAX => {
+                            mem[out] = Memory::Byte(to_bool(false));
+                            Some(Action::LoadConstant(to_bool(false), out))
+                        }
+                        Binop::Gte if r == 0 => {
+                            mem[out] = Memory::Byte(to_bool(true));
+                            Some(Action::LoadConstant(to_bool(true), out))
+                        }
+                        _ => Some(Action::Binop {
                             op,
                             l,
                             r: Arg::Byte(r),
                             out,
-                        })
-                    }
-                    (Memory::Unknown, Memory::Unknown) => {
-                        mem[out] = Memory::Unknown;
-                        Some(self.clone())
-                    }
+                        }),
+                    },
+                    (Memory::Unknown, Memory::Unknown) => Some(self.clone()),
                 }
             }
             Action::FunctionCall {

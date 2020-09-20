@@ -66,6 +66,15 @@ pub enum Arg {
     Location(LocationId),
 }
 
+impl Arg {
+    fn expect_location(self) -> LocationId {
+        match self {
+            Arg::Location(loc) => loc,
+            Arg::Byte(_) => panic!("unexpected byte"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     /// input must be a valid byte.
