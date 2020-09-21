@@ -92,6 +92,7 @@ pub const LIR_OPTIMIZATIONS: &[(fn(&mut Lir), &str)] = &[
     (|lir| lir.merge_simple_blocks(), "merge_simple_blocks2"),
     (|lir| lir.remove_unused_blocks(), "unused_blocks2"),
     (|lir| lir.remove_dead_writes(), "dead_writes4"),
+    (|lir| lir.remove_unused_functions(), "unused_functions3"),
     (|lir| lir.minimize_memory_usage(), "final_minimize_mem"),
 ];
 

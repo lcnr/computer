@@ -16,3 +16,8 @@ fn tle_eq() -> Bool {
 fn tle_gt() -> Bool {
     lte(8) == False
 }
+
+@test
+fn lte_max() -> Bool {
+    !0: u32 <= black_box(!0) && !(!0: u32 <= black_box(17))
+}

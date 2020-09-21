@@ -17,6 +17,7 @@ impl<'a> Mir<'a> {
     /// Requires all sum types to be reduced using `Mir::reduce_sum_types`.
     pub fn enum_to_byte(&mut self) {
         self.ctx.e2b = true;
+        self.ctx.bool_ty = U8_TYPE_ID;
 
         let mut used = TBitSet::new();
         for ty in self.types.iter() {

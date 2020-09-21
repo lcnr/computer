@@ -135,6 +135,13 @@ impl Object {
             _ => panic!(),
         }
     }
+
+    pub fn is_max_int(&self) -> bool {
+        match *self {
+            Object::U8(u8::MAX) | Object::U16(u16::MAX) | Object::U32(u32::MAX) => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

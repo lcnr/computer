@@ -1,0 +1,9 @@
+@test
+fn true() -> Bool {
+    7: u32 < black_box(13)
+}
+
+@test
+fn false() -> Bool {
+    !(127: u32 < black_box(69))
+}

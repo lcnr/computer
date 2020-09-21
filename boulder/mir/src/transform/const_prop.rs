@@ -1,9 +1,9 @@
 use std::iter;
 
-use shared_id::{StepId, TypeId, BOOL_TYPE_ID, FALSE_TYPE_ID, TRUE_TYPE_ID};
+use shared_id::{StepId, TypeId, FALSE_TYPE_ID, TRUE_TYPE_ID};
 use tindex::TVec;
 
-use crate::{binop::Binop, Action, Mir, Object, Step, Type, UnaryOperation};
+use crate::{binop::Binop, Action, Context, Mir, Object, Step, Type, UnaryOperation};
 
 impl<'a> Mir<'a> {
     pub fn const_propagate(&mut self) {
@@ -140,10 +140,7 @@ impl<'a> Mir<'a> {
                                 {
                                     block.steps[s].action = Action::LoadConstant(obj);
                                 }
-                                (Binop::Gte, _, Some(Object::U8(0)))
-                                | (Binop::Gte, _, Some(Object::U16(0)))
-                                | (Binop::Gte, _, Some(Object::U32(0)))
-                                | (Binop::BitOr, _, Some(Object::Variant(TRUE_TYPE_ID, _)))
+                                (Binop::BitOr, _, Some(Object::Variant(TRUE_TYPE_ID, _)))
                                 | (Binop::BitOr, Some(Object::Variant(TRUE_TYPE_ID, _)), _) => {
                                     block.steps[s].action =
                                         Action::LoadConstant(ctx.bool_to_object(true))
@@ -152,16 +149,43 @@ impl<'a> Mir<'a> {
                                     if let Some(value) = obj.try_eval_to_int() {
                                         block.replace_step(
                                             s,
-                                            gte_const(block.steps[a].ty, value, obj.from_int_fn()),
+                                            lte_const(
+                                                ctx,
+                                                block.steps[b].ty,
+                                                value,
+                                                obj.from_int_fn(),
+                                            ),
                                             iter::once(a),
                                         );
                                     }
                                 }
-                                (Binop::Gt, Some(obj), None)
-                                    if obj.try_eval_to_int() == Some(0) =>
-                                {
-                                    block.steps[s].action =
-                                        Action::LoadConstant(ctx.bool_to_object(false))
+                                (Binop::Gt, Some(obj), None) => {
+                                    if let Some(value) = obj.try_eval_to_int() {
+                                        block.replace_step(
+                                            s,
+                                            gt_const(
+                                                ctx,
+                                                block.steps[a].ty,
+                                                value,
+                                                obj.from_int_fn(),
+                                            ),
+                                            iter::once(b),
+                                        );
+                                    }
+                                }
+                                (Binop::Gt, None, Some(obj)) => {
+                                    if let Some(value) = obj.try_eval_to_int() {
+                                        block.replace_step(
+                                            s,
+                                            lt_const(
+                                                ctx,
+                                                block.steps[b].ty,
+                                                value,
+                                                obj.from_int_fn(),
+                                            ),
+                                            iter::once(a),
+                                        );
+                                    }
                                 }
                                 (Binop::Add, Some(obj), None)
                                     if obj.try_eval_to_int() == Some(0) =>
@@ -223,23 +247,100 @@ impl<'a> Mir<'a> {
     }
 }
 
-fn gte_const(ty: TypeId, value: u32, to_obj: fn(u32) -> Object) -> impl Iterator<Item = Step> {
+fn gt_const(
+    ctx: &Context,
+    ty: TypeId,
+    value: u32,
+    to_obj: fn(u32) -> Object,
+) -> impl Iterator<Item = Step> {
     let mut steps = TVec::<StepId, Step>::new();
-    if value.is_power_of_two() {
+    if value == 0 {
+        steps.push(Step::new(
+            ctx.bool_ty,
+            Action::LoadConstant(ctx.bool_to_object(false)),
+        ));
+    } else if to_obj(value).is_max_int() {
+        let max = steps.push(Step::new(ty, Action::LoadConstant(to_obj(value))));
+        steps.push(Step::new(ctx.bool_ty, Action::Binop(Binop::Neq, max, StepId::replacement(0))));
+    } else if value.is_power_of_two() {
         let ct = steps.push(Step::new(ty, Action::LoadConstant(to_obj(!(value - 1)))));
         let and = steps.push(Step::new(
             ty,
             Action::Binop(Binop::BitAnd, StepId::replacement(0), ct),
         ));
         let zero = steps.push(Step::new(ty, Action::LoadConstant(to_obj(0))));
-        steps.push(Step::new(
-            BOOL_TYPE_ID,
-            Action::Binop(Binop::Neq, and, zero),
-        ));
+        steps.push(Step::new(ctx.bool_ty, Action::Binop(Binop::Eq, and, zero)));
     } else {
         let ct = steps.push(Step::new(ty, Action::LoadConstant(to_obj(value))));
         steps.push(Step::new(
+            ctx.bool_ty,
+            Action::Binop(Binop::Gt, ct, StepId::replacement(0)),
+        ));
+    }
+    steps.into_iter()
+}
+
+fn lt_const(
+    ctx: &Context,
+    ty: TypeId,
+    value: u32,
+    to_obj: fn(u32) -> Object,
+) -> impl Iterator<Item = Step> {
+    let mut steps = TVec::<StepId, Step>::new();
+    if to_obj(value).is_max_int() {
+        steps.push(Step::new(
+            ctx.bool_ty,
+            Action::LoadConstant(ctx.bool_to_object(false)),
+        ));
+    } else if value == 0 {
+        let zero = steps.push(Step::new(ty, Action::LoadConstant(to_obj(0))));
+        steps.push(Step::new(ctx.bool_ty, Action::Binop(Binop::Neq, zero, StepId::replacement(0))));  
+    } else if (value + 1).is_power_of_two() {
+        eprintln!("ok: {:?}", value);
+        let ct = steps.push(Step::new(ty, Action::LoadConstant(to_obj(!value))));
+        let and = steps.push(Step::new(
             ty,
+            Action::Binop(Binop::BitAnd, StepId::replacement(0), ct),
+        ));
+        let zero = steps.push(Step::new(ty, Action::LoadConstant(to_obj(0))));
+        steps.push(Step::new(ctx.bool_ty, Action::Binop(Binop::Neq, and, zero)));
+    } else {
+        let ct = steps.push(Step::new(ty, Action::LoadConstant(to_obj(value))));
+        steps.push(Step::new(
+            ctx.bool_ty,
+            Action::Binop(Binop::Gt, StepId::replacement(0), ct),
+        ));
+    }
+    steps.into_iter()
+}
+
+fn lte_const(
+    ctx: &Context,
+    ty: TypeId,
+    value: u32,
+    to_obj: fn(u32) -> Object,
+) -> impl Iterator<Item = Step> {
+    let mut steps = TVec::<StepId, Step>::new();
+    if value == 0 {
+        steps.push(Step::new(
+            ctx.bool_ty,
+            Action::LoadConstant(ctx.bool_to_object(true)),
+        ));
+    } else if to_obj(value).is_max_int() {
+        let max = steps.push(Step::new(ty, Action::LoadConstant(to_obj(value))));
+        steps.push(Step::new(ctx.bool_ty, Action::Binop(Binop::Eq, max, StepId::replacement(0))));
+    } else if value.is_power_of_two() {
+        let ct = steps.push(Step::new(ty, Action::LoadConstant(to_obj(!(value - 1)))));
+        let and = steps.push(Step::new(
+            ty,
+            Action::Binop(Binop::BitAnd, StepId::replacement(0), ct),
+        ));
+        let zero = steps.push(Step::new(ty, Action::LoadConstant(to_obj(0))));
+        steps.push(Step::new(ctx.bool_ty, Action::Binop(Binop::Neq, and, zero)));
+    } else {
+        let ct = steps.push(Step::new(ty, Action::LoadConstant(to_obj(value))));
+        steps.push(Step::new(
+            ctx.bool_ty,
             Action::Binop(Binop::Gte, StepId::replacement(0), ct),
         ));
     }

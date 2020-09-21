@@ -1,4 +1,4 @@
-use shared_id::{FunctionId, FALSE_TYPE_ID, TRUE_TYPE_ID};
+use shared_id::{FunctionId, TypeId, FALSE_TYPE_ID, TRUE_TYPE_ID};
 
 use crate::Object;
 
@@ -27,6 +27,7 @@ pub struct Context {
     pub mul8: FunctionId,
     /// have enums been converted to bytes
     pub e2b: bool,
+    pub bool_ty: TypeId,
     pub true_replacement: u8,
     pub false_replacement: u8,
 }
