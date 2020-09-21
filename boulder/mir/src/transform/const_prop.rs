@@ -296,7 +296,6 @@ fn lt_const(
         let zero = steps.push(Step::new(ty, Action::LoadConstant(to_obj(0))));
         steps.push(Step::new(ctx.bool_ty, Action::Binop(Binop::Neq, zero, StepId::replacement(0))));  
     } else if (value + 1).is_power_of_two() {
-        eprintln!("ok: {:?}", value);
         let ct = steps.push(Step::new(ty, Action::LoadConstant(to_obj(!value))));
         let and = steps.push(Step::new(
             ty,
