@@ -15,6 +15,7 @@ members = [
     "boulder/lir",
     "boulder/lir_interpreter",
     "boulder/lir2asm",
+    "boulder/nlir",
     "remu",
     "mirco",
 ]

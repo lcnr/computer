@@ -101,7 +101,7 @@ macro_rules! sub {
     }
 }
 
-t!(BlockId: '~', EntityId, FieldId, FunctionId: '#', TypeId: '%', StepId: '$', InputId, LocationId: '@', TagId);
+t!(BlockId: '~', EntityId, FieldId, FunctionId: '#', NodeId: '$', TypeId: '%', StepId: '$', InputId, LocationId: '@', TagId);
 
 invalid!(BlockId, FunctionId, StepId);
 
