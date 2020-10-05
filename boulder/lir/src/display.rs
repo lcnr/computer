@@ -2,7 +2,17 @@ use std::fmt::{Display, Formatter, Result};
 
 use shared_id::{FunctionId, LocationId};
 
-use crate::{Action, Arg, Binop, Function, Lir, MatchArm, Terminator};
+use crate::{Action, Arg, Binop, BoolOp, Function, Lir, MatchArm, Terminator};
+
+impl Display for BoolOp {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            BoolOp::Eq => write!(f, "eq"),
+            BoolOp::Gt => write!(f, "gt"),
+            BoolOp::Gte => write!(f, "gte"),
+        }
+    }
+}
 
 impl Display for Binop {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
@@ -11,10 +21,7 @@ impl Display for Binop {
             Self::Sub => write!(f, "sub"),
             Self::Shl => write!(f, "shl"),
             Self::Shr => write!(f, "shr"),
-            Self::Eq => write!(f, "eq"),
-            Self::Neq => write!(f, "neq"),
-            Self::Gt => write!(f, "gt"),
-            Self::Gte => write!(f, "gte"),
+            Self::Logic(op, tru, fals) => write!(f, "{}(t: {}, f: {})", op, tru, fals),
             Self::BitOr => write!(f, "bitor"),
             Self::BitAnd => write!(f, "bitand"),
             Self::BitXor => write!(f, "bitxor"),

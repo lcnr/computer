@@ -6,7 +6,7 @@ use tindex::tvec;
 
 use shared_id::{BlockId, FunctionId, LocationId, StepId};
 
-use lir::{Action, Arg, Binop, Lir, Terminator};
+use lir::{Action, Arg, Binop, BoolOp, Lir, Terminator};
 
 #[derive(Debug, Clone)]
 pub enum Error {
@@ -186,14 +186,6 @@ impl<'a> BoulderLirInterpreter<'a> {
         }
     }
 
-    fn to_bool(&self, b: bool) -> Option<u8> {
-        if b {
-            Some(self.lir.ctx.true_replacement)
-        } else {
-            Some(self.lir.ctx.false_replacement)
-        }
-    }
-
     fn binop(&self, op: Binop, l: Memory, r: Memory) -> Result<u8, Error> {
         let l = l.valid()?;
         let r = r.valid()?;
@@ -203,10 +195,17 @@ impl<'a> BoulderLirInterpreter<'a> {
             Binop::Sub => l.checked_sub(r),
             Binop::Shl => l.checked_shl(r.into()).or(Some(0)),
             Binop::Shr => l.checked_shr(r.into()).or(Some(0)),
-            Binop::Eq => self.to_bool(l == r),
-            Binop::Neq => self.to_bool(l != r),
-            Binop::Gt => self.to_bool(l > r),
-            Binop::Gte => self.to_bool(l >= r),
+            Binop::Logic(op, tru, fals) => {
+                if match op {
+                    BoolOp::Eq => l == r,
+                    BoolOp::Gt => l > r,
+                    BoolOp::Gte => l >= r,
+                } {
+                    Some(tru)
+                } else {
+                    Some(fals)
+                }
+            }
             Binop::BitOr => Some(l | r),
             Binop::BitAnd => Some(l & r),
             Binop::BitXor => Some(l ^ r),

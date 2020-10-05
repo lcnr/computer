@@ -42,14 +42,19 @@ pub fn convert(mir: Mir) -> Lir {
         .collect();
 
     for function in mir.functions.into_iter() {
-        lir.functions
-            .push(convert_function(function, &field_offsets, &mir.types));
+        lir.functions.push(convert_function(
+            &lir.ctx,
+            function,
+            &field_offsets,
+            &mir.types,
+        ));
     }
 
     lir
 }
 
 pub fn convert_function<'a>(
+    ctx: &lir::Context,
     mir: mir::Function<'a>,
     field_offsets: &TSlice<TypeId, TVec<FieldId, usize>>,
     types: &TSlice<TypeId, Type>,
@@ -153,7 +158,7 @@ pub fn convert_function<'a>(
                 mir::Action::Binop(op, l, r) => {
                     assert_eq!(step_size, 1);
                     steps.push(lir::Action::Binop {
-                        op: convert_binop(op),
+                        op: convert_binop(ctx, op),
                         l: Arg::Location(step_offsets[l]),
                         r: Arg::Location(step_offsets[r]),
                         out: step_start,
@@ -275,7 +280,7 @@ fn convert_object(obj: &Object, ty: TypeId, types: &TSlice<TypeId, Type>) -> Vec
     }
 }
 
-fn convert_binop(op: mir::binop::Binop) -> lir::Binop {
+fn convert_binop(ctx: &lir::Context, op: mir::binop::Binop) -> lir::Binop {
     use lir::Binop as L;
     use mir::binop::Binop as M;
 
@@ -284,10 +289,14 @@ fn convert_binop(op: mir::binop::Binop) -> lir::Binop {
         M::Sub => L::Sub,
         M::Shl => L::Shl,
         M::Shr => L::Shr,
-        M::Eq => L::Eq,
-        M::Neq => L::Neq,
-        M::Gt => L::Gt,
-        M::Gte => L::Gte,
+        M::Eq => L::Logic(lir::BoolOp::Eq, ctx.true_replacement, ctx.false_replacement),
+        M::Neq => L::Logic(lir::BoolOp::Eq, ctx.false_replacement, ctx.true_replacement),
+        M::Gt => L::Logic(lir::BoolOp::Gt, ctx.true_replacement, ctx.false_replacement),
+        M::Gte => L::Logic(
+            lir::BoolOp::Gte,
+            ctx.true_replacement,
+            ctx.false_replacement,
+        ),
         M::BitOr => L::BitOr,
         M::BitAnd => L::BitAnd,
         M::BitXor => L::BitXor,

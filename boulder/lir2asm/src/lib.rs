@@ -11,7 +11,7 @@ use tindex::{TBitSet, TSlice, TVec};
 
 use shared_id::{BlockId, FunctionId, InputId, LocationId, TagId};
 
-use lir::{Action, Arg, Binop, Lir, Terminator};
+use lir::{Action, Arg, Binop, BoolOp, Lir, Terminator};
 
 mod ctx;
 mod optimize;
@@ -516,24 +516,16 @@ fn convert_block(
                     Binop::BitAnd => commands.push(Command::Op(Operation::BitAnd, Writeable::Mem)),
                     Binop::BitOr => commands.push(Command::Op(Operation::BitOr, Writeable::Mem)),
                     Binop::BitXor => commands.push(Command::Op(Operation::BitXor, Writeable::Mem)),
-                    Binop::Eq | Binop::Neq | Binop::Gt | Binop::Gte => {
-                        let cond = |op: Binop, cmd| match op {
-                            Binop::Eq => Cond::Eq(cmd),
-                            Binop::Neq => Cond::Neq(cmd),
-                            Binop::Gt => Cond::Gt(cmd),
-                            Binop::Gte => Cond::Gte(cmd),
-                            _ => unreachable!(),
-                        };
+                    Binop::Logic(op, tru, fals) => {
+                        let true_cmd = Command::Move(Readable::Byte(tru), Writeable::C);
 
                         commands.extend_from_slice(&[
-                            Command::Move(Readable::Byte(lir.ctx.false_replacement), Writeable::C),
-                            Command::If(cond(
-                                op,
-                                Command::Move(
-                                    Readable::Byte(lir.ctx.true_replacement),
-                                    Writeable::C,
-                                ),
-                            )),
+                            Command::Move(Readable::Byte(fals), Writeable::C),
+                            Command::If(match op {
+                                BoolOp::Eq => Cond::Eq(true_cmd),
+                                BoolOp::Gt => Cond::Gt(true_cmd),
+                                BoolOp::Gte => Cond::Gte(true_cmd),
+                            }),
                             Command::Move(Readable::C, Writeable::Mem),
                         ]);
                     }

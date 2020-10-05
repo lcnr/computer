@@ -1,4 +1,4 @@
-use crate::{Action, Arg, Binop, Block, Context, Function, Lir, Terminator};
+use crate::{Action, Arg, Binop, Block, BoolOp, Function, Lir, Terminator};
 use shared_id::{BlockId, LocationId, StepId};
 use std::iter;
 use tindex::{tvec, TVec};
@@ -52,24 +52,24 @@ impl<'a> Lir<'a> {
         profile_scope!("const_propagate");
 
         for func in self.functions.iter_mut() {
-            func.const_propagate(&self.ctx);
+            func.const_propagate();
         }
     }
 }
 
 impl<'a> Function<'a> {
-    pub fn const_propagate(&mut self, ctx: &Context) {
-        let mut initial_states = self.initial_states(ctx);
+    pub fn const_propagate(&mut self) {
+        let mut initial_states = self.initial_states();
         for blk in self.blocks.index_iter() {
             if let Some(initial_states) = initial_states[blk].take() {
-                self.blocks[blk].const_propagate(ctx, initial_states);
+                self.blocks[blk].const_propagate(initial_states);
             }
         }
 
         self.remove_unused_blocks();
     }
 
-    fn initial_states(&self, ctx: &Context) -> TVec<BlockId, Option<TVec<LocationId, State>>> {
+    fn initial_states(&self) -> TVec<BlockId, Option<TVec<LocationId, State>>> {
         let mut initial_states = tvec![None; self.blocks.len()];
 
         let current: TVec<LocationId, State> = iter::repeat(State::Unknown)
@@ -130,10 +130,17 @@ impl<'a> Function<'a> {
                                     Binop::Sub => l.checked_sub(r),
                                     Binop::Shl => l.checked_shl(r.into()).or(Some(0)),
                                     Binop::Shr => l.checked_shr(r.into()).or(Some(0)),
-                                    Binop::Eq => Some(ctx.mk_bool(l == r)),
-                                    Binop::Neq => Some(ctx.mk_bool(l != r)),
-                                    Binop::Gt => Some(ctx.mk_bool(l > r)),
-                                    Binop::Gte => Some(ctx.mk_bool(l >= r)),
+                                    Binop::Logic(bool_op, tru, fals) => {
+                                        if match bool_op {
+                                            BoolOp::Eq => l == r,
+                                            BoolOp::Gt => l > r,
+                                            BoolOp::Gte => l >= r,
+                                        } {
+                                            Some(tru)
+                                        } else {
+                                            Some(fals)
+                                        }
+                                    }
                                     Binop::BitOr => Some(l | r),
                                     Binop::BitAnd => Some(l & r),
                                     Binop::BitXor => Some(l ^ r),
@@ -198,7 +205,7 @@ impl<'a> Function<'a> {
 }
 
 impl Block {
-    pub fn const_propagate(&mut self, ctx: &Context, mut loc: TVec<LocationId, State>) {
+    pub fn const_propagate(&mut self, mut loc: TVec<LocationId, State>) {
         let mut step = StepId(0);
         while step < self.steps.range_end() {
             match self.steps[step] {
@@ -239,10 +246,17 @@ impl Block {
                                 Binop::Sub => l.checked_sub(r),
                                 Binop::Shl => l.checked_shl(r.into()).or(Some(0)),
                                 Binop::Shr => l.checked_shr(r.into()).or(Some(0)),
-                                Binop::Eq => Some(ctx.mk_bool(l == r)),
-                                Binop::Neq => Some(ctx.mk_bool(l != r)),
-                                Binop::Gt => Some(ctx.mk_bool(l > r)),
-                                Binop::Gte => Some(ctx.mk_bool(l >= r)),
+                                Binop::Logic(bool_op, tru, fals) => {
+                                    if match bool_op {
+                                        BoolOp::Eq => l == r,
+                                        BoolOp::Gt => l > r,
+                                        BoolOp::Gte => l >= r,
+                                    } {
+                                        Some(tru)
+                                    } else {
+                                        Some(fals)
+                                    }
+                                }
                                 Binop::BitOr => Some(l | r),
                                 Binop::BitAnd => Some(l & r),
                                 Binop::BitXor => Some(l ^ r),
@@ -260,15 +274,14 @@ impl Block {
                             };
 
                             match op {
-                                Binop::Gt => match l {
+                                Binop::Logic(BoolOp::Gt, tru, fals) => match l {
                                     0 => {
-                                        self.steps[step] =
-                                            Action::Move(Arg::Byte(ctx.mk_bool(false)), out);
-                                        loc[out] = State::Known(ctx.mk_bool(false));
+                                        self.steps[step] = Action::Move(Arg::Byte(fals), out);
+                                        loc[out] = State::Known(fals);
                                     }
                                     255 => {
                                         self.steps[step] = Action::Binop {
-                                            op: Binop::Neq,
+                                            op: Binop::Logic(BoolOp::Eq, fals, tru),
                                             r,
                                             l: Arg::Byte(255),
                                             out,
@@ -276,19 +289,18 @@ impl Block {
                                     }
                                     _ => (),
                                 },
-                                Binop::Gte => match l {
+                                Binop::Logic(BoolOp::Gte, tru, fals) => match l {
                                     0 => {
                                         self.steps[step] = Action::Binop {
-                                            op: Binop::Eq,
+                                            op: Binop::Logic(BoolOp::Eq, tru, fals),
                                             r,
                                             l: Arg::Byte(0),
                                             out,
                                         }
                                     }
                                     255 => {
-                                        self.steps[step] =
-                                            Action::Move(Arg::Byte(ctx.mk_bool(true)), out);
-                                        loc[out] = State::Known(ctx.mk_bool(true));
+                                        self.steps[step] = Action::Move(Arg::Byte(tru), out);
+                                        loc[out] = State::Known(tru);
                                     }
                                     _ => (),
                                 },
@@ -319,31 +331,29 @@ impl Block {
                             };
 
                             match op {
-                                Binop::Gt => match r {
+                                Binop::Logic(BoolOp::Gt, tru, fals) => match r {
                                     0 => {
                                         self.steps[step] = Action::Binop {
-                                            op: Binop::Neq,
+                                            op: Binop::Logic(BoolOp::Eq, fals, tru),
                                             l,
                                             r: Arg::Byte(0),
                                             out,
                                         }
                                     }
                                     255 => {
-                                        self.steps[step] =
-                                            Action::Move(Arg::Byte(ctx.mk_bool(false)), out);
-                                        loc[out] = State::Known(ctx.mk_bool(false));
+                                        self.steps[step] = Action::Move(Arg::Byte(fals), out);
+                                        loc[out] = State::Known(fals);
                                     }
                                     _ => (),
                                 },
-                                Binop::Gte => match r {
+                                Binop::Logic(BoolOp::Gte, tru, fals) => match r {
                                     0 => {
-                                        self.steps[step] =
-                                            Action::Move(Arg::Byte(ctx.mk_bool(true)), out);
-                                        loc[out] = State::Known(ctx.mk_bool(true));
+                                        self.steps[step] = Action::Move(Arg::Byte(tru), out);
+                                        loc[out] = State::Known(tru);
                                     }
                                     255 => {
                                         self.steps[step] = Action::Binop {
-                                            op: Binop::Eq,
+                                            op: Binop::Logic(BoolOp::Eq, tru, fals),
                                             l,
                                             r: Arg::Byte(255),
                                             out,

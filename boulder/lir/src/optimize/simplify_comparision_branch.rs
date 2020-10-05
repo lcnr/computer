@@ -1,5 +1,5 @@
 use crate::traits::Writes;
-use crate::{Action, Arg, Binop, Context, Function, Lir, MatchArm, Terminator};
+use crate::{Action, Arg, Binop, BoolOp, Function, Lir, MatchArm, Terminator};
 use tindex::TBitSet;
 
 impl<'a> Lir<'a> {
@@ -8,13 +8,13 @@ impl<'a> Lir<'a> {
         profile_scope!("simplify_comparision_branch");
 
         for func in self.functions.iter_mut() {
-            func.simplify_comparision_branch(&self.ctx);
+            func.simplify_comparision_branch();
         }
     }
 }
 
 impl<'a> Function<'a> {
-    fn simplify_comparision_branch(&mut self, ctx: &Context) {
+    fn simplify_comparision_branch(&mut self) {
         'blocks: for block in self.blocks.iter_mut() {
             let (pat, arms) = match block.terminator {
                 Terminator::Goto(_) => continue 'blocks,
@@ -35,20 +35,14 @@ impl<'a> Function<'a> {
                 if wrote_to_pat {
                     match *step {
                         Action::Binop {
-                            op: Binop::Eq,
+                            op: Binop::Logic(BoolOp::Eq, t, f),
                             l: Arg::Location(loc),
                             r: Arg::Byte(v),
                             out: _,
-                        }
-                        | Action::Binop {
-                            op: Binop::Eq,
-                            l: Arg::Byte(v),
-                            r: Arg::Location(loc),
-                            out: _,
                         } => {
                             if !overwritten.get(loc) {
-                                let t = super::arm_for(arms, ctx.true_replacement);
-                                let f = super::arm_for(arms, ctx.false_replacement);
+                                let t = super::arm_for(arms, t);
+                                let f = super::arm_for(arms, f);
                                 if t == f {
                                     panic!("unexpected bool match");
                                 }
@@ -62,39 +56,6 @@ impl<'a> Function<'a> {
                                         MatchArm {
                                             pat: 177,
                                             target: f.target,
-                                        },
-                                    ],
-                                );
-                            }
-                        }
-                        Action::Binop {
-                            op: Binop::Neq,
-                            l: Arg::Location(loc),
-                            r: Arg::Byte(v),
-                            out: _,
-                        }
-                        | Action::Binop {
-                            op: Binop::Neq,
-                            l: Arg::Byte(v),
-                            r: Arg::Location(loc),
-                            out: _,
-                        } => {
-                            if !overwritten.get(loc) {
-                                let t = super::arm_for(arms, ctx.true_replacement);
-                                let f = super::arm_for(arms, ctx.false_replacement);
-                                if t == f {
-                                    panic!("unexpected bool match");
-                                }
-                                block.terminator = Terminator::Match(
-                                    loc,
-                                    vec![
-                                        MatchArm {
-                                            pat: v,
-                                            target: f.target,
-                                        },
-                                        MatchArm {
-                                            pat: 177,
-                                            target: t.target,
                                         },
                                     ],
                                 );

@@ -33,31 +33,22 @@ pub enum Memory {
     Undefined,
 }
 
-/// FIXME: reduce restrictions of binops
-/// e.g. 0 & invalid == 0
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BoolOp {
+    Eq,
+    Gt,
+    Gte,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Binop {
-    /// both arguments must be valid
     Add,
-    /// both arguments must be valid
     Sub,
-    /// both arguments must be valid
     Shl,
-    /// both arguments must be valid
     Shr,
-    /// both arguments must be valid
-    Eq,
-    /// both arguments must be valid
-    Neq,
-    /// both arguments must be valid
-    Gt,
-    /// both arguments must be valid
-    Gte,
-    /// both arguments must be valid
+    Logic(BoolOp, u8, u8),
     BitOr,
-    /// both arguments must be valid
     BitAnd,
-    /// both arguments must be valid
     BitXor,
 }
 
@@ -114,20 +105,6 @@ pub enum Terminator {
 pub struct Context {
     pub true_replacement: u8,
     pub false_replacement: u8,
-}
-
-impl Context {
-    fn mk_bool(&self, b: bool) -> u8 {
-        if b {
-            self.true_replacement
-        } else {
-            self.false_replacement
-        }
-    }
-
-    fn is_bool(&self, b: u8) -> bool {
-        b == self.true_replacement || b == self.false_replacement
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
