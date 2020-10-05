@@ -74,12 +74,22 @@ impl<'a> Lir<'a> {
                         }
                     }
                     Terminator::Goto(None) => (),
-                    Terminator::Match(_, ref mut arms) => {
-                        for arm in arms.iter_mut() {
-                            if let Some(&Terminator::Goto(target)) =
-                                arm.target.and_then(|t| trivial_redirects[t].as_ref())
-                            {
-                                arm.target = target;
+                    Terminator::Match(pat, ref mut arms) => {
+                        let mut iter = mem::take(arms).into_iter().peekable();
+                        while let Some(arm) = iter.next() {
+                            match arm.target.and_then(|t| trivial_redirects[t].as_ref()) {
+                                Some(&Terminator::Goto(target)) => {
+                                    arms.push(MatchArm {
+                                        pat: arm.pat,
+                                        target,
+                                    });
+                                }
+                                Some(&Terminator::Match(re_pat, ref re_arms))
+                                    if false && pat == re_pat && iter.peek().is_none() =>
+                                {
+                                    arms.extend(re_arms.iter().copied())
+                                }
+                                _ => arms.push(arm),
                             }
                         }
                     }

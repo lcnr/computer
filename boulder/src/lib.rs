@@ -118,6 +118,15 @@ pub const LIR_OPTIMIZATIONS: &[(fn(&mut Lir), &str)] = &[
     (|lir| lir.minimize_memory_len(), "minimize_memory_len"),
     (|lir| lir.trace_moves(), "trace_moves2"),
     (|lir| lir.dead_write_elim(), "dead_write_elim2"),
+    (
+        |lir| lir.merge_trivial_redirects(),
+        "merge_trivial_redirects3",
+    ),
+    (|lir| lir.remove_unused_blocks(), "remove_unused_blocks2"),
+    (
+        |lir| lir.remove_unused_functions(),
+        "remove_unused_functions1",
+    ),
 ];
 
 pub fn compile<'a>(
