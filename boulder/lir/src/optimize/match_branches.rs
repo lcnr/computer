@@ -76,5 +76,7 @@ impl<'a> Function<'a> {
             self.blocks[blk].steps.extend(steps);
             self.blocks[blk].terminator = self.blocks[vt].terminator.clone();
         }
+
+        self.remove_unused_blocks();
     }
 }

@@ -60,13 +60,13 @@ impl<'a> Lir<'a> {
 impl<'a> Function<'a> {
     pub fn const_propagate(&mut self, ctx: &Context) {
         let mut initial_states = self.initial_states(ctx);
-        for blk in self.blocks.index_iter().rev() {
+        for blk in self.blocks.index_iter() {
             if let Some(initial_states) = initial_states[blk].take() {
                 self.blocks[blk].const_propagate(ctx, initial_states);
-            } else {
-                self.remove_block(blk);
             }
         }
+
+        self.remove_unused_blocks();
     }
 
     fn initial_states(&self, ctx: &Context) -> TVec<BlockId, Option<TVec<LocationId, State>>> {

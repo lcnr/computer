@@ -31,6 +31,8 @@ impl<'a> Lir<'a> {
 
                 b = b + 1;
             }
+
+            self.functions[f].remove_unused_blocks();
         }
     }
 

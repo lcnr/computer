@@ -95,6 +95,8 @@ impl<'a> Lir<'a> {
                     }
                 }
             }
+
+            function.remove_unused_blocks();
         }
     }
 
@@ -157,41 +159,37 @@ impl<'a> Lir<'a> {
             }
         }
     }
-
-    /// Removes blocks which can not be reached
-    pub fn remove_unused_blocks(&mut self) {
-        #[cfg(feature = "profiler")]
-        profile_scope!("remove_unused_blocks");
-        for func in self.functions.iter_mut() {
-            let mut used: TBitSet<_> = iter::once(BlockId::from(0)).collect();
-            let mut new_used = TBitSet::new();
-            while used != new_used {
-                for b in used.iter() {
-                    new_used.add(b);
-                    match func.blocks[b].terminator {
-                        Terminator::Goto(target) => {
-                            if let Some(target) = target {
-                                new_used.add(target)
-                            }
-                        }
-                        Terminator::Match(_, ref arms) => {
-                            new_used.extend(arms.iter().filter_map(|arm| arm.target))
-                        }
-                    }
-                }
-                mem::swap(&mut used, &mut new_used);
-            }
-
-            for i in func.blocks.index_iter().rev() {
-                if !used.get(i) {
-                    func.remove_block(i);
-                }
-            }
-        }
-    }
 }
 
 impl<'a> Function<'a> {
+    /// Removes blocks which can not be reached
+    pub fn remove_unused_blocks(&mut self) {
+        let mut used: TBitSet<_> = iter::once(BlockId::from(0)).collect();
+        let mut new_used = TBitSet::new();
+        while used != new_used {
+            for b in used.iter() {
+                new_used.add(b);
+                match self.blocks[b].terminator {
+                    Terminator::Goto(target) => {
+                        if let Some(target) = target {
+                            new_used.add(target)
+                        }
+                    }
+                    Terminator::Match(_, ref arms) => {
+                        new_used.extend(arms.iter().filter_map(|arm| arm.target))
+                    }
+                }
+            }
+            mem::swap(&mut used, &mut new_used);
+        }
+
+        for i in self.blocks.index_iter().rev() {
+            if !used.get(i) {
+                self.remove_block(i);
+            }
+        }
+    }
+
     pub fn remove_block(&mut self, b: BlockId) {
         for block in self.blocks.iter_mut() {
             block

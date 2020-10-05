@@ -76,7 +76,6 @@ pub const LIR_OPTIMIZATIONS: &[(fn(&mut Lir), &str)] = &[
         |lir| lir.simplify_match_branches(),
         "simplify_match_branches0",
     ),
-    (|lir| lir.remove_unused_blocks(), "remove_unused_blocks0"),
     (|lir| lir.const_propagate(), "const_propagate0"),
     (
         |lir| lir.simplify_comparision_branch(),
@@ -84,7 +83,6 @@ pub const LIR_OPTIMIZATIONS: &[(fn(&mut Lir), &str)] = &[
     ),
     (|lir| lir.trace_moves(), "trace_moves0"),
     (|lir| lir.dead_write_elim(), "dead_write_elim0"),
-    (|lir| lir.remove_unused_blocks(), "remove_unused_blocks1"),
     (
         |lir| lir.remove_unused_functions(),
         "remove_unused_functions1",
@@ -110,7 +108,6 @@ pub const LIR_OPTIMIZATIONS: &[(fn(&mut Lir), &str)] = &[
         |lir| lir.merge_trivial_redirects(),
         "merge_trivial_redirects2",
     ),
-    (|lir| lir.remove_unused_blocks(), "remove_unused_blocks2"),
     (
         |lir| lir.remove_unused_functions(),
         "remove_unused_functions1",
@@ -122,7 +119,6 @@ pub const LIR_OPTIMIZATIONS: &[(fn(&mut Lir), &str)] = &[
         |lir| lir.merge_trivial_redirects(),
         "merge_trivial_redirects3",
     ),
-    (|lir| lir.remove_unused_blocks(), "remove_unused_blocks2"),
     (
         |lir| lir.remove_unused_functions(),
         "remove_unused_functions1",
