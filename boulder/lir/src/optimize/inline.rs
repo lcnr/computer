@@ -11,6 +11,11 @@ impl<'a> Lir<'a> {
         #[cfg(feature = "profiler")]
         profile_scope!("inline_functions");
         for f in self.functions.index_iter() {
+            if self.functions[f].ctx.test {
+                // Do not inline into tests.
+                continue;
+            }
+
             let mut b = BlockId(0);
             while b < l!(self, f).blocks.range_end() {
                 let mut s = StepId(0);
