@@ -138,7 +138,7 @@ fn main() -> Result<(), TestFailure> {
     thread_profiler::register_thread_with_profiler();
     let mut count = 0;
     let mut success = 0;
-    for entry in WalkDir::new("tests/compile_run") {
+    for entry in WalkDir::new("tests/compile") {
         let entry = entry.unwrap();
         if entry.metadata().unwrap().is_file() {
             #[cfg(feature = "profiler")]
@@ -203,7 +203,12 @@ fn main() -> Result<(), TestFailure> {
 
                 if lir.functions.iter().any(|f| f.ctx.test) {
                     match remu.run(MAX_ASM_STEPS) {
-                        Ok(steps) => println!("boulder/{}: {}", entry.path().display(), steps),
+                        Ok(steps) => println!(
+                            "boulder/{:51}{:9} {:5}",
+                            entry.path().display(),
+                            steps,
+                            data.len()
+                        ),
                         Err(e) => panic!("{:?}", e),
                     }
                 }

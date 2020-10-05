@@ -1,0 +1,31 @@
+# Debugging a miscompilation in core_fn.
+@test
+fn add_one() -> Bool {
+    black_box(5: u32) +  black_box(2: u32) == 7
+}
+
+@test
+fn mul_one() -> Bool {
+    black_box(2: u32) *  black_box(2: u32) == 4
+}
+
+@test
+fn sub_one() -> Bool {
+    black_box(5: u32) -  black_box(4: u32) == 1
+}
+
+@test
+fn shl_one() -> Bool {
+    black_box(1: u32) << black_box(0: u32) == 1
+}
+
+@test
+fn add_two() -> Bool {
+    black_box(7: u32) + black_box(1: u32) == 8
+}
+
+@test
+fn sub_two() -> Bool {
+    black_box(8: u32) - black_box(2: u32) == 6
+}
+

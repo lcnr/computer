@@ -20,7 +20,8 @@ macro_rules! l {
 
 mod display;
 mod optimize;
-mod traits;
+mod reachability;
+pub mod traits;
 mod validate;
 
 use crate::traits::{Reads, Writes};
@@ -66,15 +67,6 @@ pub enum Arg {
     Location(LocationId),
 }
 
-impl Arg {
-    fn expect_location(self) -> LocationId {
-        match self {
-            Arg::Location(loc) => loc,
-            Arg::Byte(_) => panic!("unexpected byte"),
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
     /// input must be a valid byte.
@@ -86,11 +78,9 @@ pub enum Action {
     /// While moving invalid data is not that dangerous,
     /// it is not guaranteed that `mem[i] == mem[o]` is true
     /// after a move if `mem[i]` was previously undefined.
-    Move(LocationId, LocationId),
+    Move(Arg, LocationId),
     /// input may not be a valid byte.
     Debug(LocationId),
-    /// input must be a valid byte.
-    LoadConstant(u8, LocationId),
     /// see binop docs for soundness constraints.
     Binop {
         op: Binop,
@@ -104,18 +94,19 @@ pub enum Action {
         args: TVec<InputId, Option<Arg>>,
         ret: Vec<Option<LocationId>>,
     },
+    /// Does nothing, can just be removed.
+    Noop,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MatchArm {
     pub pat: u8,
     pub target: Option<BlockId>,
-    pub args: TVec<InputId, Option<Arg>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Terminator {
-    Goto(Option<BlockId>, TVec<InputId, Option<Arg>>),
+    Goto(Option<BlockId>),
     Match(LocationId, Vec<MatchArm>),
 }
 
@@ -123,6 +114,20 @@ pub enum Terminator {
 pub struct Context {
     pub true_replacement: u8,
     pub false_replacement: u8,
+}
+
+impl Context {
+    fn mk_bool(&self, b: bool) -> u8 {
+        if b {
+            self.true_replacement
+        } else {
+            self.false_replacement
+        }
+    }
+
+    fn is_bool(&self, b: u8) -> bool {
+        b == self.true_replacement || b == self.false_replacement
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -160,14 +165,12 @@ pub struct Function<'a> {
     pub name: &'a str,
     pub ctx: FunctionContext,
     pub blocks: TVec<BlockId, Block>,
-    pub return_length: usize,
+    pub memory_len: usize,
+    pub return_len: usize,
+    pub input_len: usize,
 }
 
 impl<'a> Function<'a> {
-    pub fn input_len(&self) -> usize {
-        self.blocks[BlockId(0)].inputs.len()
-    }
-
     /// Checks whether this function depends on the function `f`.
     ///
     /// In case `f` is `FunctionId::invalid()`, `visited` contains all
@@ -193,54 +196,35 @@ impl<'a> Function<'a> {
 
         false
     }
+
+    pub fn used_locations(&self, block: BlockId, after: StepId) -> TBitSet<LocationId> {
+        use crate::reachability::Reachability;
+
+        let mut l = tvec![Reachability::Ignore; self.memory_len];
+
+        self.blocks[block].steps[after].writes(|id| l[id].write());
+
+        for step in self.blocks[block].steps[after + 1..].iter() {
+            step.reads(|id| {
+                l[id].read();
+            });
+            step.writes(|id| {
+                l[id].write();
+            });
+        }
+
+        l.iter_mut()
+            .zip(self.terminator_reachability(block))
+            .for_each(|(l, o)| l.append(o));
+
+        l.index_iter()
+            .filter(|&i| l[i] == Reachability::Access)
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Block {
-    pub inputs: TVec<InputId, LocationId>,
-    pub memory_len: usize,
     pub steps: TVec<StepId, Action>,
     pub terminator: Terminator,
-}
-
-impl Block {
-    pub fn used_locations(&self, after: StepId) -> TBitSet<LocationId> {
-        #[derive(Clone, Copy, PartialEq, Eq)]
-        enum Location {
-            Unknown,
-            Overwritten,
-            Needed,
-        }
-
-        let mut l = tvec![Location::Unknown; self.memory_len];
-
-        self.steps[after].writes(|id| {
-            if let Location::Unknown = l[id] {
-                l[id] = Location::Overwritten
-            }
-        });
-
-        for step in self.steps[after + 1..].iter() {
-            step.reads(|id| {
-                if let Location::Unknown = l[id] {
-                    l[id] = Location::Needed
-                }
-            });
-            step.writes(|id| {
-                if let Location::Unknown = l[id] {
-                    l[id] = Location::Overwritten
-                }
-            });
-        }
-
-        self.terminator.reads(|id| {
-            if let Location::Unknown = l[id] {
-                l[id] = Location::Needed
-            }
-        });
-
-        l.index_iter()
-            .filter(|&i| l[i] == Location::Needed)
-            .collect()
-    }
 }

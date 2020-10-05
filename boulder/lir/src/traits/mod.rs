@@ -3,7 +3,13 @@ use shared_id::{BlockId, FunctionId, LocationId};
 mod reads;
 mod writes;
 
-use crate::{Action, Arg, Function, Terminator};
+use crate::{Action, Arg, Block, Function, Terminator};
+
+/// A trait used to indicate that all reads happen before the first write.
+pub trait OrderedRW {}
+
+impl OrderedRW for Terminator {}
+impl OrderedRW for Action {}
 
 pub trait Update<F, V>
 where
@@ -31,21 +37,29 @@ impl<F> Update<F, Option<Arg>> for Terminator
 where
     F: FnMut(Option<Arg>) -> Option<Arg>,
 {
-    fn update(&mut self, mut f: F) {
+    fn update(&mut self, _: F) {
         match self {
-            Terminator::Goto(_, args) => {
-                for arg in args.iter_mut() {
-                    *arg = f(*arg);
-                }
-            }
-            Terminator::Match(_, ref mut arms) => {
-                for arm in arms.iter_mut() {
-                    for arg in arm.args.iter_mut() {
-                        *arg = f(*arg);
-                    }
-                }
-            }
+            Terminator::Goto(_) => {}
+            Terminator::Match(_, _) => {}
         }
+    }
+}
+
+impl<F> Update<F, BlockId> for Block
+where
+    F: FnMut(BlockId) -> BlockId,
+{
+    fn update(&mut self, f: F) {
+        self.terminator.update(f);
+    }
+}
+
+impl<F> Update<F, Option<BlockId>> for Block
+where
+    F: FnMut(Option<BlockId>) -> Option<BlockId>,
+{
+    fn update(&mut self, f: F) {
+        self.terminator.update(f);
     }
 }
 
@@ -55,8 +69,8 @@ where
 {
     fn update(&mut self, mut f: F) {
         match self {
-            Terminator::Goto(Some(target), _) => *target = f(*target),
-            Terminator::Goto(_, _) => {}
+            Terminator::Goto(Some(target)) => *target = f(*target),
+            Terminator::Goto(None) => {}
             Terminator::Match(_, ref mut arms) => {
                 for arm in arms.iter_mut() {
                     if let Some(ref mut target) = arm.target {
@@ -68,23 +82,45 @@ where
     }
 }
 
-/// # Warning
-///
-/// This implementation depends on the fact that all current
-/// implementations of `Reads` and `Writes` first read and
-/// then write.
-///
-/// Implementing `Reads` and `Writes` for `Block` would therefore
-/// be incorrect.
+impl<F> Update<F, Option<BlockId>> for Terminator
+where
+    F: FnMut(Option<BlockId>) -> Option<BlockId>,
+{
+    fn update(&mut self, mut f: F) {
+        match self {
+            Terminator::Goto(target) => *target = f(*target),
+            Terminator::Match(_, ref mut arms) => {
+                for arm in arms.iter_mut() {
+                    arm.target = f(arm.target)
+                }
+            }
+        }
+    }
+}
+
 impl<F, T> Update<F, LocationId> for T
 where
     F: FnMut(LocationId) -> LocationId,
     for<'b, 'c> &'b mut T: Reads<&'c mut F> + Writes<&'c mut F>,
+    T: OrderedRW,
 {
     fn update(&mut self, mut f: F) {
         let f = &mut f;
         self.reads(f);
         self.writes(f);
+    }
+}
+
+impl<F> Update<F, LocationId> for Block
+where
+    F: FnMut(LocationId) -> LocationId,
+{
+    fn update(&mut self, mut f: F) {
+        for step in self.steps.iter_mut() {
+            step.update(&mut f);
+        }
+
+        self.terminator.update(f);
     }
 }
 

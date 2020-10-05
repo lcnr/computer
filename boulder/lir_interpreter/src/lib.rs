@@ -4,7 +4,7 @@ extern crate thread_profiler;
 
 use tindex::tvec;
 
-use shared_id::{BlockId, FunctionId, StepId};
+use shared_id::{BlockId, FunctionId, LocationId, StepId};
 
 use lir::{Action, Arg, Binop, Lir, Terminator};
 
@@ -78,9 +78,10 @@ impl<'a> BoulderLirInterpreter<'a> {
         #[cfg(feature = "profiler")]
         profile_scope!("execute_function");
         self.function = id;
-
-        let mut args_storage: Vec<_>;
-        let mut args = args;
+        let mut memory = tvec![Memory::Undefined; self.lir.functions[id].memory_len];
+        for (&arg, mem) in args.iter().zip(memory.iter_mut()) {
+            *mem = arg;
+        }
 
         let mut block_id = BlockId::from(0);
         self.block = block_id;
@@ -89,15 +90,6 @@ impl<'a> BoulderLirInterpreter<'a> {
             profile_scope!("execute_block");
 
             let block = &self.lir.functions[id].blocks[block_id];
-            if args.len() != block.inputs.len() {
-                return Err(Error::ArgumentCount);
-            }
-
-            let mut memory = tvec![Memory::Undefined; block.memory_len];
-            for (&arg, &location) in args.iter().zip(block.inputs.iter()) {
-                memory[location] = arg;
-            }
-
             for step_id in block.steps.index_iter() {
                 self.step = step_id;
                 let step = &block.steps[step_id];
@@ -111,12 +103,14 @@ impl<'a> BoulderLirInterpreter<'a> {
 
                 match *step {
                     Action::Invert(i, o) => memory[o] = Memory::Byte(!memory[i].valid()?),
-                    Action::BlackBox(i, o) | Action::Move(i, o) => memory[o] = memory[i],
+                    Action::BlackBox(i, o) | Action::Move(Arg::Location(i), o) => {
+                        memory[o] = memory[i]
+                    }
+                    Action::Move(Arg::Byte(v), o) => memory[o] = Memory::Byte(v),
                     Action::Debug(i) => println!(
                         "debug ({}:{}:{}): {} = {:?}",
                         id, block_id, step_id, i, memory[i]
                     ),
-                    Action::LoadConstant(v, o) => memory[o] = Memory::Byte(v),
                     Action::Binop { op, l, r, out } => {
                         let v = |p| match p {
                             Arg::Byte(v) => Memory::Byte(v),
@@ -149,6 +143,7 @@ impl<'a> BoulderLirInterpreter<'a> {
                             }
                         }
                     }
+                    Action::Noop => (),
                 }
             }
 
@@ -157,34 +152,33 @@ impl<'a> BoulderLirInterpreter<'a> {
                 return Err(Error::MaxSteps);
             }
 
-            let arg2mem = |&id| match id {
-                None => Memory::Undefined,
-                Some(Arg::Location(l)) => memory[l],
-                Some(Arg::Byte(v)) => Memory::Byte(v),
-            };
-
             match block.terminator {
-                Terminator::Goto(None, ref ids) => return Ok(ids.iter().map(arg2mem).collect()),
-                Terminator::Goto(Some(block), ref input_steps) => {
-                    args_storage = input_steps.iter().map(arg2mem).collect();
-                    args = &args_storage;
+                Terminator::Goto(None) => {
+                    return Ok((0..self.lir.functions[id].return_len)
+                        .map(|v| memory[LocationId(v)])
+                        .collect())
+                }
+                Terminator::Goto(Some(block)) => {
                     block_id = block;
                     self.block = block_id;
                 }
                 Terminator::Match(expr, ref arms) => {
                     let value = memory[expr].valid()?;
 
-                    for arm in arms.iter() {
-                        if value == arm.pat {
-                            match arm.target {
-                                None => return Ok(arm.args.iter().map(arg2mem).collect()),
-                                Some(block) => {
-                                    args_storage = arm.args.iter().map(arg2mem).collect();
-                                    args = &args_storage;
-                                    block_id = block;
-                                    self.block = block
-                                }
-                            }
+                    let target = arms
+                        .iter()
+                        .find(|arm| arm.pat == value)
+                        .unwrap_or_else(|| arms.last().unwrap())
+                        .target;
+                    match target {
+                        None => {
+                            return Ok((0..self.lir.functions[id].return_len)
+                                .map(|v| memory[LocationId(v)])
+                                .collect())
+                        }
+                        Some(block) => {
+                            block_id = block;
+                            self.block = block
                         }
                     }
                 }

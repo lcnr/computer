@@ -1,5 +1,5 @@
 use std::{
-    fmt,
+    fmt, iter,
     ops::{Add, Sub},
 };
 
@@ -101,15 +101,33 @@ macro_rules! sub {
     }
 }
 
+macro_rules! replacement {
+    ($($n:ident),+) => {
+        $(
+            impl $n {
+                pub fn replacement(n: usize) -> Self {
+                    $n(std::usize::MAX - n)
+                }
+
+                pub fn replacement_iter() -> impl Iterator<Item = $n> {
+                    let mut value = usize::MAX;
+                    iter::repeat_with(move || {
+                        let idx = $n(value);
+                        value -= 1;
+                        idx
+                    })
+                }
+            }
+        )+
+    }
+}
+
 t!(BlockId: '~', EntityId, FieldId, FunctionId: '#', TypeId: '%', StepId: '$', InputId, LocationId: '@', TagId);
 
-invalid!(BlockId, FunctionId, StepId);
+invalid!(BlockId, FunctionId, StepId, LocationId);
 
 add!(BlockId, InputId, FunctionId, LocationId, StepId, TagId);
 
 sub!(BlockId, FunctionId);
-impl StepId {
-    pub fn replacement(n: usize) -> Self {
-        StepId(std::usize::MAX - n)
-    }
-}
+
+replacement!(StepId, BlockId);

@@ -32,11 +32,11 @@ where
 {
     fn reads(self, mut f: F) {
         match self {
-            Action::Invert(i, _) | Action::BlackBox(i, _) | Action::Move(i, _) => {
+            Action::Invert(i, _) | Action::BlackBox(i, _) | Action::Move(Arg::Location(i), _) => {
                 f(*i);
             }
+            Action::Move(Arg::Byte(_), _) => {}
             Action::Debug(i) => f(*i),
-            Action::LoadConstant(_, _) => {}
             Action::Binop { l, r, .. } => {
                 if let Arg::Location(id) = l {
                     f(*id);
@@ -48,6 +48,7 @@ where
             Action::FunctionCall { args, .. } => {
                 arg_locations(&mut f, args);
             }
+            Action::Noop => (),
         }
     }
 }
@@ -58,11 +59,11 @@ where
 {
     fn reads(self, mut f: F) {
         match self {
-            Action::Invert(i, _) | Action::BlackBox(i, _) | Action::Move(i, _) => {
+            Action::Invert(i, _) | Action::BlackBox(i, _) | Action::Move(Arg::Location(i), _) => {
                 *i = f(*i);
             }
             Action::Debug(i) => *i = f(*i),
-            Action::LoadConstant(_, _) => {}
+            Action::Move(Arg::Byte(_), _) => {}
             Action::Binop { l, r, .. } => {
                 if let Arg::Location(id) = l {
                     *id = f(*id);
@@ -74,6 +75,7 @@ where
             Action::FunctionCall { args, .. } => {
                 arg_locations_mut(&mut f, args);
             }
+            Action::Noop => (),
         }
     }
 }
@@ -84,15 +86,9 @@ where
 {
     fn reads(self, mut f: F) {
         match self {
-            Terminator::Goto(_, args) => {
-                arg_locations(f, args);
-            }
-            Terminator::Match(expr, arms) => {
+            Terminator::Goto(_) => {}
+            Terminator::Match(expr, _arms) => {
                 f(*expr);
-
-                for arm in arms.iter() {
-                    arg_locations(&mut f, &arm.args);
-                }
             }
         }
     }
@@ -104,15 +100,9 @@ where
 {
     fn reads(self, mut f: F) {
         match self {
-            Terminator::Goto(_, args) => {
-                arg_locations_mut(f, args);
-            }
-            Terminator::Match(expr, arms) => {
+            Terminator::Goto(_) => {}
+            Terminator::Match(expr, _arms) => {
                 *expr = f(*expr);
-
-                for arm in arms.iter_mut() {
-                    arg_locations_mut(&mut f, &mut arm.args);
-                }
             }
         }
     }

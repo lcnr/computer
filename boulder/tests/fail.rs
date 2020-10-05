@@ -44,7 +44,7 @@ fn main() -> Result<(), TestFailure> {
     let mut count = 0;
     let mut success = 0;
 
-    'outer: for entry in WalkDir::new("tests/compile_fail") {
+    'outer: for entry in WalkDir::new("tests/error") {
         let entry = entry.unwrap();
         if entry.metadata().unwrap().is_file() {
             let file_str = format!("boulder/{}", entry.path().display());

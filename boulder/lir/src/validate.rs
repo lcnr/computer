@@ -44,31 +44,29 @@ impl<'a> Lir<'a> {
 
         let func = &self.functions[func_id];
         let block = &func.blocks[block_id];
-        for input in block.inputs.iter() {
-            assert!(input.0 < block.memory_len);
-        }
-
         for step_id in block.steps.index_iter() {
             let step_panic = PanicDisplay("step: ", &step_id);
             match block.steps[step_id] {
-                Action::Invert(i, o) | Action::BlackBox(i, o) | Action::Move(i, o) => {
-                    assert!(i.0 < block.memory_len);
-                    assert!(o.0 < block.memory_len);
+                Action::Invert(i, o)
+                | Action::BlackBox(i, o)
+                | Action::Move(Arg::Location(i), o) => {
+                    assert!(i.0 < func.memory_len);
+                    assert!(o.0 < func.memory_len);
                 }
                 Action::Debug(i) => {
-                    assert!(i.0 < block.memory_len);
+                    assert!(i.0 < func.memory_len);
                 }
-                Action::LoadConstant(_, o) => {
-                    assert!(o.0 < block.memory_len);
+                Action::Move(Arg::Byte(_), o) => {
+                    assert!(o.0 < func.memory_len);
                 }
                 Action::Binop { l, r, out, .. } => {
                     if let Arg::Location(id) = l {
-                        assert!(id.0 < block.memory_len);
+                        assert!(id.0 < func.memory_len);
                     }
                     if let Arg::Location(id) = r {
-                        assert!(id.0 < block.memory_len);
+                        assert!(id.0 < func.memory_len);
                     }
-                    assert!(out.0 < block.memory_len);
+                    assert!(out.0 < func.memory_len);
                 }
                 Action::FunctionCall {
                     id,
@@ -76,39 +74,27 @@ impl<'a> Lir<'a> {
                     ref ret,
                 } => {
                     let target = &self.functions[id];
-                    check_args(block.memory_len, args);
+                    check_args(func.memory_len, args);
 
                     for val in ret.iter().filter_map(Option::as_ref) {
-                        assert!(val.0 < block.memory_len);
+                        assert!(val.0 < func.memory_len);
                     }
 
-                    assert_eq!(target.input_len(), args.len());
-                    assert_eq!(target.return_length, ret.len());
+                    assert_eq!(target.input_len, args.len());
+                    assert_eq!(target.return_len, ret.len());
                 }
+                Action::Noop => (),
             }
             mem::forget(step_panic);
 
             match block.terminator {
-                Terminator::Goto(target, ref args) => {
+                Terminator::Goto(target) => {
                     if let Some(target) = target {
-                        assert_eq!(func.blocks[target].inputs.len(), args.len());
-                    } else {
-                        assert_eq!(func.return_length, args.len());
+                        assert!(target < func.blocks.range_end());
                     }
-
-                    check_args(block.memory_len, args);
                 }
-                Terminator::Match(value, ref arms) => {
-                    assert!(value.0 < block.memory_len);
-                    for arm in arms.iter() {
-                        if let Some(target) = arm.target {
-                            assert_eq!(func.blocks[target].inputs.len(), arm.args.len());
-                        } else {
-                            assert_eq!(func.return_length, arm.args.len());
-                        }
-
-                        check_args(block.memory_len, &arm.args);
-                    }
+                Terminator::Match(value, ref _arms) => {
+                    assert!(value.0 < func.memory_len);
                 }
             }
         }

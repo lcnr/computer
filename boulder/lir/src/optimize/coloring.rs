@@ -1,84 +1,83 @@
+use crate::reachability::Reachability;
+use crate::traits::{Reads, Update, Writes};
+use crate::{Function, Lir};
 use graphc::{Coloring, Graph, NodeId};
-
+use shared_id::LocationId;
+use std::{cmp, collections::HashMap};
 use tindex::TBitSet;
 
-use shared_id::LocationId;
-
-use crate::{
-    traits::{Reads, Update, Writes},
-    Block, Lir,
-};
-
 impl<'a> Lir<'a> {
-    /// Minimizes the needed memory of each block without
-    /// modifying step order or visible behavior.
-    ///
-    /// TODO: this function is currently unable to reduce the
-    /// memory size to 0, consider checking graphs with only 1 color
-    /// manually
-    pub fn minimize_memory_usage(&mut self) {
-        #[cfg(feature = "profiler")]
-        profile_scope!("minimize_memory_usage");
-
-        for function in self.functions.iter_mut() {
-            #[cfg(feature = "profiler")]
-            profile_scope!("minimize_memory_usage::function");
-            for block in function.blocks.iter_mut() {
-                let coloring = block.coloring();
-
-                for input in block.inputs.iter_mut() {
-                    *input = LocationId(coloring.nodes[NodeId::from(input.0)]);
-                }
-
-                block.steps.iter_mut().for_each(|s| {
-                    s.update(|location| LocationId(coloring.nodes[NodeId::from(location.0)]))
-                });
-
-                block.terminator.update(|location: LocationId| {
-                    LocationId(coloring.nodes[NodeId::from(location.0)])
-                });
-
-                block.memory_len = coloring.k;
-            }
+    pub fn minimize_memory_len(&mut self) {
+        for func in self.functions.iter_mut() {
+            func.minimize_memory_len();
         }
+
+        self.remove_identity_moves();
     }
 }
 
-impl Block {
-    pub fn coloring(&mut self) -> Coloring {
+impl<'a> Function<'a> {
+    fn minimize_memory_len(&mut self) {
         #[cfg(feature = "profiler")]
-        profile_scope!("block_coloring");
+        profile_scope!("minimize_memory_len");
+        let coloring = self.coloring();
+        // Inputs and outputs are always in distinct colorings.
+        let mut mapping: HashMap<usize, LocationId> = HashMap::new();
+        let mut curr = LocationId(0);
+        for i in 0..self.memory_len {
+            mapping
+                .entry(coloring.nodes[NodeId::from(i)])
+                .or_insert_with(|| {
+                    let c = curr;
+                    curr = curr + 1;
+                    c
+                });
+        }
+        for block in self.blocks.iter_mut() {
+            block.update(|i: LocationId| mapping[&coloring.nodes[NodeId::from(i.0)]]);
+        }
+        self.memory_len = coloring.k;
+    }
 
-        self.uniquify();
-
+    fn coloring(&self) -> Coloring {
         let mut g = Graph::new();
-        let mut alive = TBitSet::new();
-
         for _ in 0..self.memory_len {
             g.add_node();
         }
 
-        fn add_alive(g: &mut Graph, alive: &mut TBitSet<LocationId>, n: LocationId) {
-            for other in alive.iter() {
-                g.add_edge(NodeId::from(n.0), NodeId::from(other.0));
+        for i in 0..cmp::max(self.input_len, self.return_len) {
+            for j in 0..cmp::max(self.input_len, self.return_len) {
+                g.add_edge(NodeId::from(i), NodeId::from(j));
             }
-            alive.add(n);
         }
 
-        self.terminator
-            .reads(|id| add_alive(&mut g, &mut alive, id));
+        for blk in self.blocks.index_iter() {
+            let mut alive = TBitSet::new();
+            fn add_alive(g: &mut Graph, alive: &mut TBitSet<LocationId>, n: LocationId) {
+                for other in alive.iter() {
+                    g.add_edge(NodeId::from(n.0), NodeId::from(other.0));
+                }
+                alive.add(n);
+            }
 
-        for step in self.steps.iter().rev() {
-            step.writes(|id| {
-                add_alive(&mut g, &mut alive, id);
-                alive.remove(id);
-            });
-            step.reads(|id| add_alive(&mut g, &mut alive, id));
-        }
+            let reachability = self.terminator_reachability(blk);
+            for l in reachability.index_iter() {
+                if reachability[l] == Reachability::Access {
+                    add_alive(&mut g, &mut alive, l);
+                }
+            }
 
-        for &id in self.inputs.iter().rev() {
-            add_alive(&mut g, &mut alive, id);
-            alive.remove(id);
+            self.blocks[blk]
+                .terminator
+                .reads(|id| add_alive(&mut g, &mut alive, id));
+
+            for step in self.blocks[blk].steps.iter().rev() {
+                step.writes(|id| {
+                    add_alive(&mut g, &mut alive, id);
+                    alive.remove(id)
+                });
+                step.reads(|id| add_alive(&mut g, &mut alive, id));
+            }
         }
 
         g.minimal_coloring()

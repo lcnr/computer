@@ -1,68 +1,86 @@
-use std::{convert::identity, iter, mem};
-
-use tindex::{tvec, TBitSet, TSlice, TVec};
-
-use shared_id::{BlockId, FunctionId, InputId, LocationId, StepId};
-
-use crate::{
-    traits::{Reads, Update, Writes},
-    Action, Arg, Block, Function, Lir, Terminator,
-};
+use crate::{traits::Update, Action, Arg, Block, Function, Lir, MatchArm, Terminator};
+use shared_id::{BlockId, FunctionId};
+use std::{iter, mem};
+use tindex::{tvec, TBitSet, TVec};
 
 mod coloring;
 mod const_prop;
+mod dead_writes;
 mod inline;
+mod match_branches;
+mod simplify_comparision_branch;
+mod trace_moves;
 
 impl<'a> Lir<'a> {
-    /// Remove all moves.
-    pub fn remove_moves(&mut self) {
+    /// Remove all identity moves.
+    pub fn remove_identity_moves(&mut self) {
         #[cfg(feature = "profiler")]
-        profile_scope!("remove_moves");
+        profile_scope!("remove_identity_moves");
 
         for function in self.functions.iter_mut() {
             for block in function.blocks.iter_mut() {
-                block.uniquify();
-
-                let mut replacements: TVec<LocationId, LocationId> =
-                    (0..block.memory_len).map(LocationId).collect();
-
-                block.steps = mem::take(&mut block.steps)
-                    .into_iter()
-                    .filter_map(|mut step| {
-                        if let Action::Move(i, o) = step {
-                            replacements[o] = replacements[i];
-                            None
-                        } else {
-                            step.update(|s| replacements[s]);
-                            Some(step)
+                for step in block.steps.iter_mut() {
+                    match step {
+                        Action::Move(Arg::Location(a), b) if a == b => {
+                            *step = Action::Noop;
                         }
-                    })
-                    .collect();
+                        _ => (),
+                    }
+                }
 
-                block.terminator.update(|s: LocationId| replacements[s]);
+                block.remove_noops();
             }
         }
     }
 
-    /// Convert tail recursion into loops.
-    pub fn loopify_tail_recursion(&mut self) {
+    pub fn trivial_matches(&mut self) {
+        for function in self.functions.iter_mut() {
+            for block in function.blocks.iter_mut() {
+                if let Terminator::Match(_, ref arms) = block.terminator {
+                    if arms
+                        .split_first()
+                        .filter(|(fst, rst)| rst.iter().all(|arm| arm.target == fst.target))
+                        .is_some()
+                    {
+                        block.terminator = Terminator::Goto(arms[0].target);
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn merge_trivial_redirects(&mut self) {
         #[cfg(feature = "profiler")]
-        profile_scope!("loopify_tail_recursion");
+        profile_scope!("merge_trivial_redirects");
 
-        for f in self.functions.index_iter() {
-            for b in l!(self, f).blocks.index_iter() {
-                if let Terminator::Goto(None, ref ret_args) = l!(self, f, b).terminator {
-                    let last_step = l!(self, f, b).steps.last();
-                    if let Some(Action::FunctionCall { id, args, ret }) = last_step {
-                        let cond = *id == f && ret.iter().zip(ret_args.iter()).all(|(l, r)| {
-                            matches!((l, r), (Some(l), Some(Arg::Location(r))) if l == r)
-                        });
+        for function in self.functions.iter_mut() {
+            let trivial_redirects: TVec<BlockId, Option<Terminator>> = function
+                .blocks
+                .iter()
+                .map(|block| {
+                    if block.steps.is_empty() {
+                        Some(block.terminator.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect();
 
-                        if cond {
-                            l!(self, f, b).terminator =
-                                Terminator::Goto(Some(BlockId(0)), args.clone());
-
-                            l!(self, f, b).steps.pop();
+            for block in function.blocks.iter_mut() {
+                match block.terminator {
+                    Terminator::Goto(Some(target)) => {
+                        if let Some(ref term) = trivial_redirects[target] {
+                            block.terminator = term.clone();
+                        }
+                    }
+                    Terminator::Goto(None) => (),
+                    Terminator::Match(_, ref mut arms) => {
+                        for arm in arms.iter_mut() {
+                            if let Some(&Terminator::Goto(target)) =
+                                arm.target.and_then(|t| trivial_redirects[t].as_ref())
+                            {
+                                arm.target = target;
+                            }
                         }
                     }
                 }
@@ -70,23 +88,36 @@ impl<'a> Lir<'a> {
         }
     }
 
-    /// Removes `w_1` in the sequence `..., w_1, seq , w_2, ...`
-    /// where `seq` does not read the given location.
-    pub fn remove_dead_writes(&mut self) {
+    pub fn merge_adjacent_blocks(&mut self) {
         #[cfg(feature = "profiler")]
-        profile_scope!("remove_dead_writes");
+        profile_scope!("merge_adjacent_blocks");
+        #[derive(Copy, Clone, PartialEq, Eq)]
+        enum Use {
+            No,
+            Single,
+            Multi,
+        }
 
-        for func_id in self.functions.index_iter() {
-            for block_id in self.functions[func_id].blocks.index_iter() {
-                for input in self.functions[func_id].blocks[block_id]
-                    .remove_dead_writes()
-                    .iter()
-                    .rev()
-                {
-                    self.functions[func_id].remove_input(block_id, input);
-                    if block_id == BlockId(0) {
-                        self.remove_function_input(func_id, input);
+        for func in self.functions.iter_mut() {
+            let mut target_blocks = tvec![Use::No; func.blocks.len()];
+            for block in func.blocks.iter_mut() {
+                block.update(|b: BlockId| {
+                    target_blocks[b] = match target_blocks[b] {
+                        Use::No => Use::Single,
+                        Use::Single | Use::Multi => Use::Multi,
+                    };
+                    b
+                });
+            }
+
+            for blk in func.blocks.index_iter() {
+                match func.blocks[blk].terminator {
+                    Terminator::Goto(Some(t)) if target_blocks[t] == Use::Single => {
+                        func.blocks[blk].terminator = func.blocks[t].terminator.clone();
+                        let steps = func.blocks[t].steps.clone();
+                        func.blocks[blk].steps.extend(steps);
                     }
+                    _ => (),
                 }
             }
         }
@@ -128,7 +159,7 @@ impl<'a> Lir<'a> {
                 for b in used.iter() {
                     new_used.add(b);
                     match func.blocks[b].terminator {
-                        Terminator::Goto(target, _) => {
+                        Terminator::Goto(target) => {
                             if let Some(target) = target {
                                 new_used.add(target)
                             }
@@ -148,129 +179,9 @@ impl<'a> Lir<'a> {
             }
         }
     }
-
-    pub fn merge_simple_blocks(&mut self) {
-        #[cfg(feature = "profiler")]
-        profile_scope!("merge_simple_blocks");
-
-        fn merge(
-            args: &TSlice<InputId, Option<Arg>>,
-            inputs: &TSlice<InputId, LocationId>,
-            mut term: Terminator,
-        ) -> Terminator {
-            if let Terminator::Match(ref mut expr, ref mut arms) = term {
-                let pos = inputs.iter().position(|&l| l == *expr).unwrap();
-                match args[InputId(pos)] {
-                    None => panic!("undefined behavior"),
-                    Some(Arg::Byte(v)) => {
-                        let arm = arms.iter().find(|arm| arm.pat == v).expect("match undef");
-                        term = Terminator::Goto(arm.target, arm.args.clone());
-                    }
-                    Some(Arg::Location(id)) => *expr = id,
-                }
-            }
-
-            term.update(|v: Option<Arg>| {
-                if let Some(Arg::Location(id)) = v {
-                    let iter = args.iter().zip(inputs.iter());
-                    for (&arg, &input) in iter {
-                        if id == input {
-                            return arg;
-                        }
-                    }
-
-                    unreachable!("undefined arg");
-                } else {
-                    v
-                }
-            });
-
-            term
-        }
-
-        for func in self.functions.iter_mut() {
-            let mut to_merge = TBitSet::new();
-            for (b, block) in func.blocks.index_iter().zip(func.blocks.iter()) {
-                if block.steps.is_empty() {
-                    to_merge.add(b);
-                }
-            }
-
-            for b in func.blocks.index_iter() {
-                match func.blocks[b].terminator {
-                    Terminator::Goto(Some(target), ref args) => {
-                        if to_merge.get(target) {
-                            let target_block = &func.blocks[target];
-                            let term = target_block.terminator.clone();
-                            func.blocks[b].terminator = merge(args, &target_block.inputs, term);
-                        }
-                    }
-                    Terminator::Goto(_, _) => {}
-                    Terminator::Match(expr, ref arms) => {
-                        let mut clone = arms.clone();
-                        for arm in clone.iter_mut() {
-                            if let Some(target) = arm.target {
-                                if to_merge.get(target) {
-                                    let target_block = &func.blocks[target];
-                                    let term = target_block.terminator.clone();
-
-                                    if let Terminator::Goto(to, args) =
-                                        merge(&arm.args, &target_block.inputs, term)
-                                    {
-                                        arm.target = to;
-                                        arm.args = args;
-                                    }
-                                }
-                            }
-                        }
-
-                        func.blocks[b].terminator = Terminator::Match(expr, clone)
-                    }
-                }
-            }
-        }
-    }
-
-    /// Removes the given input from each function call, does not update the actual function
-    fn remove_function_input(&mut self, f: FunctionId, input: InputId) {
-        for func in self.functions.iter_mut() {
-            for block in func.blocks.iter_mut() {
-                for step in block.steps.iter_mut() {
-                    if let Action::FunctionCall {
-                        id, ref mut args, ..
-                    } = *step
-                    {
-                        if f == id {
-                            args.remove(input);
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
 
 impl<'a> Function<'a> {
-    /// Requires the given input to already be unused.
-    pub fn remove_input(&mut self, b: BlockId, input: InputId) {
-        self.blocks[b].inputs.remove(input);
-        for block in self.blocks.iter_mut() {
-            match block.terminator {
-                Terminator::Goto(Some(target), ref mut args) if target == b => {
-                    args.remove(input);
-                }
-                Terminator::Goto(_, _) => {}
-                Terminator::Match(_, ref mut arms) => {
-                    for arm in arms.iter_mut() {
-                        if arm.target == Some(b) {
-                            arm.args.remove(input);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     pub fn remove_block(&mut self, b: BlockId) {
         for block in self.blocks.iter_mut() {
             block
@@ -283,100 +194,15 @@ impl<'a> Function<'a> {
 }
 
 impl Block {
-    /// Give a unique location to each write.
-    pub fn uniquify(&mut self) {
-        let mut replacements: TVec<LocationId, LocationId> =
-            (0..).map(LocationId).take(self.memory_len).collect();
-
-        let mut repl = (self.memory_len..).map(LocationId);
-
-        for step in self.steps.iter_mut().rev() {
-            step.writes(|s| {
-                let updated = replacements[s];
-                replacements[s] = repl.next().unwrap();
-                updated
-            });
-            step.reads(|s| replacements[s]);
-        }
-
-        for input in self.inputs.iter_mut().rev() {
-            let updated = replacements[*input];
-            replacements[*input] = repl.next().unwrap();
-            *input = updated;
-        }
-
-        self.memory_len = repl.next().unwrap().0;
+    fn remove_noops(&mut self) {
+        self.steps = mem::take(&mut self.steps)
+            .into_iter()
+            .filter(|s| *s != Action::Noop)
+            .collect();
     }
+}
 
-    /// Removes all dead writes from self,
-    /// and returns a bitset of unused inputs.
-    pub fn remove_dead_writes(&mut self) -> TBitSet<InputId> {
-        #[derive(Debug, Clone, Copy)]
-        enum W {
-            Input(InputId),
-            Step(StepId),
-            Return(StepId, usize),
-        }
-
-        // TODO: this can be used to remove inputs
-        let mut last_writes = tvec![None; self.memory_len];
-        let mut return_values = tvec![TBitSet::new(); self.steps.len()];
-        let mut inputs = TBitSet::new();
-        let mut steps = TBitSet::new();
-
-        let mut add_to_remove = |elem| match elem {
-            W::Input(v) => inputs.add(v),
-            W::Step(id) => steps.add(id),
-            W::Return(id, v) => return_values[id].add(v),
-        };
-
-        for id in self.inputs.index_iter() {
-            if let Some(last) = last_writes[self.inputs[id]].replace(W::Input(id)) {
-                add_to_remove(last);
-            }
-        }
-
-        for step_id in self.steps.index_iter() {
-            self.steps[step_id].reads(|s| last_writes[s] = None);
-            if let Action::FunctionCall { ref ret, .. } = self.steps[step_id] {
-                for (i, r) in ret
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(i, r)| r.map(|r| (i, r)))
-                {
-                    if let Some(last) = last_writes[r].replace(W::Return(step_id, i)) {
-                        add_to_remove(last);
-                    }
-                }
-            } else {
-                self.steps[step_id].writes(|s| {
-                    if let Some(last) = last_writes[s].replace(W::Step(step_id)) {
-                        add_to_remove(last);
-                    }
-                });
-            }
-        }
-
-        self.terminator.reads(|s| last_writes[s] = None);
-
-        for step in last_writes.iter().copied().filter_map(identity) {
-            add_to_remove(step)
-        }
-
-        for step_id in return_values.index_iter() {
-            for v in return_values[step_id].iter() {
-                if let Action::FunctionCall { ref mut ret, .. } = self.steps[step_id] {
-                    ret[v] = None;
-                } else {
-                    unreachable!()
-                }
-            }
-        }
-
-        for step in steps.iter().rev() {
-            self.steps.remove(step);
-        }
-
-        inputs
-    }
+fn arm_for(arms: &[MatchArm], pat: u8) -> MatchArm {
+    let (last, rest) = arms.split_last().unwrap();
+    *rest.iter().find(|arm| arm.pat == pat).unwrap_or(last)
 }

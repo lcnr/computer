@@ -11,8 +11,7 @@ where
             Action::Invert(_, o)
             | Action::BlackBox(_, o)
             | Action::Move(_, o)
-            | Action::Binop { out: o, .. }
-            | Action::LoadConstant(_, o) => {
+            | Action::Binop { out: o, .. } => {
                 f(*o);
             }
             Action::Debug(_) => {}
@@ -21,6 +20,7 @@ where
                     f(*v);
                 }
             }
+            Action::Noop => (),
         }
     }
 }
@@ -34,8 +34,7 @@ where
             Action::Invert(_, o)
             | Action::BlackBox(_, o)
             | Action::Move(_, o)
-            | Action::Binop { out: o, .. }
-            | Action::LoadConstant(_, o) => {
+            | Action::Binop { out: o, .. } => {
                 *o = f(*o);
             }
             Action::Debug(_) => {}
@@ -44,6 +43,7 @@ where
                     *v = f(*v);
                 }
             }
+            Action::Noop => (),
         }
     }
 }

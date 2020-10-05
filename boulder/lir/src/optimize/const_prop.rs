@@ -1,317 +1,418 @@
-// TODO: consider unifying `const_prop` with `lir_interpreter`.
-use std::{convert::identity, iter};
+use crate::{Action, Arg, Binop, Block, Context, Function, Lir, Terminator};
+use shared_id::{BlockId, LocationId, StepId};
+use std::iter;
+use tindex::{tvec, TVec};
 
-use tindex::{tvec, TSlice, TVec};
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum State {
+    Undefined,
+    Known(u8),
+    Unknown,
+}
 
-use shared_id::{BlockId, FunctionId, InputId, LocationId, StepId};
+impl State {
+    fn is_refinement(self, other: Self) -> bool {
+        match (self, other) {
+            (State::Undefined, State::Undefined) => true,
+            (State::Undefined, State::Known(_)) | (State::Undefined, State::Unknown) => false,
+            (State::Known(_), State::Undefined) => true,
+            (State::Known(l), State::Known(r)) => {
+                if l == r {
+                    true
+                } else {
+                    false
+                }
+            }
+            (State::Known(_), State::Unknown) => false,
+            (State::Unknown, _) => true,
+        }
+    }
 
-use crate::{Action, Arg, Binop, Lir, Memory, Terminator};
+    fn merge(self, other: Self) -> Self {
+        match (self, other) {
+            (State::Undefined, State::Undefined) => State::Undefined,
+            (State::Undefined, State::Known(v)) | (State::Known(v), State::Undefined) => {
+                State::Known(v)
+            }
+            (State::Known(l), State::Known(r)) => {
+                if l == r {
+                    State::Known(l)
+                } else {
+                    State::Unknown
+                }
+            }
+            (State::Unknown, _) | (_, State::Unknown) => State::Unknown,
+        }
+    }
+}
 
 impl<'a> Lir<'a> {
     pub fn const_propagate(&mut self) {
         #[cfg(feature = "profiler")]
         profile_scope!("const_propagate");
 
-        for f in self.functions.index_iter() {
-            for b in self.functions[f].blocks.index_iter() {
-                let inputs: TVec<_, _> = self.functions[f].blocks[b]
-                    .inputs
-                    .iter()
-                    .map(|_| Memory::Unknown)
-                    .collect();
-                self.propagate_block(f, b, &inputs);
-            }
-        }
-    }
-
-    fn propagate_block(&mut self, f: FunctionId, b: BlockId, inputs: &TSlice<InputId, Memory>) {
-        let mut memory: TVec<LocationId, Memory> = iter::repeat(Memory::Undefined)
-            .take(l!(self, f, b).memory_len)
-            .collect();
-        for (&target, &value) in l!(self, f, b).inputs.iter().zip(inputs.iter()) {
-            memory[target] = value;
-        }
-
-        let steps = l!(self, f, b)
-            .steps
-            .iter()
-            .filter_map(|s| s.const_propagate(&self, &mut memory))
-            .collect();
-
-        l!(self, f, b).steps = steps;
-
-        match l!(self, f, b).terminator {
-            Terminator::Goto(_, ref mut args) => {
-                propagate_args(&memory, args);
-            }
-            Terminator::Match(expr, ref mut arms) => match memory[expr] {
-                Memory::Undefined => panic!("match on undefined: \n{}", self),
-                Memory::Byte(v) => {
-                    for arm in arms.iter_mut() {
-                        if arm.pat == v {
-                            propagate_args(&memory, &mut arm.args);
-                            l!(self, f, b).terminator =
-                                Terminator::Goto(arm.target, arm.args.clone());
-                            return;
-                        }
-                    }
-
-                    panic!("match on invalid data");
-                }
-                Memory::Unknown => {
-                    for arm in arms.iter_mut() {
-                        memory[expr] = Memory::Byte(arm.pat);
-                        propagate_args(&memory, &mut arm.args);
-                    }
-                }
-            },
-        }
-    }
-
-    pub fn propagate_block_arguments(&mut self) {
-        #[derive(Debug, Clone, Copy)]
-        pub enum Input {
-            None,
-            Unique(Option<u8>),
-            Multiple,
-        }
-
         for func in self.functions.iter_mut() {
-            let mut inputs: TVec<BlockId, TVec<InputId, Input>> = func
-                .blocks
-                .iter()
-                .map(|b| tvec![Input::None; b.inputs.len()])
-                .collect();
-
-            let mut update_inputs = |target: BlockId, args: &TSlice<InputId, Option<Arg>>| {
-                let target_inputs = &mut inputs[target];
-                for (target, &arg) in target_inputs.iter_mut().zip(args.iter()) {
-                    match (*target, arg) {
-                        (_, None) | (Input::Multiple, _) => {}
-                        (Input::None, Some(Arg::Location(_))) => *target = Input::Unique(None),
-                        (Input::None, Some(Arg::Byte(v))) => *target = Input::Unique(Some(v)),
-                        (Input::Unique(Some(a)), Some(Arg::Byte(b))) if a == b => {}
-                        (Input::Unique(_), Some(_)) => *target = Input::Multiple,
-                    }
-                }
-            };
-
-            for block in func.blocks.iter() {
-                match block.terminator {
-                    Terminator::Goto(Some(target), ref args) => update_inputs(target, args),
-                    Terminator::Goto(_, _) => {}
-                    Terminator::Match(_, ref arms) => {
-                        for arm in arms.iter() {
-                            if let Some(target) = arm.target {
-                                update_inputs(target, &arm.args);
-                            }
-                        }
-                    }
-                }
-            }
-
-            // skip the first block as its function arguments are currently not checked
-            for b in func.blocks.index_iter().skip(1) {
-                for (i, &input) in inputs[b].index_iter().zip(inputs[b].iter()).rev() {
-                    match input {
-                        Input::None => {
-                            func.remove_input(b, i);
-                        }
-                        Input::Unique(Some(v)) => {
-                            let block = &mut func.blocks[b];
-                            let l = block.inputs[i];
-                            block.steps.insert(StepId(0), Action::LoadConstant(v, l));
-                            func.remove_input(b, i);
-                        }
-                        Input::Unique(None) | Input::Multiple => {}
-                    }
-                }
-            }
+            func.const_propagate(&self.ctx);
         }
     }
 }
 
-fn propagate_args(mem: &TSlice<LocationId, Memory>, args: &mut TSlice<InputId, Option<Arg>>) {
-    for arg in args.iter_mut() {
-        if let Some(Arg::Location(l)) = *arg {
-            match mem[l] {
-                Memory::Byte(v) => *arg = Some(Arg::Byte(v)),
-                Memory::Undefined => *arg = None,
-                Memory::Unknown => {}
-            }
-        }
-    }
-}
-
-impl Action {
-    fn const_propagate(&self, lir: &Lir, mem: &mut TSlice<LocationId, Memory>) -> Option<Action> {
-        let to_bool = |b| {
-            if b {
-                lir.ctx.true_replacement
+impl<'a> Function<'a> {
+    pub fn const_propagate(&mut self, ctx: &Context) {
+        let mut initial_states = self.initial_states(ctx);
+        for blk in self.blocks.index_iter().rev() {
+            if let Some(initial_states) = initial_states[blk].take() {
+                self.blocks[blk].const_propagate(ctx, initial_states);
             } else {
-                lir.ctx.false_replacement
+                self.remove_block(blk);
             }
-        };
+        }
+    }
 
-        match *self {
-            Action::Invert(i, o) => match mem[i] {
-                Memory::Undefined => {
-                    mem[o] = Memory::Undefined;
-                    None
-                }
-                Memory::Unknown => {
-                    mem[o] = Memory::Unknown;
-                    Some(self.clone())
-                }
-                Memory::Byte(v) => {
-                    mem[o] = Memory::Byte(!v);
-                    Some(Action::LoadConstant(!v, o))
-                }
-            },
-            Action::BlackBox(_, o) => {
-                mem[o] = Memory::Unknown;
-                Some(self.clone())
-            }
-            Action::Move(i, o) => match mem[i] {
-                Memory::Undefined => {
-                    mem[o] = Memory::Undefined;
-                    None
-                }
-                Memory::Unknown => {
-                    mem[o] = Memory::Unknown;
-                    Some(self.clone())
-                }
-                Memory::Byte(v) => {
-                    mem[o] = Memory::Byte(v);
-                    Some(Action::LoadConstant(v, o))
-                }
-            },
-            Action::Debug(_) => Some(self.clone()),
-            Action::LoadConstant(v, o) => {
-                mem[o] = Memory::Byte(v);
-                Some(self.clone())
-            }
-            Action::Binop { op, l, r, out } => {
-                mem[out] = Memory::Unknown;
-                let v = |r| match r {
-                    Arg::Byte(v) => Memory::Byte(v),
-                    Arg::Location(id) => mem[id],
-                };
+    fn initial_states(&self, ctx: &Context) -> TVec<BlockId, Option<TVec<LocationId, State>>> {
+        let mut initial_states = tvec![None; self.blocks.len()];
 
-                match (v(l), v(r)) {
-                    (Memory::Undefined, _) | (_, Memory::Undefined) => {
-                        mem[out] = Memory::Undefined;
-                        None
+        let current: TVec<LocationId, State> = iter::repeat(State::Unknown)
+            .take(self.input_len)
+            .chain(iter::repeat(State::Undefined).take(self.memory_len - self.input_len))
+            .collect();
+        let mut to_visit = vec![(current, BlockId(0))];
+        while let Some((mut current, blk)) = to_visit.pop() {
+            match initial_states[blk] {
+                None => initial_states[blk] = Some(current.clone()),
+                Some(ref mut initial_states) => {
+                    if initial_states
+                        .iter()
+                        .zip(current.iter())
+                        .all(|(init, &curr)| init.is_refinement(curr))
+                    {
+                        // Fixpoint has been reached.
+                        continue;
                     }
-                    (Memory::Byte(l), Memory::Byte(r)) => {
-                        let v = match op {
-                            Binop::Add => l.checked_add(r),
-                            Binop::Sub => l.checked_sub(r),
-                            Binop::Shl => l.checked_shl(r.into()).or(Some(0)),
-                            Binop::Shr => l.checked_shr(r.into()).or(Some(0)),
-                            Binop::Eq => Some(to_bool(l == r)),
-                            Binop::Neq => Some(to_bool(l != r)),
-                            Binop::Gt => Some(to_bool(l > r)),
-                            Binop::Gte => Some(to_bool(l >= r)),
-                            Binop::BitOr => Some(l | r),
-                            Binop::BitAnd => Some(l & r),
-                            Binop::BitXor => Some(l ^ r),
+
+                    for (init, curr) in initial_states.iter_mut().zip(current.iter_mut()) {
+                        *init = init.merge(*curr);
+                        *curr = *init;
+                    }
+                }
+            }
+
+            for step in self.blocks[blk].steps.iter() {
+                match *step {
+                    Action::Invert(i, o) => match current[i] {
+                        State::Undefined => unreachable!(),
+                        State::Known(v) => current[o] = State::Known(!v),
+                        State::Unknown => current[o] = State::Unknown,
+                    },
+                    Action::BlackBox(_, o) => current[o] = State::Unknown,
+                    Action::Move(Arg::Location(i), o) => match current[i] {
+                        State::Undefined => current[o] = State::Undefined,
+                        State::Known(v) => current[o] = State::Known(v),
+                        State::Unknown => current[o] = State::Unknown,
+                    },
+                    Action::Move(Arg::Byte(v), o) => current[o] = State::Known(v),
+                    Action::Debug(_) => (),
+                    Action::Binop { op, l, r, out } => {
+                        current[out] = State::Unknown;
+                        let v = |l| match l {
+                            Arg::Byte(v) => Some(v),
+                            Arg::Location(id) => match current[id] {
+                                State::Undefined => unreachable!(),
+                                State::Known(v) => Some(v),
+                                State::Unknown => None,
+                            },
                         };
 
-                        if let Some(v) = v {
-                            mem[out] = Memory::Byte(v);
-                            Some(Action::LoadConstant(v, out))
-                        } else {
-                            mem[out] = Memory::Undefined;
-                            None
+                        match (v(l), v(r)) {
+                            (Some(l), Some(r)) => {
+                                let v = match op {
+                                    Binop::Add => l.checked_add(r),
+                                    Binop::Sub => l.checked_sub(r),
+                                    Binop::Shl => l.checked_shl(r.into()).or(Some(0)),
+                                    Binop::Shr => l.checked_shr(r.into()).or(Some(0)),
+                                    Binop::Eq => Some(ctx.mk_bool(l == r)),
+                                    Binop::Neq => Some(ctx.mk_bool(l != r)),
+                                    Binop::Gt => Some(ctx.mk_bool(l > r)),
+                                    Binop::Gte => Some(ctx.mk_bool(l >= r)),
+                                    Binop::BitOr => Some(l | r),
+                                    Binop::BitAnd => Some(l & r),
+                                    Binop::BitXor => Some(l ^ r),
+                                }
+                                .expect("undefined op");
+                                current[out] = State::Known(v);
+                            }
+                            (Some(_), None) | (None, Some(_)) | (None, None) => (),
                         }
                     }
-                    (Memory::Byte(l), Memory::Unknown) => match op {
-                        Binop::Add | Binop::BitOr | Binop::BitXor if l == 0 => {
-                            Some(Action::Move(r.expect_location(), out))
+                    Action::FunctionCall {
+                        id: _,
+                        args: _,
+                        ref ret,
+                    } => {
+                        for &ret in ret {
+                            if let Some(out) = ret {
+                                current[out] = State::Unknown;
+                            }
                         }
-                        Binop::BitAnd if l == u8::MAX => {
-                            Some(Action::Move(r.expect_location(), out))
-                        }
-                        Binop::BitAnd if l == 0 => {
-                            mem[out] = Memory::Byte(0);
-                            Some(Action::LoadConstant(0, out))
-                        }
-                        Binop::Gt if l == 0 => {
-                            mem[out] = Memory::Byte(to_bool(false));
-                            Some(Action::LoadConstant(to_bool(false), out))
-                        }
-                        Binop::Gte if l == u8::MAX => {
-                            mem[out] = Memory::Byte(to_bool(true));
-                            Some(Action::LoadConstant(to_bool(true), out))
-                        }
-                        _ => Some(Action::Binop {
-                            op,
-                            l: Arg::Byte(l),
-                            r,
-                            out,
-                        }),
-                    },
-                    (Memory::Unknown, Memory::Byte(r)) => match op {
-                        Binop::Add | Binop::BitOr | Binop::BitXor | Binop::Shl | Binop::Shr
-                            if r == 0 =>
-                        {
-                            Some(Action::Move(l.expect_location(), out))
-                        }
-                        Binop::BitAnd if r == u8::MAX => {
-                            Some(Action::Move(l.expect_location(), out))
-                        }
-                        Binop::BitAnd if r == 0 => {
-                            mem[out] = Memory::Byte(0);
-                            Some(Action::LoadConstant(0, out))
-                        }
-                        Binop::Gt if r == u8::MAX => {
-                            mem[out] = Memory::Byte(to_bool(false));
-                            Some(Action::LoadConstant(to_bool(false), out))
-                        }
-                        Binop::Gte if r == 0 => {
-                            mem[out] = Memory::Byte(to_bool(true));
-                            Some(Action::LoadConstant(to_bool(true), out))
-                        }
-                        _ => Some(Action::Binop {
-                            op,
-                            l,
-                            r: Arg::Byte(r),
-                            out,
-                        }),
-                    },
-                    (Memory::Unknown, Memory::Unknown) => Some(self.clone()),
+                    }
+                    Action::Noop => (),
                 }
             }
-            Action::FunctionCall {
-                id,
-                ref args,
-                ref ret,
-            } => {
-                let args = args
-                    .iter()
-                    .map(|&a| {
-                        if let Some(Arg::Location(id)) = a {
-                            match mem[id] {
-                                Memory::Unknown => Some(Arg::Location(id)),
-                                Memory::Byte(v) => Some(Arg::Byte(v)),
-                                Memory::Undefined => None,
-                            }
-                        } else {
-                            a
+
+            match self.blocks[blk].terminator {
+                Terminator::Goto(Some(target)) => to_visit.push((current, target)),
+                Terminator::Goto(None) => (),
+                Terminator::Match(val, ref arms) => match current[val] {
+                    State::Undefined => unreachable!(),
+                    State::Known(v) => {
+                        if let Some(target) = arms
+                            .iter()
+                            .find(|arm| arm.pat == v)
+                            .unwrap_or_else(|| arms.last().unwrap())
+                            .target
+                        {
+                            to_visit.push((current, target))
                         }
-                    })
-                    .collect();
+                    }
+                    State::Unknown => {
+                        let (last, rst) = arms.split_last().unwrap();
 
-                for r in ret.iter().copied().filter_map(identity) {
-                    mem[r] = Memory::Unknown;
+                        for arm in rst.iter() {
+                            if let Some(target) = arm.target {
+                                let mut clone = current.clone();
+                                clone[val] = State::Known(arm.pat);
+                                to_visit.push((clone, target));
+                            }
+                        }
+
+                        if let Some(target) = last.target {
+                            to_visit.push((current, target));
+                        }
+                    }
+                },
+            }
+        }
+
+        initial_states
+    }
+}
+
+impl Block {
+    pub fn const_propagate(&mut self, ctx: &Context, mut loc: TVec<LocationId, State>) {
+        let mut step = StepId(0);
+        while step < self.steps.range_end() {
+            match self.steps[step] {
+                Action::Invert(i, o) => match loc[i] {
+                    State::Undefined => unreachable!(),
+                    State::Known(v) => {
+                        self.steps[step] = Action::Move(Arg::Byte(!v), o);
+                        loc[o] = State::Known(!v);
+                    }
+                    State::Unknown => loc[o] = State::Unknown,
+                },
+                Action::BlackBox(_, o) => loc[o] = State::Unknown,
+                Action::Move(Arg::Location(i), o) => {
+                    if let State::Known(v) = loc[i] {
+                        self.steps[step] = Action::Move(Arg::Byte(v), o);
+                        loc[o] = State::Known(v);
+                    } else {
+                        loc[o] = State::Unknown;
+                    }
                 }
+                Action::Move(Arg::Byte(v), o) => loc[o] = State::Known(v),
+                Action::Debug(_) => (),
+                Action::Binop { op, l, r, out } => {
+                    loc[out] = State::Unknown;
+                    let v = |l| match l {
+                        Arg::Byte(v) => Some(v),
+                        Arg::Location(id) => match loc[id] {
+                            State::Undefined => unreachable!(),
+                            State::Known(v) => Some(v),
+                            State::Unknown => None,
+                        },
+                    };
 
-                Some(Action::FunctionCall {
-                    id,
-                    args,
-                    ret: ret.clone(),
-                })
+                    match (v(l), v(r)) {
+                        (Some(l), Some(r)) => {
+                            let v = match op {
+                                Binop::Add => l.checked_add(r),
+                                Binop::Sub => l.checked_sub(r),
+                                Binop::Shl => l.checked_shl(r.into()).or(Some(0)),
+                                Binop::Shr => l.checked_shr(r.into()).or(Some(0)),
+                                Binop::Eq => Some(ctx.mk_bool(l == r)),
+                                Binop::Neq => Some(ctx.mk_bool(l != r)),
+                                Binop::Gt => Some(ctx.mk_bool(l > r)),
+                                Binop::Gte => Some(ctx.mk_bool(l >= r)),
+                                Binop::BitOr => Some(l | r),
+                                Binop::BitAnd => Some(l & r),
+                                Binop::BitXor => Some(l ^ r),
+                            }
+                            .expect("undefined op");
+                            self.steps[step] = Action::Move(Arg::Byte(v), out);
+                            loc[out] = State::Known(v);
+                        }
+                        (Some(l), None) => {
+                            self.steps[step] = Action::Binop {
+                                op,
+                                l: Arg::Byte(l),
+                                r,
+                                out,
+                            };
+
+                            match op {
+                                Binop::Gt => match l {
+                                    0 => {
+                                        self.steps[step] =
+                                            Action::Move(Arg::Byte(ctx.mk_bool(false)), out);
+                                        loc[out] = State::Known(ctx.mk_bool(false));
+                                    }
+                                    255 => {
+                                        self.steps[step] = Action::Binop {
+                                            op: Binop::Neq,
+                                            r,
+                                            l: Arg::Byte(255),
+                                            out,
+                                        }
+                                    }
+                                    _ => (),
+                                },
+                                Binop::Gte => match l {
+                                    0 => {
+                                        self.steps[step] = Action::Binop {
+                                            op: Binop::Eq,
+                                            r,
+                                            l: Arg::Byte(0),
+                                            out,
+                                        }
+                                    }
+                                    255 => {
+                                        self.steps[step] =
+                                            Action::Move(Arg::Byte(ctx.mk_bool(true)), out);
+                                        loc[out] = State::Known(ctx.mk_bool(true));
+                                    }
+                                    _ => (),
+                                },
+                                Binop::BitAnd => match l {
+                                    0 => {
+                                        self.steps[step] = Action::Move(Arg::Byte(0), out);
+                                        loc[out] = State::Known(0);
+                                    }
+                                    255 => self.steps[step] = Action::Move(r, out),
+                                    _ => (),
+                                },
+                                Binop::Add | Binop::BitOr | Binop::BitXor if l == 0 => {
+                                    self.steps[step] = Action::Move(r, out);
+                                }
+                                Binop::Shl | Binop::Shr if l == 0 => {
+                                    self.steps[step] = Action::Move(Arg::Byte(0), out);
+                                    loc[out] = State::Known(0);
+                                }
+                                _ => (),
+                            }
+                        }
+                        (None, Some(r)) => {
+                            self.steps[step] = Action::Binop {
+                                op,
+                                l,
+                                r: Arg::Byte(r),
+                                out,
+                            };
+
+                            match op {
+                                Binop::Gt => match r {
+                                    0 => {
+                                        self.steps[step] = Action::Binop {
+                                            op: Binop::Neq,
+                                            l,
+                                            r: Arg::Byte(0),
+                                            out,
+                                        }
+                                    }
+                                    255 => {
+                                        self.steps[step] =
+                                            Action::Move(Arg::Byte(ctx.mk_bool(false)), out);
+                                        loc[out] = State::Known(ctx.mk_bool(false));
+                                    }
+                                    _ => (),
+                                },
+                                Binop::Gte => match r {
+                                    0 => {
+                                        self.steps[step] =
+                                            Action::Move(Arg::Byte(ctx.mk_bool(true)), out);
+                                        loc[out] = State::Known(ctx.mk_bool(true));
+                                    }
+                                    255 => {
+                                        self.steps[step] = Action::Binop {
+                                            op: Binop::Eq,
+                                            l,
+                                            r: Arg::Byte(255),
+                                            out,
+                                        }
+                                    }
+                                    _ => (),
+                                },
+                                Binop::BitAnd => match r {
+                                    0 => {
+                                        self.steps[step] = Action::Move(Arg::Byte(0), out);
+                                        loc[out] = State::Known(0);
+                                    }
+                                    255 => self.steps[step] = Action::Move(l, out),
+                                    _ => (),
+                                },
+                                Binop::Add
+                                | Binop::Sub
+                                | Binop::Shl
+                                | Binop::Shr
+                                | Binop::BitOr
+                                | Binop::BitXor
+                                    if r == 0 =>
+                                {
+                                    self.steps[step] = Action::Move(l, out);
+                                }
+                                _ => (),
+                            }
+                        }
+                        (None, None) => (),
+                    }
+                }
+                Action::FunctionCall {
+                    id: _,
+                    ref mut args,
+                    ref ret,
+                } => {
+                    *args = args
+                        .iter()
+                        .map(|&a| {
+                            if let Some(Arg::Location(id)) = a {
+                                match loc[id] {
+                                    State::Undefined => None,
+                                    State::Known(v) => Some(Arg::Byte(v)),
+                                    State::Unknown => Some(Arg::Location(id)),
+                                }
+                            } else {
+                                a
+                            }
+                        })
+                        .collect();
+
+                    for &ret in ret {
+                        if let Some(out) = ret {
+                            loc[out] = State::Unknown;
+                        }
+                    }
+                }
+                Action::Noop => (),
+            }
+            step = step + 1;
+        }
+
+        match self.terminator {
+            Terminator::Goto(_) => (),
+            Terminator::Match(l, ref arms) => {
+                if let State::Known(v) = loc[l] {
+                    let arm = arms.iter().find(|arm| arm.pat == v).unwrap();
+                    self.terminator = Terminator::Goto(arm.target);
+                }
             }
         }
     }

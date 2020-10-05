@@ -3,7 +3,6 @@
 extern crate thread_profiler;
 
 use std::{
-    cmp,
     convert::{identity, TryInto},
     fmt, iter,
 };
@@ -12,7 +11,7 @@ use tindex::{TBitSet, TSlice, TVec};
 
 use shared_id::{BlockId, FunctionId, InputId, LocationId, TagId};
 
-use lir::{Action, Arg, Binop, Function, Lir, Terminator};
+use lir::{Action, Arg, Binop, Lir, Terminator};
 
 mod ctx;
 mod optimize;
@@ -199,10 +198,7 @@ pub fn convert(lir: &Lir) -> String {
                 .take(f.blocks.len())
                 .collect(),
             storage: iter::repeat_with(|| ctx.tm.next())
-                .take(cmp::max(
-                    f.return_length,
-                    f.blocks.iter().map(|b| b.memory_len).max().unwrap(),
-                ))
+                .take(f.memory_len)
                 .collect(),
         })
         .collect();
@@ -408,7 +404,7 @@ fn convert_block(
 
     let block = &lir.functions[f].blocks[b];
     /*
-    for l in (0..block.memory_len).map(LocationId) {
+    for l in (0..func.memory_len).map(LocationId) {
         commands.extend_from_slice(&[
             Command::Comment(Box::from(format!("dbg {}", l))),
             Command::Move(Readable::Block(data[f].storage[l]), Writeable::BlockAddr),
@@ -442,11 +438,22 @@ fn convert_block(
                     Command::Op(Operation::Invert, Writeable::Mem),
                 ]);
             }
-            Action::BlackBox(i, o) | Action::Move(i, o) => {
+            Action::BlackBox(i, o) | Action::Move(Arg::Location(i), o) => {
                 if i != o {
                     load_tag(&mut commands, data[f].storage[i], Writeable::A);
                     store_tag(&mut commands, data[f].storage[o], Readable::A);
                 }
+            }
+            Action::Move(Arg::Byte(v), o) => {
+                commands.extend_from_slice(&[
+                    Command::Move(Readable::Byte(v), Writeable::A),
+                    Command::Move(Readable::Block(data[f].storage[o]), Writeable::BlockAddr),
+                    Command::Move(
+                        Readable::Section(data[f].storage[o]),
+                        Writeable::SectionAddr,
+                    ),
+                    Command::Move(Readable::A, Writeable::Mem),
+                ]);
             }
             Action::Debug(i) => {
                 commands.extend_from_slice(&[
@@ -457,17 +464,6 @@ fn convert_block(
                     ),
                     Command::Move(Readable::Mem, Writeable::A),
                     Command::Debug,
-                ]);
-            }
-            Action::LoadConstant(v, o) => {
-                commands.extend_from_slice(&[
-                    Command::Move(Readable::Byte(v), Writeable::A),
-                    Command::Move(Readable::Block(data[f].storage[o]), Writeable::BlockAddr),
-                    Command::Move(
-                        Readable::Section(data[f].storage[o]),
-                        Writeable::SectionAddr,
-                    ),
-                    Command::Move(Readable::A, Writeable::Mem),
                 ]);
             }
             Action::Binop { op, l, r, out } => {
@@ -549,7 +545,7 @@ fn convert_block(
                 ref ret,
             } => {
                 let temporaries = if lir.may_recurse(f, b, s) {
-                    block.used_locations(s)
+                    lir.functions[f].used_locations(b, s)
                 } else {
                     TBitSet::new()
                 };
@@ -599,20 +595,29 @@ fn convert_block(
                     Command::Move(Readable::Byte(0), Writeable::SectionAddr),
                     Command::Move(Readable::A, Writeable::Mem),
                 ]);
+
                 if id == f {
-                    goto(
-                        &mut commands,
+                    commands.push(Command::Comment(Box::from(
+                        "move function arguments in position",
+                    )));
+                    terminator_memory(
                         ctx,
+                        &mut commands,
                         data,
-                        &lir.functions,
                         f,
-                        Some(BlockId(0)),
-                        args,
+                        (0..args.len()).map(LocationId),
+                        &args,
                     );
+                    commands.extend_from_slice(&[
+                        Command::Move(Readable::Block(data[id].blocks[BlockId(0)]), Writeable::C),
+                        Command::Return(
+                            Readable::C,
+                            Readable::Section(data[id].blocks[BlockId(0)]),
+                        ),
+                    ]);
                 } else {
                     let other = &lir.functions[id];
-                    let inputs = &other.blocks[BlockId(0)].inputs;
-                    assert_eq!(inputs.len(), args.len());
+                    assert_eq!(args.len(), other.input_len);
 
                     for chunk in Chunks::new(args.index_iter()) {
                         for (batch, i) in chunk.iter().copied().enumerate() {
@@ -642,7 +647,7 @@ fn convert_block(
                         }
 
                         for (batch, i) in chunk.iter().copied().enumerate() {
-                            let l = data[id].storage[inputs[i]];
+                            let l = data[id].storage[LocationId(i.0)];
                             commands.extend_from_slice(&[
                                 Command::Move(Readable::Block(l), Writeable::BlockAddr),
                                 Command::Move(Readable::Section(l), Writeable::SectionAddr),
@@ -666,6 +671,9 @@ fn convert_block(
                 // TODO: functions currently store their return values at
                 // the start of the memory storage, this could be improved
                 if id == f {
+                    commands.push(Command::Comment(Box::from(
+                        "move return values in position",
+                    )));
                     let args: TVec<_, _> = (0..)
                         .map(LocationId)
                         .zip(ret.iter())
@@ -754,13 +762,14 @@ fn convert_block(
                     ]);
                 }
             }
+            Action::Noop => (),
         }
     }
 
     commands.push(Command::Comment(Box::from(format!("{}", block.terminator))));
     match block.terminator {
-        Terminator::Goto(target, ref args) => {
-            goto(&mut commands, ctx, data, &lir.functions, f, target, args)
+        Terminator::Goto(target) => {
+            goto(&mut commands, ctx, data, f, target);
         }
         Terminator::Match(expr, ref arms) => {
             load_tag(&mut commands, data[f].storage[expr], Writeable::A);
@@ -780,29 +789,13 @@ fn convert_block(
                             Readable::Section(tag),
                         ))));
                     }
-                    goto(
-                        &mut commands,
-                        ctx,
-                        data,
-                        &lir.functions,
-                        f,
-                        arm.target,
-                        &arm.args,
-                    );
+                    goto(&mut commands, ctx, data, f, arm.target);
                     commands.push(Command::Tag(tag));
                 }
 
                 // we can ignore the condition of the last match arm
                 // as it would be UB if it did not match
-                goto(
-                    &mut commands,
-                    ctx,
-                    data,
-                    &lir.functions,
-                    f,
-                    last.target,
-                    &last.args,
-                );
+                goto(&mut commands, ctx, data, f, last.target);
             }
         }
     }
@@ -813,35 +806,18 @@ fn goto(
     commands: &mut Vec<Command>,
     ctx: &Context,
     data: &TSlice<FunctionId, FunctionData>,
-    functions: &TSlice<FunctionId, Function>,
     f: FunctionId,
     target: Option<BlockId>,
-    args: &TSlice<InputId, Option<Arg>>,
 ) {
     #[cfg(feature = "profiler")]
     profile_scope!("goto");
 
     if let Some(target) = target {
-        let inputs = functions[f].blocks[target].inputs.iter().copied();
-        terminator_memory(ctx, commands, data, f, inputs, args);
-        commands.push(Command::Move(
-            Readable::Block(data[f].blocks[target]),
-            Writeable::C,
-        ));
-        commands.push(Command::Return(
-            Readable::C,
-            Readable::Section(data[f].blocks[target]),
-        ));
+        commands.extend_from_slice(&[
+            Command::Move(Readable::Block(data[f].blocks[target]), Writeable::C),
+            Command::Return(Readable::C, Readable::Section(data[f].blocks[target])),
+        ]);
     } else {
-        terminator_memory(
-            ctx,
-            commands,
-            data,
-            f,
-            (0..args.len()).map(LocationId),
-            args,
-        );
-
         commands.extend_from_slice(&[
             Command::Move(Readable::Block(ctx.stack), Writeable::BlockAddr),
             Command::Move(Readable::Byte(0), Writeable::SectionAddr),
@@ -884,7 +860,6 @@ fn terminator_memory<I>(
 ) where
     I: Iterator<Item = LocationId>,
 {
-    let mut used = TBitSet::new();
     let mut bytes = Vec::new();
 
     let (args, targets): (Vec<LocationId>, Vec<LocationId>) = args
@@ -892,10 +867,7 @@ fn terminator_memory<I>(
         .zip(targets)
         .filter_map(|(&arg, target)| match (arg, target) {
             (None, _) => None,
-            (Some(Arg::Location(l)), r) if l == r => {
-                used.add(target);
-                None
-            }
+            (Some(Arg::Location(l)), r) if l == r => None,
             (Some(Arg::Byte(v)), target) => {
                 bytes.push((v, target));
                 None
