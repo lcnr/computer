@@ -16,7 +16,7 @@ boulder/tests/compile/type/structs/layered_fields.bo             164  1025
 boulder/tests/compile/type/structs/field_access.bo               495  2049
 boulder/tests/compile/type/structs/named_fields.bo               219  1025
 boulder/tests/compile/type/structs/init_field_order.bo            38   769
-boulder/tests/compile/type/infer.bo                            40985  5889
+boulder/tests/compile/type/infer.bo                            41349  5889
 boulder/tests/compile/type/match/if_expr.bo                      629  2305
 boulder/tests/compile/type/match/match_bool.bo                   141   769
 boulder/tests/compile/type/match/used.bo                         835  2305
@@ -32,7 +32,7 @@ boulder/tests/compile/modules/use_item.bo                         69   769
 boulder/tests/compile/modules/used.bo                             38   769
 boulder/tests/compile/modules/simple.bo                          250  1281
 boulder/tests/compile/modules/shadow_fn.bo                       270  1025
-boulder/tests/compile/loop/while_simple.bo                      2144  2305
+boulder/tests/compile/loop/while_simple.bo                      2194  2305
 boulder/tests/compile/loop/break_sum.bo                          264  1025
 boulder/tests/compile/loop/simple.bo                             135   769
 boulder/tests/compile/loop/positions.bo                          450  2049
@@ -45,8 +45,8 @@ boulder/tests/compile/unop/invert.bo                              38   769
 boulder/tests/compile/inline/matches.bo                          250  1281
 boulder/tests/compile/inline/simple.bo                            69   769
 boulder/tests/compile/inline/temp.bo                              76   769
-boulder/tests/compile/examples/fibonacci.bo                   164018  4609
-boulder/tests/compile/examples/primes.bo                     5403881  7937
+boulder/tests/compile/examples/fibonacci.bo                   165823  4609
+boulder/tests/compile/examples/primes.bo                     5403361  7681
 boulder/tests/compile/scope/temporaries.bo                       799  2049
 boulder/tests/compile/scope/ret.bo                               135   769
 boulder/tests/compile/scope/simple.bo                            135   769
@@ -67,8 +67,8 @@ boulder/tests/compile/binop/gt.bo                                393  1025
 boulder/tests/compile/binop/mul.bo                               135   769
 boulder/tests/compile/binop/gte.bo                                38   769
 boulder/tests/compile/binop/sub.bo                                76   769
-boulder/tests/compile/binop/miscompilation.co                  42739  7169
-boulder/tests/compile/binop/precendence.bo                       207  1281
+boulder/tests/compile/binop/miscompilation.co                  43058  7169
+boulder/tests/compile/binop/precendence.bo                       206  1025
 boulder/tests/compile/binop/shr.bo                               135   769
 boulder/tests/compile/binop/add.bo                               579  2049
 boulder/tests/compile/function/negate.bo                          92   769

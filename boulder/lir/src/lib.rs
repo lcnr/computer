@@ -33,14 +33,14 @@ pub enum Memory {
     Undefined,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum BoolOp {
     Eq,
     Gt,
     Gte,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Binop {
     Add,
     Sub,
@@ -52,13 +52,13 @@ pub enum Binop {
     BitXor,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Arg {
     Byte(u8),
     Location(LocationId),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Action {
     /// input must be a valid byte.
     Invert(LocationId, LocationId),
@@ -89,13 +89,13 @@ pub enum Action {
     Noop,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct MatchArm {
     pub pat: u8,
     pub target: Option<BlockId>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Terminator {
     Goto(Option<BlockId>),
     Match(LocationId, Vec<MatchArm>),
@@ -200,7 +200,7 @@ impl<'a> Function<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Block {
     pub steps: TVec<StepId, Action>,
     pub terminator: Terminator,

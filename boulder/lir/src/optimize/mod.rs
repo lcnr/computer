@@ -1,6 +1,6 @@
 use crate::{traits::Update, Action, Arg, Block, Function, Lir, MatchArm, Terminator};
 use shared_id::{BlockId, FunctionId};
-use std::{iter, mem};
+use std::{collections::HashMap, iter, mem};
 use tindex::{tvec, TBitSet, TVec};
 
 mod coloring;
@@ -187,6 +187,28 @@ impl<'a> Function<'a> {
             if !used.get(i) {
                 self.remove_block(i);
             }
+        }
+
+        self.merge_identical_blocks()
+    }
+
+    pub fn merge_identical_blocks(&mut self) {
+        let mut set = HashMap::new();
+        let mut block_ids: TVec<BlockId, BlockId> = self.blocks.index_iter().collect();
+        for b in self.blocks.index_iter() {
+            block_ids[b] = *set.entry(&self.blocks[b]).or_insert(b);
+        }
+
+        let mut changed = false;
+        for b in self.blocks.index_iter() {
+            if block_ids[b] != b {
+                changed = true;
+                self.update(|id: BlockId| block_ids[id]);
+            }
+        }
+
+        if changed {
+            self.remove_unused_blocks();
         }
     }
 

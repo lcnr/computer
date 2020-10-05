@@ -45,6 +45,17 @@ where
     }
 }
 
+impl<'a, F> Update<F, BlockId> for Function<'a>
+where
+    F: FnMut(BlockId) -> BlockId,
+{
+    fn update(&mut self, mut f: F) {
+        for block in self.blocks.iter_mut() {
+            block.update(&mut f);
+        }
+    }
+}
+
 impl<F> Update<F, BlockId> for Block
 where
     F: FnMut(BlockId) -> BlockId,
